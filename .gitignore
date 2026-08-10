@@ -1,0 +1,34 @@
+# Build
+.gradle/
+build/
+**/build/
+local.properties
+*.apk
+*.aab
+*.ap_
+*.dex
+captures/
+.externalNativeBuild/
+.cxx/
+*.hprof
+*.iml
+.idea/
+*.iws
+*.ipr
+out/
+.DS_Store
+
+# Worktrees (feature isolation)
+.worktrees/
+
+# Secrets / keys
+*.jks
+*.keystore
+keystore.properties
+google-services.json
+
+# JDK / SDK (machine-local)
+.sdk/
+
+# Logs
+*.log

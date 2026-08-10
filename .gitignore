@@ -1,35 +1,50 @@
-# Build
+# --- Android / Gradle build ---
 .gradle/
-build/
 **/build/
-local.properties
+build/
+.cxx/
+.externalNativeBuild/
+captures/
+out/
 *.apk
 *.aab
 *.ap_
 *.dex
-captures/
-.externalNativeBuild/
-.cxx/
 *.hprof
-*.iml
+
+# Kotlin / IDE
+.kotlin/
 .idea/
+*.iml
 *.iws
 *.ipr
-out/
-.DS_Store
+.project
+.classpath
+.settings/
+local.properties
 
-# Worktrees (feature isolation)
-.worktrees/
-
-# Secrets / keys
+# Machine / secrets
+.sdk/
 *.jks
 *.keystore
 keystore.properties
 google-services.json
+*.pem
 
-# JDK / SDK (machine-local)
-.sdk/
+# Worktrees (feature checkouts — never commit)
+.worktrees/
 
-# Logs
+# Local APK output (regenerate with assembleDebug)
+dist/*
+!dist/.gitkeep
+
+# Logs / OS junk
 *.log
-dist/
+.DS_Store
+Thumbs.db
+*~
+*.swp
+*.swo
+
+# Optional editor
+*.code-workspace

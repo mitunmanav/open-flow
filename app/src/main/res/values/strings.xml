@@ -6,6 +6,8 @@
     <string name="flow_bubble_idle">🎙 Tap to talk</string>
     <string name="flow_bubble_listening">Listening…</string>
     <string name="flow_bubble_need_mic">Allow mic in app</string>
+    <string name="flow_bubble_snooze_hint">Release to snooze</string>
+    <string name="flow_bubble_snoozed">Bubble snoozed 10 min</string>
     <string name="record">Record</string>
     <string name="stop">Stop</string>
     <string name="search_hint">Search transcripts…</string>

@@ -2,8 +2,8 @@
 <resources>
     <string name="app_name">Open Flow</string>
     <string name="a11y_service_label">Open Flow Bubble</string>
-    <string name="a11y_service_description">Open Flow uses Accessibility only to detect focused text fields and insert your on-device speech-to-text. It does not replace your keyboard. No cloud. No analytics. Password and phone fields are skipped.</string>
-    <string name="flow_bubble_idle">🎙 Flow</string>
+    <string name="a11y_service_description">Open Flow uses Accessibility only to detect focused text fields and insert your on-device speech-to-text. It does not replace your keyboard. Speak as long as you want while the bubble is listening — sessions auto-restart after OS pauses. No cloud. No analytics. Password fields skipped.</string>
+    <string name="flow_bubble_idle">🎙 Tap to talk</string>
     <string name="flow_bubble_listening">Listening…</string>
     <string name="record">Record</string>
     <string name="stop">Stop</string>
@@ -12,16 +12,16 @@
     <string name="privacy">Privacy</string>
     <string name="export">Export</string>
     <string name="settings">Settings</string>
-    <string name="enable_bubble_hint">Enable Open Flow in Accessibility so the floating mic bubble can type into any app. Keep your normal keyboard.</string>
+    <string name="enable_bubble_hint">Enable Open Flow in Accessibility for the floating bubble. Keep your normal keyboard.</string>
     <string name="permission_mic">Microphone is required to dictate and record.</string>
     <string name="offline_prefer">Prefer on-device speech recognition</string>
-    <string name="no_sessions">No recordings yet. Tap Record or add a demo session.</string>
+    <string name="no_sessions">No recordings yet. Tap demo session.</string>
     <string name="privacy_no_internet">No INTERNET permission. Voice stays on device by default.</string>
     <string name="recording_channel">Recording</string>
     <string name="recording_notification">Open Flow is recording</string>
     <string name="listening">Listening…</string>
     <string name="partial">Hearing…</string>
-    <string name="enable_flow_bubble">Enable Flow Bubble (Accessibility)</string>
-    <string name="grant_mic">Grant microphone</string>
-    <string name="how_it_works">How it works: keep Gboard (or any keyboard). Open Flow shows a floating bubble. Tap bubble → talk → text inserts in the focused field.</string>
+    <string name="enable_flow_bubble">1. Enable Flow Bubble</string>
+    <string name="grant_mic">2. Grant microphone</string>
+    <string name="how_it_works">Speak as long as you want. OS STT pauses every few seconds of silence — we auto-restart so dictation continues until you tap the bubble again.</string>
 </resources>

@@ -6,7 +6,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <!-- INTERNET intentionally omitted by default (privacy). Opt-in features will document re-adding it. -->
+    <!-- INTERNET intentionally omitted by default (privacy). -->
 
     <application
         android:name=".OpenFlowApp"
@@ -29,17 +29,18 @@
             </intent-filter>
         </activity>
 
+        <!-- Wispr Android style: floating bubble + accessibility (NOT a keyboard IME) -->
         <service
-            android:name=".ime.OpenFlowInputMethodService"
+            android:name=".bubble.FlowAccessibilityService"
             android:exported="true"
-            android:label="@string/ime_name"
-            android:permission="android.permission.BIND_INPUT_METHOD">
+            android:label="@string/a11y_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
-                <action android:name="android.view.InputMethod" />
+                <action android:name="android.accessibilityservice.AccessibilityService" />
             </intent-filter>
             <meta-data
-                android:name="android.view.im"
-                android:resource="@xml/method" />
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
         </service>
 
         <service

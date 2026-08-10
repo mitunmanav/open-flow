@@ -10,17 +10,31 @@ Also follow: `docs/PROCESS.md`, `SECURITY.md`, global `~/.grok/AGENTS.md` / `~/.
 
 **Open Flow** = FOSS Android app:
 
-1. **Wispr job** — speech-to-text into any app (voice IME / dictation). **STT only. Not TTS.**
+1. **Wispr job (Android style)** — speech-to-text into any app via **floating Flow Bubble** + **AccessibilityService**. **Not a keyboard / IME.** Keep user’s normal keyboard. **STT only. Not TTS.**
 2. **NeoSapien job** — record → transcript → searchable private memory on device.
 
 | Rule | Value |
 |------|--------|
 | Platform | Android only (for now) |
 | License | MIT / FOSS |
+| Dictation UX | Floating bubble (like Wispr Flow Android) — **never** require switching keyboard |
 | Default | Fully local, no account, no ads, no analytics |
 | Online | Opt-in only, off by default |
-| Moat | Habit (default keyboard) + personal history + trust — not secret code |
+| Moat | Habit (bubble always available) + personal history + trust — not secret code |
 | Niche | Privacy / FOSS users first |
+
+### Dictation architecture (locked)
+
+| Piece | Role |
+|-------|------|
+| Flow Bubble | Floating pill overlay; tap / hold to dictate |
+| AccessibilityService | Detect focused text field; insert transcript (`ACTION_SET_TEXT` / paste) |
+| Overlay type | Prefer `TYPE_ACCESSIBILITY_OVERLAY` from a11y service |
+| Keyboard | User keeps Gboard/etc. We do **not** replace IME |
+| Skip fields | Password, phone, numeric-sensitive — no bubble insert |
+| STT | On-device prefer (`SpeechRecognizer`) |
+
+**Do not build** voice-as-IME as the product path. Old IME code (if any) is legacy/dormant only.
 
 Full feature list lives in chat history / future `docs/FEATURES.md`. Ship in ordered features (F0…Fn), not one mega dump.
 
@@ -61,7 +75,7 @@ web search → plan file → worktree → TDD → security check → commit → 
 Before implementing a feature, search for:
 
 - Current Android / Kotlin / Compose / Room / SpeechRecognizer APIs
-- Security implications (permissions, storage, network, IME)
+- Security implications (permissions, storage, network, accessibility, overlay)
 - Known footguns (e.g. MediaRecorder + SpeechRecognizer mic exclusive)
 
 ### 2) Quick plan (required)
@@ -135,11 +149,12 @@ EOF
 | F3 | `03-search-export` | Search + export pure logic + tests |
 | F4 | `04-room` | Room sessions + FTS |
 | F5 | `05-stt` | SpeechRecognizer engine (on-device prefer) |
-| F6 | `06-ime` | Voice IME |
+| F6 | ~~`06-ime`~~ | **CANCELLED** — not product path |
 | F7 | `07-recorder` | Record + save session |
 | F8 | `08-timeline-ui` | Timeline + search UI |
 | F9 | `09-export-ui` | Export / share from UI |
-| F10+ | later | Whisper opt-in, sync opt-in, tiles, etc. |
+| F10 | `10-flow-bubble` | **Wispr Android path:** bubble + a11y insert |
+| F11+ | later | Whisper opt-in, sync opt-in, tiles, etc. |
 
 Later features only after earlier ones are on `main` or Mitun reorders.
 
@@ -173,14 +188,14 @@ export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-After IME feature: System → Keyboard → enable **Open Flow Voice**.
+After bubble: app → **Enable Flow Bubble** (Accessibility) + mic → text field → tap bubble → speak.
 
 ---
 
 ## Stack (target)
 
 - Kotlin, Jetpack Compose, Material 3
-- IME UI: Views (Compose-in-IME is fragile)
+- Dictation: AccessibilityService + floating Flow Bubble (**not** IME/keyboard)
 - STT: `android.speech.SpeechRecognizer` + on-device prefer
 - Storage: Room + FTS4
 - Crypto: EncryptedFile / Keystore when storing sensitive audio
@@ -197,6 +212,7 @@ After IME feature: System → Keyboard → enable **Open Flow Voice**.
 - Closed-source core
 - Re-litigate FOSS vs closed (decision: **FOSS**)
 - Re-add TTS as core goal (out of scope unless Mitun asks)
+- **Ship dictation as a keyboard / IME** (product = Wispr Android bubble)
 - Commit `.worktrees/`, `local.properties`, secrets
 - Force-push without explicit order
 - Delete `~/.claude/` or unrelated Mitun setup
@@ -229,3 +245,12 @@ Track mentally (or in todos): `ACTIVE_FEATURE`, `ACTIVE_WORKTREE`, `LAST_STEP`.
 ## Pickup line (for new chats)
 
 > Continue open-flow at `/home/mitun/open-flow` per AGENTS.md. Next feature from feature table. Worktree + plan + search + TDD + security + commit.
+
+---
+
+## Sub-agents (custom, hard)
+
+- **Maximum 5 sub-agents** at once for a task batch.
+- **No two sub-agents edit the same file** (or same path). Split by file ownership before spawn.
+- Superpowers still rules everything else (TDD, worktrees, plans, verify).
+- Prefer one agent for one feature branch when files overlap.

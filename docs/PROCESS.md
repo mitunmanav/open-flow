@@ -36,10 +36,11 @@ Do the side task, then **resume** the same feature/worktree/step. See `AGENTS.md
 | F3 | feat/03-search-export | TranscriptSearch + TranscriptExporter |
 | F4 | feat/04-room | Room sessions + FTS |
 | F5 | feat/05-stt | On-device SpeechRecognizer engine |
-| F6 | feat/06-ime | Voice IME |
+| F6 | cancelled | ~~Voice IME~~ — not product path |
 | F7 | feat/07-recorder | Record + save session |
 | F8 | feat/08-timeline-ui | Compose timeline + search |
 | F9 | feat/09-export-ui | Share/export files |
+| F10 | feat/10-flow-bubble | Floating bubble + a11y (Wispr Android) |
 
 ## Test on device
 

@@ -147,9 +147,9 @@ Roadmap: `docs/superpowers/plans/2026-08-10-master-fix-roadmap.md`
 ```
 Continue open-flow at /home/mitun/open-flow per AGENTS.md + docs/HANDOFF.md.
 Product: Wispr-style Flow Bubble (NOT IME) + local memory, MIT, offline STT.
-ACTIVE: .worktrees/chore-ponytail-cut · branch chore/ponytail-cut @ 824d8d2
-DID: ponytail cut (sessions/export/recorder shell/unused deps gone; dictations only). Tests+APK green. Handoff updated.
-NEXT: merge to main (ask Mitun) then F14 polish or F16 recorder.
-Do not resurrect dual Session* stack or empty RecordingService without real feature.
+ACTIVE: .worktrees/chore-ponytail-cut · branch chore/ponytail-cut
+DID: ponytail cut — sessions/export/empty recorder/unused deps gone; dictations only. Tests+APK green.
+NEXT: merge chore/ponytail-cut → main (ask Mitun), then F14 polish or F16 recorder.
+Do not resurrect dual Session* stack or empty RecordingService without real feature wire.
 Rebuild APK to Desktop when shipping.
 ```

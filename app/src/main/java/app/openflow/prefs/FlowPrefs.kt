@@ -127,6 +127,35 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         get() = normalizeRetention(store.getString("retention", "keep"))
         set(v) = store.putString("retention", normalizeRetention(v))
 
+    /** Last dictation session — raw STT (in-app copy; no auto-clipboard). */
+    var lastSessionRaw: String
+        get() = store.getString("last_session_raw", "")
+        set(v) = store.putString("last_session_raw", v)
+
+    /** Last dictation session — cleaned text after local pipeline. */
+    var lastSessionClean: String
+        get() = store.getString("last_session_clean", "")
+        set(v) = store.putString("last_session_clean", v)
+
+    /** Alias for call sites that use shorter names. */
+    var lastRawText: String
+        get() = lastSessionRaw
+        set(v) {
+            lastSessionRaw = v
+        }
+
+    /** Alias for call sites that use shorter names. */
+    var lastCleanText: String
+        get() = lastSessionClean
+        set(v) {
+            lastSessionClean = v
+        }
+
+    fun setLastSession(raw: String, clean: String) {
+        lastSessionRaw = raw
+        lastSessionClean = clean
+    }
+
     fun homeModules(): List<LayoutPrefs.Module> =
         LayoutPrefs.parseModules(homeLayout, LayoutPrefs.HOME_MODULES)
 

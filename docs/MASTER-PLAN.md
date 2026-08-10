@@ -728,3 +728,135 @@ gitignored at root:
 | **Notely Voice** | closest memo alt; F-Droid free but Play paywall angers users |
 | **Our edge** | one app = bubble + memos + history + private FOSS. Beats stack of FUTO+Notely+Fossify+hope. |
 | **Risk** | "another Whisper keyboard" if surface is just one job. Must win BOTH jobs. |
+
+
+---
+
+## 22. LLM / STT model research (019feb59:133-203)
+
+Voco strategic lookup of smallest usable LLMs and runtimes for Android (2026). Informs the **On-device AI opt-in** bucket (V2 per MASTER-PLAN §8.3).
+
+### Model candidates (source: 019feb59 lines 133-160)
+
+Model candidates table (Qwen 2.5 0.5B / Llama 3.2 1B / Phi-3.5 mini / Gemma 2 2B / Qwen 2.5 1.5B — sizes, RAM, speed, quality, license notes) extracted in `info/sessions/01-strategic-voco.txt` lines 133-160. **MIT recommendations:** Phi-3.5 (safest) or Gemma 2 (use-case restrictions). **Avoid:** Llama community weights (Meta license viral).
+
+**Recommended pick (019feb59 line 148):** Qwen 2.5 0.5B Q4_K_M — 400 MB, opt-in, summarises 30-min transcript fine.
+
+**MVP verdict (019feb59 line 159):** Skip LLM entirely for MVP. Use Android's built-in STT only. LLM is V2.
+
+### Runtime options
+
+| Runtime | Best for | Notes |
+|---------|---------|-------|
+| **llama.cpp (JNI)** | Most mature | MIT. CPU + GPU. **Recommended for open-flow.** |
+| MediaPipe LLM Inference | Google's offering | Limited model list |
+| MNN / ncnn | Smaller, custom builds | More setup |
+| ONNX Runtime | Cross-platform | Slower on Android |
+
+### License caveat (019feb59 line 157)
+
+Most GGUF builds from TheBloke/unsloth are derivative — must check. Safest: bundle Google's Gemma 2 2B (Gemma license allows redistribution with use-case restrictions) or Microsoft's Phi-3.5 (MIT). Avoid Llama community weights (Meta license = viral).
+
+### STT engine options (019feb59 lines 212-280)
+
+| Engine | Langs | App size | Status | License |
+|--------|-------|----------|--------|---------|
+| Android STT (OS) | ~60 | 0 MB | ✅ MVP | Free |
+| Whisper-tiny | 99 | 75 MB | V2 opt-in | MIT (OpenAI) |
+| Whisper-small | 99 | 500 MB | V3 opt-in | MIT (OpenAI) |
+| Whisper-medium | 99 | 1.5 GB | Skip | too heavy |
+
+---
+
+## 23. Brand themes explored (019fec01:340-460)
+
+User asked for visual styles "totally unique, not AI slop." Agent walked through 3 rounds of proposals. Full HTML mockups in `info/mockups/2026-08-10-brainstorm/` (14 files).
+
+### Round 1 (rejected as "AI soup")
+A: Calm Pro (clean blue, short CTAs, quiet trust). B: Speed Sharp (dark, neon, bold marketer). C: Soft Human (warm, gentle copy). **All killed.**
+
+### Round 2 (raw, ownable) — also killed
+A: Field Mic (olive-black, amber LED, ARM BUBBLE, hardware). B: Ribbon Ink (newsprint, black type, hard capsule, ink-blue rule). C: High-Vis Tool (charcoal + blaze orange, squared CTAs, octagon control). **All killed next round.**
+
+### Round 3 (web-grounded, design systems)
+A: Swiss Grid (International Typographic Style — black/white + pure red, hard square bubble, Helvetica weight). B: Neo-Brutal Catalog (Gumroad-class neo-brutal — yellow, thick black, offset shadow, pink punch). C: Dense Channel (Are.na-class dense utility — warm grey stacks, mono status, lozenge bubble). **All killed.**
+
+### Final pick chain
+1. **Subtle brutal:** cream / charcoal / ink blue, thick borders, hard shadows. NOT yellow/pink/lime loud. Brand voice "Field Mic" / "Lab Specimen" / "Teletype roll" all rejected by user ("colors are quirky").
+2. **M3 soft (Material You):** Calm Pro default, system M3 typography. **THIS SHIPPED.** `feat/product-m3` -> main `ba78aeb`.
+3. **Brutal worktree parked** at `feat/product-brutal`. UI implementation exists but no user wants it. Live at `localhost:51765` "M3 + subtle brutal together" page.
+
+### Mobile-app screen themes (019fec01:462-490)
+A: **Teletype roll** — paper tape history, `[ ARM ]` CTAs, stamp bubble `MIC`. B: **Metro map** — subway header, station list history, `F` bullet bubble. C: **Lab specimen** — glass cards, specimen rows, **reticle** bubble (dot + cross, no text).
+
+**Locked (019fec01 line 491):** M3 with bubble-transcript OFF by default (chrome-only). Final screens in `info/mockups/2026-08-10-brainstorm/app-screens-m3-android-docs.html`.
+
+---
+
+## 24. Permission matrix full (019feb59:296-304)
+
+| Permission | When requested | MVP? | Note |
+|------------|----------------|------|------|
+| RECORD_AUDIO | Recording + STT | ✅ always | Required for STT and recorder |
+| POST_NOTIFICATIONS | Foreground service (Android 13+) | ⚠️ partial | Currently NOT declared; add when FGS ships |
+| FOREGROUND_SERVICE | Recording in background | ❌ not yet | Add in F16 (recorder) with type `microphone` |
+| READ_MEDIA_AUDIO | Import existing audio file | ❌ not yet | V3 import feature |
+| INTERNET | Only if opt-in cloud feature enabled | ✅ declared + NSC-blocked | Cannot remove at runtime; NSC workaround |
+| WAKE_LOCK | Background record | ❌ not yet | V2 background record |
+| BIOMETRIC | Optional vault lock (V2) | ❌ not yet | Defer to V2 |
+
+### Forbidden perms (never declare)
+- QUERY_ALL_PACKAGES — never
+- READ_CONTACTS — never
+- READ_SMS — never
+- All location permissions — never
+
+### Currently declared in AndroidManifest.xml (verified reading code 2026-08-10)
+- RECORD_AUDIO ✅
+- INTERNET ✅ (blocked by `network_security_config.xml`)
+- AccessibilityService binding (`BIND_ACCESSIBILITY_SERVICE`) ✅
+
+### Missing permissions to add per drop
+- POST_NOTIFICATIONS + FOREGROUND_SERVICE + `microphone` type — when F16 recorder ships (V2/V3).
+- WAKE_LOCK — same drop.
+
+
+---
+
+## 25. Ponytail cut — exact manifest (019febaa:28-44)
+
+When `chore/ponytail-cut` (`0867d3d`) merged as `e5d0137`, 16 specific items were removed in one diff. **Net: -569 / +56 lines + -4 deps.**
+
+### Files deleted
+| Item | File / location |
+|------|-----------------|
+| Session dual stack | `data/Session*`, `data/OpenFlowDatabase` wire, `OpenFlowApp` |
+| TranscriptSearch | `search/TranscriptSearch.kt` (no prod callers) |
+| TranscriptExporter + ExportSession | `export/*` (F9 not wired) |
+| Empty RecordingService shell + manifest entry | `recorder/RecordingService.kt` |
+| SttConfig (3-field helper, engine builds Intent inline) | `stt/SttConfig.kt` |
+| `FocusResolver` (34-line extract) | `bubble/FocusResolver.kt` |
+| `polish()` + `applyDictAndSnippets` double-work path | `bubble/FlowAccessibilityService.kt` |
+
+### Specific dead fields removed
+- `PrivacyDefaults` 5-flag data class (nothing toggled them) -> `privacy/PrivacyDefaults.kt` shrunk to static string
+- `SessionEntity.tags` / `SessionEntity.notes` unused fields
+- `TextPostProcessor.Style.VERY_CASUAL` (same branch as CASUAL)
+- `SttEngine.Listener.onSessionTick` (always empty at call site)
+
+### Build.gradle deps removed
+- `androidx.navigation:navigation-compose` (no NavHost)
+- `androidx.lifecycle:lifecycle-viewmodel-compose` (no ViewModel)
+- `androidx.security:security-crypto` (no EncryptedFile use)
+- `material-icons-extended` -> checked back IN (Book / ShortText / Style icons need it) — final cut was 3 deps, not 4
+- `androidTestImplementation` deps (no androidTest sources)
+- `buildConfig = true` (no BuildConfig refs)
+
+### Build settings kept
+- `material-icons-extended` re-added during audit (icons needed)
+- Dictations-only (single path), no Session+Dictation dual forever
+
+### What this prevents
+Re-adding these will pull back 569 lines + 3 unused deps. If a future feature needs `RecordingService`, build it fresh for the actual recorder purpose, do not resurrect the empty shell. Same for `TranscriptExporter`, `TranscriptSearch`, `SessionRepository`.
+
+Source: `info/sessions/02-ponytail-cut.txt` lines 28-46 (audit), 56-74 (cut details).

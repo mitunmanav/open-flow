@@ -1,33 +1,20 @@
-# Open Flow — session handoff
+# Open Flow — handoff
 
-**Updated:** 2026-08-10  
-**Repo:** `/home/mitun/open-flow`  
-**Branch:** `main`  
-**Spec:** `docs/superpowers/specs/2026-08-10-ui-redesign-design.md`  
-**Plan:** `docs/superpowers/plans/2026-08-10-ui-redesign-drop1.md`  
-**Baseline:** `docs/BASELINE.md`
+**main tip:** Drop 1 + Drop 2 UI shipped  
+**Desktop APK:** `open-flow-debug.apk` (Drop 2)
 
 ## Product
-Flow Bubble + a11y (NOT IME). Local STT. MIT. No INTERNET.
+Bubble + a11y NOT IME. Local STT. MIT.
 
-## Last done — UI redesign Drop 1
-- Drawer + Home hub (calm pro)
-- Settings → Appearance / Bubble
-- **Bubble shows live partial + final text**
-- History screen; bottom nav removed
-- APK on Desktop: `open-flow-debug.apk`
+## Done
+- Drop 1: drawer hub, bubble live text, Appearance
+- Drop 2: Home layout modules, Menu item visibility, bubble pulse
+
+## Settings
+Appearance · Bubble · Home layout · Menu items
 
 ## NEXT
-- Drop 2: Home modules · nav visibility · more custom knobs
-- F15 export · F16 recorder
+F15 export · F16 recorder
 
-## Phone check
-1. Menu ☰ → destinations  
-2. Theme Appearance  
-3. Tap bubble → **words appear on bubble** while speaking  
-4. Text inserts into field  
-
-## Paste
-```
-Continue open-flow. Drop 1 UI done. Bubble live text fixed. NEXT Drop 2 custom or F15/F16.
-```
+## Phone
+Install Desktop APK. ☰ menu. Settings → customize Home/Menu. Bubble shows words.

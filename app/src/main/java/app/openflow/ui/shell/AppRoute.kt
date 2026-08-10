@@ -17,10 +17,11 @@ enum class AppRoute(val title: String, val navId: String? = null) {
     Sounds("Sounds"),
 }
 
-/** Bottom bar — simple primary path. */
+/** Bottom bar primary destinations. */
 val BottomBarRoutes = listOf(
     AppRoute.Home,
     AppRoute.History,
+    AppRoute.Dictionary,
     AppRoute.Settings,
 )
 

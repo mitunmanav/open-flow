@@ -7,6 +7,10 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.pm.PackageManager
 import android.graphics.PixelFormat
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -34,9 +38,10 @@ import kotlin.math.abs
 
 /**
  * Wispr-style Flow Bubble + continuous on-device STT insert.
- * Features: long-press PTT, drag, snooze, post-process, dictionary/snippets, history.
+ * Features: long-press PTT, drag, snooze, post-process, dictionary/snippets, history,
+ * bank package hide, shrink modes, shake unsnooze, listen pulse (F14).
  */
-class FlowAccessibilityService : AccessibilityService() {
+class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
     private var windowManager: WindowManager? = null
     private var bubbleView: View? = null
@@ -51,12 +56,30 @@ class FlowAccessibilityService : AccessibilityService() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var prefs: FlowPrefs? = null
     private var sessionBuffer = StringBuilder()
+    private var lastPackage: String? = null
+    private var sensorManager: SensorManager? = null
+    private var accelerometer: Sensor? = null
+    private val shakeDetector = ShakeDetector()
+    private var shakeRegistered = false
+    private var pulseUp = true
+
+    private val pulseRunnable = object : Runnable {
+        override fun run() {
+            if (!listening) return
+            val base = prefs?.bubbleOpacity ?: 0.8f
+            bubbleView?.alpha = if (pulseUp) base else (base * 0.55f)
+            pulseUp = !pulseUp
+            mainHandler.postDelayed(this, 400L)
+        }
+    }
 
     private val app: OpenFlowApp get() = application as OpenFlowApp
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         prefs = FlowPrefs(this)
+        sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
+        accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
         serviceInfo = (serviceInfo ?: AccessibilityServiceInfo()).apply {
             eventTypes = AccessibilityEvent.TYPE_VIEW_FOCUSED or
                 AccessibilityEvent.TYPE_VIEW_CLICKED or
@@ -77,7 +100,12 @@ class FlowAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            event.packageName?.toString()?.let { lastPackage = it }
+            refreshBubbleVisibility()
+        }
         if (prefs?.isSnoozed() == true) return
+        if (PackagePolicy.shouldHideBubble(lastPackage)) return
         when (event.eventType) {
             AccessibilityEvent.TYPE_VIEW_FOCUSED,
             AccessibilityEvent.TYPE_VIEW_CLICKED -> {
@@ -93,6 +121,7 @@ class FlowAccessibilityService : AccessibilityService() {
             AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
                 rootInActiveWindow?.let { root ->
                     try {
+                        root.packageName?.toString()?.let { lastPackage = it }
                         findFocusedEditable(root)?.let { node ->
                             updateFocusFrom(node)
                             @Suppress("DEPRECATION")
@@ -112,6 +141,8 @@ class FlowAccessibilityService : AccessibilityService() {
     }
 
     override fun onDestroy() {
+        stopPulse()
+        unregisterShake()
         stopListening(save = false)
         hideBubble()
         stt?.destroy()
@@ -124,6 +155,24 @@ class FlowAccessibilityService : AccessibilityService() {
         instance = null
         super.onDestroy()
     }
+
+    override fun onSensorChanged(event: SensorEvent?) {
+        if (event == null || event.sensor.type != Sensor.TYPE_ACCELEROMETER) return
+        if (prefs?.isSnoozed() != true) return
+        val hit = shakeDetector.onAccel(
+            event.values[0],
+            event.values[1],
+            event.values[2],
+            System.currentTimeMillis()
+        )
+        if (hit) {
+            prefs?.clearSnooze()
+            refreshBubbleVisibility()
+            Toast.makeText(this, R.string.flow_bubble_unsnooze_shake, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
 
     private fun updateFocusFrom(node: AccessibilityNodeInfo) {
         val target = when {
@@ -190,8 +239,9 @@ class FlowAccessibilityService : AccessibilityService() {
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         val view = LayoutInflater.from(this).inflate(R.layout.flow_bubble, null)
         bubbleLabel = view.findViewById(R.id.bubble_label)
-        val p = prefs ?: FlowPrefs(this)
-        val scale = p.bubbleScale
+        if (prefs == null) prefs = FlowPrefs(this)
+        val p = prefs!!
+        val scale = effectiveScale()
         val opacity = p.bubbleOpacity
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -299,11 +349,58 @@ class FlowAccessibilityService : AccessibilityService() {
 
     private fun refreshBubbleVisibility() {
         val snoozed = prefs?.isSnoozed() == true
-        bubbleView?.visibility = if (snoozed) View.GONE else View.VISIBLE
+        val bankHide = PackagePolicy.shouldHideBubble(lastPackage)
+        val hide = snoozed || bankHide
+        bubbleView?.visibility = if (hide) View.GONE else View.VISIBLE
+        if (snoozed) registerShake() else unregisterShake()
+        if (!hide && !listening) applyModeLabel()
+    }
+
+    private fun registerShake() {
+        if (shakeRegistered) return
+        val sm = sensorManager ?: return
+        val accel = accelerometer ?: return
+        sm.registerListener(this, accel, SensorManager.SENSOR_DELAY_UI)
+        shakeRegistered = true
+    }
+
+    private fun unregisterShake() {
+        if (!shakeRegistered) return
+        sensorManager?.unregisterListener(this)
+        shakeRegistered = false
+    }
+
+    private fun effectiveScale(): Float {
+        val p = prefs ?: return 0.85f
+        val modeMul = when (FlowPrefs.normalizeBubbleMode(p.bubbleMode)) {
+            "compact" -> 0.65f
+            "dot" -> 0.42f
+            else -> 1f
+        }
+        return p.bubbleScale * modeMul
+    }
+
+    private fun applyModeLabel() {
+        if (listening) return
+        when (FlowPrefs.normalizeBubbleMode(prefs?.bubbleMode ?: "full")) {
+            "dot" -> bubbleLabel?.text = "🎙"
+            else -> renderIdle()
+        }
+    }
+
+    private fun startPulse() {
+        stopPulse()
+        pulseUp = true
+        mainHandler.post(pulseRunnable)
+    }
+
+    private fun stopPulse() {
+        mainHandler.removeCallbacks(pulseRunnable)
     }
 
     private fun setBubbleEmphasis(hasField: Boolean) {
-        bubbleView?.alpha = if (hasField || listening) {
+        if (listening) return // pulse owns alpha while listening
+        bubbleView?.alpha = if (hasField) {
             (prefs?.bubbleOpacity ?: 0.9f)
         } else {
             (prefs?.bubbleOpacity ?: 0.8f) * 0.75f
@@ -327,6 +424,7 @@ class FlowAccessibilityService : AccessibilityService() {
         listening = true
         sessionBuffer = StringBuilder()
         listenStartedAt = SystemClock.elapsedRealtime()
+        startPulse()
         bubbleLabel?.text = getString(R.string.flow_bubble_listening)
         setBubbleEmphasis(true)
         val lang = prefs?.languageTag ?: java.util.Locale.getDefault().toLanguageTag()
@@ -383,6 +481,7 @@ class FlowAccessibilityService : AccessibilityService() {
     private fun stopListening(save: Boolean) {
         listening = false
         pushToTalk = false
+        stopPulse()
         stt?.stop()
         if (save && sessionBuffer.isNotBlank()) {
             val text = sessionBuffer.toString()
@@ -395,7 +494,7 @@ class FlowAccessibilityService : AccessibilityService() {
             }
         }
         sessionBuffer = StringBuilder()
-        renderIdle()
+        applyModeLabel()
         setBubbleEmphasis(focusedEditable != null)
     }
 
@@ -489,8 +588,9 @@ class FlowAccessibilityService : AccessibilityService() {
 
     fun applyPrefsVisual() {
         val p = prefs ?: return
-        bubbleView?.scaleX = p.bubbleScale
-        bubbleView?.scaleY = p.bubbleScale
+        val s = effectiveScale()
+        bubbleView?.scaleX = s
+        bubbleView?.scaleY = s
         bubbleParams?.alpha = p.bubbleOpacity
         bubbleView?.let { v ->
             bubbleParams?.let { params ->
@@ -500,6 +600,7 @@ class FlowAccessibilityService : AccessibilityService() {
                 }
             }
         }
+        if (!listening) applyModeLabel()
         refreshBubbleVisibility()
     }
 

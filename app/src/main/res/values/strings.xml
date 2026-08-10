@@ -8,6 +8,11 @@
     <string name="flow_bubble_need_mic">Allow mic in app</string>
     <string name="flow_bubble_snooze_hint">Release to snooze</string>
     <string name="flow_bubble_snoozed">Bubble snoozed 10 min</string>
+    <string name="flow_bubble_unsnooze_shake">Shake — bubble back</string>
+    <string name="bubble_mode_full">Full</string>
+    <string name="bubble_mode_compact">Compact</string>
+    <string name="bubble_mode_dot">Dot</string>
+    <string name="bubble_mode_hint">Hides on bank/auth apps. Shake to unsnooze.</string>
     <string name="record">Record</string>
     <string name="stop">Stop</string>
     <string name="search_hint">Search transcripts…</string>

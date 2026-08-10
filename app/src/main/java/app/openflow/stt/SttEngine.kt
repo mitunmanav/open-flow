@@ -34,7 +34,6 @@ class SttEngine(
         fun onError(message: String, fatal: Boolean)
         fun onReady()
         fun onListeningChanged(listening: Boolean)
-        fun onSessionTick(sessionIndex: Int)
         fun onNeedMicPermission() {}
     }
 
@@ -132,7 +131,6 @@ class SttEngine(
         }
         try {
             val n = sessionCount.incrementAndGet()
-            listener?.onSessionTick(n)
             val needNew = forceRecreate ||
                 recognizer == null ||
                 policy.shouldRecreateRecognizer(n)
@@ -286,16 +284,15 @@ class SttEngine(
     }
 
     private fun buildIntent(languageTag: String): Intent {
-        val cfg = SttConfig(preferOnDevice = preferOnDevice)
         return Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(
                 RecognizerIntent.EXTRA_LANGUAGE_MODEL,
                 RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
             )
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, languageTag)
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, cfg.partialResults)
-            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, cfg.maxResults)
-            if (cfg.preferOnDevice) {
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+            if (preferOnDevice) {
                 putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
             }
             putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 2_000L)
@@ -310,3 +307,4 @@ class SttEngine(
         }
     }
 }
+

@@ -342,12 +342,8 @@ class FlowAccessibilityService : AccessibilityService() {
             }
 
             override fun onFinal(text: String) {
-                val cleaned = polish(text)
-                if (cleaned.isNotBlank()) {
-                    insertText(cleaned)
-                    if (sessionBuffer.isNotEmpty()) sessionBuffer.append(' ')
-                    sessionBuffer.append(cleaned)
-                    copyToClipboard(cleaned)
+                if (text.isNotBlank()) {
+                    insertText(text)
                 }
                 val elapsed = (SystemClock.elapsedRealtime() - listenStartedAt) / 1000
                 bubbleLabel?.text = "Listening ${elapsed}s · stop"
@@ -380,8 +376,6 @@ class FlowAccessibilityService : AccessibilityService() {
                 listening = isOn
                 if (!isOn) renderIdle()
             }
-
-            override fun onSessionTick(sessionIndex: Int) {}
         })
         stt?.startContinuous(lang)
     }
@@ -405,16 +399,7 @@ class FlowAccessibilityService : AccessibilityService() {
         setBubbleEmphasis(focusedEditable != null)
     }
 
-    private fun polish(raw: String): String {
-        var t = raw
-        // snippets + dictionary applied async-safe: use last cached maps if needed
-        // For simplicity, blocking-ish on Main is bad — use empty if not loaded
-        // Apply pure post-process always
-        t = TextPostProcessor.process(t, prefs?.style() ?: TextPostProcessor.Style.CASUAL)
-        return t
-    }
-
-    private fun applyDictAndSnippets(text: String, onDone: (String) -> Unit) {
+    private fun polish(text: String, onDone: (String) -> Unit) {
         scope.launch {
             val dict = app.dictations.dictionaryMap()
             val snip = app.dictations.snippetMap()
@@ -425,15 +410,36 @@ class FlowAccessibilityService : AccessibilityService() {
         }
     }
 
+    /** Prefer live FOCUS_INPUT; fall back to cached node. */
+    private fun resolveEditable(
+        root: AccessibilityNodeInfo?,
+        cached: AccessibilityNodeInfo?
+    ): AccessibilityNodeInfo? {
+        if (root != null) {
+            val focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+            if (focused != null) {
+                if (isUsableEditable(focused)) return focused
+                val nested = findEditableInSubtree(focused)
+                @Suppress("DEPRECATION")
+                focused.recycle()
+                if (nested != null) return nested
+            }
+        }
+        if (cached != null && isUsableEditable(cached)) {
+            @Suppress("DEPRECATION")
+            return AccessibilityNodeInfo.obtain(cached)
+        }
+        return null
+    }
+
     private fun insertText(spoken: String) {
-        applyDictAndSnippets(spoken) { finalText ->
+        polish(spoken) { finalText ->
+            if (finalText.isBlank()) return@polish
+            if (sessionBuffer.isNotEmpty()) sessionBuffer.append(' ')
+            sessionBuffer.append(finalText)
+            copyToClipboard(finalText)
             val root = rootInActiveWindow
-            val node = FocusResolver.resolveEditable(
-                root = root,
-                cached = focusedEditable,
-                isUsable = { isUsableEditable(it) },
-                findInSubtree = { findEditableInSubtree(it) }
-            )
+            val node = resolveEditable(root, focusedEditable)
             try {
                 root?.let {
                     @Suppress("DEPRECATION")
@@ -441,9 +447,9 @@ class FlowAccessibilityService : AccessibilityService() {
                 }
             } catch (_: Exception) {
             }
-            if (node == null) return@applyDictAndSnippets
+            if (node == null) return@polish
             try {
-                if (!isUsableEditable(node)) return@applyDictAndSnippets
+                if (!isUsableEditable(node)) return@polish
                 val merged = FieldPolicy.mergeInsert(node.text, finalText)
                 val args = Bundle().apply {
                     putCharSequence(

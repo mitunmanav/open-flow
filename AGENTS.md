@@ -154,7 +154,8 @@ EOF
 | F8 | `08-timeline-ui` | Timeline + search UI |
 | F9 | `09-export-ui` | Export / share from UI |
 | F10 | `10-flow-bubble` | **Wispr Android path:** bubble + a11y insert |
-| F11+ | later | Whisper opt-in, sync opt-in, tiles, etc. |
+| F11 | `11-continuous-ui` | Long speech restart + UI polish |
+| F12+ | later | Recorder, Whisper opt-in, sync, tiles |
 
 Later features only after earlier ones are on `main` or Mitun reorders.
 

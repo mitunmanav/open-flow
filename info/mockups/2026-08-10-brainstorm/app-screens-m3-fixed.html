@@ -1,0 +1,171 @@
+<h2>Open Flow — M3 screens (fixed layout)</h2>
+<p class="subtitle">Previous phones broke because they used the frame’s <code>.option</code> flex class. This page uses only mockup + card patterns. Pick direction below.</p>
+
+<div class="section">
+  <p class="label">What broke last time</p>
+  <ul style="margin-left:1.2rem;font-size:0.9rem;color:var(--text-secondary);">
+    <li><code>.option { display:flex }</code> was on the phone root → layout exploded</li>
+    <li><code>.status</code> collided with the companion header status style</li>
+    <li>Too many screens in one broken grid</li>
+  </ul>
+</div>
+
+<!-- HOME MOCKUP -->
+<div class="mockup">
+  <div class="mockup-header">Screen: Home (Material 3)</div>
+  <div class="mockup-body" style="background:#FFFBFE;color:#1C1B1F;font-family:system-ui,sans-serif;max-width:360px;margin:0 auto;border-radius:12px;overflow:hidden;border:1px solid #CAC4D0;">
+    <div style="display:flex;align-items:center;padding:8px 4px;gap:4px;">
+      <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;font-size:18px;">=</div>
+      <div style="flex:1;font-size:22px;">Home</div>
+      <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;font-size:16px;">Search</div>
+    </div>
+    <div style="padding:0 16px 16px;">
+      <div style="background:#E8DEF8;border-radius:16px;padding:16px;margin-bottom:12px;">
+        <div style="font-size:16px;font-weight:600;margin-bottom:4px;">Finish setup</div>
+        <div style="font-size:14px;color:#49454F;margin-bottom:12px;line-height:1.4;">Enable Accessibility so the bubble can insert text in any app.</div>
+        <div style="display:inline-block;background:#6750A4;color:#fff;padding:10px 20px;border-radius:20px;font-size:14px;font-weight:500;">Enable Flow Bubble</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <div style="flex:1;background:#F7F2FA;border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:11px;color:#49454F;">Words</div>
+          <div style="font-size:18px;font-weight:600;">12.4k</div>
+        </div>
+        <div style="flex:1;background:#F7F2FA;border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:11px;color:#49454F;">Streak</div>
+          <div style="font-size:18px;font-weight:600;">9</div>
+        </div>
+        <div style="flex:1;background:#F7F2FA;border-radius:12px;padding:12px;text-align:center;">
+          <div style="font-size:11px;color:#49454F;">Cleanup</div>
+          <div style="font-size:18px;font-weight:600;">Med</div>
+        </div>
+      </div>
+      <div style="font-size:14px;font-weight:600;margin-bottom:8px;">Today</div>
+      <div style="padding:12px 0;border-bottom:1px solid #E7E0EC;">
+        <div style="font-size:16px;">Meeting slipped to Monday…</div>
+        <div style="font-size:13px;color:#49454F;">2:02 PM · polished</div>
+      </div>
+      <div style="padding:12px 0;border-bottom:1px solid #E7E0EC;">
+        <div style="font-size:16px;">Send calendar — /cal</div>
+        <div style="font-size:13px;color:#49454F;">1:40 PM · snippet</div>
+      </div>
+      <div style="padding:12px 0;">
+        <div style="font-size:16px;">Oat milk, not milk</div>
+        <div style="font-size:13px;color:#49454F;">11:18 AM · course-correct</div>
+      </div>
+    </div>
+    <div style="position:relative;height:72px;background:#FFFBFE;">
+      <div style="position:absolute;right:16px;bottom:16px;width:56px;height:56px;border-radius:16px;background:#6750A4;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;">MIC</div>
+    </div>
+  </div>
+</div>
+
+<!-- BUBBLE SETTINGS MOCKUP -->
+<div class="mockup" style="margin-top:1.5rem;">
+  <div class="mockup-header">Screen: Bubble settings</div>
+  <div class="mockup-body" style="background:#FFFBFE;color:#1C1B1F;font-family:system-ui,sans-serif;max-width:360px;margin:0 auto;border-radius:12px;overflow:hidden;border:1px solid #CAC4D0;">
+    <div style="display:flex;align-items:center;padding:8px 4px;">
+      <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;">&lt;</div>
+      <div style="font-size:22px;">Bubble</div>
+    </div>
+    <div style="margin:8px 16px 16px;background:#E7E0EC;border-radius:16px;height:100px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;">
+      <div style="width:56px;height:56px;border-radius:28px;background:#6750A4;display:flex;align-items:center;justify-content:center;gap:3px;">
+        <div style="width:3px;height:10px;background:#fff;border-radius:1px;"></div>
+        <div style="width:3px;height:18px;background:#fff;border-radius:1px;"></div>
+        <div style="width:3px;height:14px;background:#fff;border-radius:1px;"></div>
+        <div style="width:3px;height:20px;background:#fff;border-radius:1px;"></div>
+      </div>
+      <div style="font-size:11px;color:#49454F;">Listening · no caption text</div>
+    </div>
+    <div style="padding:0 16px 20px;">
+      <div style="font-size:11px;font-weight:600;color:#6750A4;margin-bottom:8px;">SHAPE</div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <div style="flex:1;height:48px;border-radius:12px;background:#E8DEF8;border:2px solid #6750A4;display:flex;align-items:center;justify-content:center;"><div style="width:22px;height:22px;border-radius:11px;background:#6750A4;"></div></div>
+        <div style="flex:1;height:48px;border-radius:12px;background:#F7F2FA;display:flex;align-items:center;justify-content:center;"><div style="width:28px;height:16px;border-radius:8px;background:#CAC4D0;"></div></div>
+        <div style="flex:1;height:48px;border-radius:12px;background:#F7F2FA;display:flex;align-items:center;justify-content:center;"><div style="width:20px;height:20px;border-radius:4px;background:#CAC4D0;"></div></div>
+        <div style="flex:1;height:48px;border-radius:12px;background:#F7F2FA;display:flex;align-items:center;justify-content:center;"><div style="width:10px;height:10px;border-radius:5px;background:#CAC4D0;"></div></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:14px;margin-bottom:6px;"><span>Size</span><span style="color:#49454F;">85%</span></div>
+      <div style="height:4px;background:#E7E0EC;border-radius:2px;margin-bottom:16px;"><div style="width:70%;height:4px;background:#6750A4;border-radius:2px;"></div></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;min-height:48px;">
+        <div>
+          <div style="font-size:16px;">Show speech on bubble</div>
+          <div style="font-size:13px;color:#49454F;">Off — waveform only</div>
+        </div>
+        <div style="width:52px;height:32px;border-radius:16px;background:#E7E0EC;position:relative;flex-shrink:0;">
+          <div style="width:24px;height:24px;border-radius:12px;background:#fff;position:absolute;top:4px;left:4px;box-shadow:0 1px 2px rgba(0,0,0,.2);"></div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;min-height:48px;">
+        <div>
+          <div style="font-size:16px;">Haptics + edge snap</div>
+          <div style="font-size:13px;color:#49454F;">On</div>
+        </div>
+        <div style="width:52px;height:32px;border-radius:16px;background:#6750A4;position:relative;flex-shrink:0;">
+          <div style="width:24px;height:24px;border-radius:12px;background:#fff;position:absolute;top:4px;right:4px;box-shadow:0 1px 2px rgba(0,0,0,.2);"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTOMIZE MOCKUP -->
+<div class="mockup" style="margin-top:1.5rem;">
+  <div class="mockup-header">Screen: Customize hub (Settings pattern)</div>
+  <div class="mockup-body" style="background:#FFFBFE;color:#1C1B1F;font-family:system-ui,sans-serif;max-width:360px;margin:0 auto;border-radius:12px;overflow:hidden;border:1px solid #CAC4D0;">
+    <div style="display:flex;align-items:center;padding:8px 4px;">
+      <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;">&lt;</div>
+      <div style="font-size:22px;">Customize</div>
+    </div>
+    <div style="padding:8px 0 16px;">
+      <div style="padding:8px 16px;font-size:11px;font-weight:600;color:#6750A4;">LOOK</div>
+      <div style="padding:14px 16px;display:flex;justify-content:space-between;border-bottom:1px solid #E7E0EC;">
+        <div><div style="font-size:16px;">Appearance</div><div style="font-size:13px;color:#49454F;">System · light · dark</div></div>
+        <div style="color:#49454F;">&gt;</div>
+      </div>
+      <div style="padding:14px 16px;display:flex;justify-content:space-between;border-bottom:1px solid #E7E0EC;">
+        <div><div style="font-size:16px;">Bubble</div><div style="font-size:13px;color:#49454F;">Shape · size · no text</div></div>
+        <div style="color:#49454F;">&gt;</div>
+      </div>
+      <div style="padding:16px 16px 8px;font-size:11px;font-weight:600;color:#6750A4;">SPEECH</div>
+      <div style="padding:14px 16px;display:flex;justify-content:space-between;border-bottom:1px solid #E7E0EC;">
+        <div><div style="font-size:16px;">Cleanup level</div><div style="font-size:13px;color:#49454F;">None · Light · Medium · High</div></div>
+        <div style="color:#49454F;">&gt;</div>
+      </div>
+      <div style="padding:14px 16px;display:flex;justify-content:space-between;">
+        <div><div style="font-size:16px;">History &amp; privacy</div><div style="font-size:13px;color:#49454F;">Export · retention · flags</div></div>
+        <div style="color:#49454F;">&gt;</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:2rem;">
+  <p class="label">Does this layout render clean?</p>
+  <div class="options">
+    <div class="option" data-choice="ok-continue" onclick="toggleSelect(this)">
+      <div class="letter">A</div>
+      <div class="content">
+        <h3>YES — screens look fine</h3>
+        <p>Lock M3 system. Next: remaining screens then full design doc.</p>
+      </div>
+    </div>
+    <div class="option" data-choice="still-broken" onclick="toggleSelect(this)">
+      <div class="letter">B</div>
+      <div class="content">
+        <h3>Still broken / ugly</h3>
+        <p>Tell me what is wrong (layout, color, copy, structure).</p>
+      </div>
+    </div>
+    <div class="option" data-choice="skip-browser" onclick="toggleSelect(this)">
+      <div class="letter">C</div>
+      <div class="content">
+        <h3>Skip browser mockups</h3>
+        <p>Write design as markdown in the repo only. No more companion HTML.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <p class="subtitle" style="margin:0;">Also type here: A / B / C — or describe the bug in one line.</p>
+</div>

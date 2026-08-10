@@ -1,0 +1,121 @@
+<h2>IA fix — no duplicates</h2>
+<p class="subtitle">
+  Rule: if it’s on <b>Home</b> or the <b>bottom bar</b>, it does <b>not</b> appear again in the navbar.
+  Navbar = extras only.
+</p>
+
+<div class="section">
+  <p class="label">Logical map (locked proposal)</p>
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>Home body (keys, not nav links)</h4>
+      <ul>
+        <li>Setup CTA (conditional)</li>
+        <li>QUICK chips: Cleanup · Lang · Copy last · Export · Test</li>
+        <li>Stats strip</li>
+        <li>Recent list (snippet of history — not a “History tab”)</li>
+      </ul>
+      <h4 style="margin-top:0.75rem;">Bottom bar (3 only)</h4>
+      <ul>
+        <li>Home</li>
+        <li>Dictionary</li>
+        <li>Snippets</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>Navbar / drawer (extras only — no overlap)</h4>
+      <ul>
+        <li><b>Settings</b> (hub: Appearance · Bubble · Privacy · Sounds · Lang packs…)</li>
+        <li><b>Style</b></li>
+        <li><b>History</b> (full search / flag / export — more than Home recent)</li>
+        <li><b>Customize</b> (home modules · menu visibility)</li>
+      </ul>
+      <p style="margin-top:0.5rem;font-size:0.85rem;"><b>Never in drawer:</b> Home · Dict · Snips · Cleanup chip · Copy last</p>
+    </div>
+  </div>
+</div>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">Home + bottom — primary</div>
+    <div class="mockup-body" style="background:#FFFBFE;color:#1C1B1F;font-family:system-ui,sans-serif;border:1px solid #CAC4D0;border-radius:10px;overflow:hidden;max-width:320px;">
+      <div style="display:flex;align-items:center;min-height:48px;">
+        <div style="width:44px;text-align:center;">≡</div>
+        <div style="flex:1;font-size:18px;">Home</div>
+        <div style="width:44px;text-align:center;font-size:12px;">⌕</div>
+      </div>
+      <div style="padding:0 12px 10px;">
+        <div style="background:#E8DEF8;border-radius:10px;padding:10px;margin-bottom:8px;font-size:12px;">
+          <b>Finish setup</b><br>
+          <span style="display:inline-block;margin-top:6px;background:#6750A4;color:#fff;padding:6px 10px;border-radius:14px;font-size:11px;">Enable bubble</span>
+        </div>
+        <div style="font-size:10px;font-weight:600;color:#6750A4;margin-bottom:6px;">ON THIS SCREEN ONLY</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
+          <span style="background:#E8DEF8;padding:6px 8px;border-radius:6px;font-size:11px;">Cleanup</span>
+          <span style="background:#E8DEF8;padding:6px 8px;border-radius:6px;font-size:11px;">en-US</span>
+          <span style="border:1px solid #79747E;padding:6px 8px;border-radius:6px;font-size:11px;">Copy last</span>
+        </div>
+        <div style="font-size:11px;font-weight:600;margin-bottom:4px;">Recent</div>
+        <div style="font-size:12px;padding:6px 0;border-bottom:1px solid #E7E0EC;">Meeting…</div>
+        <div style="font-size:12px;padding:6px 0;">Oat milk…</div>
+      </div>
+      <div style="display:flex;border-top:1px solid #E7E0EC;background:#F7F2FA;font-size:10px;min-height:52px;">
+        <div style="flex:1;text-align:center;padding:12px 0;color:#6750A4;font-weight:600;">Home</div>
+        <div style="flex:1;text-align:center;padding:12px 0;color:#49454F;">Dict</div>
+        <div style="flex:1;text-align:center;padding:12px 0;color:#49454F;">Snips</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">Navbar — extras only (no Home/Dict/Snips)</div>
+    <div class="mockup-body" style="background:#F7F2FA;color:#1C1B1F;font-family:system-ui,sans-serif;border:1px solid #CAC4D0;border-radius:10px;padding:12px;min-height:260px;max-width:320px;">
+      <div style="font-size:16px;font-weight:500;margin-bottom:4px;">More</div>
+      <div style="font-size:11px;color:#79747E;margin-bottom:10px;">Not duplicated from bottom or Home keys</div>
+      <div style="background:#E8DEF8;border-radius:20px;padding:12px 14px;font-size:14px;font-weight:600;margin-bottom:6px;">Settings</div>
+      <div style="padding:10px 14px;font-size:14px;color:#49454F;">Style</div>
+      <div style="padding:10px 14px;font-size:14px;color:#49454F;">History</div>
+      <div style="padding:10px 14px;font-size:14px;color:#49454F;">Customize</div>
+      <div style="margin-top:12px;padding:10px;background:#FFFBFE;border-radius:8px;font-size:11px;color:#B3261E;line-height:1.4;">
+        ✕ Removed from navbar: Home, Dictionary, Snippets, Cleanup, Copy last
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:1.25rem;">
+  <p class="label">Why this is cleaner</p>
+  <ul style="margin-left:1.2rem;font-size:0.9rem;color:var(--text-secondary);line-height:1.5;">
+    <li>Bottom = go somewhere primary (3 places)</li>
+    <li>Home = do something now (chips + recent)</li>
+    <li>Drawer = configure / deeper tools (Settings + Style + full History + Customize)</li>
+    <li>One place per job — no twin links</li>
+  </ul>
+</div>
+
+<div class="section">
+  <p class="label">Approve no-duplicate IA?</p>
+  <div class="options">
+    <div class="option" data-choice="approve-no-dup" onclick="toggleSelect(this)">
+      <div class="letter">A</div>
+      <div class="content">
+        <h3>YES — lock this IA</h3>
+        <p>Then pick skin: M3 soft or subtle brutal (separate choice).</p>
+      </div>
+    </div>
+    <div class="option" data-choice="history-on-home-only" onclick="toggleSelect(this)">
+      <div class="letter">B</div>
+      <div class="content">
+        <h3>Drop History from drawer too</h3>
+        <p>Full history only expands from Home recent / search. Drawer = Settings · Style · Customize only.</p>
+      </div>
+    </div>
+    <div class="option" data-choice="tweak-list" onclick="toggleSelect(this)">
+      <div class="letter">C</div>
+      <div class="content">
+        <h3>I’ll rename the lists</h3>
+        <p>Type exact bottom + drawer items in chat.</p>
+      </div>
+    </div>
+  </div>
+</div>

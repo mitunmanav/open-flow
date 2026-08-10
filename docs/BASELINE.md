@@ -260,7 +260,7 @@ echo "sdk.dir=$ANDROID_HOME" > local.properties
 | `docs/FEATURES.md` | Wispr A–Z matrix |
 | `docs/PROCESS.md` | Process |
 | `SECURITY.md` | Security defaults |
-| `docs/superpowers/plans/*` | Per-feature plans |
+| `docs/process/plans/*` | Per-feature plans |
 | **This file** | Full baseline + history |
 
 ---

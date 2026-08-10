@@ -244,4 +244,4 @@ Proof before claim done:
 - Design sections 1–3 approved YES (2026-08-10)  
 - Bubble transcript bug called out and included in Drop 1  
 
-**Next after Mitun reviews this file:** invoke **writing-plans** → `docs/superpowers/plans/2026-08-10-ui-redesign-drop1.md` → implement.
+**Next after Mitun reviews this file:** invoke **writing-plans** → `docs/process/plans/2026-08-10-ui-redesign-drop1.md` → implement.

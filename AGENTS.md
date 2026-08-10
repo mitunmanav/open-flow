@@ -82,7 +82,7 @@ Before implementing a feature, search for:
 
 ### 2) Quick plan (required)
 
-Write: `docs/superpowers/plans/YYYY-MM-DD-<feature-id>-<slug>.md`
+Write: `docs/process/plans/YYYY-MM-DD-<feature-id>-<slug>.md`
 
 Must include: goal, files, TDD steps, security notes, how Mitun tests on device.
 
@@ -170,7 +170,7 @@ open-flow/                 # main git root
 ├── AGENTS.md              # this file
 ├── SECURITY.md
 ├── docs/PROCESS.md
-├── docs/superpowers/plans/
+├── docs/process/plans/
 ├── .worktrees/            # gitignored; feature checkouts
 └── app/                   # Android module
 ```

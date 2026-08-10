@@ -1,6 +1,6 @@
 # Plan: Research drop · dual worktrees · dual skins
 
-**Spec:** `docs/superpowers/specs/2026-08-10-research-drop-dual-skin-design.md`  
+**Spec:** `docs/process/specs/2026-08-10-research-drop-dual-skin-design.md`  
 **Base:** `main` @ current tip  
 
 ## Worktrees

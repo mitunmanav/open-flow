@@ -1,0 +1,421 @@
+<style>
+  .row { display:flex; flex-wrap:wrap; gap:24px; justify-content:center; margin:12px 0; }
+  .phone {
+    width: 300px; border-radius: 32px; overflow: hidden;
+    box-shadow: 0 12px 36px rgba(0,0,0,.18); border: 8px solid #1C1B1F;
+    background: #FFFBFE; font-family: Roboto, system-ui, sans-serif;
+  }
+  .status { height: 24px; background: #E8DEF8; display:flex; align-items:center; justify-content:space-between; padding:0 14px; font-size:10px; color:#1C1B1F; }
+  .body { min-height: 540px; position: relative; background: #FFFBFE; }
+  .cap { width:300px; font-size:12px; color:#555; margin-top:8px; line-height:1.45; }
+  .cap b { color:#1C1B1F; }
+  .src { font-size:11px; color:#6750A4; margin-top:4px; }
+</style>
+
+<h2>Open Flow screens — from Android + M3 docs</h2>
+<p class="subtitle">Not teletype / metro / lab. Built from Material 3 Compose, settings patterns, lists, FAB, modal drawer, a11y touch targets.</p>
+
+<div class="section">
+  <p class="label">Doc anchors used</p>
+  <ul style="font-size:12px;line-height:1.55;color:#555;">
+    <li><a href="https://developer.android.com/develop/ui/compose/designsystems/material3" target="_blank">M3 in Compose</a> — color roles, type scale, shapes, tonal elevation, dynamic color</li>
+    <li><a href="https://developer.android.com/develop/ui/compose/components/drawer" target="_blank">Modal navigation drawer</a></li>
+    <li><a href="https://developer.android.com/design/ui/mobile/guides/patterns/settings" target="_blank">Settings pattern</a> — list → sub-screens, categories</li>
+    <li><a href="https://developer.android.com/design/ui/mobile/guides/layout-and-content/common-layouts" target="_blank">Common layouts</a> — list / list-detail</li>
+    <li><a href="https://m3.material.io/components/floating-action-button/guidelines" target="_blank">FAB</a> — primary action, circular control (maps to overlay bubble)</li>
+    <li><a href="https://developer.android.com/design/ui/mobile/guides/foundations/accessibility" target="_blank">A11y</a> — 48dp targets, 4.5:1 text, content descriptions</li>
+  </ul>
+</div>
+
+<div class="row">
+
+  <!-- HOME -->
+  <div>
+    <div class="phone option" data-choice="home-m3" onclick="toggleSelect(this)">
+      <div class="status"><span>9:41</span><span>LTE · 84%</span></div>
+      <div class="body">
+        <!-- Top app bar M3 -->
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 8px 8px 4px;">
+          <div style="width:48px;height:48px;border-radius:24px;display:flex;align-items:center;justify-content:center;color:#49454F;">☰</div>
+          <div style="flex:1;">
+            <div style="font-size:22px;font-weight:400;color:#1C1B1F;">Home</div>
+          </div>
+          <div style="width:48px;height:48px;border-radius:24px;display:flex;align-items:center;justify-content:center;color:#49454F;">⌕</div>
+        </div>
+
+        <div style="padding:0 16px 80px;">
+          <!-- Setup banner: filled tonal card -->
+          <div style="background:#E8DEF8;border-radius:16px;padding:16px;margin-bottom:12px;">
+            <div style="font-size:16px;font-weight:500;color:#1D192B;margin-bottom:4px;">Finish setup</div>
+            <div style="font-size:14px;color:#49454F;line-height:20px;margin-bottom:12px;">Turn on Accessibility so the bubble can insert text in any app.</div>
+            <div style="display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 24px;background:#6750A4;color:#fff;border-radius:20px;font-size:14px;font-weight:500;">Enable Flow Bubble</div>
+          </div>
+
+          <!-- Secondary outlined action -->
+          <div style="border:1px solid #79747E;border-radius:16px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;min-height:48px;">
+            <div style="width:40px;height:40px;border-radius:20px;background:#E8DEF8;display:flex;align-items:center;justify-content:center;font-size:18px;">🎙</div>
+            <div style="flex:1;">
+              <div style="font-size:14px;font-weight:500;color:#1C1B1F;">Microphone</div>
+              <div style="font-size:12px;color:#49454F;">Allowed</div>
+            </div>
+            <div style="color:#6750A4;font-size:12px;font-weight:500;">OK</div>
+          </div>
+
+          <!-- Stats chips row -->
+          <div style="display:flex;gap:8px;margin-bottom:16px;">
+            <div style="flex:1;background:#F7F2FA;border-radius:12px;padding:12px;text-align:center;">
+              <div style="font-size:11px;color:#49454F;">Words</div>
+              <div style="font-size:18px;font-weight:500;color:#1C1B1F;">12.4k</div>
+            </div>
+            <div style="flex:1;background:#F7F2FA;border-radius:12px;padding:12px;text-align:center;">
+              <div style="font-size:11px;color:#49454F;">Streak</div>
+              <div style="font-size:18px;font-weight:500;color:#1C1B1F;">9</div>
+            </div>
+            <div style="flex:1;background:#F7F2FA;border-radius:12px;padding:12px;text-align:center;">
+              <div style="font-size:11px;color:#49454F;">Cleanup</div>
+              <div style="font-size:18px;font-weight:500;color:#1C1B1F;">Med</div>
+            </div>
+          </div>
+
+          <div style="font-size:14px;font-weight:500;color:#1C1B1F;margin-bottom:8px;">Today</div>
+
+          <!-- M3 list items 56–88dp -->
+          <div style="display:flex;gap:16px;padding:12px 0;border-bottom:1px solid #E7E0EC;min-height:56px;">
+            <div style="flex:1;">
+              <div style="font-size:16px;color:#1C1B1F;line-height:24px;">Meeting slipped to Monday…</div>
+              <div style="font-size:14px;color:#49454F;">2:02 PM · polished</div>
+            </div>
+            <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;color:#49454F;">☆</div>
+          </div>
+          <div style="display:flex;gap:16px;padding:12px 0;border-bottom:1px solid #E7E0EC;min-height:56px;">
+            <div style="flex:1;">
+              <div style="font-size:16px;color:#1C1B1F;line-height:24px;">Send calendar — /cal</div>
+              <div style="font-size:14px;color:#49454F;">1:40 PM · snippet</div>
+            </div>
+            <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;color:#6750A4;">★</div>
+          </div>
+          <div style="display:flex;gap:16px;padding:12px 0;min-height:56px;">
+            <div style="flex:1;">
+              <div style="font-size:16px;color:#1C1B1F;line-height:24px;">Oat milk, not milk</div>
+              <div style="font-size:14px;color:#49454F;">11:18 AM · course-correct</div>
+            </div>
+            <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;color:#49454F;">☆</div>
+          </div>
+        </div>
+
+        <!-- Overlay bubble = M3 FAB style circle, NO text (icon only) -->
+        <div style="position:absolute;right:20px;bottom:24px;width:56px;height:56px;border-radius:16px;background:#6750A4;box-shadow:0 4px 8px rgba(103,80,164,.35);display:flex;align-items:center;justify-content:center;">
+          <div style="width:22px;height:22px;border-radius:50%;border:2px solid #fff;position:relative;">
+            <div style="position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);width:8px;height:6px;border:2px solid #fff;border-top:0;border-radius:0 0 4px 4px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="cap"><b>1 · Home</b> — Top app bar + search · primary filled CTA · list history · 48dp icon targets · overlay = FAB-size control, mic icon only (no transcript)</div>
+    <div class="src">M3 app bar · lists · filled button · FAB size 56dp</div>
+  </div>
+
+  <!-- CUSTOMIZE / SETTINGS HUB -->
+  <div>
+    <div class="phone option" data-choice="settings-m3" onclick="toggleSelect(this)">
+      <div class="status" style="background:#E8DEF8;"><span>9:41</span><span>LTE · 84%</span></div>
+      <div class="body">
+        <div style="display:flex;align-items:center;padding:8px 4px;">
+          <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;">←</div>
+          <div style="font-size:22px;color:#1C1B1F;">Customize</div>
+        </div>
+        <div style="padding:8px 0 24px;">
+          <div style="padding:8px 16px;font-size:11px;font-weight:500;color:#6750A4;letter-spacing:.05em;">LOOK</div>
+          <!-- Preference rows -->
+          <div style="display:flex;padding:12px 16px;min-height:56px;align-items:center;gap:16px;">
+            <div style="width:40px;height:40px;border-radius:20px;background:#E8DEF8;display:flex;align-items:center;justify-content:center;">◐</div>
+            <div style="flex:1;">
+              <div style="font-size:16px;color:#1C1B1F;">Appearance</div>
+              <div style="font-size:14px;color:#49454F;">System · light · dark</div>
+            </div>
+            <div style="color:#49454F;">›</div>
+          </div>
+          <div style="display:flex;padding:12px 16px;min-height:56px;align-items:center;gap:16px;">
+            <div style="width:40px;height:40px;border-radius:20px;background:#E8DEF8;display:flex;align-items:center;justify-content:center;">◉</div>
+            <div style="flex:1;">
+              <div style="font-size:16px;color:#1C1B1F;">Bubble</div>
+              <div style="font-size:14px;color:#49454F;">Shape · size · no text</div>
+            </div>
+            <div style="color:#49454F;">›</div>
+          </div>
+
+          <div style="padding:16px 16px 8px;font-size:11px;font-weight:500;color:#6750A4;letter-spacing:.05em;">HOME & MENU</div>
+          <div style="display:flex;padding:12px 16px;min-height:56px;align-items:center;gap:16px;">
+            <div style="width:40px;height:40px;border-radius:20px;background:#E8DEF8;display:flex;align-items:center;justify-content:center;">▦</div>
+            <div style="flex:1;">
+              <div style="font-size:16px;color:#1C1B1F;">Home modules</div>
+              <div style="font-size:14px;color:#49454F;">Order & visibility</div>
+            </div>
+            <div style="color:#49454F;">›</div>
+          </div>
+          <div style="display:flex;padding:12px 16px;min-height:56px;align-items:center;gap:16px;">
+            <div style="width:40px;height:40px;border-radius:20px;background:#E8DEF8;display:flex;align-items:center;justify-content:center;">≡</div>
+            <div style="flex:1;">
+              <div style="font-size:16px;color:#1C1B1F;">Menu items</div>
+              <div style="font-size:14px;color:#49454F;">Drawer destinations</div>
+            </div>
+            <div style="color:#49454F;">›</div>
+          </div>
+
+          <div style="padding:16px 16px 8px;font-size:11px;font-weight:500;color:#6750A4;letter-spacing:.05em;">SPEECH</div>
+          <div style="display:flex;padding:12px 16px;min-height:56px;align-items:center;gap:16px;">
+            <div style="width:40px;height:40px;border-radius:20px;background:#E8DEF8;display:flex;align-items:center;justify-content:center;">✦</div>
+            <div style="flex:1;">
+              <div style="font-size:16px;color:#1C1B1F;">Cleanup level</div>
+              <div style="font-size:14px;color:#49454F;">None · Light · Medium · High</div>
+            </div>
+            <div style="color:#49454F;">›</div>
+          </div>
+          <div style="display:flex;padding:12px 16px;min-height:56px;align-items:center;gap:16px;">
+            <div style="width:40px;height:40px;border-radius:20px;background:#E8DEF8;display:flex;align-items:center;justify-content:center;">🗂</div>
+            <div style="flex:1;">
+              <div style="font-size:16px;color:#1C1B1F;">History & privacy</div>
+              <div style="font-size:14px;color:#49454F;">Export · retention · flags</div>
+            </div>
+            <div style="color:#49454F;">›</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="cap"><b>2 · Customize hub</b> — Android Settings pattern: categories + preference rows + sub-screens. One place for features 1–15 knobs.</div>
+    <div class="src">developer.android.com · Settings pattern · organize hierarchy</div>
+  </div>
+
+  <!-- BUBBLE SETTINGS -->
+  <div>
+    <div class="phone option" data-choice="bubble-m3" onclick="toggleSelect(this)">
+      <div class="status" style="background:#E8DEF8;"><span>9:41</span><span>LTE · 84%</span></div>
+      <div class="body">
+        <div style="display:flex;align-items:center;padding:8px 4px;">
+          <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;">←</div>
+          <div style="font-size:22px;color:#1C1B1F;">Bubble</div>
+        </div>
+
+        <!-- Live preview surface -->
+        <div style="margin:8px 16px 16px;background:#E7E0EC;border-radius:16px;height:120px;position:relative;display:flex;align-items:center;justify-content:center;">
+          <div style="font-size:11px;color:#49454F;position:absolute;top:10px;left:12px;">Preview</div>
+          <!-- circle shape selected -->
+          <div style="width:56px;height:56px;border-radius:28px;background:#6750A4;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.2);">
+            <!-- waveform bars instead of text -->
+            <div style="display:flex;align-items:flex-end;gap:3px;height:20px;">
+              <div style="width:3px;height:8px;background:#fff;border-radius:1px;"></div>
+              <div style="width:3px;height:16px;background:#fff;border-radius:1px;"></div>
+              <div style="width:3px;height:12px;background:#fff;border-radius:1px;"></div>
+              <div style="width:3px;height:18px;background:#fff;border-radius:1px;"></div>
+              <div style="width:3px;height:10px;background:#fff;border-radius:1px;"></div>
+            </div>
+          </div>
+          <div style="position:absolute;bottom:10px;font-size:11px;color:#49454F;">Listening · no caption text</div>
+        </div>
+
+        <div style="padding:0 16px;">
+          <div style="font-size:11px;font-weight:500;color:#6750A4;margin-bottom:8px;">SHAPE</div>
+          <div style="display:flex;gap:8px;margin-bottom:20px;">
+            <div style="flex:1;height:48px;border-radius:12px;background:#E8DEF8;border:2px solid #6750A4;display:flex;align-items:center;justify-content:center;">
+              <div style="width:24px;height:24px;border-radius:12px;background:#6750A4;"></div>
+            </div>
+            <div style="flex:1;height:48px;border-radius:12px;background:#F7F2FA;display:flex;align-items:center;justify-content:center;">
+              <div style="width:32px;height:20px;border-radius:10px;background:#CAC4D0;"></div>
+            </div>
+            <div style="flex:1;height:48px;border-radius:12px;background:#F7F2FA;display:flex;align-items:center;justify-content:center;">
+              <div style="width:22px;height:22px;border-radius:4px;background:#CAC4D0;"></div>
+            </div>
+            <div style="flex:1;height:48px;border-radius:12px;background:#F7F2FA;display:flex;align-items:center;justify-content:center;">
+              <div style="width:12px;height:12px;border-radius:6px;background:#CAC4D0;"></div>
+            </div>
+          </div>
+          <div style="font-size:12px;color:#49454F;margin:-12px 0 16px;">Circle · Pill · Square · Dot</div>
+
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+            <span style="font-size:16px;color:#1C1B1F;">Size</span>
+            <span style="font-size:14px;color:#49454F;">85%</span>
+          </div>
+          <div style="height:4px;background:#E7E0EC;border-radius:2px;margin-bottom:20px;position:relative;">
+            <div style="width:70%;height:4px;background:#6750A4;border-radius:2px;"></div>
+            <div style="position:absolute;left:70%;top:-6px;width:16px;height:16px;border-radius:8px;background:#6750A4;"></div>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+            <span style="font-size:16px;color:#1C1B1F;">Opacity</span>
+            <span style="font-size:14px;color:#49454F;">80%</span>
+          </div>
+          <div style="height:4px;background:#E7E0EC;border-radius:2px;margin-bottom:20px;position:relative;">
+            <div style="width:80%;height:4px;background:#6750A4;border-radius:2px;"></div>
+            <div style="position:absolute;left:80%;top:-6px;width:16px;height:16px;border-radius:8px;background:#6750A4;"></div>
+          </div>
+
+          <!-- switches -->
+          <div style="display:flex;align-items:center;min-height:56px;justify-content:space-between;">
+            <div>
+              <div style="font-size:16px;color:#1C1B1F;">Show speech on bubble</div>
+              <div style="font-size:14px;color:#49454F;">Off — waveform only</div>
+            </div>
+            <div style="width:52px;height:32px;border-radius:16px;background:#E7E0EC;position:relative;">
+              <div style="width:24px;height:24px;border-radius:12px;background:#fff;position:absolute;top:4px;left:4px;box-shadow:0 1px 3px rgba(0,0,0,.2);"></div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;min-height:56px;justify-content:space-between;">
+            <div>
+              <div style="font-size:16px;color:#1C1B1F;">Haptics</div>
+              <div style="font-size:14px;color:#49454F;">Start / stop / snap</div>
+            </div>
+            <div style="width:52px;height:32px;border-radius:16px;background:#6750A4;position:relative;">
+              <div style="width:24px;height:24px;border-radius:12px;background:#fff;position:absolute;top:4px;right:4px;box-shadow:0 1px 3px rgba(0,0,0,.2);"></div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;min-height:56px;justify-content:space-between;">
+            <div>
+              <div style="font-size:16px;color:#1C1B1F;">Edge snap</div>
+              <div style="font-size:14px;color:#49454F;">Nearest side</div>
+            </div>
+            <div style="width:52px;height:32px;border-radius:16px;background:#6750A4;position:relative;">
+              <div style="width:24px;height:24px;border-radius:12px;background:#fff;position:absolute;top:4px;right:4px;box-shadow:0 1px 3px rgba(0,0,0,.2);"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="cap"><b>3 · Bubble</b> — Live preview · shape segmented control · sliders · switches. Default: <b>speech text OFF</b>, waveform on listen. Matches FAB / icon-button grammar.</div>
+    <div class="src">M3 switch · slider · FAB · a11y 48dp</div>
+  </div>
+</div>
+
+<div class="row" style="margin-top:8px;">
+  <!-- DRAWER -->
+  <div>
+    <div class="phone option" data-choice="drawer-m3" onclick="toggleSelect(this)">
+      <div class="status" style="background:#E8DEF8;"><span>9:41</span><span>LTE · 84%</span></div>
+      <div class="body" style="display:flex;">
+        <!-- Modal drawer sheet -->
+        <div style="width:78%;background:#F7F2FA;min-height:540px;padding:12px 0;border-radius:0 16px 16px 0;box-shadow:4px 0 16px rgba(0,0,0,.12);">
+          <div style="padding:16px;font-size:22px;color:#1C1B1F;">Open Flow</div>
+          <div style="margin:4px 12px;padding:12px 16px;border-radius:28px;background:#E8DEF8;display:flex;align-items:center;gap:12px;min-height:48px;">
+            <span>⌂</span><span style="font-size:14px;font-weight:500;color:#1D192B;">Home</span>
+          </div>
+          <div style="margin:4px 12px;padding:12px 16px;border-radius:28px;display:flex;align-items:center;gap:12px;min-height:48px;color:#49454F;font-size:14px;">
+            <span>📖</span><span>Dictionary</span>
+          </div>
+          <div style="margin:4px 12px;padding:12px 16px;border-radius:28px;display:flex;align-items:center;gap:12px;min-height:48px;color:#49454F;font-size:14px;">
+            <span>✂</span><span>Snippets</span>
+          </div>
+          <div style="margin:4px 12px;padding:12px 16px;border-radius:28px;display:flex;align-items:center;gap:12px;min-height:48px;color:#49454F;font-size:14px;">
+            <span>✎</span><span>Style</span>
+          </div>
+          <div style="margin:4px 12px;padding:12px 16px;border-radius:28px;display:flex;align-items:center;gap:12px;min-height:48px;color:#49454F;font-size:14px;">
+            <span>⏱</span><span>History</span>
+          </div>
+          <div style="height:1px;background:#CAC4D0;margin:12px 16px;"></div>
+          <div style="margin:4px 12px;padding:12px 16px;border-radius:28px;display:flex;align-items:center;gap:12px;min-height:48px;color:#49454F;font-size:14px;">
+            <span>⚙</span><span>Customize</span>
+          </div>
+        </div>
+        <div style="flex:1;background:rgba(0,0,0,.32);"></div>
+      </div>
+    </div>
+    <div class="cap"><b>4 · Modal drawer</b> — Destinations (Drop 2 visibility). Selected pill uses primaryContainer. Matches Compose ModalNavigationDrawer.</div>
+    <div class="src">developer.android.com · Navigation drawer</div>
+  </div>
+
+  <!-- CLEANUP LEVELS -->
+  <div>
+    <div class="phone option" data-choice="cleanup-m3" onclick="toggleSelect(this)">
+      <div class="status" style="background:#E8DEF8;"><span>9:41</span><span>LTE · 84%</span></div>
+      <div class="body">
+        <div style="display:flex;align-items:center;padding:8px 4px;">
+          <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;">←</div>
+          <div style="font-size:22px;color:#1C1B1F;">Cleanup</div>
+        </div>
+        <div style="padding:8px 16px;font-size:14px;color:#49454F;line-height:20px;margin-bottom:8px;">
+          How hard local polish runs before insert. Raw always kept for undo.
+        </div>
+        <!-- radio list M3 -->
+        <div style="margin:0 16px;border-radius:16px;background:#F7F2FA;overflow:hidden;">
+          <div style="display:flex;padding:16px;gap:16px;align-items:flex-start;border-bottom:1px solid #E7E0EC;">
+            <div style="width:20px;height:20px;border-radius:10px;border:2px solid #79747E;margin-top:2px;"></div>
+            <div>
+              <div style="font-size:16px;color:#1C1B1F;">None</div>
+              <div style="font-size:14px;color:#49454F;">Exactly what STT returned</div>
+            </div>
+          </div>
+          <div style="display:flex;padding:16px;gap:16px;align-items:flex-start;border-bottom:1px solid #E7E0EC;">
+            <div style="width:20px;height:20px;border-radius:10px;border:2px solid #79747E;margin-top:2px;"></div>
+            <div>
+              <div style="font-size:16px;color:#1C1B1F;">Light</div>
+              <div style="font-size:14px;color:#49454F;">Fillers only</div>
+            </div>
+          </div>
+          <div style="display:flex;padding:16px;gap:16px;align-items:flex-start;background:#E8DEF8;border-bottom:1px solid #E7E0EC;">
+            <div style="width:20px;height:20px;border-radius:10px;border:6px solid #6750A4;margin-top:2px;box-sizing:border-box;"></div>
+            <div>
+              <div style="font-size:16px;font-weight:500;color:#1D192B;">Medium</div>
+              <div style="font-size:14px;color:#49454F;">Fillers · course-correct · light punct</div>
+            </div>
+          </div>
+          <div style="display:flex;padding:16px;gap:16px;align-items:flex-start;">
+            <div style="width:20px;height:20px;border-radius:10px;border:2px solid #79747E;margin-top:2px;"></div>
+            <div>
+              <div style="font-size:16px;color:#1C1B1F;">High</div>
+              <div style="font-size:14px;color:#49454F;">All of medium + lists · stronger rewrite rules</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="cap"><b>5 · Cleanup</b> — Single-choice list (settings radio group). Default Medium. Supports feature 6 + 10 (raw keep / undo).</div>
+    <div class="src">M3 radio · settings sub-screen</div>
+  </div>
+
+  <!-- HISTORY DETAIL -->
+  <div>
+    <div class="phone option" data-choice="history-m3" onclick="toggleSelect(this)">
+      <div class="status" style="background:#E8DEF8;"><span>9:41</span><span>LTE · 84%</span></div>
+      <div class="body">
+        <div style="display:flex;align-items:center;padding:8px 4px;">
+          <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;">←</div>
+          <div style="flex:1;font-size:22px;color:#1C1B1F;">History</div>
+          <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;">⤴</div>
+        </div>
+        <div style="margin:0 16px 12px;background:#F7F2FA;border-radius:28px;height:48px;display:flex;align-items:center;padding:0 16px;gap:12px;color:#49454F;font-size:16px;">
+          <span>⌕</span><span>Search dictations</span>
+        </div>
+        <div style="padding:8px 16px;">
+          <div style="font-size:12px;color:#49454F;margin-bottom:4px;">2:02 PM · Today</div>
+          <div style="font-size:16px;color:#1C1B1F;line-height:24px;margin-bottom:8px;">Meeting slipped to Monday. Still waiting on legal for the terms page.</div>
+          <div style="font-size:12px;color:#6750A4;margin-bottom:16px;">Polished · tap to show raw</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <div style="height:40px;padding:0 16px;border-radius:20px;background:#E8DEF8;display:flex;align-items:center;font-size:14px;color:#1D192B;">Copy</div>
+            <div style="height:40px;padding:0 16px;border-radius:20px;border:1px solid #79747E;display:flex;align-items:center;font-size:14px;color:#6750A4;">Share</div>
+            <div style="height:40px;padding:0 16px;border-radius:20px;border:1px solid #79747E;display:flex;align-items:center;font-size:14px;color:#6750A4;">Flag</div>
+            <div style="height:40px;padding:0 16px;border-radius:20px;border:1px solid #79747E;display:flex;align-items:center;font-size:14px;color:#B3261E;">Delete</div>
+          </div>
+        </div>
+        <div style="height:1px;background:#E7E0EC;margin:16px;"></div>
+        <div style="padding:0 16px;">
+          <div style="font-size:14px;font-weight:500;margin-bottom:8px;">Export</div>
+          <div style="display:flex;gap:8px;">
+            <div style="flex:1;height:40px;border-radius:20px;background:#6750A4;color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;">Export .txt</div>
+            <div style="flex:1;height:40px;border-radius:20px;border:1px solid #79747E;color:#6750A4;display:flex;align-items:center;justify-content:center;font-size:14px;">Export .md</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="cap"><b>6 · History detail</b> — Search bar · list-detail · copy/share/flag · export (F15) · raw/polish toggle. Chip buttons 40dp+.</div>
+    <div class="src">List-detail · M3 chips · share sheet path</div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:24px;">
+  <p class="label">Locked product rules on these screens</p>
+  <ul style="font-size:13px;line-height:1.5;">
+    <li>Bubble = FAB grammar · <strong>no live transcript text</strong> · waveform when listening</li>
+    <li>Customize = one hub (easier full customisability)</li>
+    <li>Dynamic color optional later (Android 12+) — mock uses fixed M3 seed purple like docs samples</li>
+    <li>Features 1–15 map into these destinations — no F16 recorder</li>
+  </ul>
+  <p class="subtitle" style="margin-top:12px;">Click phones you like, or type: <b>GO M3</b> to lock this system and continue full screen set (Dictionary, Style-by-app, Retention, Notifs) before plan/worktrees.</p>
+</div>

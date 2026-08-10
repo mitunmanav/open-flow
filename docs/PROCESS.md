@@ -5,7 +5,7 @@ Follow Superpowers + these rules. No exceptions.
 ## Per feature (every time)
 
 1. **Web search** — APIs + Android security for that feature.
-2. **Quick plan** — save under `docs/superpowers/plans/YYYY-MM-DD-<feature>.md`.
+2. **Quick plan** — save under `docs/process/plans/YYYY-MM-DD-<feature>.md`.
 3. **Worktree** — `git worktree add .worktrees/<feature> -b feat/<feature>`  
    (`.worktrees/` must be gitignored.)
 4. **TDD** — failing test first → green → refactor.

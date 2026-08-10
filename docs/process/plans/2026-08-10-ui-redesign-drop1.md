@@ -8,7 +8,7 @@
 
 **Tech Stack:** Kotlin, Compose Material3, existing FlowPrefs, AccessibilityService overlay.
 
-**Spec:** `docs/superpowers/specs/2026-08-10-ui-redesign-design.md`
+**Spec:** `docs/process/specs/2026-08-10-ui-redesign-design.md`
 
 ---
 

@@ -1,0 +1,171 @@
+<h2>NEW mockup — Neo-Brutalism (old M3 page untouched)</h2>
+<p class="subtitle">
+  YES possible. This is a separate file. Previous M3 mockups not modified.
+  Structure still follows Android: bottom <b>NavigationBar</b> (few tabs) + <b>ModalNavigationDrawer</b> (few items) + Home content.
+  Skin only is brutal / neo-brutal.
+</p>
+
+<div class="section">
+  <p class="label">Android structure (docs) under the paint</p>
+  <ul style="margin-left:1.2rem;font-size:0.9rem;color:var(--text-secondary);line-height:1.5;">
+    <li>Bottom bar = primary destinations (≤5) — Compose <code>NavigationBar</code></li>
+    <li>Drawer = secondary only — Compose <code>ModalNavigationDrawer</code></li>
+    <li>Home = setup + quick actions + list — not every setting</li>
+    <li>Touch targets still ≥48dp · high contrast helps a11y</li>
+  </ul>
+  <p class="label" style="margin-top:1rem;">Brutal / neo-brutal paint (web design guides)</p>
+  <ul style="margin-left:1.2rem;font-size:0.9rem;color:var(--text-secondary);line-height:1.5;">
+    <li>Thick black borders · hard offset shadows (no blur)</li>
+    <li>Flat loud blocks · raw type · zero soft Material purple</li>
+    <li>Square corners · chunky buttons</li>
+  </ul>
+</div>
+
+<!-- BRUTAL HOME + BOTTOM -->
+<div class="mockup">
+  <div class="mockup-header">BRUTAL-01 · Home + bottom bar (new)</div>
+  <div class="mockup-body" style="max-width:360px;margin:0 auto;background:#FFF85A;border:4px solid #000;box-shadow:8px 8px 0 #000;font-family:Arial Black,Impact,system-ui,sans-serif;color:#000;">
+    <!-- top bar -->
+    <div style="display:flex;align-items:stretch;border-bottom:4px solid #000;background:#fff;">
+      <div style="width:56px;min-height:56px;border-right:4px solid #000;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;">≡</div>
+      <div style="flex:1;display:flex;align-items:center;padding:0 12px;font-size:22px;font-weight:900;letter-spacing:-0.03em;">HOME</div>
+      <div style="width:56px;min-height:56px;border-left:4px solid #000;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;background:#FF6B9D;">GO</div>
+    </div>
+
+    <div style="padding:12px;background:#FFF85A;">
+      <!-- setup block -->
+      <div style="border:4px solid #000;background:#fff;box-shadow:5px 5px 0 #000;padding:12px;margin-bottom:12px;">
+        <div style="font-size:11px;font-weight:900;letter-spacing:0.08em;margin-bottom:6px;">// SETUP</div>
+        <div style="font-size:18px;font-weight:900;line-height:1.1;margin-bottom:8px;">ARM THE BUBBLE</div>
+        <div style="font-size:12px;font-weight:700;font-family:system-ui,sans-serif;margin-bottom:10px;line-height:1.35;">Accessibility must be ON. Mic next. No cloud.</div>
+        <div style="display:inline-block;background:#000;color:#FFF85A;border:3px solid #000;padding:12px 14px;font-size:13px;font-weight:900;box-shadow:4px 4px 0 #FF6B9D;">ENABLE SERVICE</div>
+      </div>
+
+      <!-- quick keys -->
+      <div style="font-size:11px;font-weight:900;letter-spacing:0.1em;margin-bottom:8px;">QUICK</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+        <div style="border:3px solid #000;background:#fff;padding:10px 12px;font-size:12px;font-weight:900;box-shadow:3px 3px 0 #000;">CLEANUP MED</div>
+        <div style="border:3px solid #000;background:#7CFF6B;padding:10px 12px;font-size:12px;font-weight:900;box-shadow:3px 3px 0 #000;">EN-US</div>
+        <div style="border:3px solid #000;background:#fff;padding:10px 12px;font-size:12px;font-weight:900;box-shadow:3px 3px 0 #000;">COPY LAST</div>
+      </div>
+
+      <!-- stats strip -->
+      <div style="display:flex;border:4px solid #000;margin-bottom:12px;background:#fff;">
+        <div style="flex:1;padding:10px;border-right:4px solid #000;text-align:center;">
+          <div style="font-size:10px;font-weight:900;">WORDS</div>
+          <div style="font-size:20px;font-weight:900;">12K</div>
+        </div>
+        <div style="flex:1;padding:10px;border-right:4px solid #000;text-align:center;background:#FF6B9D;">
+          <div style="font-size:10px;font-weight:900;">STREAK</div>
+          <div style="font-size:20px;font-weight:900;">9</div>
+        </div>
+        <div style="flex:1;padding:10px;text-align:center;">
+          <div style="font-size:10px;font-weight:900;">RUNS</div>
+          <div style="font-size:20px;font-weight:900;">148</div>
+        </div>
+      </div>
+
+      <div style="font-size:11px;font-weight:900;letter-spacing:0.1em;margin-bottom:8px;">TODAY</div>
+      <div style="border:4px solid #000;background:#fff;box-shadow:5px 5px 0 #000;">
+        <div style="padding:12px;border-bottom:3px solid #000;font-family:system-ui,sans-serif;">
+          <div style="font-size:14px;font-weight:800;">Meeting slipped to Monday…</div>
+          <div style="font-size:11px;font-weight:700;margin-top:2px;">14:02 · POLISHED</div>
+        </div>
+        <div style="padding:12px;border-bottom:3px solid #000;font-family:system-ui,sans-serif;">
+          <div style="font-size:14px;font-weight:800;">Calendar /cal</div>
+          <div style="font-size:11px;font-weight:700;margin-top:2px;">13:40 · SNIPPET</div>
+        </div>
+        <div style="padding:12px;font-family:system-ui,sans-serif;">
+          <div style="font-size:14px;font-weight:800;">Oat milk not milk</div>
+          <div style="font-size:11px;font-weight:700;margin-top:2px;">11:18 · CORRECT</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM NAV — few only -->
+    <div style="display:flex;border-top:4px solid #000;background:#fff;min-height:64px;">
+      <div style="flex:1;border-right:3px solid #000;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#000;color:#FFF85A;gap:2px;">
+        <div style="font-size:11px;font-weight:900;">HOME</div>
+      </div>
+      <div style="flex:1;border-right:3px solid #000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;">
+        <div style="font-size:11px;font-weight:900;">DICT</div>
+      </div>
+      <div style="flex:1;border-right:3px solid #000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;">
+        <div style="font-size:11px;font-weight:900;">SNIPS</div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;">
+        <div style="font-size:11px;font-weight:900;">SET</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BRUTAL DRAWER -->
+<div class="mockup" style="margin-top:1.5rem;">
+  <div class="mockup-header">BRUTAL-02 · Drawer — few secondary only (new)</div>
+  <div class="mockup-body" style="max-width:360px;margin:0 auto;border:4px solid #000;box-shadow:8px 8px 0 #000;display:flex;min-height:300px;font-family:Arial Black,Impact,system-ui,sans-serif;">
+    <div style="width:74%;background:#7CFF6B;border-right:4px solid #000;padding:12px;">
+      <div style="font-size:14px;font-weight:900;margin-bottom:12px;border-bottom:4px solid #000;padding-bottom:8px;">MORE // DRAWER</div>
+      <div style="border:3px solid #000;background:#fff;box-shadow:4px 4px 0 #000;padding:14px;margin-bottom:10px;font-size:14px;font-weight:900;">STYLE</div>
+      <div style="border:3px solid #000;background:#fff;box-shadow:4px 4px 0 #000;padding:14px;margin-bottom:10px;font-size:14px;font-weight:900;">HISTORY</div>
+      <div style="border:3px solid #000;background:#fff;box-shadow:4px 4px 0 #000;padding:14px;margin-bottom:10px;font-size:14px;font-weight:900;">CUSTOMIZE</div>
+      <div style="font-size:10px;font-weight:700;font-family:system-ui,sans-serif;line-height:1.4;margin-top:12px;">NOT HERE: Home Dict Snips Settings → bottom bar only.</div>
+    </div>
+    <div style="flex:1;background:#000;opacity:0.35;"></div>
+  </div>
+</div>
+
+<!-- BRUTAL BUBBLE -->
+<div class="mockup" style="margin-top:1.5rem;">
+  <div class="mockup-header">BRUTAL-03 · Bubble chrome (overlay, not app chrome)</div>
+  <div class="mockup-body" style="max-width:360px;margin:0 auto;border:4px solid #000;box-shadow:8px 8px 0 #000;background:#E8E8E8;padding:20px;font-family:Arial Black,system-ui,sans-serif;">
+    <div style="font-size:11px;font-weight:900;margin-bottom:12px;">// OVERLAY ON OTHER APPS</div>
+    <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;">
+      <div>
+        <div style="font-size:10px;font-weight:900;margin-bottom:6px;">IDLE</div>
+        <div style="width:56px;height:56px;border:4px solid #000;background:#000;box-shadow:5px 5px 0 #FF6B9D;display:flex;align-items:center;justify-content:center;color:#FFF85A;font-size:11px;font-weight:900;">MIC</div>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:900;margin-bottom:6px;">LISTEN</div>
+        <div style="width:56px;height:56px;border:4px solid #000;background:#FF6B9D;box-shadow:5px 5px 0 #000;display:flex;align-items:center;justify-content:center;gap:3px;">
+          <div style="width:4px;height:12px;background:#000;"></div>
+          <div style="width:4px;height:22px;background:#000;"></div>
+          <div style="width:4px;height:16px;background:#000;"></div>
+          <div style="width:4px;height:24px;background:#000;"></div>
+        </div>
+      </div>
+      <div style="font-family:system-ui,sans-serif;font-size:12px;font-weight:700;max-width:140px;line-height:1.35;">NO speech text on bubble. Wave only. Hard box not soft pill.</div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:1.5rem;">
+  <p class="label">Possible? YES.</p>
+  <p class="subtitle" style="margin-bottom:1rem;">
+    Visual style can be brutal while IA stays Android-correct (bottom few + drawer few).
+    Shipping brutal skin in Compose = custom theme (borders/shadows/colors), not stock M3 purple — still valid Android app.
+  </p>
+  <div class="options">
+    <div class="option" data-choice="brutal-yes" onclick="toggleSelect(this)">
+      <div class="letter">A</div>
+      <div class="content">
+        <h3>Use this Brutal system</h3>
+        <p>Lock neo-brutal look + current IA (bottom 4 / drawer 3).</p>
+      </div>
+    </div>
+    <div class="option" data-choice="keep-m3" onclick="toggleSelect(this)">
+      <div class="letter">B</div>
+      <div class="content">
+        <h3>Keep earlier M3 look</h3>
+        <p>Brutal was exploration only. M3 mockups stay as source of truth.</p>
+      </div>
+    </div>
+    <div class="option" data-choice="both-compare" onclick="toggleSelect(this)">
+      <div class="letter">C</div>
+      <div class="content">
+        <h3>Show side-by-side later</h3>
+        <p>Keep both files; decide after more screens.</p>
+      </div>
+    </div>
+  </div>
+</div>

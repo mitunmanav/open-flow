@@ -18,8 +18,8 @@ out/
 *.iml
 *.iws
 *.ipr
-.project
-.classpath
+*.project
+*.classpath
 .settings/
 local.properties
 
@@ -48,3 +48,6 @@ Thumbs.db
 
 # Optional editor
 *.code-workspace
+
+# Old brainstorming / session artifacts (now canonicalised under docs/sessions/ + docs/mockups/)
+.superpowers-stale/

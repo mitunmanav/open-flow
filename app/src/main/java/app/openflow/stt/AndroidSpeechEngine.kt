@@ -13,7 +13,7 @@ class AndroidSpeechEngine(
     preferOnDevice: Boolean = true,
     policy: ContinuousPolicy = ContinuousPolicy(),
     mainHandler: Handler = Handler(Looper.getMainLooper()),
-    softMuteBeeps: Boolean = true,
+    softMuteBeeps: Boolean = false,
     /** Optional inject for tests; default builds a real [SttEngine]. */
     private val engine: SttEngine = SttEngine(
         context = context,

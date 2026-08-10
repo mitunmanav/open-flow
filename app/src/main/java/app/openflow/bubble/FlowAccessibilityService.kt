@@ -99,7 +99,12 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS
             notificationTimeout = 80
         }
-        stt = SttEngine(applicationContext, preferOnDevice = true)
+        // prefer on-device when packs exist; engine falls back if offline fails
+        stt = SttEngine(
+            applicationContext,
+            preferOnDevice = true,
+            softMuteBeeps = false
+        )
         showBubble()
         instance = this
         refreshBubbleVisibility()
@@ -469,13 +474,16 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             }
 
             override fun onError(message: String, fatal: Boolean) {
+                // Always surface STT state on bubble (was silent for non-fatal)
+                bubbleLabel?.text = if (
+                    message.contains("Microphone", true) ||
+                    message.contains("Allow mic", true)
+                ) {
+                    BubbleLabelFormatter.needMic()
+                } else {
+                    message.take(48)
+                }
                 if (fatal) {
-                    bubbleLabel?.text = if (
-                        message.contains("Microphone", true) ||
-                        message.contains("Allow mic", true)
-                    ) {
-                        BubbleLabelFormatter.needMic()
-                    } else message.take(40)
                     listening = false
                     stopPulse()
                     applyPrefsVisual()

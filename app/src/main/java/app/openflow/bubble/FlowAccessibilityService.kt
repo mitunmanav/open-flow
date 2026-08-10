@@ -429,7 +429,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             bubbleView?.scaleX = (prefs?.bubbleScale ?: 0.85f) * 0.75f
             bubbleView?.scaleY = (prefs?.bubbleScale ?: 0.85f) * 0.75f
         }
-        startPulse()
+        if (prefs?.bubblePulse != false) startPulse()
         bubbleLabel?.text = BubbleLabelFormatter.listening(0)
         setBubbleEmphasis(true)
         val lang = prefs?.languageTag ?: java.util.Locale.getDefault().toLanguageTag()

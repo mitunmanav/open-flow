@@ -1,6 +1,9 @@
 package app.openflow.bubble
 
+import android.Manifest
 import android.accessibilityservice.AccessibilityService
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.graphics.PixelFormat
 import android.os.Bundle
@@ -245,6 +248,15 @@ class FlowAccessibilityService : AccessibilityService() {
     }
 
     private fun startListening() {
+        val micOk = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.RECORD_AUDIO
+        ) == PackageManager.PERMISSION_GRANTED
+        if (!micOk) {
+            bubbleLabel?.text = getString(R.string.flow_bubble_need_mic)
+            listening = false
+            return
+        }
         listening = true
         listenStartedAt = SystemClock.elapsedRealtime()
         sessionIndex = 0
@@ -269,11 +281,22 @@ class FlowAccessibilityService : AccessibilityService() {
 
             override fun onError(message: String, fatal: Boolean) {
                 if (fatal) {
-                    bubbleLabel?.text = getString(R.string.flow_bubble_idle)
+                    bubbleLabel?.text = if (message.contains("Microphone", ignoreCase = true) ||
+                        message.contains("Allow mic", ignoreCase = true)
+                    ) {
+                        getString(R.string.flow_bubble_need_mic)
+                    } else {
+                        message.take(28)
+                    }
                     listening = false
                     setBubbleEmphasis(focusedEditable != null)
                 }
                 // non-fatal: engine auto-restarts
+            }
+
+            override fun onNeedMicPermission() {
+                bubbleLabel?.text = getString(R.string.flow_bubble_need_mic)
+                listening = false
             }
 
             override fun onReady() {
@@ -305,16 +328,46 @@ class FlowAccessibilityService : AccessibilityService() {
     }
 
     private fun insertText(spoken: String) {
-        val node = focusedEditable ?: return
-        if (!isUsableEditable(node)) return
-        val merged = FieldPolicy.mergeInsert(node.text, spoken)
-        val args = Bundle().apply {
-            putCharSequence(
-                AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
-                merged
-            )
+        val root = rootInActiveWindow
+        val node = FocusResolver.resolveEditable(
+            root = root,
+            cached = focusedEditable,
+            isUsable = { isUsableEditable(it) },
+            findInSubtree = { findEditableInSubtree(it) }
+        )
+        try {
+            root?.let {
+                @Suppress("DEPRECATION")
+                it.recycle()
+            }
+        } catch (_: Exception) {
         }
-        node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+        if (node == null) return
+        try {
+            if (!isUsableEditable(node)) return
+            val merged = FieldPolicy.mergeInsert(node.text, spoken)
+            val args = Bundle().apply {
+                putCharSequence(
+                    AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
+                    merged
+                )
+            }
+            val ok = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+            if (!ok) {
+                node.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+                node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+            }
+            // refresh cache
+            focusedEditable?.let {
+                @Suppress("DEPRECATION")
+                it.recycle()
+            }
+            @Suppress("DEPRECATION")
+            focusedEditable = AccessibilityNodeInfo.obtain(node)
+        } finally {
+            @Suppress("DEPRECATION")
+            node.recycle()
+        }
     }
 
     companion object {

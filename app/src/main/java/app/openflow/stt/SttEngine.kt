@@ -1,7 +1,10 @@
 package app.openflow.stt
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -9,19 +12,21 @@ import android.os.Looper
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
+import androidx.core.content.ContextCompat
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * SpeechRecognizer wrapper with continuous-dictation restart loop.
- * Prefer on-device. Unlimited speak time = auto-restart while [continuous] active.
+ * Prefer on-device. Unlimited speak = auto-restart while continuous.
  */
 class SttEngine(
     private val context: Context,
     private val preferOnDevice: Boolean = true,
     private val policy: ContinuousPolicy = ContinuousPolicy(),
-    private val mainHandler: Handler = Handler(Looper.getMainLooper())
+    private val mainHandler: Handler = Handler(Looper.getMainLooper()),
+    private val softMuteBeeps: Boolean = true
 ) {
     interface Listener {
         fun onPartial(text: String)
@@ -30,33 +35,54 @@ class SttEngine(
         fun onReady()
         fun onListeningChanged(listening: Boolean)
         fun onSessionTick(sessionIndex: Int)
+        fun onNeedMicPermission() {}
     }
 
     private var recognizer: SpeechRecognizer? = null
     private var listener: Listener? = null
     private val continuous = AtomicBoolean(false)
+    private val starting = AtomicBoolean(false)
     private val sessionCount = AtomicInteger(0)
     private var languageTag: String = Locale.getDefault().toLanguageTag()
     private var restartPosted = false
+    private var savedMusicVolume: Int? = null
 
     val isAvailable: Boolean
         get() = SpeechRecognizer.isRecognitionAvailable(context)
+
+    fun hasMicPermission(): Boolean =
+        ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
 
     fun setListener(l: Listener?) {
         listener = l
     }
 
-    /** Start continuous dictation (auto-restart until [stop]). */
     fun startContinuous(languageTag: String = Locale.getDefault().toLanguageTag()) {
         this.languageTag = languageTag
+        if (!hasMicPermission()) {
+            listener?.onNeedMicPermission()
+            listener?.onError("Microphone permission required", fatal = true)
+            listener?.onListeningChanged(false)
+            return
+        }
+        if (!isAvailable) {
+            listener?.onError("Speech recognition not available", fatal = true)
+            listener?.onListeningChanged(false)
+            return
+        }
         continuous.set(true)
         listener?.onListeningChanged(true)
         mainHandler.post { beginSession(forceRecreate = true) }
     }
 
-    /** One-shot listen (no auto restart). */
     fun startOnce(languageTag: String = Locale.getDefault().toLanguageTag()) {
         this.languageTag = languageTag
+        if (!hasMicPermission()) {
+            listener?.onNeedMicPermission()
+            listener?.onError("Microphone permission required", fatal = true)
+            return
+        }
         continuous.set(false)
         listener?.onListeningChanged(true)
         mainHandler.post { beginSession(forceRecreate = true) }
@@ -72,6 +98,8 @@ class SttEngine(
             } catch (_: Exception) {
             }
             destroyInternal()
+            restoreVolume()
+            starting.set(false)
             listener?.onListeningChanged(false)
         }
     }
@@ -81,41 +109,66 @@ class SttEngine(
         mainHandler.removeCallbacksAndMessages(null)
         mainHandler.post {
             destroyInternal()
+            restoreVolume()
+            starting.set(false)
             listener = null
         }
     }
 
     private fun beginSession(forceRecreate: Boolean) {
-        if (!continuous.get() && sessionCount.get() > 0 && !forceRecreate) {
-            // one-shot already ran
+        if (!continuous.get() && !forceRecreate && sessionCount.get() > 0) {
+            return
         }
-        val n = sessionCount.incrementAndGet()
-        listener?.onSessionTick(n)
-        val needNew = forceRecreate ||
-            recognizer == null ||
-            policy.shouldRecreateRecognizer(n)
-        if (needNew) {
-            destroyInternal()
-            recognizer = createRecognizer()
-        }
-        val r = recognizer
-        if (r == null) {
-            listener?.onError("Speech recognition not available", fatal = true)
+        if (!hasMicPermission()) {
+            listener?.onNeedMicPermission()
             continuous.set(false)
             listener?.onListeningChanged(false)
             return
         }
-        r.setRecognitionListener(buildListener())
+        if (!starting.compareAndSet(false, true)) {
+            // serialize starts
+            scheduleRestart(ContinuousPolicy.ERROR_RECOGNIZER_BUSY)
+            return
+        }
         try {
-            r.startListening(buildIntent(languageTag))
-        } catch (e: Exception) {
-            listener?.onError(e.message ?: "start failed", fatal = false)
-            scheduleRestart(ContinuousPolicy.ERROR_CLIENT)
+            val n = sessionCount.incrementAndGet()
+            listener?.onSessionTick(n)
+            val needNew = forceRecreate ||
+                recognizer == null ||
+                policy.shouldRecreateRecognizer(n)
+            if (needNew) {
+                destroyInternal()
+                recognizer = createRecognizer()
+            } else {
+                try {
+                    recognizer?.cancel()
+                } catch (_: Exception) {
+                }
+            }
+            val r = recognizer
+            if (r == null) {
+                listener?.onError("Speech recognition not available", fatal = true)
+                continuous.set(false)
+                listener?.onListeningChanged(false)
+                return
+            }
+            r.setRecognitionListener(buildListener())
+            softMute()
+            try {
+                r.startListening(buildIntent(languageTag))
+            } catch (e: Exception) {
+                listener?.onError(e.message ?: "start failed", fatal = false)
+                scheduleRestart(ContinuousPolicy.ERROR_CLIENT)
+            }
+        } finally {
+            // unlock after short delay so engine can claim mic
+            mainHandler.postDelayed({ starting.set(false) }, 80)
         }
     }
 
     private fun buildListener(): RecognitionListener = object : RecognitionListener {
         override fun onReadyForSpeech(params: Bundle?) {
+            restoreVolume()
             listener?.onReady()
         }
 
@@ -125,8 +178,17 @@ class SttEngine(
         override fun onEndOfSpeech() {}
 
         override fun onError(error: Int) {
+            restoreVolume()
+            starting.set(false)
             val fatal = error == ContinuousPolicy.ERROR_INSUFFICIENT_PERMISSIONS
-            listener?.onError("STT $error", fatal = fatal)
+            val msg = when (error) {
+                ContinuousPolicy.ERROR_INSUFFICIENT_PERMISSIONS -> "Allow microphone"
+                ContinuousPolicy.ERROR_SPEECH_TIMEOUT -> "Silence — continuing"
+                ContinuousPolicy.ERROR_NO_MATCH -> "No match — continuing"
+                ContinuousPolicy.ERROR_RECOGNIZER_BUSY -> "Busy — retry"
+                else -> "STT $error"
+            }
+            listener?.onError(msg, fatal = fatal)
             if (fatal) {
                 continuous.set(false)
                 listener?.onListeningChanged(false)
@@ -140,6 +202,8 @@ class SttEngine(
         }
 
         override fun onResults(results: Bundle?) {
+            restoreVolume()
+            starting.set(false)
             val texts = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
             val best = texts?.firstOrNull().orEmpty()
             if (best.isNotBlank()) listener?.onFinal(best)
@@ -166,8 +230,34 @@ class SttEngine(
         val delay = policy.restartDelayMs(errorCode)
         mainHandler.postDelayed({
             restartPosted = false
-            if (continuous.get()) beginSession(forceRecreate = false)
+            if (continuous.get()) {
+                // busy → force new recognizer
+                val force = errorCode == ContinuousPolicy.ERROR_RECOGNIZER_BUSY
+                beginSession(forceRecreate = force)
+            }
         }, delay)
+    }
+
+    private fun softMute() {
+        if (!softMuteBeeps) return
+        try {
+            val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            if (savedMusicVolume == null) {
+                savedMusicVolume = am.getStreamVolume(AudioManager.STREAM_MUSIC)
+            }
+            am.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0)
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun restoreVolume() {
+        val saved = savedMusicVolume ?: return
+        try {
+            val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            am.setStreamVolume(AudioManager.STREAM_MUSIC, saved, 0)
+        } catch (_: Exception) {
+        }
+        savedMusicVolume = null
     }
 
     private fun destroyInternal() {
@@ -208,15 +298,14 @@ class SttEngine(
             if (cfg.preferOnDevice) {
                 putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
             }
-            // Stretch silence windows where the engine honors them (varies by OEM)
             putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 2_000L)
             putExtra(
                 RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS,
-                2_500L
+                2_800L
             )
             putExtra(
                 RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS,
-                2_000L
+                2_200L
             )
         }
     }

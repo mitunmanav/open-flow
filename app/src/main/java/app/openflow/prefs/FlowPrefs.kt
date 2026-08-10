@@ -2,6 +2,7 @@ package app.openflow.prefs
 
 import android.content.Context
 import android.content.SharedPreferences
+import app.openflow.stt.SttTuning
 import app.openflow.text.TextPostProcessor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,7 +31,11 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         set(v) = store.putString("bubble_mode", normalizeBubbleMode(v))
 
     var languageTag: String
-        get() = store.getString("language_tag", java.util.Locale.getDefault().toLanguageTag())
+        get() = store.getString(
+            "language_tag",
+            // English-first product focus; override in Bubble / Home settings
+            SttTuning.DEFAULT_LANGUAGE
+        )
         set(v) = store.putString("language_tag", v)
 
     var styleName: String

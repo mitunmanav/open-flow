@@ -9,6 +9,7 @@
     <string name="flow_bubble_snooze_hint">Release to snooze</string>
     <string name="flow_bubble_snoozed">Bubble snoozed 10 min</string>
     <string name="flow_bubble_unsnooze_shake">Shake — bubble back</string>
+    <string name="flow_bubble_copied_clipboard">Copied — paste into field</string>
     <string name="bubble_mode_full">Full</string>
     <string name="bubble_mode_compact">Compact</string>
     <string name="bubble_mode_dot">Dot</string>

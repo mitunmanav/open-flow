@@ -25,7 +25,9 @@
 | # | Feature | Wispr Android | Open Flow | Status |
 |---|---------|---------------|-----------|--------|
 | A1 | Accessibility insert into any app | Yes | Yes | **have** |
-| A2 | Auto punctuation | Cloud | Local rules | **have** |
+| A2 | Auto punctuation | Cloud | Local rules + API33 format | **have** |
+| A4 | Self / course correction | Cloud AI | Local CourseCorrector on stop | **have** |
+| A5 | No raw chunk dump into field | Polish then insert | Session accumulate → insert once on stop | **have** |
 | A3 | Account / login / billing | Yes | Never required | **skip** |
 | B1 | Bubble drag reposition | Yes | Yes | **have** |
 | B2 | Bubble size | Yes | Settings 0.7–1.15× | **have** |
@@ -44,7 +46,7 @@
 | H2 | History copy/delete | Yes | UI | **have** |
 | H3 | Hold-to-talk | Yes | Long-press PTT | **have** |
 | H4 | Home setup permission cards | Yes | Chips + buttons | **have** |
-| L1 | Language select | Yes | STT language tag | **partial** |
+| L1 | Language select | Yes | en-US default + Home chips | **have** |
 | L2 | 100+ languages cloud | Yes | OS offline packs | **partial** |
 | M1 | Mic permission flow | Yes | Reliability labels | **have** |
 | N1 | Notifications | Yes | — | **F15** |

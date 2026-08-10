@@ -16,6 +16,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,31 +28,20 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Book
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.MicNone
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.automirrored.filled.ShortText
-import androidx.compose.material.icons.filled.Style
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -72,13 +62,13 @@ import app.openflow.data.SnippetEntity
 import app.openflow.prefs.FlowPrefs
 import app.openflow.privacy.PrivacyDefaults
 import app.openflow.text.TextPostProcessor
-import app.openflow.ui.components.ButtonVariant
 import app.openflow.ui.components.EmptyState
 import app.openflow.ui.components.OpenButton
 import app.openflow.ui.components.OpenCard
 import app.openflow.ui.components.OpenChip
-import app.openflow.ui.components.OpenListItem
 import app.openflow.ui.components.OpenTextField
+import app.openflow.ui.shell.AppRoute
+import app.openflow.ui.shell.AppShell
 import app.openflow.ui.theme.OpenFlowTheme
 import kotlinx.coroutines.launch
 
@@ -96,7 +86,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val darkMode by app.prefs.darkMode.collectAsState(initial = app.prefs.darkMode.value)
             OpenFlowTheme(darkMode = darkMode) {
-                var tab by remember { mutableIntStateOf(0) }
+                var route by remember { mutableStateOf(AppRoute.Home) }
                 var bubbleOn by remember { mutableStateOf(FlowAccessibilityService.isRunning()) }
                 var micOn by remember {
                     mutableStateOf(
@@ -122,69 +112,40 @@ class MainActivity : ComponentActivity() {
                     onDispose { owner.lifecycle.removeObserver(obs) }
                 }
 
-                Scaffold(
-                    topBar = {
-                        TopAppBar(title = { Text(tabTitle(tab)) })
-                    },
-                    bottomBar = {
-                        NavigationBar {
-                            NavigationBarItem(
-                                selected = tab == 0,
-                                onClick = { tab = 0 },
-                                icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
-                                label = { Text("Home") }
-                            )
-                            NavigationBarItem(
-                                selected = tab == 1,
-                                onClick = { tab = 1 },
-                                icon = { Icon(Icons.Default.Book, contentDescription = "Dictionary") },
-                                label = { Text("Dictionary") }
-                            )
-                            NavigationBarItem(
-                                selected = tab == 2,
-                                onClick = { tab = 2 },
-                                icon = { Icon(Icons.AutoMirrored.Filled.ShortText, contentDescription = "Snippets") },
-                                label = { Text("Snippets") }
-                            )
-                            NavigationBarItem(
-                                selected = tab == 3,
-                                onClick = { tab = 3 },
-                                icon = { Icon(Icons.Default.Style, contentDescription = "Style") },
-                                label = { Text("Style") }
-                            )
-                            NavigationBarItem(
-                                selected = tab == 4,
-                                onClick = { tab = 4 },
-                                icon = { Icon(Icons.Default.Settings, contentDescription = "Settings") },
-                                label = { Text("Settings") }
-                            )
-                        }
-                    }
+                AppShell(
+                    route = route,
+                    onNavigate = { route = it }
                 ) { padding ->
                     AnimatedContent(
-                        targetState = tab,
+                        targetState = route,
                         transitionSpec = {
                             fadeIn(tween(150)) togetherWith fadeOut(tween(150))
                         },
-                        label = "tab_content"
-                    ) { targetTab ->
-                        when (targetTab) {
-                            0 -> HomeTab(
-                                modifier = Modifier.padding(padding),
+                        label = "route_content",
+                        modifier = Modifier.padding(padding)
+                    ) { r ->
+                        when (r) {
+                            AppRoute.Home -> HomeHub(
                                 app = app,
                                 bubbleOn = bubbleOn,
                                 micOn = micOn,
                                 onEnableBubble = {
                                     startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                                 },
-                                onMic = { micPermission.launch(Manifest.permission.RECORD_AUDIO) }
+                                onMic = { micPermission.launch(Manifest.permission.RECORD_AUDIO) },
+                                onOpenHistory = { route = AppRoute.History }
                             )
-                            1 -> DictionaryTab(Modifier.padding(padding), app)
-                            2 -> SnippetsTab(Modifier.padding(padding), app)
-                            3 -> StyleTab(Modifier.padding(padding), app.prefs)
-                            else -> SettingsTab(
-                                Modifier.padding(padding),
-                                app.prefs,
+                            AppRoute.History -> HistoryScreen(app)
+                            AppRoute.Dictionary -> DictionaryTab(app)
+                            AppRoute.Snippets -> SnippetsTab(app)
+                            AppRoute.Style -> StyleTab(app.prefs)
+                            AppRoute.Settings -> SettingsHub(
+                                onAppearance = { route = AppRoute.Appearance },
+                                onBubble = { route = AppRoute.BubbleSettings }
+                            )
+                            AppRoute.Appearance -> AppearanceSettings(app.prefs)
+                            AppRoute.BubbleSettings -> BubbleSettings(
+                                prefs = app.prefs,
                                 onApplyBubble = {
                                     FlowAccessibilityService.instance?.applyPrefsVisual()
                                 }
@@ -195,24 +156,16 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-
-    private fun tabTitle(tab: Int) = when (tab) {
-        0 -> "Open Flow"
-        1 -> "Dictionary"
-        2 -> "Snippets"
-        3 -> "Style"
-        else -> "Settings"
-    }
 }
 
 @Composable
-private fun HomeTab(
-    modifier: Modifier,
+private fun HomeHub(
     app: OpenFlowApp,
     bubbleOn: Boolean,
     micOn: Boolean,
     onEnableBubble: () -> Unit,
-    onMic: () -> Unit
+    onMic: () -> Unit,
+    onOpenHistory: () -> Unit
 ) {
     val dictations by app.dictations.observeDictations().collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
@@ -226,24 +179,30 @@ private fun HomeTab(
         onDispose { }
     }
     Column(
-        modifier
+        Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(20.dp)
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            "Wispr-style bubble · fully local · no account",
-            style = MaterialTheme.typography.titleMedium
+            "Speak anywhere. Stay private.",
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onBackground
         )
-        Text(statsText, style = MaterialTheme.typography.bodySmall)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OpenChip(label = if (bubbleOn) "Bubble ON" else "Bubble OFF", isOn = bubbleOn)
-            OpenChip(label = if (micOn) "Mic ON" else "Mic OFF", isOn = micOn)
-        }
+        Text(
+            "Floating bubble · on-device STT · no account",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
         OpenCard {
-            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Setup", style = MaterialTheme.typography.titleSmall)
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Setup", style = MaterialTheme.typography.titleMedium)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OpenChip(label = if (bubbleOn) "Bubble ON" else "Bubble OFF", isOn = bubbleOn)
+                    OpenChip(label = if (micOn) "Mic ON" else "Mic OFF", isOn = micOn)
+                }
                 OpenButton(
                     text = if (bubbleOn) "Accessibility settings" else "1. Enable Flow Bubble",
                     onClick = onEnableBubble
@@ -254,19 +213,35 @@ private fun HomeTab(
                     enabled = !micOn
                 )
                 Text(
-                    "3. Focus field → tap 🎙 (or hold to talk) → release/stop\n" +
-                        "Drag bubble to bottom edge = snooze 10 min",
-                    style = MaterialTheme.typography.bodySmall
+                    "Focus a field → tap 🎙 bubble (hold to talk). Spoken words show on the bubble.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
+
+        OpenCard {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Your pace", style = MaterialTheme.typography.titleSmall)
+                Text(statsText, style = MaterialTheme.typography.bodyLarge)
+            }
+        }
+
         OpenTextField(
             value = localNote,
             onValueChange = { localNote = it },
-            label = "Test field",
+            label = "Test field — try the bubble here",
             minLines = 3
         )
-        Text("History", style = MaterialTheme.typography.titleSmall)
+
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Recent", style = MaterialTheme.typography.titleMedium)
+            TextButton(onClick = onOpenHistory) { Text("See all") }
+        }
         if (dictations.isEmpty()) {
             EmptyState(
                 icon = Icons.Default.MicNone,
@@ -274,29 +249,66 @@ private fun HomeTab(
                 subtitle = "Use the bubble, then stop to save."
             )
         } else {
-            dictations.take(30).forEach { d: DictationEntity ->
-                OpenCard {
-                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("${d.wordCount} words · ${d.languageTag}", style = MaterialTheme.typography.labelSmall)
-                        Text(d.text.take(280), style = MaterialTheme.typography.bodySmall)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            CopyButton(text = d.text)
-                            OutlinedButton(
-                                onClick = {
-                                    scope.launch { app.dictations.deleteDictation(d.id) }
-                                }
-                            ) { Text("Delete") }
-                        }
-                    }
-                }
+            dictations.take(8).forEach { d: DictationEntity ->
+                DictationCard(d, onDelete = {
+                    scope.launch { app.dictations.deleteDictation(d.id) }
+                })
             }
         }
+
         Text(
             PrivacyDefaults.reportText(),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        Spacer(Modifier.height(32.dp))
+    }
+}
+
+@Composable
+private fun HistoryScreen(app: OpenFlowApp) {
+    val dictations by app.dictations.observeDictations().collectAsState(initial = emptyList())
+    val scope = rememberCoroutineScope()
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(20.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text("All dictations (on device)", style = MaterialTheme.typography.titleMedium)
+        if (dictations.isEmpty()) {
+            EmptyState(
+                icon = Icons.Default.MicNone,
+                title = "Empty",
+                subtitle = "Nothing saved yet."
+            )
+        } else {
+            dictations.forEach { d ->
+                DictationCard(d, onDelete = {
+                    scope.launch { app.dictations.deleteDictation(d.id) }
+                })
+            }
+        }
         Spacer(Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun DictationCard(d: DictationEntity, onDelete: () -> Unit) {
+    OpenCard {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                "${d.wordCount} words · ${d.languageTag}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(d.text.take(400), style = MaterialTheme.typography.bodyMedium)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                CopyButton(text = d.text)
+                OutlinedButton(onClick = onDelete) { Text("Delete") }
+            }
+        }
     }
 }
 
@@ -312,16 +324,20 @@ private fun CopyButton(text: String) {
 }
 
 @Composable
-private fun DictionaryTab(modifier: Modifier, app: OpenFlowApp) {
+private fun DictionaryTab(app: OpenFlowApp) {
     val words by app.dictations.observeDictionary().collectAsState(initial = emptyList())
     var word by remember { mutableStateOf("") }
     var repl by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     Column(
-        modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        Modifier
+            .fillMaxSize()
+            .padding(20.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("Teach Open Flow your words (local)", style = MaterialTheme.typography.titleSmall)
+        Text("Dictionary", style = MaterialTheme.typography.titleMedium)
+        Text("Local replace rules on insert.", style = MaterialTheme.typography.bodySmall)
         OpenTextField(value = word, onValueChange = { word = it }, label = "Word / phrase")
         OpenTextField(value = repl, onValueChange = { repl = it }, label = "Replace with (optional)")
         OpenButton(
@@ -339,7 +355,7 @@ private fun DictionaryTab(modifier: Modifier, app: OpenFlowApp) {
         words.forEach { w: DictionaryWordEntity ->
             OpenCard {
                 Row(
-                    Modifier.padding(12.dp).fillMaxWidth(),
+                    Modifier.padding(14.dp).fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -354,17 +370,20 @@ private fun DictionaryTab(modifier: Modifier, app: OpenFlowApp) {
 }
 
 @Composable
-private fun SnippetsTab(modifier: Modifier, app: OpenFlowApp) {
+private fun SnippetsTab(app: OpenFlowApp) {
     val snippets by app.dictations.observeSnippets().collectAsState(initial = emptyList())
     var trigger by remember { mutableStateOf("") }
     var body by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     Column(
-        modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        Modifier
+            .fillMaxSize()
+            .padding(20.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("Voice trigger → paste block (local)", style = MaterialTheme.typography.titleSmall)
-        Text("Say the trigger alone as a full utterance after stop.", style = MaterialTheme.typography.bodySmall)
+        Text("Snippets", style = MaterialTheme.typography.titleMedium)
+        Text("Say the trigger alone after stop to expand.", style = MaterialTheme.typography.bodySmall)
         OpenTextField(value = trigger, onValueChange = { trigger = it }, label = "Trigger e.g. sig")
         OpenTextField(value = body, onValueChange = { body = it }, label = "Body", minLines = 3)
         OpenButton(
@@ -381,7 +400,7 @@ private fun SnippetsTab(modifier: Modifier, app: OpenFlowApp) {
         )
         snippets.forEach { s: SnippetEntity ->
             OpenCard {
-                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(s.trigger, style = MaterialTheme.typography.titleSmall)
                     Text(s.body.take(200), style = MaterialTheme.typography.bodySmall)
                     OutlinedButton(onClick = {
@@ -394,14 +413,17 @@ private fun SnippetsTab(modifier: Modifier, app: OpenFlowApp) {
 }
 
 @Composable
-private fun StyleTab(modifier: Modifier, prefs: FlowPrefs) {
+private fun StyleTab(prefs: FlowPrefs) {
     val styles = TextPostProcessor.Style.entries
     var selected by remember { mutableStateOf(prefs.style()) }
     Column(
-        modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        Modifier
+            .fillMaxSize()
+            .padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("Writing style (local post-process)", style = MaterialTheme.typography.titleSmall)
+        Text("Writing style", style = MaterialTheme.typography.titleMedium)
+        Text("Local post-process only.", style = MaterialTheme.typography.bodySmall)
         styles.forEach { st ->
             val on = selected == st
             OpenButton(
@@ -416,15 +438,107 @@ private fun StyleTab(modifier: Modifier, prefs: FlowPrefs) {
 }
 
 @Composable
-private fun SettingsTab(modifier: Modifier, prefs: FlowPrefs, onApplyBubble: () -> Unit) {
+private fun SettingsHub(
+    onAppearance: () -> Unit,
+    onBubble: () -> Unit
+) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(20.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text("Settings", style = MaterialTheme.typography.titleMedium)
+        SettingsRow("Appearance", "Theme light / dark / system", onAppearance)
+        SettingsRow("Bubble", "Size, opacity, shape, language", onBubble)
+        OpenCard {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Coming in Drop 2", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "Home modules · drawer item visibility · more bubble knobs",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        Text(
+            "Local-first. MIT FOSS. No account.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun SettingsRow(title: String, subtitle: String, onClick: () -> Unit) {
+    OpenCard {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun AppearanceSettings(prefs: FlowPrefs) {
+    val dark by prefs.darkMode.collectAsState()
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text("Appearance", style = MaterialTheme.typography.titleMedium)
+        Text("Calm pro · system respects device theme", style = MaterialTheme.typography.bodySmall)
+        Text("Theme", style = MaterialTheme.typography.titleSmall)
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            listOf("system" to "System", "light" to "Light", "dark" to "Dark").forEach { (v, label) ->
+                TextButton(onClick = { prefs.setDarkMode(v) }) {
+                    Text(
+                        label,
+                        color = if (dark == v) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
     var scale by remember { mutableFloatStateOf(prefs.bubbleScale) }
     var opacity by remember { mutableFloatStateOf(prefs.bubbleOpacity) }
     var lang by remember { mutableStateOf(prefs.languageTag) }
+    var mode by remember { mutableStateOf(prefs.bubbleMode) }
     Column(
-        modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
+        Modifier
+            .fillMaxSize()
+            .padding(20.dp)
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("Flow Bubble (Wispr parity)", style = MaterialTheme.typography.titleSmall)
+        Text("Bubble", style = MaterialTheme.typography.titleMedium)
+        Text("Live transcript shows on the bubble while you speak.", style = MaterialTheme.typography.bodySmall)
         Text("Size ${(scale * 100).toInt()}%")
         Slider(
             value = scale,
@@ -445,8 +559,7 @@ private fun SettingsTab(modifier: Modifier, prefs: FlowPrefs, onApplyBubble: () 
             },
             valueRange = 0.2f..1f
         )
-        var mode by remember { mutableStateOf(prefs.bubbleMode) }
-        Text("Bubble shape", style = MaterialTheme.typography.bodyMedium)
+        Text("Shape", style = MaterialTheme.typography.titleSmall)
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             listOf("full" to "Full", "compact" to "Compact", "dot" to "Dot").forEach { (v, label) ->
                 TextButton(onClick = {
@@ -459,29 +572,6 @@ private fun SettingsTab(modifier: Modifier, prefs: FlowPrefs, onApplyBubble: () 
                         color = if (mode == v) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                }
-            }
-        }
-        Text(
-            "Hides on bank/auth apps. Shake phone to unsnooze.",
-            style = MaterialTheme.typography.bodySmall
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("Dark mode", style = MaterialTheme.typography.bodyMedium)
-            Row {
-                listOf("system" to "System", "light" to "Light", "dark" to "Dark").forEach { (v, label) ->
-                    TextButton(onClick = { prefs.setDarkMode(v) }) {
-                        Text(
-                            label,
-                            color = if (prefs.darkMode.value == v)
-                                MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
                 }
             }
         }
@@ -502,8 +592,9 @@ private fun SettingsTab(modifier: Modifier, prefs: FlowPrefs, onApplyBubble: () 
             modifier = Modifier.fillMaxWidth()
         ) { Text("End bubble snooze") }
         Text(
-            "Local-first. Wispr needs cloud; we do not. MIT FOSS.",
-            style = MaterialTheme.typography.bodySmall
+            "Hides on bank/auth apps. Shake to unsnooze.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }

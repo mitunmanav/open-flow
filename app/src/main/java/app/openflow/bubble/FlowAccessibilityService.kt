@@ -424,27 +424,28 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         listening = true
         sessionBuffer = StringBuilder()
         listenStartedAt = SystemClock.elapsedRealtime()
+        // Dot mode: while speaking, use full-ish scale so text is readable
+        if (FlowPrefs.normalizeBubbleMode(prefs?.bubbleMode ?: "full") == "dot") {
+            bubbleView?.scaleX = (prefs?.bubbleScale ?: 0.85f) * 0.75f
+            bubbleView?.scaleY = (prefs?.bubbleScale ?: 0.85f) * 0.75f
+        }
         startPulse()
-        bubbleLabel?.text = getString(R.string.flow_bubble_listening)
+        bubbleLabel?.text = BubbleLabelFormatter.listening(0)
         setBubbleEmphasis(true)
         val lang = prefs?.languageTag ?: java.util.Locale.getDefault().toLanguageTag()
         stt?.setListener(object : SttEngine.Listener {
             override fun onPartial(text: String) {
                 val elapsed = (SystemClock.elapsedRealtime() - listenStartedAt) / 1000
-                val preview = text.take(22)
-                bubbleLabel?.text = if (preview.isBlank()) {
-                    "Listening ${elapsed}s"
-                } else {
-                    "● $preview"
-                }
+                // Live transcript on bubble (user-visible words)
+                bubbleLabel?.text = BubbleLabelFormatter.partial(text, elapsed)
             }
 
             override fun onFinal(text: String) {
                 if (text.isNotBlank()) {
+                    // Show final phrase on bubble, then insert into field
+                    bubbleLabel?.text = BubbleLabelFormatter.finalChunk(text)
                     insertText(text)
                 }
-                val elapsed = (SystemClock.elapsedRealtime() - listenStartedAt) / 1000
-                bubbleLabel?.text = "Listening ${elapsed}s · stop"
             }
 
             override fun onError(message: String, fatal: Boolean) {
@@ -453,26 +454,40 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                         message.contains("Microphone", true) ||
                         message.contains("Allow mic", true)
                     ) {
-                        getString(R.string.flow_bubble_need_mic)
-                    } else message.take(28)
+                        BubbleLabelFormatter.needMic()
+                    } else message.take(40)
                     listening = false
+                    stopPulse()
+                    applyPrefsVisual()
                     setBubbleEmphasis(focusedEditable != null)
                 }
             }
 
             override fun onNeedMicPermission() {
-                bubbleLabel?.text = getString(R.string.flow_bubble_need_mic)
+                bubbleLabel?.text = BubbleLabelFormatter.needMic()
                 listening = false
             }
 
             override fun onReady() {
-                val elapsed = (SystemClock.elapsedRealtime() - listenStartedAt) / 1000
-                bubbleLabel?.text = "Listening ${elapsed}s"
+                // Do not wipe live partial if we already show text
+                val current = bubbleLabel?.text?.toString().orEmpty()
+                if (current.isBlank() ||
+                    current.startsWith("Listening") ||
+                    current == getString(R.string.flow_bubble_listening)
+                ) {
+                    val elapsed = (SystemClock.elapsedRealtime() - listenStartedAt) / 1000
+                    bubbleLabel?.text = BubbleLabelFormatter.listening(elapsed)
+                }
             }
 
             override fun onListeningChanged(isOn: Boolean) {
-                listening = isOn
-                if (!isOn) renderIdle()
+                // Continuous restarts do not emit false; false = user/engine full stop.
+                if (!isOn) {
+                    listening = false
+                    stopPulse()
+                    applyPrefsVisual()
+                    renderIdle()
+                }
             }
         })
         stt?.startContinuous(lang)
@@ -583,7 +598,10 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     }
 
     private fun renderIdle() {
-        bubbleLabel?.text = getString(R.string.flow_bubble_idle)
+        when (FlowPrefs.normalizeBubbleMode(prefs?.bubbleMode ?: "full")) {
+            "dot" -> bubbleLabel?.text = "🎙"
+            else -> bubbleLabel?.text = BubbleLabelFormatter.idle()
+        }
     }
 
     fun applyPrefsVisual() {

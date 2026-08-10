@@ -5,6 +5,7 @@
     <string name="a11y_service_description">Open Flow uses Accessibility only to detect focused text fields and insert your on-device speech-to-text. It does not replace your keyboard. Speak as long as you want while the bubble is listening — sessions auto-restart after OS pauses. No cloud. No analytics. Password fields skipped.</string>
     <string name="flow_bubble_idle">🎙 Tap to talk</string>
     <string name="flow_bubble_listening">Listening…</string>
+    <string name="flow_bubble_need_mic">Allow mic in app</string>
     <string name="record">Record</string>
     <string name="stop">Stop</string>
     <string name="search_hint">Search transcripts…</string>

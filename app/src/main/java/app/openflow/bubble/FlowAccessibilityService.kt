@@ -3,8 +3,6 @@ package app.openflow.bubble
 import android.Manifest
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.pm.PackageManager
 import android.graphics.PixelFormat
 import android.hardware.Sensor
@@ -666,14 +664,6 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             return AccessibilityNodeInfo.obtain(cached)
         }
         return null
-    }
-
-    private fun copyToClipboard(text: String) {
-        try {
-            val cm = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
-            cm.setPrimaryClip(ClipData.newPlainText("open-flow", text))
-        } catch (_: Exception) {
-        }
     }
 
     private fun renderIdle() {

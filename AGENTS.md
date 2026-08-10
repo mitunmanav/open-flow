@@ -1,0 +1,218 @@
+# AGENTS.md — open-flow
+
+Read this first. Do not ask Mitun to re-state these rules.
+
+Also follow: `docs/PROCESS.md`, `SECURITY.md`, global `~/.grok/AGENTS.md` / `~/.grok/rules/00-voice.md`.
+
+---
+
+## Product (locked)
+
+**Open Flow** = FOSS Android app:
+
+1. **Wispr job** — speech-to-text into any app (voice IME / dictation). **STT only. Not TTS.**
+2. **NeoSapien job** — record → transcript → searchable private memory on device.
+
+| Rule | Value |
+|------|--------|
+| Platform | Android only (for now) |
+| License | MIT / FOSS |
+| Default | Fully local, no account, no ads, no analytics |
+| Online | Opt-in only, off by default |
+| Moat | Habit (default keyboard) + personal history + trust — not secret code |
+| Niche | Privacy / FOSS users first |
+
+Full feature list lives in chat history / future `docs/FEATURES.md`. Ship in ordered features (F0…Fn), not one mega dump.
+
+---
+
+## Voice with Mitun
+
+- **Caveman ultra:** short lines, easy words, YES/NO, no essays.
+- Work report: **DID / PASS-FAIL / NEXT / SUGGEST / ASK**
+- Author: **Mitun only.** No Co-Authored-By. No agent footers.
+- Wait for **GO** only if scope is unclear or destructive. Explicit “build / proceed / do it” = GO for that work.
+
+---
+
+## Superpowers (strict)
+
+Before any real work:
+
+1. Check applicable skills (`using-superpowers` first).
+2. **Brainstorm already done** for product shape — do not re-open “what is the app?” unless Mitun changes goal.
+3. **writing-plans** → plan file per feature before code.
+4. **using-git-worktrees** → one worktree per feature.
+5. **test-driven-development** → failing test first (pure logic always; Android UI/instrumented when feasible).
+6. **verification-before-completion** → prove build/tests before claiming done.
+
+If a skill applies even 1%, use it.
+
+---
+
+## Per-feature loop (never skip)
+
+```
+web search → plan file → worktree → TDD → security check → commit → report
+```
+
+### 1) Web search (required)
+
+Before implementing a feature, search for:
+
+- Current Android / Kotlin / Compose / Room / SpeechRecognizer APIs
+- Security implications (permissions, storage, network, IME)
+- Known footguns (e.g. MediaRecorder + SpeechRecognizer mic exclusive)
+
+### 2) Quick plan (required)
+
+Write: `docs/superpowers/plans/YYYY-MM-DD-<feature-id>-<slug>.md`
+
+Must include: goal, files, TDD steps, security notes, how Mitun tests on device.
+
+### 3) Worktree (required)
+
+```bash
+# From repo root (main clean)
+git check-ignore -q .worktrees || exit 1   # must be ignored
+git worktree add .worktrees/<feature-id>-<slug> -b feat/<feature-id>-<slug>
+cd .worktrees/<feature-id>-<slug>
+```
+
+- **One feature = one worktree = one branch.**
+- Do not pile unrelated features in the same worktree.
+- Merge to `main` only when feature is green and committed.
+
+### 4) TDD (required)
+
+- RED → fail for the right reason → GREEN → REFACTOR.
+- No production code without a failing test first (config/scaffold exceptions only when skill allows).
+
+### 5) Security (required every feature)
+
+See `SECURITY.md`. Hard defaults:
+
+| Default | Rule |
+|---------|------|
+| INTERNET | **Not** in base manifest |
+| Cleartext | Blocked (`network_security_config`) |
+| Backup | `allowBackup=false` |
+| Account / analytics / ads | Never |
+| RECORD_AUDIO | Runtime, only when needed |
+| FGS mic | Correct `foregroundServiceType` |
+| Secrets | Never commit keys / `local.properties` / keystores |
+| New permission | Must be justified in that feature’s plan |
+
+### 6) Git commit (required per feature)
+
+- One focused commit (or small series) **on the feature branch** when the feature is done.
+- Message style: `feat: …` / `fix: …` / `chore: …` / `docs: …`
+- Author Mitun only.
+- Do not force-push unless Mitun orders + backup.
+
+Example:
+
+```bash
+git add -A
+git status
+git commit -m "$(cat <<'EOF'
+feat: on-device STT engine with offline preference
+
+Prefer createOnDeviceSpeechRecognizer; fail loud if missing.
+EOF
+)"
+```
+
+---
+
+## Feature order (do not skip ahead without Mitun)
+
+| ID | Branch slug | Deliverable |
+|----|-------------|-------------|
+| F0 | `00-bootstrap` | Process, LICENSE, SECURITY (done on main) |
+| F1 | `01-scaffold` | Gradle + Compose shell; `assembleDebug` APK |
+| F2 | `02-privacy` | PrivacyDefaults + report UI |
+| F3 | `03-search-export` | Search + export pure logic + tests |
+| F4 | `04-room` | Room sessions + FTS |
+| F5 | `05-stt` | SpeechRecognizer engine (on-device prefer) |
+| F6 | `06-ime` | Voice IME |
+| F7 | `07-recorder` | Record + save session |
+| F8 | `08-timeline-ui` | Timeline + search UI |
+| F9 | `09-export-ui` | Export / share from UI |
+| F10+ | later | Whisper opt-in, sync opt-in, tiles, etc. |
+
+Later features only after earlier ones are on `main` or Mitun reorders.
+
+---
+
+## Repo layout
+
+```
+open-flow/                 # main git root
+├── AGENTS.md              # this file
+├── SECURITY.md
+├── docs/PROCESS.md
+├── docs/superpowers/plans/
+├── .worktrees/            # gitignored; feature checkouts
+└── app/                   # Android module
+```
+
+Work in: `/home/mitun/open-flow` (or active worktree under `.worktrees/`).
+
+---
+
+## Build & test (Mitun device)
+
+```bash
+export JAVA_HOME=$HOME/.local/jdk
+export ANDROID_HOME=$HOME/Android/Sdk
+export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
+
+./gradlew :app:testDebugUnitTest
+./gradlew :app:assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+After IME feature: System → Keyboard → enable **Open Flow Voice**.
+
+---
+
+## Stack (target)
+
+- Kotlin, Jetpack Compose, Material 3
+- IME UI: Views (Compose-in-IME is fragile)
+- STT: `android.speech.SpeechRecognizer` + on-device prefer
+- Storage: Room + FTS4
+- Crypto: EncryptedFile / Keystore when storing sensitive audio
+- No Google Play Services hard dependency
+- No Whisper/LLM in base until opt-in feature branch
+
+---
+
+## Never
+
+- Claim done without test/build proof
+- Add INTERNET “just in case”
+- Cloud upload of audio by default
+- Closed-source core
+- Re-litigate FOSS vs closed (decision: **FOSS**)
+- Re-add TTS as core goal (out of scope unless Mitun asks)
+- Commit `.worktrees/`, `local.properties`, secrets
+- Force-push without explicit order
+- Delete `~/.claude/` or unrelated Mitun setup
+
+---
+
+## Session start checklist
+
+1. Read this `AGENTS.md` + `docs/PROCESS.md`
+2. `git status` / which worktree / which branch
+3. Continue next unfinished feature ID (see table)
+4. Web search → plan → worktree → TDD → commit
+5. Short DID / PASS-FAIL / NEXT for Mitun
+
+---
+
+## Pickup line (for new chats)
+
+> Continue open-flow at `/home/mitun/open-flow` per AGENTS.md. Next feature from feature table. Worktree + plan + search + TDD + security + commit.

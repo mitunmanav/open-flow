@@ -1,11 +1,10 @@
 package app.openflow.ui
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.provider.Settings
-import android.content.Intent
-import android.net.Uri
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -38,10 +37,11 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import app.openflow.OpenFlowApp
+import app.openflow.bubble.FlowAccessibilityService
 import app.openflow.data.SessionEntity
 import app.openflow.privacy.PrivacyDefaults
-import app.openflow.search.TranscriptSearch
 import app.openflow.search.SearchHit
+import app.openflow.search.TranscriptSearch
 import app.openflow.ui.theme.OpenFlowTheme
 import kotlinx.coroutines.launch
 
@@ -49,7 +49,7 @@ class MainActivity : ComponentActivity() {
 
     private val micPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { /* result used when recording lands in F7 */ }
+    ) { /* mic for STT when bubble listens */ }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -59,6 +59,7 @@ class MainActivity : ComponentActivity() {
             OpenFlowTheme {
                 OpenFlowHome(
                     sessionsFlow = app.sessions.observeSessions(),
+                    bubbleRunning = FlowAccessibilityService.isRunning(),
                     onRequestMic = {
                         if (ContextCompat.checkSelfPermission(
                                 this,
@@ -68,8 +69,8 @@ class MainActivity : ComponentActivity() {
                             micPermission.launch(Manifest.permission.RECORD_AUDIO)
                         }
                     },
-                    onOpenImeSettings = {
-                        startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
+                    onOpenAccessibility = {
+                        startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                     },
                     onSeedDemo = {
                         lifecycleScope.launch {
@@ -92,8 +93,9 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun OpenFlowHome(
     sessionsFlow: kotlinx.coroutines.flow.Flow<List<SessionEntity>>,
+    bubbleRunning: Boolean,
     onRequestMic: () -> Unit,
-    onOpenImeSettings: () -> Unit,
+    onOpenAccessibility: () -> Unit,
     onSeedDemo: () -> Unit
 ) {
     val sessions by sessionsFlow.collectAsState(initial = emptyList())
@@ -119,16 +121,27 @@ private fun OpenFlowHome(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                "Local STT + private voice memory. No cloud by default.",
+                "Wispr-style dictation: floating bubble, not a keyboard. Local STT + private memory.",
                 style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                "How it works: keep your normal keyboard. Enable Flow Bubble. Tap a text field, tap the floating mic, speak — text inserts.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                if (bubbleRunning) "Flow Bubble: ON" else "Flow Bubble: OFF (enable in Accessibility)",
+                style = MaterialTheme.typography.labelLarge,
+                color = if (bubbleRunning) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.error
             )
             Text(
                 privacy.reportText(),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Button(onClick = onOpenImeSettings, modifier = Modifier.fillMaxWidth()) {
-                Text("Enable voice keyboard")
+            Button(onClick = onOpenAccessibility, modifier = Modifier.fillMaxWidth()) {
+                Text("Enable Flow Bubble (Accessibility)")
             }
             Button(onClick = onRequestMic, modifier = Modifier.fillMaxWidth()) {
                 Text("Grant microphone")
@@ -143,8 +156,17 @@ private fun OpenFlowHome(
                 label = { Text("Search transcripts") },
                 singleLine = true
             )
+            // Local test field: type here with bubble after a11y on
+            var localNote by remember { mutableStateOf("") }
+            OutlinedTextField(
+                value = localNote,
+                onValueChange = { localNote = it },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text("Test field — focus me, tap Flow bubble") },
+                minLines = 2
+            )
             if (hits.isEmpty()) {
-                Text("No recordings yet. Tap demo or record later (F7).")
+                Text("No recordings yet. Tap demo or record later.")
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(hits, key = { it.id }) { hit ->

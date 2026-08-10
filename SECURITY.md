@@ -11,6 +11,9 @@
 - Foreground service type `microphone` for background record
 - Local data: app-private storage; encrypt at rest (Keystore / EncryptedFile) when storing audio
 - Opt-in online features only; document any new permission in the feature plan
+- **Accessibility** used only for: detect editable focus + insert dictated text (Wispr-style bubble). Disclose in UI.
+- Skip password / phone / sensitive field types for insert
+- Do **not** use accessibility to scrape screen content for analytics
 
 ## Threat model (simple)
 
@@ -20,6 +23,7 @@
 | Backup leak | allowBackup false; data extraction rules exclude |
 | Cleartext MITM | NSC cleartext false |
 | Over-broad perms | Request only when used |
+| Accessibility abuse | Minimal events; insert-only; password skip; open source audit |
 | Supply chain | FOSS deps; pin versions in Gradle |
 
 ## Reporting

@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.graphics.PixelFormat
 import android.os.Bundle
+import android.os.SystemClock
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -17,8 +18,8 @@ import app.openflow.stt.SttEngine
 import kotlin.math.abs
 
 /**
- * Wispr Flow Android-style: floating bubble + insert text into focused field.
- * Not an IME / keyboard.
+ * Wispr Flow Android-style: floating bubble + continuous STT insert.
+ * Not an IME. Speak as long as you want while listening is ON.
  */
 class FlowAccessibilityService : AccessibilityService() {
 
@@ -28,6 +29,8 @@ class FlowAccessibilityService : AccessibilityService() {
     private var stt: SttEngine? = null
     private var listening = false
     private var focusedEditable: AccessibilityNodeInfo? = null
+    private var listenStartedAt = 0L
+    private var sessionIndex = 0
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -41,7 +44,7 @@ class FlowAccessibilityService : AccessibilityService() {
                 AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or
                 AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS or
                 AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS
-            notificationTimeout = 100
+            notificationTimeout = 80
         }
         stt = SttEngine(applicationContext, preferOnDevice = true)
         showBubble()
@@ -57,6 +60,7 @@ class FlowAccessibilityService : AccessibilityService() {
                 try {
                     updateFocusFrom(source)
                 } finally {
+                    @Suppress("DEPRECATION")
                     source.recycle()
                 }
             }
@@ -66,9 +70,11 @@ class FlowAccessibilityService : AccessibilityService() {
                     try {
                         findFocusedEditable(root)?.let { node ->
                             updateFocusFrom(node)
+                            @Suppress("DEPRECATION")
                             node.recycle()
                         }
                     } finally {
+                        @Suppress("DEPRECATION")
                         root.recycle()
                     }
                 }
@@ -85,7 +91,10 @@ class FlowAccessibilityService : AccessibilityService() {
         hideBubble()
         stt?.destroy()
         stt = null
-        focusedEditable?.recycle()
+        focusedEditable?.let {
+            @Suppress("DEPRECATION")
+            it.recycle()
+        }
         focusedEditable = null
         instance = null
         super.onDestroy()
@@ -93,30 +102,38 @@ class FlowAccessibilityService : AccessibilityService() {
 
     private fun updateFocusFrom(node: AccessibilityNodeInfo) {
         val target = when {
-            isUsableEditable(node) -> AccessibilityNodeInfo.obtain(node)
+            isUsableEditable(node) -> {
+                @Suppress("DEPRECATION")
+                AccessibilityNodeInfo.obtain(node)
+            }
             else -> findEditableInSubtree(node)
         }
-        focusedEditable?.recycle()
+        focusedEditable?.let {
+            @Suppress("DEPRECATION")
+            it.recycle()
+        }
         focusedEditable = target
         setBubbleEmphasis(target != null)
     }
 
     private fun findFocusedEditable(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
-        val focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
-        if (focused != null) {
-            if (isUsableEditable(focused)) return focused
-            val nested = findEditableInSubtree(focused)
-            focused.recycle()
-            return nested
-        }
-        return null
+        val focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT) ?: return null
+        if (isUsableEditable(focused)) return focused
+        val nested = findEditableInSubtree(focused)
+        @Suppress("DEPRECATION")
+        focused.recycle()
+        return nested
     }
 
     private fun findEditableInSubtree(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
-        if (isUsableEditable(node)) return AccessibilityNodeInfo.obtain(node)
+        if (isUsableEditable(node)) {
+            @Suppress("DEPRECATION")
+            return AccessibilityNodeInfo.obtain(node)
+        }
         for (i in 0 until node.childCount) {
             val child = node.getChild(i) ?: continue
             val found = findEditableInSubtree(child)
+            @Suppress("DEPRECATION")
             child.recycle()
             if (found != null) return found
         }
@@ -164,6 +181,7 @@ class FlowAccessibilityService : AccessibilityService() {
         try {
             windowManager?.addView(view, params)
             bubbleView = view
+            renderIdle()
             setBubbleEmphasis(false)
         } catch (_: Exception) {
             bubbleView = null
@@ -190,7 +208,6 @@ class FlowAccessibilityService : AccessibilityService() {
                     val dx = (event.rawX - downRawX).toInt()
                     val dy = (event.rawY - downRawY).toInt()
                     if (abs(dx) + abs(dy) > 16) dragged = true
-                    // gravity BOTTOM|END: x increases toward left, y toward top
                     params.x = (startX - dx).coerceAtLeast(0)
                     params.y = (startY - dy).coerceAtLeast(0)
                     try {
@@ -220,7 +237,7 @@ class FlowAccessibilityService : AccessibilityService() {
     }
 
     private fun setBubbleEmphasis(hasField: Boolean) {
-        bubbleView?.alpha = if (hasField || listening) 1f else 0.65f
+        bubbleView?.alpha = if (hasField || listening) 1f else 0.7f
     }
 
     private fun onBubbleTap() {
@@ -229,40 +246,62 @@ class FlowAccessibilityService : AccessibilityService() {
 
     private fun startListening() {
         listening = true
+        listenStartedAt = SystemClock.elapsedRealtime()
+        sessionIndex = 0
         bubbleLabel?.text = getString(R.string.flow_bubble_listening)
         setBubbleEmphasis(true)
         stt?.setListener(object : SttEngine.Listener {
             override fun onPartial(text: String) {
-                bubbleLabel?.text = text.take(28).ifBlank {
-                    getString(R.string.flow_bubble_listening)
+                val elapsed = (SystemClock.elapsedRealtime() - listenStartedAt) / 1000
+                val preview = text.take(22)
+                bubbleLabel?.text = if (preview.isBlank()) {
+                    "Listening ${elapsed}s"
+                } else {
+                    "● $preview"
                 }
             }
 
             override fun onFinal(text: String) {
                 insertText(text)
-                bubbleLabel?.text = getString(R.string.flow_bubble_idle)
-                if (listening) stt?.start()
+                val elapsed = (SystemClock.elapsedRealtime() - listenStartedAt) / 1000
+                bubbleLabel?.text = "Listening ${elapsed}s · tap stop"
             }
 
-            override fun onError(message: String) {
-                bubbleLabel?.text = getString(R.string.flow_bubble_idle)
-                listening = false
+            override fun onError(message: String, fatal: Boolean) {
+                if (fatal) {
+                    bubbleLabel?.text = getString(R.string.flow_bubble_idle)
+                    listening = false
+                    setBubbleEmphasis(focusedEditable != null)
+                }
+                // non-fatal: engine auto-restarts
             }
 
             override fun onReady() {
-                bubbleLabel?.text = getString(R.string.flow_bubble_listening)
+                val elapsed = (SystemClock.elapsedRealtime() - listenStartedAt) / 1000
+                bubbleLabel?.text = "Listening ${elapsed}s"
             }
 
-            override fun onEnd() {}
+            override fun onListeningChanged(isOn: Boolean) {
+                listening = isOn
+                if (!isOn) renderIdle()
+            }
+
+            override fun onSessionTick(sessionIndex: Int) {
+                this@FlowAccessibilityService.sessionIndex = sessionIndex
+            }
         })
-        stt?.start()
+        stt?.startContinuous()
     }
 
     private fun stopListening() {
         listening = false
         stt?.stop()
-        bubbleLabel?.text = getString(R.string.flow_bubble_idle)
+        renderIdle()
         setBubbleEmphasis(focusedEditable != null)
+    }
+
+    private fun renderIdle() {
+        bubbleLabel?.text = getString(R.string.flow_bubble_idle)
     }
 
     private fun insertText(spoken: String) {

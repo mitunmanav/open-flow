@@ -32,7 +32,7 @@ import kotlinx.coroutines.launch
 
 private data class DrawerItem(val route: AppRoute, val label: String, val icon: ImageVector)
 
-private val primaryDrawer = listOf(
+private val allDrawer = listOf(
     DrawerItem(AppRoute.Home, "Home", Icons.Default.Home),
     DrawerItem(AppRoute.History, "History", Icons.Default.History),
     DrawerItem(AppRoute.Dictionary, "Dictionary", Icons.Default.Book),
@@ -46,6 +46,7 @@ private val primaryDrawer = listOf(
 fun AppShell(
     route: AppRoute,
     onNavigate: (AppRoute) -> Unit,
+    isItemVisible: (AppRoute) -> Boolean = { true },
     content: @Composable (PaddingValues) -> Unit
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -53,7 +54,12 @@ fun AppShell(
     val title = when (route) {
         AppRoute.Appearance -> "Appearance"
         AppRoute.BubbleSettings -> "Bubble"
+        AppRoute.HomeModules -> "Home layout"
+        AppRoute.NavModules -> "Menu items"
         else -> route.title
+    }
+    val drawerItems = allDrawer.filter { item ->
+        item.route == AppRoute.Home || item.route == AppRoute.Settings || isItemVisible(item.route)
     }
 
     ModalNavigationDrawer(
@@ -72,9 +78,10 @@ fun AppShell(
                     modifier = Modifier.padding(horizontal = 28.dp).padding(bottom = 12.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                primaryDrawer.forEach { item ->
+                drawerItems.forEach { item ->
                     val selected = when (route) {
-                        AppRoute.Appearance, AppRoute.BubbleSettings ->
+                        AppRoute.Appearance, AppRoute.BubbleSettings,
+                        AppRoute.HomeModules, AppRoute.NavModules ->
                             item.route == AppRoute.Settings
                         else -> item.route == route
                     }

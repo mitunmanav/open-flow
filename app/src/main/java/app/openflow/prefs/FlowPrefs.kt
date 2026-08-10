@@ -64,6 +64,38 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         store.putString("dark_mode", v)
     }
 
+    /** Drop 2: home module order + visibility encoding */
+    var homeLayout: String
+        get() = store.getString("home_layout", LayoutPrefs.DEFAULT_HOME)
+        set(v) = store.putString("home_layout", v)
+
+    /** Drop 2: drawer item visibility (home always on) */
+    var navLayout: String
+        get() = store.getString("nav_layout", LayoutPrefs.DEFAULT_NAV)
+        set(v) = store.putString("nav_layout", v)
+
+    /** Listen pulse on bubble */
+    var bubblePulse: Boolean
+        get() = store.getString("bubble_pulse", "true") == "true"
+        set(v) = store.putString("bubble_pulse", if (v) "true" else "false")
+
+    fun homeModules(): List<LayoutPrefs.Module> =
+        LayoutPrefs.parseModules(homeLayout, LayoutPrefs.HOME_MODULES)
+
+    fun setHomeModules(modules: List<LayoutPrefs.Module>) {
+        homeLayout = LayoutPrefs.encodeModules(modules)
+    }
+
+    fun navModules(): List<LayoutPrefs.Module> =
+        LayoutPrefs.parseModules(navLayout, LayoutPrefs.NAV_ITEMS)
+
+    fun setNavModules(modules: List<LayoutPrefs.Module>) {
+        navLayout = LayoutPrefs.encodeModules(modules)
+    }
+
+    fun isDrawerItemVisible(routeName: String): Boolean =
+        LayoutPrefs.isNavVisible(navLayout, routeName)
+
     companion object {
         const val PREFS_NAME = "openflow_prefs"
 

@@ -2,19 +2,33 @@ package app.openflow.text
 
 /**
  * Local post-process to approximate Wispr cleanup without cloud.
- * Filler strip, light punctuation, numbered-list detection.
+ * Pipeline: course-correct → fillers → lists → voice cmds → punct → caps.
+ * Full session is polished once on stop (not every raw STT chunk into the field).
  */
 object TextPostProcessor {
 
+    // "i mean" is a course-correct marker — handled by CourseCorrector, not stripped here
     private val fillers = listOf(
-        "um", "uh", "erm", "ah", "like", "you know", "i mean", "sort of", "kind of"
+        "um", "uh", "erm", "ah", "uhm", "hmm", "you know", "sort of", "kind of"
     )
+
+    /**
+     * Full production polish for one dictation session.
+     * [courseCorrect] should be true for final insert (Wispr intent cleanup).
+     */
+    fun polishSession(raw: String, style: Style = Style.CASUAL, courseCorrect: Boolean = true): String {
+        if (raw.isBlank()) return raw
+        var t = raw.trim()
+        if (courseCorrect) t = CourseCorrector.apply(t)
+        return process(t, style)
+    }
 
     fun process(raw: String, style: Style = Style.CASUAL): String {
         if (raw.isBlank()) return raw
         var t = raw.trim()
         t = stripFillers(t)
         t = normalizeSpaces(t)
+        t = applyVoiceCommands(t)
         t = applyListHints(t)
         t = applyPunctuation(t, style)
         t = applyCapitalization(t)
@@ -51,10 +65,26 @@ object TextPostProcessor {
         fillers.sortedByDescending { it.length }.forEach { f ->
             out = out.replace(Regex("\\b${Regex.escape(f)}\\b[,\\s]*", RegexOption.IGNORE_CASE), " ")
         }
+        // standalone "like" only when filler (surrounded by pauses / not "I like X")
+        out = out.replace(Regex("""(?i)(?<=\s|^)like(?=\s)(?!\s+(?:to|a|an|the|my|your|this|that)\b)"""), " ")
         return normalizeSpaces(out)
     }
 
     private fun normalizeSpaces(t: String) = t.replace(Regex("\\s+"), " ").trim()
+
+    /** Spoken layout commands → real newlines / punctuation tokens. */
+    private fun applyVoiceCommands(t: String): String {
+        var s = t
+        s = s.replace(Regex("""(?i)\bnew\s+paragraph\b"""), "\n\n")
+        s = s.replace(Regex("""(?i)\bnew\s+line\b"""), "\n")
+        s = s.replace(Regex("""(?i)\bperiod\b"""), ".")
+        s = s.replace(Regex("""(?i)\bcomma\b"""), ",")
+        s = s.replace(Regex("""(?i)\bquestion\s+mark\b"""), "?")
+        s = s.replace(Regex("""(?i)\bexclamation\s+(?:mark|point)\b"""), "!")
+        // tidy spaces before punctuation
+        s = s.replace(Regex("""\s+([.,!?])"""), "$1")
+        return s
+    }
 
     private fun applyListHints(t: String): String {
         // "number one X number two Y" -> "1. X\n2. Y"

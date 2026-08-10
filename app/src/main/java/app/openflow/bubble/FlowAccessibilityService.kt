@@ -29,6 +29,7 @@ import app.openflow.OpenFlowApp
 import app.openflow.R
 import app.openflow.prefs.FlowPrefs
 import app.openflow.stt.SttEngine
+import app.openflow.stt.SttTuning
 import app.openflow.text.TextPostProcessor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -37,9 +38,12 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 /**
- * Wispr-style Flow Bubble + continuous on-device STT insert.
- * Features: long-press PTT, drag, snooze, post-process, dictionary/snippets, history,
- * bank package hide, shrink modes, shake unsnooze, listen pulse (F14).
+ * Wispr-style Flow Bubble + continuous on-device STT.
+ *
+ * Insert model (matches Wispr Android docs, local only):
+ * - Listen accumulates speech on bubble only (no raw dump into keyboard).
+ * - Stop / PTT release → course-correct + polish once → single SET_TEXT.
+ * - Clipboard only if field insert fails (Wispr fallback).
  */
 class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
@@ -55,7 +59,10 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val mainHandler = Handler(Looper.getMainLooper())
     private var prefs: FlowPrefs? = null
+    /** Raw STT segments for this listen (not written to field until stop). */
     private var sessionBuffer = StringBuilder()
+    /** Field text snapshot at listen start — session rewrite base. */
+    private var fieldPrefix: String = ""
     private var lastPackage: String? = null
     private var sensorManager: SensorManager? = null
     private var accelerometer: Sensor? = null
@@ -423,6 +430,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
         listening = true
         sessionBuffer = StringBuilder()
+        fieldPrefix = captureFieldPrefix()
         listenStartedAt = SystemClock.elapsedRealtime()
         // Dot mode: while speaking, use full-ish scale so text is readable
         if (FlowPrefs.normalizeBubbleMode(prefs?.bubbleMode ?: "full") == "dot") {
@@ -432,20 +440,22 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         if (prefs?.bubblePulse != false) startPulse()
         bubbleLabel?.text = BubbleLabelFormatter.listening(0)
         setBubbleEmphasis(true)
-        val lang = prefs?.languageTag ?: java.util.Locale.getDefault().toLanguageTag()
+        val lang = prefs?.languageTag?.ifBlank { null } ?: SttTuning.DEFAULT_LANGUAGE
         stt?.setListener(object : SttEngine.Listener {
             override fun onPartial(text: String) {
                 val elapsed = (SystemClock.elapsedRealtime() - listenStartedAt) / 1000
-                // Live transcript on bubble (user-visible words)
-                bubbleLabel?.text = BubbleLabelFormatter.partial(text, elapsed)
+                // Live on bubble only — never dump partials into the field
+                val preview = if (sessionBuffer.isEmpty()) text
+                else "${sessionBuffer} $text"
+                bubbleLabel?.text = BubbleLabelFormatter.partial(preview, elapsed)
             }
 
             override fun onFinal(text: String) {
-                if (text.isNotBlank()) {
-                    // Show final phrase on bubble, then insert into field
-                    bubbleLabel?.text = BubbleLabelFormatter.finalChunk(text)
-                    insertText(text)
-                }
+                if (text.isBlank()) return
+                // Accumulate only. Field write happens once on stop (Wispr checkmark model).
+                if (sessionBuffer.isNotEmpty()) sessionBuffer.append(' ')
+                sessionBuffer.append(text.trim())
+                bubbleLabel?.text = BubbleLabelFormatter.finalChunk(sessionBuffer.toString())
             }
 
             override fun onError(message: String, fatal: Boolean) {
@@ -498,29 +508,112 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         pushToTalk = false
         stopPulse()
         stt?.stop()
-        if (save && sessionBuffer.isNotBlank()) {
-            val text = sessionBuffer.toString()
+        val raw = sessionBuffer.toString().trim()
+        if (save && raw.isNotBlank()) {
             val dur = SystemClock.elapsedRealtime() - listenStartedAt
-            val lang = prefs?.languageTag ?: "en"
-            scope.launch(Dispatchers.IO) {
-                runCatching {
-                    app.dictations.saveDictation(text, dur, lang)
+            val lang = prefs?.languageTag ?: SttTuning.DEFAULT_LANGUAGE
+            // One polish + one field write (no raw chunk dump)
+            polishSession(raw) { finalText ->
+                if (finalText.isNotBlank()) {
+                    commitSessionToField(finalText)
+                    scope.launch(Dispatchers.IO) {
+                        runCatching {
+                            app.dictations.saveDictation(finalText, dur, lang)
+                        }
+                    }
                 }
             }
         }
         sessionBuffer = StringBuilder()
+        fieldPrefix = ""
         applyModeLabel()
         setBubbleEmphasis(focusedEditable != null)
     }
 
-    private fun polish(text: String, onDone: (String) -> Unit) {
+    private fun captureFieldPrefix(): String {
+        val root = rootInActiveWindow
+        val node = resolveEditable(root, focusedEditable)
+        try {
+            root?.let {
+                @Suppress("DEPRECATION")
+                it.recycle()
+            }
+        } catch (_: Exception) {
+        }
+        if (node == null) return ""
+        return try {
+            node.text?.toString().orEmpty()
+        } finally {
+            @Suppress("DEPRECATION")
+            node.recycle()
+        }
+    }
+
+    private fun polishSession(text: String, onDone: (String) -> Unit) {
         scope.launch {
             val dict = app.dictations.dictionaryMap()
             val snip = app.dictations.snippetMap()
             var t = TextPostProcessor.expandSnippets(text, snip)
-            t = TextPostProcessor.applyDictionary(t, dict)
-            t = TextPostProcessor.process(t, prefs?.style() ?: TextPostProcessor.Style.CASUAL)
+            // Snippet full-replace skips further polish
+            if (t == text || snip.values.none { it == t }) {
+                t = TextPostProcessor.polishSession(
+                    t,
+                    prefs?.style() ?: TextPostProcessor.Style.CASUAL,
+                    courseCorrect = true
+                )
+                t = TextPostProcessor.applyDictionary(t, dict)
+            }
             mainHandler.post { onDone(t) }
+        }
+    }
+
+    /** Single SET_TEXT of prefix + polished session. Clipboard only on insert fail. */
+    private fun commitSessionToField(finalText: String) {
+        if (finalText.isBlank()) return
+        val root = rootInActiveWindow
+        val node = resolveEditable(root, focusedEditable)
+        try {
+            root?.let {
+                @Suppress("DEPRECATION")
+                it.recycle()
+            }
+        } catch (_: Exception) {
+        }
+        if (node == null) {
+            copyToClipboard(finalText)
+            Toast.makeText(this, R.string.flow_bubble_copied_clipboard, Toast.LENGTH_SHORT).show()
+            return
+        }
+        try {
+            if (!isUsableEditable(node)) {
+                copyToClipboard(finalText)
+                return
+            }
+            val merged = FieldPolicy.mergeSession(fieldPrefix, finalText)
+            val args = Bundle().apply {
+                putCharSequence(
+                    AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
+                    merged
+                )
+            }
+            var ok = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+            if (!ok) {
+                node.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+                ok = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+            }
+            if (!ok) {
+                copyToClipboard(finalText)
+                Toast.makeText(this, R.string.flow_bubble_copied_clipboard, Toast.LENGTH_SHORT).show()
+            }
+            focusedEditable?.let {
+                @Suppress("DEPRECATION")
+                it.recycle()
+            }
+            @Suppress("DEPRECATION")
+            focusedEditable = AccessibilityNodeInfo.obtain(node)
+        } finally {
+            @Suppress("DEPRECATION")
+            node.recycle()
         }
     }
 
@@ -544,49 +637,6 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             return AccessibilityNodeInfo.obtain(cached)
         }
         return null
-    }
-
-    private fun insertText(spoken: String) {
-        polish(spoken) { finalText ->
-            if (finalText.isBlank()) return@polish
-            if (sessionBuffer.isNotEmpty()) sessionBuffer.append(' ')
-            sessionBuffer.append(finalText)
-            copyToClipboard(finalText)
-            val root = rootInActiveWindow
-            val node = resolveEditable(root, focusedEditable)
-            try {
-                root?.let {
-                    @Suppress("DEPRECATION")
-                    it.recycle()
-                }
-            } catch (_: Exception) {
-            }
-            if (node == null) return@polish
-            try {
-                if (!isUsableEditable(node)) return@polish
-                val merged = FieldPolicy.mergeInsert(node.text, finalText)
-                val args = Bundle().apply {
-                    putCharSequence(
-                        AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
-                        merged
-                    )
-                }
-                val ok = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
-                if (!ok) {
-                    node.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
-                    node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
-                }
-                focusedEditable?.let {
-                    @Suppress("DEPRECATION")
-                    it.recycle()
-                }
-                @Suppress("DEPRECATION")
-                focusedEditable = AccessibilityNodeInfo.obtain(node)
-            } finally {
-                @Suppress("DEPRECATION")
-                node.recycle()
-            }
-        }
     }
 
     private fun copyToClipboard(text: String) {

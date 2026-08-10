@@ -43,4 +43,21 @@ class TextPostProcessorTest {
         val out = TextPostProcessor.process("how are you doing today")
         assertThat(out).endsWith("?")
     }
+
+    @Test
+    fun polish_session_course_corrects_time() {
+        val out = TextPostProcessor.polishSession(
+            "set a reminder for 4:30 actually 5:30"
+        )
+        assertThat(out.lowercase()).contains("5:30")
+        assertThat(out.lowercase()).doesNotContain("4:30")
+    }
+
+    @Test
+    fun voice_command_new_line() {
+        val out = TextPostProcessor.process("hello new line world")
+        assertThat(out).contains("\n")
+        assertThat(out.lowercase()).contains("hello")
+        assertThat(out.lowercase()).contains("world")
+    }
 }

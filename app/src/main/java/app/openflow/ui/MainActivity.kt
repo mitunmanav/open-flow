@@ -62,6 +62,7 @@ import app.openflow.data.SnippetEntity
 import app.openflow.prefs.FlowPrefs
 import app.openflow.prefs.LayoutPrefs
 import app.openflow.privacy.PrivacyDefaults
+import app.openflow.stt.SttTuning
 import app.openflow.text.TextPostProcessor
 import app.openflow.ui.components.EmptyState
 import app.openflow.ui.components.OpenButton
@@ -151,7 +152,10 @@ class MainActivity : ComponentActivity() {
                                     startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                                 },
                                 onMic = { micPermission.launch(Manifest.permission.RECORD_AUDIO) },
-                                onOpenHistory = { route = AppRoute.History }
+                                onOpenHistory = { route = AppRoute.History },
+                                onOpenBubbleSettings = { route = AppRoute.BubbleSettings },
+                                onOpenAppearance = { route = AppRoute.Appearance },
+                                onOpenStyle = { route = AppRoute.Style }
                             )
                             AppRoute.History -> HistoryScreen(app)
                             AppRoute.Dictionary -> DictionaryTab(app)
@@ -217,12 +221,18 @@ private fun HomeHub(
     micOn: Boolean,
     onEnableBubble: () -> Unit,
     onMic: () -> Unit,
-    onOpenHistory: () -> Unit
+    onOpenHistory: () -> Unit,
+    onOpenBubbleSettings: () -> Unit,
+    onOpenAppearance: () -> Unit,
+    onOpenStyle: () -> Unit
 ) {
     val dictations by app.dictations.observeDictations().collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
     var statsText by remember { mutableStateOf("…") }
     var localNote by remember { mutableStateOf("") }
+    var lang by remember { mutableStateOf(app.prefs.languageTag) }
+    var pulse by remember { mutableStateOf(app.prefs.bubblePulse) }
+    var styleName by remember { mutableStateOf(app.prefs.styleName) }
     DisposableEffect(Unit) {
         scope.launch {
             val s = app.dictations.stats()
@@ -244,7 +254,7 @@ private fun HomeHub(
             color = MaterialTheme.colorScheme.onBackground
         )
         Text(
-            "Floating bubble · on-device STT · no account",
+            "Bubble · on-device STT · polish once on stop · no account",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -268,7 +278,7 @@ private fun HomeHub(
                             enabled = !micOn
                         )
                         Text(
-                            "Focus a field → tap 🎙 bubble. Spoken words show on the bubble.",
+                            "Focus a field → tap 🎙 → speak → tap again to insert polished text.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -308,6 +318,72 @@ private fun HomeHub(
                             })
                         }
                     }
+                }
+            }
+        }
+
+        // Quick settings on Home (user asked: settings below home content)
+        OpenCard {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Quick settings", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "English STT · course-correct on stop · no raw dump into field",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text("Language", style = MaterialTheme.typography.titleSmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    listOf(
+                        SttTuning.DEFAULT_LANGUAGE to "en-US",
+                        "en-GB" to "en-GB",
+                        java.util.Locale.getDefault().toLanguageTag() to "Device"
+                    ).distinctBy { it.first }.forEach { (tag, label) ->
+                        OpenChip(
+                            label = label,
+                            isOn = lang.equals(tag, ignoreCase = true),
+                            onClick = {
+                                lang = tag
+                                app.prefs.languageTag = tag
+                            }
+                        )
+                    }
+                }
+                Text("Style", style = MaterialTheme.typography.titleSmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    listOf(
+                        TextPostProcessor.Style.CASUAL.name to "Casual",
+                        TextPostProcessor.Style.FORMAL.name to "Formal",
+                        TextPostProcessor.Style.EXCITED.name to "Excited"
+                    ).forEach { (v, label) ->
+                        OpenChip(
+                            label = label,
+                            isOn = styleName == v,
+                            onClick = {
+                                styleName = v
+                                app.prefs.styleName = v
+                            }
+                        )
+                    }
+                }
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Listen pulse", style = MaterialTheme.typography.bodyMedium)
+                    OpenChip(
+                        label = if (pulse) "ON" else "OFF",
+                        isOn = pulse,
+                        onClick = {
+                            pulse = !pulse
+                            app.prefs.bubblePulse = pulse
+                        }
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = onOpenBubbleSettings) { Text("Bubble…") }
+                    TextButton(onClick = onOpenAppearance) { Text("Theme…") }
+                    TextButton(onClick = onOpenStyle) { Text("Style…") }
                 }
             }
         }

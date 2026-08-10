@@ -113,5 +113,6 @@ object TextPostProcessor {
         return sb.toString()
     }
 
-    enum class Style { CASUAL, FORMAL, EXCITED, VERY_CASUAL }
+    enum class Style { CASUAL, FORMAL, EXCITED }
 }
+

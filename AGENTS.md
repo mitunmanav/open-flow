@@ -203,13 +203,26 @@ After IME feature: System → Keyboard → enable **Open Flow Voice**.
 
 ---
 
+## Interruptions (hard)
+
+When Mitun adds rules, docs, questions, or small side requests **while build work is in progress**:
+
+1. **Do not stop** the main feature work.
+2. **Do not forget** the active feature ID, worktree, plan, or next TDD step.
+3. Handle the side request **and** keep going on the interrupted work in the **same turn** when possible.
+4. If the side request must finish first (e.g. AGENTS.md edit), do it **fast**, then **immediately resume** the last unfinished feature step.
+5. Never end a turn only on the interruption if build work was mid-flight — always leave **NEXT** as the resume step (or finish it).
+
+Track mentally (or in todos): `ACTIVE_FEATURE`, `ACTIVE_WORKTREE`, `LAST_STEP`.
+
 ## Session start checklist
 
 1. Read this `AGENTS.md` + `docs/PROCESS.md`
 2. `git status` / which worktree / which branch
-3. Continue next unfinished feature ID (see table)
-4. Web search → plan → worktree → TDD → commit
-5. Short DID / PASS-FAIL / NEXT for Mitun
+3. If work was interrupted last turn → **resume that first**
+4. Continue next unfinished feature ID (see table)
+5. Web search → plan → worktree → TDD → commit
+6. Short DID / PASS-FAIL / NEXT for Mitun
 
 ---
 

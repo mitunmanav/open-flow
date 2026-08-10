@@ -21,6 +21,11 @@ Follow Superpowers + these rules. No exceptions.
 4. test-driven-development (code)
 5. verification-before-completion (prove)
 
+## Interruptions
+
+Side requests (new rules, docs, questions) **never cancel** in-flight feature work.
+Do the side task, then **resume** the same feature/worktree/step. See `AGENTS.md` → Interruptions.
+
 ## Feature map (order)
 
 | ID | Branch | What |

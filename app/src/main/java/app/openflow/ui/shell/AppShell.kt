@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Style
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -17,6 +18,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -30,15 +33,21 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
-private data class DrawerItem(val route: AppRoute, val label: String, val icon: ImageVector)
+private data class NavItem(val route: AppRoute, val label: String, val icon: ImageVector)
 
-private val allDrawer = listOf(
-    DrawerItem(AppRoute.Home, "Home", Icons.Default.Home),
-    DrawerItem(AppRoute.History, "History", Icons.Default.History),
-    DrawerItem(AppRoute.Dictionary, "Dictionary", Icons.Default.Book),
-    DrawerItem(AppRoute.Snippets, "Snippets", Icons.AutoMirrored.Filled.ShortText),
-    DrawerItem(AppRoute.Style, "Style", Icons.Default.Style),
-    DrawerItem(AppRoute.Settings, "Settings", Icons.Default.Settings),
+/** Bottom: primary only. Style lives here (not drawer). */
+private val bottomItems = listOf(
+    NavItem(AppRoute.Home, "Home", Icons.Default.Home),
+    NavItem(AppRoute.Dictionary, "Dict", Icons.Default.Book),
+    NavItem(AppRoute.Snippets, "Snips", Icons.AutoMirrored.Filled.ShortText),
+    NavItem(AppRoute.Style, "Style", Icons.Default.Style),
+)
+
+/** Drawer: Settings + extras — never Home/Dict/Snips/Style. */
+private val drawerExtras = listOf(
+    NavItem(AppRoute.Settings, "Settings", Icons.Default.Settings),
+    NavItem(AppRoute.History, "History", Icons.Default.History),
+    NavItem(AppRoute.Customize, "Customize", Icons.Default.Tune),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -46,7 +55,7 @@ private val allDrawer = listOf(
 fun AppShell(
     route: AppRoute,
     onNavigate: (AppRoute) -> Unit,
-    isItemVisible: (AppRoute) -> Boolean = { true },
+    isDrawerExtraVisible: (AppRoute) -> Boolean = { true },
     content: @Composable (PaddingValues) -> Unit
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -56,10 +65,14 @@ fun AppShell(
         AppRoute.BubbleSettings -> "Bubble"
         AppRoute.HomeModules -> "Home layout"
         AppRoute.NavModules -> "Menu items"
+        AppRoute.Cleanup -> "Cleanup"
+        AppRoute.Privacy -> "History & privacy"
+        AppRoute.Sounds -> "Sounds & haptics"
         else -> route.title
     }
-    val drawerItems = allDrawer.filter { item ->
-        item.route == AppRoute.Home || item.route == AppRoute.Settings || isItemVisible(item.route)
+
+    val drawerItems = drawerExtras.filter { item ->
+        item.route == AppRoute.Settings || isDrawerExtraVisible(item.route)
     }
 
     ModalNavigationDrawer(
@@ -69,21 +82,26 @@ fun AppShell(
                 Text(
                     "Open Flow",
                     style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.padding(horizontal = 28.dp, vertical = 20.dp),
+                    modifier = Modifier.padding(horizontal = 28.dp, vertical = 16.dp),
                     color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    "Local · calm · private",
+                    "Extras only · no bottom duplicates",
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(horizontal = 28.dp).padding(bottom = 12.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 drawerItems.forEach { item ->
-                    val selected = when (route) {
-                        AppRoute.Appearance, AppRoute.BubbleSettings,
-                        AppRoute.HomeModules, AppRoute.NavModules ->
-                            item.route == AppRoute.Settings
-                        else -> item.route == route
+                    val selected = when {
+                        route == item.route -> true
+                        item.route == AppRoute.Settings && route in listOf(
+                            AppRoute.Appearance, AppRoute.BubbleSettings,
+                            AppRoute.Cleanup, AppRoute.Privacy, AppRoute.Sounds
+                        ) -> true
+                        item.route == AppRoute.Customize && route in listOf(
+                            AppRoute.Customize, AppRoute.HomeModules, AppRoute.NavModules
+                        ) -> true
+                        else -> false
                     }
                     NavigationDrawerItem(
                         label = { Text(item.label) },
@@ -92,9 +110,7 @@ fun AppShell(
                             onNavigate(item.route)
                             scope.launch { drawerState.close() }
                         },
-                        icon = {
-                            Icon(item.icon, contentDescription = item.label)
-                        },
+                        icon = { Icon(item.icon, contentDescription = item.label) },
                         modifier = Modifier.padding(horizontal = 12.dp)
                     )
                 }
@@ -115,6 +131,18 @@ fun AppShell(
                         titleContentColor = MaterialTheme.colorScheme.onSurface
                     )
                 )
+            },
+            bottomBar = {
+                NavigationBar {
+                    bottomItems.forEach { item ->
+                        NavigationBarItem(
+                            selected = route == item.route,
+                            onClick = { onNavigate(item.route) },
+                            icon = { Icon(item.icon, contentDescription = item.label) },
+                            label = { Text(item.label) }
+                        )
+                    }
+                }
             },
             containerColor = MaterialTheme.colorScheme.background,
             content = content

@@ -14,21 +14,21 @@ class LayoutPrefsTest {
 
     @Test
     fun hidden_prefix() {
-        val m = LayoutPrefs.parseModules("setup,!stats,test,recent", LayoutPrefs.HOME_MODULES)
+        val m = LayoutPrefs.parseModules("setup,!stats,keys,test,recent", LayoutPrefs.HOME_MODULES)
         assertThat(m.find { it.id == "stats" }!!.visible).isFalse()
         assertThat(m.find { it.id == "setup" }!!.visible).isTrue()
     }
 
     @Test
     fun encode_roundtrip() {
-        val raw = "setup,!stats,test,recent"
+        val raw = "setup,!stats,keys,test,recent"
         val m = LayoutPrefs.parseModules(raw, LayoutPrefs.HOME_MODULES)
         assertThat(LayoutPrefs.encodeModules(m)).isEqualTo(raw)
     }
 
     @Test
     fun move_up_down() {
-        val m = LayoutPrefs.parseModules("setup,stats,test,recent", LayoutPrefs.HOME_MODULES)
+        val m = LayoutPrefs.parseModules("setup,stats,keys,test,recent", LayoutPrefs.HOME_MODULES)
         val down = LayoutPrefs.move(m, "setup", 1)
         assertThat(down.map { it.id }.take(2)).isEqualTo(listOf("stats", "setup"))
         val up = LayoutPrefs.move(down, "setup", -1)
@@ -43,8 +43,25 @@ class LayoutPrefsTest {
     }
 
     @Test
-    fun nav_home_always() {
-        assertThat(LayoutPrefs.isNavVisible("!history", "home")).isTrue()
-        assertThat(LayoutPrefs.isNavVisible("!history,dictionary,snippets,style,settings", "history")).isFalse()
+    fun drawer_settings_and_home_always() {
+        assertThat(LayoutPrefs.isDrawerVisible("!history", "home")).isTrue()
+        assertThat(LayoutPrefs.isDrawerVisible("!history", "settings")).isTrue()
+        assertThat(LayoutPrefs.isDrawerVisible("!history,customize", "history")).isFalse()
+    }
+
+    @Test
+    fun bottom_tabs_never_drawer() {
+        assertThat(LayoutPrefs.isDrawerVisible("history,customize", "dictionary")).isFalse()
+        assertThat(LayoutPrefs.isDrawerVisible("history,customize", "style")).isFalse()
+        assertThat(LayoutPrefs.isDrawerVisible("history,customize", "snippets")).isFalse()
+    }
+
+    @Test
+    fun old_nav_ids_dropped_from_drawer_catalog() {
+        val m = LayoutPrefs.parseModules(
+            "history,dictionary,snippets,style,settings",
+            LayoutPrefs.DRAWER_EXTRAS
+        )
+        assertThat(m.map { it.id }).containsExactly("history", "customize").inOrder()
     }
 }

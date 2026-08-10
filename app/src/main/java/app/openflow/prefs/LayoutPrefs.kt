@@ -1,17 +1,25 @@
 package app.openflow.prefs
 
 /**
- * Pure helpers for Drop 2 customisability: home modules + drawer nav visibility.
+ * Home modules + drawer extras only (no duplicates with bottom bar).
+ *
+ * Bottom bar (fixed): Home · Dictionary · Snippets · Style
+ * Drawer extras: Settings (always) · History · Customize
+ *
  * Encoding: comma-separated ids; leading '!' means hidden.
- * Example: "setup,stats,!test,recent"
  */
 object LayoutPrefs {
 
-    val HOME_MODULES = listOf("setup", "stats", "test", "recent")
-    val NAV_ITEMS = listOf("history", "dictionary", "snippets", "style", "settings")
+    val HOME_MODULES = listOf("setup", "stats", "keys", "test", "recent")
 
-    const val DEFAULT_HOME = "setup,stats,test,recent"
-    const val DEFAULT_NAV = "history,dictionary,snippets,style,settings"
+    /** Drawer-only destinations the user may hide (Settings always shown in shell). */
+    val DRAWER_EXTRAS = listOf("history", "customize")
+
+    @Deprecated("Use DRAWER_EXTRAS — bottom tabs are not drawer items")
+    val NAV_ITEMS = DRAWER_EXTRAS
+
+    const val DEFAULT_HOME = "setup,stats,keys,test,recent"
+    const val DEFAULT_NAV = "history,customize"
 
     data class Module(val id: String, val visible: Boolean)
 
@@ -23,6 +31,8 @@ object LayoutPrefs {
             val hidden = p.startsWith('!')
             val id = if (hidden) p.drop(1) else p
             if (id !in catalog || id in seen) continue
+            // Migrate old catalog ids that moved off drawer
+            if (id in listOf("dictionary", "snippets", "style", "settings")) continue
             seen += id
             out += Module(id, visible = !hidden)
         }
@@ -52,9 +62,14 @@ object LayoutPrefs {
     fun visibleIds(modules: List<Module>): List<String> =
         modules.filter { it.visible }.map { it.id }
 
-    fun isNavVisible(raw: String, id: String): Boolean {
-        if (id == "home") return true
-        val mods = parseModules(raw, NAV_ITEMS)
+    /** Drawer extras visibility. Settings + home always true. Bottom tabs not drawer. */
+    fun isDrawerVisible(raw: String, id: String): Boolean {
+        if (id == "home" || id == "settings") return true
+        if (id in listOf("dictionary", "snippets", "style")) return false
+        val mods = parseModules(raw, DRAWER_EXTRAS)
         return mods.find { it.id == id }?.visible != false
     }
+
+    /** @deprecated use isDrawerVisible */
+    fun isNavVisible(raw: String, id: String): Boolean = isDrawerVisible(raw, id)
 }

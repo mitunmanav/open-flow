@@ -432,22 +432,26 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         sessionBuffer = StringBuilder()
         fieldPrefix = captureFieldPrefix()
         listenStartedAt = SystemClock.elapsedRealtime()
-        // Dot mode: while speaking, use full-ish scale so text is readable
+        // Dot mode: grow slightly while active
         if (FlowPrefs.normalizeBubbleMode(prefs?.bubbleMode ?: "full") == "dot") {
             bubbleView?.scaleX = (prefs?.bubbleScale ?: 0.85f) * 0.75f
             bubbleView?.scaleY = (prefs?.bubbleScale ?: 0.85f) * 0.75f
         }
         if (prefs?.bubblePulse != false) startPulse()
-        bubbleLabel?.text = BubbleLabelFormatter.listening(0)
+        setListenChrome(0)
         setBubbleEmphasis(true)
         val lang = prefs?.languageTag?.ifBlank { null } ?: SttTuning.DEFAULT_LANGUAGE
         stt?.setListener(object : SttEngine.Listener {
             override fun onPartial(text: String) {
                 val elapsed = (SystemClock.elapsedRealtime() - listenStartedAt) / 1000
-                // Live on bubble only — never dump partials into the field
-                val preview = if (sessionBuffer.isEmpty()) text
-                else "${sessionBuffer} $text"
-                bubbleLabel?.text = BubbleLabelFormatter.partial(preview, elapsed)
+                // Never dump partials into the field. Bubble caption only if pref on.
+                if (prefs?.bubbleShowText == true) {
+                    val preview = if (sessionBuffer.isEmpty()) text
+                    else "${sessionBuffer} $text"
+                    bubbleLabel?.text = BubbleLabelFormatter.partial(preview, elapsed)
+                } else {
+                    setListenChrome(elapsed)
+                }
             }
 
             override fun onFinal(text: String) {
@@ -455,7 +459,13 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 // Accumulate only. Field write happens once on stop (Wispr checkmark model).
                 if (sessionBuffer.isNotEmpty()) sessionBuffer.append(' ')
                 sessionBuffer.append(text.trim())
-                bubbleLabel?.text = BubbleLabelFormatter.finalChunk(sessionBuffer.toString())
+                if (prefs?.bubbleShowText == true) {
+                    bubbleLabel?.text = BubbleLabelFormatter.finalChunk(sessionBuffer.toString())
+                } else {
+                    setListenChrome(
+                        (SystemClock.elapsedRealtime() - listenStartedAt) / 1000
+                    )
+                }
             }
 
             override fun onError(message: String, fatal: Boolean) {
@@ -479,14 +489,17 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             }
 
             override fun onReady() {
-                // Do not wipe live partial if we already show text
-                val current = bubbleLabel?.text?.toString().orEmpty()
-                if (current.isBlank() ||
-                    current.startsWith("Listening") ||
-                    current == getString(R.string.flow_bubble_listening)
-                ) {
-                    val elapsed = (SystemClock.elapsedRealtime() - listenStartedAt) / 1000
-                    bubbleLabel?.text = BubbleLabelFormatter.listening(elapsed)
+                val elapsed = (SystemClock.elapsedRealtime() - listenStartedAt) / 1000
+                if (prefs?.bubbleShowText == true) {
+                    val current = bubbleLabel?.text?.toString().orEmpty()
+                    if (current.isBlank() ||
+                        current.startsWith("Listening") ||
+                        current == getString(R.string.flow_bubble_listening)
+                    ) {
+                        bubbleLabel?.text = BubbleLabelFormatter.listening(elapsed)
+                    }
+                } else {
+                    setListenChrome(elapsed)
                 }
             }
 
@@ -556,11 +569,25 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             var t = TextPostProcessor.expandSnippets(text, snip)
             // Snippet full-replace skips further polish
             if (t == text || snip.values.none { it == t }) {
-                t = TextPostProcessor.polishSession(
-                    t,
-                    prefs?.style() ?: TextPostProcessor.Style.CASUAL,
-                    courseCorrect = true
-                )
+                val level = FlowPrefs.normalizeCleanupLevel(prefs?.cleanupLevel ?: "medium")
+                when (level) {
+                    "none" -> { /* raw STT only */ }
+                    "light" -> {
+                        t = TextPostProcessor.polishSession(
+                            t,
+                            prefs?.style() ?: TextPostProcessor.Style.CASUAL,
+                            courseCorrect = false
+                        )
+                    }
+                    else -> {
+                        // medium + high: full local polish (high uses same local rules for now)
+                        t = TextPostProcessor.polishSession(
+                            t,
+                            prefs?.style() ?: TextPostProcessor.Style.CASUAL,
+                            courseCorrect = true
+                        )
+                    }
+                }
                 t = TextPostProcessor.applyDictionary(t, dict)
             }
             mainHandler.post { onDone(t) }
@@ -650,7 +677,23 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     private fun renderIdle() {
         when (FlowPrefs.normalizeBubbleMode(prefs?.bubbleMode ?: "full")) {
             "dot" -> bubbleLabel?.text = "🎙"
-            else -> bubbleLabel?.text = BubbleLabelFormatter.idle()
+            else -> bubbleLabel?.text = when (prefs?.bubbleShape) {
+                "pill" -> "🎙"
+                "square" -> "■"
+                "dot" -> "●"
+                else -> "🎙"
+            }.let { icon ->
+                if (prefs?.bubbleShowText == true) BubbleLabelFormatter.idle() else icon
+            }
+        }
+    }
+
+    /** Icon / wave status — no speech transcript when showText is off. */
+    private fun setListenChrome(elapsedSec: Long) {
+        bubbleLabel?.text = when {
+            prefs?.bubbleShowText == true -> BubbleLabelFormatter.listening(elapsedSec)
+            elapsedSec > 0 -> "● $elapsedSec"
+            else -> "●"
         }
     }
 

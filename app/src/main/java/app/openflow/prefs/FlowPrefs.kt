@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import app.openflow.stt.SttTuning
 import app.openflow.text.TextPostProcessor
+import app.openflow.ui.theme.VisualSkin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -69,12 +70,22 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         store.putString("dark_mode", v)
     }
 
+    private val _visualSkin = MutableStateFlow(
+        VisualSkin.fromStorage(store.getString("visual_skin", defaultVisualSkinStorage()))
+    )
+    val visualSkin: StateFlow<VisualSkin> = _visualSkin.asStateFlow()
+
+    fun setVisualSkin(skin: VisualSkin) {
+        _visualSkin.value = skin
+        store.putString("visual_skin", skin.storage)
+    }
+
     /** Drop 2: home module order + visibility encoding */
     var homeLayout: String
         get() = store.getString("home_layout", LayoutPrefs.DEFAULT_HOME)
         set(v) = store.putString("home_layout", v)
 
-    /** Drop 2: drawer item visibility (home always on) */
+    /** Drawer extras visibility (history, customize). Settings always on. */
     var navLayout: String
         get() = store.getString("nav_layout", LayoutPrefs.DEFAULT_NAV)
         set(v) = store.putString("nav_layout", v)
@@ -84,6 +95,38 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         get() = store.getString("bubble_pulse", "true") == "true"
         set(v) = store.putString("bubble_pulse", if (v) "true" else "false")
 
+    /** Live speech text on bubble — default OFF (control chrome only). */
+    var bubbleShowText: Boolean
+        get() = store.getString("bubble_show_text", "false") == "true"
+        set(v) = store.putString("bubble_show_text", if (v) "true" else "false")
+
+    /** circle | pill | square | dot */
+    var bubbleShape: String
+        get() = normalizeBubbleShape(store.getString("bubble_shape", "circle"))
+        set(v) = store.putString("bubble_shape", normalizeBubbleShape(v))
+
+    var bubbleHaptics: Boolean
+        get() = store.getString("bubble_haptics", "true") == "true"
+        set(v) = store.putString("bubble_haptics", if (v) "true" else "false")
+
+    var bubbleEdgeSnap: Boolean
+        get() = store.getString("bubble_edge_snap", "true") == "true"
+        set(v) = store.putString("bubble_edge_snap", if (v) "true" else "false")
+
+    var bubbleSounds: Boolean
+        get() = store.getString("bubble_sounds", "false") == "true"
+        set(v) = store.putString("bubble_sounds", if (v) "true" else "false")
+
+    /** none | light | medium | high */
+    var cleanupLevel: String
+        get() = normalizeCleanupLevel(store.getString("cleanup_level", "medium"))
+        set(v) = store.putString("cleanup_level", normalizeCleanupLevel(v))
+
+    /** keep | wipe_24h | never_store */
+    var retentionPolicy: String
+        get() = normalizeRetention(store.getString("retention", "keep"))
+        set(v) = store.putString("retention", normalizeRetention(v))
+
     fun homeModules(): List<LayoutPrefs.Module> =
         LayoutPrefs.parseModules(homeLayout, LayoutPrefs.HOME_MODULES)
 
@@ -92,17 +135,20 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
     }
 
     fun navModules(): List<LayoutPrefs.Module> =
-        LayoutPrefs.parseModules(navLayout, LayoutPrefs.NAV_ITEMS)
+        LayoutPrefs.parseModules(navLayout, LayoutPrefs.DRAWER_EXTRAS)
 
     fun setNavModules(modules: List<LayoutPrefs.Module>) {
         navLayout = LayoutPrefs.encodeModules(modules)
     }
 
     fun isDrawerItemVisible(routeName: String): Boolean =
-        LayoutPrefs.isNavVisible(navLayout, routeName)
+        LayoutPrefs.isDrawerVisible(navLayout, routeName)
 
     companion object {
         const val PREFS_NAME = "openflow_prefs"
+
+        /** Override in product-brutal flavor via subclass or build config later. */
+        fun defaultVisualSkinStorage(): String = VisualSkin.M3.storage
 
         fun normalizeDarkMode(value: String): String =
             when (value) {
@@ -114,6 +160,24 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
             when (value) {
                 "full", "compact", "dot" -> value
                 else -> "full"
+            }
+
+        fun normalizeBubbleShape(value: String): String =
+            when (value) {
+                "circle", "pill", "square", "dot" -> value
+                else -> "circle"
+            }
+
+        fun normalizeCleanupLevel(value: String): String =
+            when (value.lowercase()) {
+                "none", "light", "medium", "high" -> value.lowercase()
+                else -> "medium"
+            }
+
+        fun normalizeRetention(value: String): String =
+            when (value.lowercase()) {
+                "keep", "wipe_24h", "never_store" -> value.lowercase()
+                else -> "keep"
             }
     }
 }

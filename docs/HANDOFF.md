@@ -3,7 +3,7 @@
 **Updated:** 2026-08-10  
 **Repo:** `/home/mitun/open-flow`  
 **Active worktree:** `.worktrees/chore-ponytail-cut`  
-**Branch:** `chore/ponytail-cut` @ `0867d3d`  
+**Branch:** `chore/ponytail-cut` @ `824d8d2`  
 **main tip (not merged yet):** older — merge cut first  
 
 ---
@@ -147,8 +147,8 @@ Roadmap: `docs/superpowers/plans/2026-08-10-master-fix-roadmap.md`
 ```
 Continue open-flow at /home/mitun/open-flow per AGENTS.md + docs/HANDOFF.md.
 Product: Wispr-style Flow Bubble (NOT IME) + local memory, MIT, offline STT.
-ACTIVE: .worktrees/chore-ponytail-cut · branch chore/ponytail-cut @ 0867d3d
-DID: ponytail cut (sessions/export/recorder shell/unused deps gone; dictations only). Tests+APK green.
+ACTIVE: .worktrees/chore-ponytail-cut · branch chore/ponytail-cut @ 824d8d2
+DID: ponytail cut (sessions/export/recorder shell/unused deps gone; dictations only). Tests+APK green. Handoff updated.
 NEXT: merge to main (ask Mitun) then F14 polish or F16 recorder.
 Do not resurrect dual Session* stack or empty RecordingService without real feature.
 Rebuild APK to Desktop when shipping.

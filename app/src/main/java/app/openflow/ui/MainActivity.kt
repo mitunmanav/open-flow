@@ -239,12 +239,22 @@ private fun HomeHub(
     var localNote by remember { mutableStateOf("") }
     var lang by remember { mutableStateOf(app.prefs.languageTag) }
     var cleanup by remember { mutableStateOf(app.prefs.cleanupLevel) }
-    DisposableEffect(Unit) {
+    var lastClean by remember { mutableStateOf(app.prefs.lastCleanText) }
+    var lastRaw by remember { mutableStateOf(app.prefs.lastRawText) }
+    val owner = LocalLifecycleOwner.current
+    DisposableEffect(owner) {
+        val obs = LifecycleEventObserver { _, e ->
+            if (e == Lifecycle.Event.ON_RESUME) {
+                lastClean = app.prefs.lastCleanText
+                lastRaw = app.prefs.lastRawText
+            }
+        }
+        owner.lifecycle.addObserver(obs)
         scope.launch {
             val s = app.dictations.stats()
             statsText = "Words ${s.totalWords} · Sessions ${s.totalSessions} · Streak ${s.streakDays}d"
         }
-        onDispose { }
+        onDispose { owner.lifecycle.removeObserver(obs) }
     }
     val modules = remember(app.prefs.homeLayout) { app.prefs.homeModules() }
     Column(
@@ -333,7 +343,9 @@ private fun HomeHub(
                             OpenButton(
                                 text = "Copy last",
                                 onClick = {
-                                    val last = dictations.firstOrNull()?.text.orEmpty()
+                                    val last = lastClean.ifBlank {
+                                        dictations.firstOrNull()?.text.orEmpty()
+                                    }
                                     if (last.isNotBlank()) {
                                         val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                         cm.setPrimaryClip(
@@ -373,6 +385,25 @@ private fun HomeHub(
                             DictationCard(d, onDelete = {
                                 scope.launch { app.dictations.deleteDictation(d.id) }
                             })
+                        }
+                    }
+                }
+            }
+        }
+
+        // Last stop session — explicit clipboard only (no auto-copy from bubble)
+        if (lastClean.isNotBlank()) {
+            OpenCard {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Last result", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        lastClean.take(500),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        CopyButton(text = lastClean, label = "Copy")
+                        if (lastRaw.isNotBlank() && lastRaw != lastClean) {
+                            CopyButton(text = lastRaw, label = "Copy raw")
                         }
                     }
                 }
@@ -419,6 +450,8 @@ private fun HistoryScreen(app: OpenFlowApp) {
 
 @Composable
 private fun DictationCard(d: DictationEntity, onDelete: () -> Unit) {
+    var showRaw by remember { mutableStateOf(false) }
+    val hasRaw = d.rawText.isNotBlank() && d.rawText != d.text
     OpenCard {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
@@ -427,8 +460,23 @@ private fun DictationCard(d: DictationEntity, onDelete: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(d.text.take(400), style = MaterialTheme.typography.bodyMedium)
+            if (hasRaw) {
+                TextButton(onClick = { showRaw = !showRaw }) {
+                    Text(if (showRaw) "Hide raw" else "Show raw")
+                }
+                if (showRaw) {
+                    Text(
+                        d.rawText.take(400),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                CopyButton(text = d.text)
+                CopyButton(text = d.text, label = "Copy cleaned")
+                if (hasRaw) {
+                    CopyButton(text = d.rawText, label = "Copy raw")
+                }
                 OutlinedButton(onClick = onDelete) { Text("Delete") }
             }
         }
@@ -436,14 +484,14 @@ private fun DictationCard(d: DictationEntity, onDelete: () -> Unit) {
 }
 
 @Composable
-private fun CopyButton(text: String) {
+private fun CopyButton(text: String, label: String = "Copy") {
     val ctx = LocalContext.current
     OutlinedButton(
         onClick = {
             val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             cm.setPrimaryClip(android.content.ClipData.newPlainText("dictation", text))
         }
-    ) { Text("Copy") }
+    ) { Text(label) }
 }
 
 @Composable

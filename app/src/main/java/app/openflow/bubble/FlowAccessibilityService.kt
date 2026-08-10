@@ -30,6 +30,8 @@ import app.openflow.R
 import app.openflow.prefs.FlowPrefs
 import app.openflow.stt.SttEngine
 import app.openflow.stt.SttTuning
+import app.openflow.text.CleanupLevel
+import app.openflow.text.CleanupResult
 import app.openflow.text.TextPostProcessor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -42,8 +44,8 @@ import kotlin.math.abs
  *
  * Insert model (matches Wispr Android docs, local only):
  * - Listen accumulates speech on bubble only (no raw dump into keyboard).
- * - Stop / PTT release → course-correct + polish once → single SET_TEXT.
- * - Clipboard only if field insert fails (Wispr fallback).
+ * - Stop / PTT release → CleanupPipeline once → single SET_TEXT of clean text.
+ * - No automatic clipboard; last raw/clean held in prefs for in-app Copy.
  */
 class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
@@ -525,13 +527,24 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         if (save && raw.isNotBlank()) {
             val dur = SystemClock.elapsedRealtime() - listenStartedAt
             val lang = prefs?.languageTag ?: SttTuning.DEFAULT_LANGUAGE
-            // One polish + one field write (no raw chunk dump)
-            polishSession(raw) { finalText ->
-                if (finalText.isNotBlank()) {
-                    commitSessionToField(finalText)
-                    scope.launch(Dispatchers.IO) {
-                        runCatching {
-                            app.dictations.saveDictation(finalText, dur, lang)
+            // One cleanup + one field write (no raw chunk dump)
+            polishSession(raw) { result ->
+                val clean = result.clean.ifBlank { result.raw }
+                // Always keep last session for Home "Last result" (explicit Copy only)
+                prefs?.setLastSession(result.raw, clean)
+                if (clean.isNotBlank()) {
+                    commitSessionToField(clean)
+                    val neverStore = prefs?.retentionPolicy == "never_store"
+                    if (!neverStore) {
+                        scope.launch(Dispatchers.IO) {
+                            runCatching {
+                                app.dictations.saveDictation(
+                                    rawText = result.raw,
+                                    cleanText = clean,
+                                    durationMs = dur,
+                                    languageTag = lang
+                                )
+                            }
                         }
                     }
                 }
@@ -562,39 +575,30 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
     }
 
-    private fun polishSession(text: String, onDone: (String) -> Unit) {
+    private fun polishSession(text: String, onDone: (CleanupResult) -> Unit) {
         scope.launch {
             val dict = app.dictations.dictionaryMap()
             val snip = app.dictations.snippetMap()
-            var t = TextPostProcessor.expandSnippets(text, snip)
+            val expanded = TextPostProcessor.expandSnippets(text, snip)
             // Snippet full-replace skips further polish
-            if (t == text || snip.values.none { it == t }) {
-                val level = FlowPrefs.normalizeCleanupLevel(prefs?.cleanupLevel ?: "medium")
-                when (level) {
-                    "none" -> { /* raw STT only */ }
-                    "light" -> {
-                        t = TextPostProcessor.polishSession(
-                            t,
-                            prefs?.style() ?: TextPostProcessor.Style.CASUAL,
-                            courseCorrect = false
-                        )
-                    }
-                    else -> {
-                        // medium + high: full local polish (high uses same local rules for now)
-                        t = TextPostProcessor.polishSession(
-                            t,
-                            prefs?.style() ?: TextPostProcessor.Style.CASUAL,
-                            courseCorrect = true
-                        )
-                    }
-                }
-                t = TextPostProcessor.applyDictionary(t, dict)
+            val snippetHit = expanded != text && snip.values.any { it == expanded }
+            val result = if (snippetHit) {
+                CleanupResult(raw = text, clean = expanded)
+            } else {
+                val level = CleanupLevel.fromPref(prefs?.cleanupLevel ?: "medium")
+                val style = prefs?.style() ?: TextPostProcessor.Style.CASUAL
+                val polished = TextPostProcessor.polishSessionResult(expanded, style, level)
+                val clean = TextPostProcessor.applyDictionary(polished.clean, dict)
+                polished.copy(clean = clean)
             }
-            mainHandler.post { onDone(t) }
+            mainHandler.post { onDone(result) }
         }
     }
 
-    /** Single SET_TEXT of prefix + polished session. Clipboard only on insert fail. */
+    /**
+     * Single SET_TEXT of prefix + clean session.
+     * No automatic clipboard — result stays in app prefs; user Copy explicitly.
+     */
     private fun commitSessionToField(finalText: String) {
         if (finalText.isBlank()) return
         val root = rootInActiveWindow
@@ -607,13 +611,12 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         } catch (_: Exception) {
         }
         if (node == null) {
-            copyToClipboard(finalText)
-            Toast.makeText(this, R.string.flow_bubble_copied_clipboard, Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.flow_bubble_saved_in_app, Toast.LENGTH_SHORT).show()
             return
         }
         try {
             if (!isUsableEditable(node)) {
-                copyToClipboard(finalText)
+                Toast.makeText(this, R.string.flow_bubble_saved_in_app, Toast.LENGTH_SHORT).show()
                 return
             }
             val merged = FieldPolicy.mergeSession(fieldPrefix, finalText)
@@ -629,8 +632,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 ok = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
             }
             if (!ok) {
-                copyToClipboard(finalText)
-                Toast.makeText(this, R.string.flow_bubble_copied_clipboard, Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, R.string.flow_bubble_saved_in_app, Toast.LENGTH_SHORT).show()
             }
             focusedEditable?.let {
                 @Suppress("DEPRECATION")

@@ -11,7 +11,7 @@ Research date: 2026-08-10. Sources: Wispr docs, Play listing, launch notes, Help
 | # | Feature | Wispr Android | Open Flow | Phase |
 |---|---------|---------------|-----------|-------|
 | A1 | Accessibility insert into any app | Yes | **Have** | done |
-| A2 | Auto punctuation | Yes (cloud) | Local rules | **F13** |
+| A2 | Auto punctuation | Yes (cloud) | Local rules | **F13 done** |
 | A3 | Account / login / billing | Yes | **Never required** | skip |
 | B1 | Bubble drag reposition | Yes | Partial | **F13** |
 | B2 | Bubble size (0.7–1.15×) | Yes | Settings | **F13** |
@@ -26,7 +26,7 @@ Research date: 2026-08-10. Sources: Wispr docs, Play listing, launch notes, Help
 | D2 | Dictionary search/edit/delete | Yes | UI | **F13** |
 | D3 | Display over other apps | Yes (a11y overlay) | a11y overlay | have |
 | F1 | Filler removal (um/uh/like) | Yes | Local filter | **F13** |
-| F2 | Formatting numbered lists | Yes | Local rules | **F13** |
+| F2 | Formatting numbered lists | Yes | Local rules | **F13 done** |
 | H1 | History by day | Yes | Room timeline | **F13** |
 | H2 | History copy/delete | Yes | UI | **F13** |
 | H3 | Hold-to-talk (long press) | Yes | **F13** |

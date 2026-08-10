@@ -6,12 +6,23 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [SessionEntity::class, SessionFts::class],
-    version = 1,
+    entities = [
+        SessionEntity::class,
+        SessionFts::class,
+        DictationEntity::class,
+        DictionaryWordEntity::class,
+        SnippetEntity::class,
+        AppStatsEntity::class
+    ],
+    version = 2,
     exportSchema = false
 )
 abstract class OpenFlowDatabase : RoomDatabase() {
     abstract fun sessionDao(): SessionDao
+    abstract fun dictationDao(): DictationDao
+    abstract fun dictionaryDao(): DictionaryDao
+    abstract fun snippetDao(): SnippetDao
+    abstract fun statsDao(): StatsDao
 
     companion object {
         @Volatile private var instance: OpenFlowDatabase? = null
@@ -22,7 +33,10 @@ abstract class OpenFlowDatabase : RoomDatabase() {
                     context.applicationContext,
                     OpenFlowDatabase::class.java,
                     "openflow.db"
-                ).build().also { instance = it }
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
+                    .also { instance = it }
             }
         }
     }

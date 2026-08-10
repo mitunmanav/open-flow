@@ -3,8 +3,8 @@
 **Updated:** 2026-08-10  
 **Repo:** `/home/mitun/open-flow`  
 **Active worktree:** `.worktrees/chore-ponytail-cut`  
-**Branch:** `chore/ponytail-cut` @ `824d8d2`  
-**main tip (not merged yet):** older — merge cut first  
+**Branch:** `chore/ponytail-cut` (tip: ponytail cut + this handoff)  
+**main:** not merged yet — merge cut first  
 
 ---
 
@@ -31,7 +31,7 @@ Process: `AGENTS.md` + `docs/PROCESS.md` + `SECURITY.md`
 
 ## Last done (ponytail cut)
 
-Commit `0867d3d` on `chore/ponytail-cut`:
+On `chore/ponytail-cut` (`0867d3d` cut + handoff commits after):
 
 - **One store:** dictations only (dropped sessions + FTS dual stack)
 - **Deleted dead:** TranscriptSearch, TranscriptExporter, empty RecordingService, SttConfig, FocusResolver

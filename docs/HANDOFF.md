@@ -1,59 +1,33 @@
-# Open Flow — session handoff (pickup)
+# Open Flow — session handoff
 
 **Updated:** 2026-08-10  
 **Repo:** `/home/mitun/open-flow`  
 **Branch:** `main`  
-**Active worktree:** repo root  
-**Full history:** `docs/BASELINE.md`  
-**Plan just shipped:** `docs/superpowers/plans/2026-08-10-14-polish.md`
+**Spec:** `docs/superpowers/specs/2026-08-10-ui-redesign-design.md`  
+**Plan:** `docs/superpowers/plans/2026-08-10-ui-redesign-drop1.md`  
+**Baseline:** `docs/BASELINE.md`
 
----
+## Product
+Flow Bubble + a11y (NOT IME). Local STT. MIT. No INTERNET.
 
-## Product (locked)
-
-Flow Bubble + AccessibilityService, **NOT IME**. Local STT. MIT. No INTERNET default.
-
----
-
-## Last done
-
-**F14 polish** (web-guided Android):
-
-- Bank/auth **package hide** (`PackagePolicy`)
-- Bubble modes **full / compact / dot**
-- **Shake** unsnooze (~2.7G)
-- Listen **pulse**
-- Tests **32** green · APK rebuilt
-
----
+## Last done — UI redesign Drop 1
+- Drawer + Home hub (calm pro)
+- Settings → Appearance / Bubble
+- **Bubble shows live partial + final text**
+- History screen; bottom nav removed
+- APK on Desktop: `open-flow-debug.apk`
 
 ## NEXT
+- Drop 2: Home modules · nav visibility · more custom knobs
+- F15 export · F16 recorder
 
-| ID | Work |
-|----|------|
-| F15 | Export/share history |
-| F16 | Memo recorder |
-| F17 | Language pack UI |
-
----
-
-## Rebuild
-
-```bash
-export JAVA_HOME=$HOME/.local/jdk ANDROID_HOME=$HOME/Android/Sdk
-export PATH="$JAVA_HOME/bin:$PATH"
-cd /home/mitun/open-flow
-echo "sdk.dir=$ANDROID_HOME" > local.properties
-./gradlew :app:testDebugUnitTest :app:assembleDebug --offline
-```
-
-Phone: Settings → Compact/Dot · snooze+shake · bank app hide · dictate pulse.
-
----
+## Phone check
+1. Menu ☰ → destinations  
+2. Theme Appearance  
+3. Tap bubble → **words appear on bubble** while speaking  
+4. Text inserts into field  
 
 ## Paste
-
 ```
-Continue open-flow. AGENTS + docs/BASELINE.md + HANDOFF.
-F14 done. NEXT F15 export or F16 recorder.
+Continue open-flow. Drop 1 UI done. Bubble live text fixed. NEXT Drop 2 custom or F15/F16.
 ```

@@ -18,10 +18,7 @@
     <string name="enable_bubble_hint">Enable Open Flow in Accessibility for the floating bubble. Keep your normal keyboard.</string>
     <string name="permission_mic">Microphone is required to dictate and record.</string>
     <string name="offline_prefer">Prefer on-device speech recognition</string>
-    <string name="no_sessions">No recordings yet. Tap demo session.</string>
     <string name="privacy_no_internet">No INTERNET permission. Voice stays on device by default.</string>
-    <string name="recording_channel">Recording</string>
-    <string name="recording_notification">Open Flow is recording</string>
     <string name="listening">Listening…</string>
     <string name="partial">Hearing…</string>
     <string name="enable_flow_bubble">1. Enable Flow Bubble</string>

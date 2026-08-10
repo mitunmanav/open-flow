@@ -261,7 +261,7 @@ private fun HomeTab(
             }
         }
         Text(
-            PrivacyDefaults().reportText(),
+            PrivacyDefaults.reportText(),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

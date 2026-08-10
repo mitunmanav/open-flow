@@ -7,18 +7,15 @@ import androidx.room.RoomDatabase
 
 @Database(
     entities = [
-        SessionEntity::class,
-        SessionFts::class,
         DictationEntity::class,
         DictionaryWordEntity::class,
         SnippetEntity::class,
         AppStatsEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class OpenFlowDatabase : RoomDatabase() {
-    abstract fun sessionDao(): SessionDao
     abstract fun dictationDao(): DictationDao
     abstract fun dictionaryDao(): DictionaryDao
     abstract fun snippetDao(): SnippetDao

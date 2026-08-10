@@ -2,7 +2,7 @@ package app.openflow.text
 
 /**
  * Local post-process to approximate Wispr cleanup without cloud.
- * Pipeline: course-correct → fillers → lists → voice cmds → punct → caps.
+ * Prefer [CleanupPipeline] for session polish; [process] remains for light unit use.
  * Full session is polished once on stop (not every raw STT chunk into the field).
  */
 object TextPostProcessor {
@@ -14,14 +14,21 @@ object TextPostProcessor {
 
     /**
      * Full production polish for one dictation session.
-     * [courseCorrect] should be true for final insert (Wispr intent cleanup).
+     * Thin wrap over [CleanupPipeline]; [courseCorrect] maps light vs normal/high.
      */
-    fun polishSession(raw: String, style: Style = Style.CASUAL, courseCorrect: Boolean = true): String {
-        if (raw.isBlank()) return raw
-        var t = raw.trim()
-        if (courseCorrect) t = CourseCorrector.apply(t)
-        return process(t, style)
-    }
+    fun polishSession(raw: String, style: Style = Style.CASUAL, courseCorrect: Boolean = true): String =
+        polishSessionResult(
+            raw = raw,
+            style = style,
+            level = if (courseCorrect) CleanupLevel.NORMAL else CleanupLevel.LIGHT
+        ).clean
+
+    /** Dual raw/clean result for stop path + history. */
+    fun polishSessionResult(
+        raw: String,
+        style: Style = Style.CASUAL,
+        level: CleanupLevel = CleanupLevel.NORMAL
+    ): CleanupResult = CleanupPipeline.run(raw, level, style)
 
     fun process(raw: String, style: Style = Style.CASUAL): String {
         if (raw.isBlank()) return raw

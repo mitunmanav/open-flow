@@ -2,8 +2,9 @@
 
 **Updated:** 2026-08-10  
 **Repo:** `/home/mitun/open-flow`  
-**Branch:** `main`  
-**Tip:** `ca0b001` (chore: clean repo layout) · product tip before clean: `eafe209` (Wispr parity)
+**Active worktree:** `.worktrees/chore-ponytail-cut`  
+**Branch:** `chore/ponytail-cut` @ `0867d3d`  
+**main tip (not merged yet):** older — merge cut first  
 
 ---
 
@@ -28,6 +29,22 @@ Process: `AGENTS.md` + `docs/PROCESS.md` + `SECURITY.md`
 
 ---
 
+## Last done (ponytail cut)
+
+Commit `0867d3d` on `chore/ponytail-cut`:
+
+- **One store:** dictations only (dropped sessions + FTS dual stack)
+- **Deleted dead:** TranscriptSearch, TranscriptExporter, empty RecordingService, SttConfig, FocusResolver
+- **Slim manifest:** only `RECORD_AUDIO` (no FGS/notif/wake until real recorder)
+- **Deps cut:** navigation-compose, viewmodel-compose, security-crypto
+- **One polish path** on insert (dict + snippets + style)
+- **PrivacyDefaults** = static report string
+- **PASS:** `:app:testDebugUnitTest` + `:app:assembleDebug`
+
+**Not done:** merge to `main` (ask Mitun).
+
+---
+
 ## What already works (testable)
 
 - Flow Bubble overlay (a11y) → talk → insert into focused field  
@@ -37,7 +54,7 @@ Process: `AGENTS.md` + `docs/PROCESS.md` + `SECURITY.md`
 - Post-process: filler strip, caps, questions, light lists  
 - Dictionary / Snippets / Style / Settings (bubble size, opacity, language tag)  
 - Bottom nav: Home · Dictionary · Snippets · Style · Settings  
-- History + stats (words, sessions, streak)  
+- History + stats (words, sessions, streak) via **dictations** table  
 - Copy last chunk to clipboard  
 - Password/sensitive fields skipped  
 - Unit tests + `assembleDebug` green  
@@ -50,9 +67,9 @@ Process: `AGENTS.md` + `docs/PROCESS.md` + `SECURITY.md`
 export JAVA_HOME=$HOME/.local/jdk
 export ANDROID_HOME=$HOME/Android/Sdk
 export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
-cd /home/mitun/open-flow
+cd /home/mitun/open-flow/.worktrees/chore-ponytail-cut   # or main after merge
 echo "sdk.dir=$ANDROID_HOME" > local.properties
-/tmp/gradle-8.9/bin/gradle :app:assembleDebug   # or ./gradlew if wrapper ok
+./gradlew :app:assembleDebug
 cp app/build/outputs/apk/debug/app-debug.apk \
   "/mnt/c/Users/Mitun Manav G Y/Desktop/open-flow-debug.apk"
 ```
@@ -65,7 +82,7 @@ cp app/build/outputs/apk/debug/app-debug.apk \
 
 - JDK: `$HOME/.local/jdk` (Temurin 17)  
 - SDK: `$HOME/Android/Sdk` (platform 35, build-tools)  
-- Gradle: `/tmp/gradle-8.9/bin/gradle` used successfully  
+- Gradle wrapper OK after first download  
 - Windows Desktop user: `Mitun Manav G Y`
 
 ---
@@ -74,22 +91,15 @@ cp app/build/outputs/apk/debug/app-debug.apk \
 
 ```
 open-flow/
-├── AGENTS.md          # hard rules for agents
-├── LICENSE SECURITY README
-├── app/               # Android source
-├── docs/
-│   ├── HANDOFF.md     # THIS FILE
-│   ├── FEATURES.md    # Wispr A–Z map
-│   ├── PROCESS.md
-│   └── superpowers/plans/
-├── dist/              # APKs ignored
-└── .worktrees/        # feature worktrees, gitignored
+├── AGENTS.md
+├── app/
+├── docs/HANDOFF.md    # THIS FILE
+├── docs/FEATURES.md
+└── .worktrees/chore-ponytail-cut/   # ACTIVE until merge
 ```
 
-- Merged feature worktrees **removed** (clean).  
-- Old feature branches **deleted**.  
-- Only `main` left.  
-- Author: **Mitun only**. No Co-Authored-By.
+- Author: **Mitun only**. No Co-Authored-By.  
+- Ponytail **full** was on this session (lazy cuts OK).  
 
 ---
 
@@ -102,6 +112,7 @@ open-flow/
 5. Caveman ultra with Mitun.  
 6. **Not IME** — bubble only.  
 7. No INTERNET by default.  
+8. **Do not re-add** sessions dual-stack / empty RecordingService / export without a real feature wire.
 
 ---
 
@@ -109,13 +120,14 @@ open-flow/
 
 | ID | Work |
 |----|------|
+| **0** | **Merge `chore/ponytail-cut` → `main`** (if Mitun YES) |
 | F14 | Polish: bubble shrink modes, bank-app denylist, shake unsnooze, better waveform |
-| F15 | Export/share history (.txt/.md), optional notifications |
-| F16 | Memo **recorder** (audio + transcript) — NeoSapien depth |
+| F15 | Export/share history (.txt/.md) — rebuild exporter when wiring UI |
+| F16 | Memo **recorder** (audio + transcript) — add FGS + service when real |
 | F17 | Multi-language UI polish / offline pack hints |
 | later | Opt-in sync, Whisper opt-in |
 
-Roadmap also: `docs/superpowers/plans/2026-08-10-master-fix-roadmap.md`
+Roadmap: `docs/superpowers/plans/2026-08-10-master-fix-roadmap.md`
 
 ---
 
@@ -125,7 +137,8 @@ Roadmap also: `docs/superpowers/plans/2026-08-10-master-fix-roadmap.md`
 - Cloud-quality polish (Wispr) needs local models later.  
 - Dictionary/snippets apply on insert (async).  
 - Snippet expand = whole utterance match.  
-- Soft-mute may affect music volume briefly during STT start.
+- Soft-mute may affect music volume briefly during STT start.  
+- Room DB version **3**, destructive migrate (dev OK).  
 
 ---
 
@@ -134,6 +147,9 @@ Roadmap also: `docs/superpowers/plans/2026-08-10-master-fix-roadmap.md`
 ```
 Continue open-flow at /home/mitun/open-flow per AGENTS.md + docs/HANDOFF.md.
 Product: Wispr-style Flow Bubble (NOT IME) + local memory, MIT, offline STT.
-main @ ca0b001. Next: F14 polish or F16 recorder — ask Mitun.
+ACTIVE: .worktrees/chore-ponytail-cut · branch chore/ponytail-cut @ 0867d3d
+DID: ponytail cut (sessions/export/recorder shell/unused deps gone; dictations only). Tests+APK green.
+NEXT: merge to main (ask Mitun) then F14 polish or F16 recorder.
+Do not resurrect dual Session* stack or empty RecordingService without real feature.
 Rebuild APK to Desktop when shipping.
 ```

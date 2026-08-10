@@ -445,6 +445,27 @@ private fun SettingsTab(modifier: Modifier, prefs: FlowPrefs, onApplyBubble: () 
             },
             valueRange = 0.2f..1f
         )
+        var mode by remember { mutableStateOf(prefs.bubbleMode) }
+        Text("Bubble shape", style = MaterialTheme.typography.bodyMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            listOf("full" to "Full", "compact" to "Compact", "dot" to "Dot").forEach { (v, label) ->
+                TextButton(onClick = {
+                    mode = v
+                    prefs.bubbleMode = v
+                    onApplyBubble()
+                }) {
+                    Text(
+                        label,
+                        color = if (mode == v) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+        Text(
+            "Hides on bank/auth apps. Shake phone to unsnooze.",
+            style = MaterialTheme.typography.bodySmall
+        )
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,

@@ -24,6 +24,11 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         get() = store.getFloat("bubble_opacity", 0.80f)
         set(v) = store.putFloat("bubble_opacity", v)
 
+    /** full | compact | dot — idle bubble size mode (F14) */
+    var bubbleMode: String
+        get() = normalizeBubbleMode(store.getString("bubble_mode", "full"))
+        set(v) = store.putString("bubble_mode", normalizeBubbleMode(v))
+
     var languageTag: String
         get() = store.getString("language_tag", java.util.Locale.getDefault().toLanguageTag())
         set(v) = store.putString("language_tag", v)
@@ -66,6 +71,12 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
             when (value) {
                 "dark", "light", "system" -> value
                 else -> "system"
+            }
+
+        fun normalizeBubbleMode(value: String): String =
+            when (value) {
+                "full", "compact", "dot" -> value
+                else -> "full"
             }
     }
 }

@@ -3,7 +3,7 @@
 **Saved:** 2026-08-10  
 **Repo:** `/home/mitun/open-flow`  
 **Branch:** `main`  
-**Git tip when written:** `c13c195`  
+**Git tip when written:** `F14-merged` (see git log)  
 **Sources:** prior Grok sessions (`019feb59`, `019febaa`, `019febd3`), `AGENTS.md`, plans, git log, live code.
 
 **Rule:** This file is the durable map of *what was decided* and *what shipped*.  
@@ -83,6 +83,7 @@ IDs drifted across chats. **Canonical order below** is what git + sessions suppo
 | F13 | Wispr parity core (local) | `eafe209` | **done** | See §4 |
 | cut | Ponytail dead dual-stack | `0867d3d` → merge `e5d0137` | **done** | Dictations-only store |
 | F12-ux | UI foundation | `37a4a1f` | **done** | Theme, Open* components, dark mode |
+| F14 | Polish bank/modes/shake/pulse | see git | **done** | PackagePolicy, ShakeDetector, bubbleMode |
 | docs | HANDOFF truth | `c13c195` | **done** | Single main tip |
 
 ### ID collision note (agents messed this up)

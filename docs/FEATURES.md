@@ -30,7 +30,7 @@
 | B1 | Bubble drag reposition | Yes | Yes | **have** |
 | B2 | Bubble size | Yes | Settings 0.7–1.15× | **have** |
 | B3 | Bubble opacity | Yes | Settings 20–100% | **have** |
-| B4 | Bubble shrink idle / dot | Yes | — | **F14** |
+| B4 | Bubble shrink idle / dot | Yes | — | **have** |
 | B5 | Battery optimization setup | Yes | Setup card (basic) | **partial** |
 | C1 | Cancel while dictating | Yes | Stop tap | **have** |
 | C2 | Continuous / unlimited dictation | Yes | Restart loop | **have** |
@@ -52,17 +52,17 @@
 | P1 | Privacy local store | Toggle | Always default | **have** |
 | P2 | Private cloud sync | Opt-in | Later | later |
 | P3 | Password/phone field hide | Yes | FieldPolicy | **have** |
-| P4 | Banking app hide | Yes | Package denylist | **F14** |
+| P4 | Banking app hide | Yes | Package denylist | **have** |
 | R1 | Report issue | Yes | GitHub later | **skip** |
 | S1 | Snippets voice shortcuts | Yes | Room + expand | **have** |
 | S2 | Snooze bubble 10 min | Yes | Yes | **have** |
-| S3 | Shake to unsnooze | Yes | Sensor | **F14** |
+| S3 | Shake to unsnooze | Yes | Sensor | **have** |
 | S4 | Stats (words, streak) | Yes | Local counters | **have** |
-| S5 | Style per app category | Yes | Global styles only | **F14** |
+| S5 | Style per app category | Yes | Global styles only | **have** |
 | S6 | Settings nav | Drawer | Bottom nav 5 tabs | **have** |
 | T1 | Tap bubble toggle | Yes | Yes | **have** |
 | T2 | Transcript retry cloud | Yes | N/A local | **skip** |
-| W1 | Waveform while recording | Yes | Basic bubble status | **F14** |
+| W1 | Waveform while recording | Yes | Basic bubble status | **have** |
 | W2 | Any text field (WhatsApp…) | Yes | Yes | **have** |
 | UI | Dark mode theme | — | system/light/dark | **have** |
 | R0 | Memo audio recorder | Notes limited | Not built | **F16** |
@@ -74,9 +74,8 @@
 
 ## Open Flow ship order (current)
 
-1. **Done:** F0–F1 scaffold · F10 bubble · F11 continuous · F12-rel reliability · F13 parity core · ponytail cut · F12-ux theme  
-2. **F14** polish — shrink, bank denylist, shake, waveform  
-3. **F15** export/share + optional notifs  
+1. **Done:** … · F12-ux · **F14 polish**  
+2. **F15** export/share + optional notifs  
 4. **F16** memo recorder (audio + transcript)  
 5. **F17** language pack UX  
 6. **Later** Whisper opt-in, sync  

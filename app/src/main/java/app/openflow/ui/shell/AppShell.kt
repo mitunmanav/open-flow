@@ -1,17 +1,18 @@
 package app.openflow.ui.shell
 
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ShortText
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Style
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -21,16 +22,17 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 private data class NavItem(val route: AppRoute, val label: String, val icon: ImageVector)
 
+/** Always-visible primary tabs. */
 private val bottomItems = listOf(
     NavItem(AppRoute.Home, "Home", Icons.Default.Home),
     NavItem(AppRoute.History, "History", Icons.Default.History),
+    NavItem(AppRoute.Dictionary, "Dict", Icons.Default.Book),
     NavItem(AppRoute.Settings, "Settings", Icons.Default.Settings),
 )
 
@@ -42,11 +44,11 @@ fun AppShell(
     isDrawerExtraVisible: (AppRoute) -> Boolean = { true },
     content: @Composable (PaddingValues) -> Unit
 ) {
-    // drawer extras unused in sleek shell; keep param for call-site compat
     @Suppress("UNUSED_PARAMETER")
-    val _drawer = isDrawerExtraVisible
+    val unused = isDrawerExtraVisible
 
     val title = when (route) {
+        AppRoute.Home -> "Open Flow"
         AppRoute.Appearance -> "Appearance"
         AppRoute.BubbleSettings -> "Bubble"
         AppRoute.HomeModules -> "Home layout"
@@ -58,15 +60,27 @@ fun AppShell(
         AppRoute.Snippets -> "Snippets"
         AppRoute.Style -> "Style"
         AppRoute.Customize -> "Customize"
-        else -> route.title
+        AppRoute.History -> "History"
+        AppRoute.Settings -> "Settings"
     }
 
-    val showBottom = route.isBottomBar() ||
-        route == AppRoute.Home ||
-        route == AppRoute.History ||
-        route == AppRoute.Settings
+    // Sub-screens need an explicit Back — never trap the user.
+    val showBack = route !in listOf(
+        AppRoute.Home,
+        AppRoute.History,
+        AppRoute.Dictionary,
+        AppRoute.Settings
+    )
+    val backTarget = when (route) {
+        AppRoute.Snippets, AppRoute.Style, AppRoute.Appearance,
+        AppRoute.BubbleSettings, AppRoute.Cleanup, AppRoute.Privacy,
+        AppRoute.Sounds, AppRoute.Customize, AppRoute.HomeModules,
+        AppRoute.NavModules -> AppRoute.Settings
+        else -> AppRoute.Home
+    }
 
     Scaffold(
+        contentWindowInsets = WindowInsets.safeDrawing,
         topBar = {
             TopAppBar(
                 title = {
@@ -76,41 +90,61 @@ fun AppShell(
                         fontWeight = FontWeight.SemiBold
                     )
                 },
+                navigationIcon = {
+                    if (showBack) {
+                        IconButton(onClick = { onNavigate(backTarget) }) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back"
+                            )
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                     titleContentColor = MaterialTheme.colorScheme.onBackground
-                )
+                ),
+                windowInsets = WindowInsets(0, 0, 0, 0)
             )
         },
         bottomBar = {
-            if (showBottom) {
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 0.dp
-                ) {
-                    bottomItems.forEach { item ->
-                        val selected = when {
-                            route == item.route -> true
-                            item.route == AppRoute.Settings && route in listOf(
-                                AppRoute.Settings, AppRoute.Appearance, AppRoute.BubbleSettings,
-                                AppRoute.Cleanup, AppRoute.Privacy, AppRoute.Sounds,
-                                AppRoute.Dictionary, AppRoute.Snippets, AppRoute.Style,
-                                AppRoute.Customize, AppRoute.HomeModules, AppRoute.NavModules
-                            ) -> true
-                            else -> false
-                        }
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = { onNavigate(item.route) },
-                            icon = { Icon(item.icon, contentDescription = item.label) },
-                            label = { Text(item.label) },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
-                            )
-                        )
+            // ALWAYS show — previous bug hid nav on Settings children
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.surface,
+                tonalElevation = 2.dp,
+                windowInsets = WindowInsets.navigationBars
+            ) {
+                bottomItems.forEach { item ->
+                    val selected = when {
+                        route == item.route -> true
+                        item.route == AppRoute.Settings && route in listOf(
+                            AppRoute.Settings,
+                            AppRoute.Appearance,
+                            AppRoute.BubbleSettings,
+                            AppRoute.Cleanup,
+                            AppRoute.Privacy,
+                            AppRoute.Sounds,
+                            AppRoute.Snippets,
+                            AppRoute.Style,
+                            AppRoute.Customize,
+                            AppRoute.HomeModules,
+                            AppRoute.NavModules
+                        ) -> true
+                        else -> false
                     }
+                    NavigationBarItem(
+                        selected = selected,
+                        onClick = { onNavigate(item.route) },
+                        icon = { Icon(item.icon, contentDescription = item.label) },
+                        label = { Text(item.label) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    )
                 }
             }
         },

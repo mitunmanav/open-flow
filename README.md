@@ -11,7 +11,9 @@ FOSS Android app: **speech-to-text anywhere** (Wispr Flow **Android** style) + *
 
 ## Status
 
-Work in progress. Process: `docs/PROCESS.md`. Agents: `AGENTS.md`.
+Work in progress.  
+**Baseline + all features:** `docs/BASELINE.md`  
+Pickup: `docs/HANDOFF.md` · Process: `docs/PROCESS.md` · Agents: `AGENTS.md`
 
 ## Build
 

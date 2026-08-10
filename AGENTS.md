@@ -36,7 +36,9 @@ Also follow: `docs/PROCESS.md`, `SECURITY.md`, global `~/.grok/AGENTS.md` / `~/.
 
 **Do not build** voice-as-IME as the product path. Old IME code (if any) is legacy/dormant only.
 
-Full feature list lives in chat history / future `docs/FEATURES.md`. Ship in ordered features (F0…Fn), not one mega dump.
+Full feature history + baseline: **`docs/BASELINE.md`**.  
+Wispr A–Z matrix: `docs/FEATURES.md`. Pickup: `docs/HANDOFF.md`.  
+Ship in ordered features (F0…Fn), not one mega dump.
 
 ---
 

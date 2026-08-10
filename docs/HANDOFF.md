@@ -2,9 +2,9 @@
 
 **Updated:** 2026-08-10  
 **Repo:** `/home/mitun/open-flow`  
-**Active worktree:** `.worktrees/chore-ponytail-cut`  
-**Branch:** `chore/ponytail-cut` (tip: ponytail cut + this handoff)  
-**main:** not merged yet — merge cut first  
+**Branch:** `main`  
+**Tip:** `37a4a1f` — F12 UI foundation + ponytail cut merged  
+**Active worktree:** repo root (no feature WIP)
 
 ---
 
@@ -29,19 +29,14 @@ Process: `AGENTS.md` + `docs/PROCESS.md` + `SECURITY.md`
 
 ---
 
-## Last done (ponytail cut)
+## Last done
 
-On `chore/ponytail-cut` (`0867d3d` cut + handoff commits after):
+1. **Ponytail cut merged** — one dictations store; dead Session/FTS/export/empty recorder/SttConfig/FocusResolver gone; slim deps.
+2. **F12 UI foundation** — theme, colors, Type, Motion, Open* components, dark mode (system/light/dark), MainActivity rewired.
+3. **Agent mess fixed** — dual branches reunited; Robolectric dark-mode test replaced with pure JVM `PrefsStore` tests (no big jar download).
 
-- **One store:** dictations only (dropped sessions + FTS dual stack)
-- **Deleted dead:** TranscriptSearch, TranscriptExporter, empty RecordingService, SttConfig, FocusResolver
-- **Slim manifest:** only `RECORD_AUDIO` (no FGS/notif/wake until real recorder)
-- **Deps cut:** navigation-compose, viewmodel-compose, security-crypto
-- **One polish path** on insert (dict + snippets + style)
-- **PrivacyDefaults** = static report string
-- **PASS:** `:app:testDebugUnitTest` + `:app:assembleDebug`
-
-**Not done:** merge to `main` (ask Mitun).
+**PASS:** `:app:testDebugUnitTest` + `:app:assembleDebug` (2026-08-10)  
+**APK:** `.worktrees/12-ux-foundation/app/build/outputs/apk/debug/app-debug.apk` (or rebuild on main)
 
 ---
 
@@ -49,57 +44,36 @@ On `chore/ponytail-cut` (`0867d3d` cut + handoff commits after):
 
 - Flow Bubble overlay (a11y) → talk → insert into focused field  
 - Continuous listen (auto-restart after OS silence)  
-- Long-press push-to-talk, drag, snooze 10 min (drag to bottom)  
+- Long-press push-to-talk, drag, snooze 10 min  
 - Mic gate, focus re-resolve, soft-mute beeps  
 - Post-process: filler strip, caps, questions, light lists  
-- Dictionary / Snippets / Style / Settings (bubble size, opacity, language tag)  
+- Dictionary / Snippets / Style / Settings  
 - Bottom nav: Home · Dictionary · Snippets · Style · Settings  
-- History + stats (words, sessions, streak) via **dictations** table  
+- Dark mode toggle in Settings  
+- History + stats via **dictations** table  
 - Copy last chunk to clipboard  
 - Password/sensitive fields skipped  
-- Unit tests + `assembleDebug` green  
 
-**APK for Mitun:** rebuild then put on Desktop  
-`C:\Users\Mitun Manav G Y\Desktop\open-flow-debug.apk`  
-(or `dist/` locally — gitignored)
+**Phone test:** Accessibility ON for Open Flow Bubble + mic → focus field → tap/hold bubble → stop to save history.
 
 ```bash
 export JAVA_HOME=$HOME/.local/jdk
 export ANDROID_HOME=$HOME/Android/Sdk
-export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
-cd /home/mitun/open-flow/.worktrees/chore-ponytail-cut   # or main after merge
+export PATH="$JAVA_HOME/bin:$PATH"
+cd /home/mitun/open-flow
 echo "sdk.dir=$ANDROID_HOME" > local.properties
-./gradlew :app:assembleDebug
+./gradlew :app:assembleDebug --offline
 cp app/build/outputs/apk/debug/app-debug.apk \
   "/mnt/c/Users/Mitun Manav G Y/Desktop/open-flow-debug.apk"
 ```
 
-**Phone test:** Accessibility ON for Open Flow Bubble + mic → focus field → tap/hold bubble → stop to save history.
-
 ---
 
-## Env (this machine)
+## Env
 
 - JDK: `$HOME/.local/jdk` (Temurin 17)  
-- SDK: `$HOME/Android/Sdk` (platform 35, build-tools)  
-- Gradle wrapper OK after first download  
-- Windows Desktop user: `Mitun Manav G Y`
-
----
-
-## Git / layout
-
-```
-open-flow/
-├── AGENTS.md
-├── app/
-├── docs/HANDOFF.md    # THIS FILE
-├── docs/FEATURES.md
-└── .worktrees/chore-ponytail-cut/   # ACTIVE until merge
-```
-
-- Author: **Mitun only**. No Co-Authored-By.  
-- Ponytail **full** was on this session (lazy cuts OK).  
+- SDK: `$HOME/Android/Sdk` (platform 35)  
+- **Do not** add Robolectric for unit tests unless Mitun says OK (downloads huge jars). Use `PrefsStore` / pure Kotlin.
 
 ---
 
@@ -108,11 +82,11 @@ open-flow/
 1. Read `AGENTS.md` first.  
 2. Superpowers: plan → worktree → TDD → security → commit per feature.  
 3. Max **5** sub-agents; **no two edit same file**.  
-4. Interruptions: do side request, **resume** main work.  
-5. Caveman ultra with Mitun.  
-6. **Not IME** — bubble only.  
-7. No INTERNET by default.  
-8. **Do not re-add** sessions dual-stack / empty RecordingService / export without a real feature wire.
+4. Caveman ultra with Mitun.  
+5. **Not IME** — bubble only.  
+6. No INTERNET by default.  
+7. **Do not re-add** sessions dual-stack / empty RecordingService / export without a real feature wire.  
+8. **Do not** re-add Robolectric for simple prefs tests.
 
 ---
 
@@ -120,7 +94,6 @@ open-flow/
 
 | ID | Work |
 |----|------|
-| **0** | **Merge `chore/ponytail-cut` → `main`** (if Mitun YES) |
 | F14 | Polish: bubble shrink modes, bank-app denylist, shake unsnooze, better waveform |
 | F15 | Export/share history (.txt/.md) — rebuild exporter when wiring UI |
 | F16 | Memo **recorder** (audio + transcript) — add FGS + service when real |
@@ -147,9 +120,7 @@ Roadmap: `docs/superpowers/plans/2026-08-10-master-fix-roadmap.md`
 ```
 Continue open-flow at /home/mitun/open-flow per AGENTS.md + docs/HANDOFF.md.
 Product: Wispr-style Flow Bubble (NOT IME) + local memory, MIT, offline STT.
-ACTIVE: .worktrees/chore-ponytail-cut · branch chore/ponytail-cut
-DID: ponytail cut — sessions/export/empty recorder/unused deps gone; dictations only. Tests+APK green.
-NEXT: merge chore/ponytail-cut → main (ask Mitun), then F14 polish or F16 recorder.
-Do not resurrect dual Session* stack or empty RecordingService without real feature wire.
-Rebuild APK to Desktop when shipping.
+main tip: F12 UI + ponytail cut merged. Tests+APK green offline.
+NEXT: F14 polish or F16 recorder (ask Mitun).
+Do not resurrect dual Session* stack, empty RecordingService, or Robolectric for prefs.
 ```

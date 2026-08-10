@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">Open Flow</string>
     <string name="a11y_service_label">Open Flow Bubble</string>
-    <string name="a11y_service_description">Open Flow uses Accessibility only to detect focused text fields and insert your on-device speech-to-text. It does not replace your keyboard. Speak as long as you want while the bubble is listening — sessions auto-restart after OS pauses. No cloud. No analytics. Password fields skipped.</string>
+    <string name="a11y_service_description">Open Flow uses Accessibility only to detect focused text fields and insert speech-to-text. It does not replace your keyboard. Speak as long as you want while the bubble is listening — sessions auto-restart after OS pauses. OpenFlow has no server and no analytics. Android system STT may process audio on-device or remotely depending on your device. Password fields skipped.</string>
     <string name="flow_bubble_idle">🎙 Tap to talk</string>
     <string name="flow_bubble_listening">Listening…</string>
     <string name="flow_bubble_need_mic">Allow mic in app</string>
@@ -10,6 +10,7 @@
     <string name="flow_bubble_snoozed">Bubble snoozed 10 min</string>
     <string name="flow_bubble_unsnooze_shake">Shake — bubble back</string>
     <string name="flow_bubble_copied_clipboard">Copied — paste into field</string>
+    <string name="flow_bubble_saved_in_app">Saved in Open Flow — open app to Copy</string>
     <string name="bubble_mode_full">Full</string>
     <string name="bubble_mode_compact">Compact</string>
     <string name="bubble_mode_dot">Dot</string>
@@ -24,7 +25,14 @@
     <string name="enable_bubble_hint">Enable Open Flow in Accessibility for the floating bubble. Keep your normal keyboard.</string>
     <string name="permission_mic">Microphone is required to dictate and record.</string>
     <string name="offline_prefer">Prefer on-device speech recognition</string>
-    <string name="privacy_no_internet">No INTERNET permission. Voice stays on device by default.</string>
+    <string name="privacy_no_internet">OpenFlow declares no INTERNET permission and uploads nothing. Android system STT may still send audio to remote servers depending on device.</string>
+    <string name="privacy_stt_disclaimer">Speech recognition uses Android system STT. Audio may leave the device depending on OEM and network. OpenFlow never uploads audio or transcripts.</string>
+    <string name="last_result_title">Last session</string>
+    <string name="copy_cleaned">Copy cleaned</string>
+    <string name="copy_raw">Copy raw</string>
+    <string name="view_raw">View raw</string>
+    <string name="restore_raw">Restore raw</string>
+    <string name="no_field_saved_in_app">No focused field — result saved in app. Copy when ready.</string>
     <string name="listening">Listening…</string>
     <string name="partial">Hearing…</string>
     <string name="enable_flow_bubble">1. Enable Flow Bubble</string>
@@ -63,7 +71,7 @@
     <string name="stt_language_label">STT language tag e.g. en-US, hi-IN</string>
     <string name="default_locale">Default: %s</string>
     <string name="end_snooze">End bubble snooze</string>
-    <string name="local_first_desc">Local-first. Wispr needs cloud; we do not. MIT FOSS.</string>
+    <string name="local_first_desc">OpenFlow is local-first: no OpenFlow server, no analytics, no account. System STT is Android\'s (may leave device). MIT FOSS.</string>
     <string name="dark_mode">Dark mode</string>
     <string name="dark_system">System</string>
     <string name="dark_light">Light</string>

@@ -19,7 +19,12 @@
 | F1 scaffold | done |
 | F10 Flow Bubble (not IME) | done |
 | F11 continuous restart + UI chips | done |
+| F12-rel reliability | done (`5584152`) |
+| F13 Wispr parity core | done (`eafe209`) |
+| ponytail dual-stack cut | done |
+| F12-ux UI foundation | done (`37a4a1f`) |
 
+**Canonical history:** `docs/BASELINE.md`  
 **Working today:** install APK → a11y + mic → bubble → talk → text in fields.
 
 ---

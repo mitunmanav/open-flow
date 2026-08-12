@@ -260,7 +260,19 @@ class MainActivity : ComponentActivity() {
                                 onOpenBubbleSettings = { goTo(AppRoute.BubbleSettings) },
                                 onOpenAppearance = { goTo(AppRoute.Appearance) },
                                 onOpenCleanup = { goTo(AppRoute.Cleanup) },
-                                onOpenStyle = { goTo(AppRoute.Style) }
+                                onOpenStyle = { goTo(AppRoute.Style) },
+                                onBattery = {
+                                    try {
+                                        startActivity(
+                                            Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                                        )
+                                    } catch (_: Exception) {
+                                        try {
+                                            startActivity(Intent(Settings.ACTION_SETTINGS))
+                                        } catch (_: Exception) {
+                                        }
+                                    }
+                                }
                             )
                             AppRoute.History -> HistoryScreen(app)
                             AppRoute.Dictionary -> DictionaryTab(app)
@@ -343,7 +355,8 @@ private fun HomeHub(
     onOpenBubbleSettings: () -> Unit,
     onOpenAppearance: () -> Unit,
     onOpenCleanup: () -> Unit,
-    onOpenStyle: () -> Unit
+    onOpenStyle: () -> Unit,
+    onBattery: () -> Unit
 ) {
     val dictations by app.dictations.observeDictations().collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
@@ -479,6 +492,13 @@ private fun HomeHub(
                                     showCheckWhenOn = true,
                                     modifier = Modifier.testTag("setup_chip_mic"),
                                     onClick = onMic
+                                )
+                                OpenChip(
+                                    label = "Battery",
+                                    isOn = false,
+                                    showCheckWhenOn = false,
+                                    modifier = Modifier.testTag("setup_chip_battery"),
+                                    onClick = onBattery
                                 )
                             }
                             if (!bubbleOn) {

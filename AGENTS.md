@@ -6,6 +6,7 @@ Also follow: `docs/PROCESS.md`, `SECURITY.md`, global `~/.grok/AGENTS.md` / `~/.
 
 **Grok Build gate (this repo only — not other projects):** `.grok/rules/00-dev-gate.md` + `.grok/hooks/dev-gate.json`.  
 **Isolate:** one worktree must not touch another or main. Spawn `cwd` = that tree.  
+**MiniMax lab:** `.worktrees/minimax` / `sandbox/minimax` — exclusive. Start grok there. Never merge wholesale.  
 Superpowers + **android-cli** + **agent web** — same weight.  
 **Plan first** on large work. Small fix = no worktree.  
 Max **5** subagents per worktree. Caveman everywhere.  
@@ -186,6 +187,22 @@ EOF
 | F12+ | later | Recorder, Whisper opt-in, sync, tiles |
 
 Later features only after earlier ones are on `main` or Mitun reorders.
+
+---
+
+## MiniMax lab (this repo only)
+
+Long-lived sandbox. Same rules. Different model. Isolated.
+
+- Path: `.worktrees/minimax`
+- Branch: `sandbox/minimax` — keep. Do **not** prune after a feature.
+- Start: `scripts/open-minimax-lab.sh` or `cd .worktrees/minimax && grok --sandbox workspace`
+- Pick model in that session (`/model` or `-m`). Do not change global default.
+- Same gate. Max 5 agents. Spawn cwd = this tree.
+- No `isolation=worktree`. No `~/.grok/worktrees/`.
+- Main / other trees must not write or spawn into it.
+- Never `git merge sandbox/minimax` into `main`. Cherry-pick good slices onto a new `feat/` branch.
+- Device: lab APK overwrites `app.openflow.debug`.
 
 ---
 

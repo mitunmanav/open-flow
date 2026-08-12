@@ -396,6 +396,82 @@ class PretoolGateTest(unittest.TestCase):
             self.assertEqual(spawn("tree-a"), "deny")
             self.assertEqual(spawn("tree-b"), "allow")
 
+    def test_main_cannot_spawn_into_minimax_lab(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["OPENFLOW_SPAWN_STATE"] = tmp
+            payload = {
+                "hookEventName": "pre_tool_use",
+                "cwd": "/home/mitun/open-flow",
+                "workspaceRoot": "/home/mitun/open-flow",
+                "toolName": "spawn_subagent",
+                "toolInput": {
+                    "prompt": "CAVEMAN. DID: x\nPASS-FAIL: n/a\nNEXT: y",
+                    "cwd": "/home/mitun/open-flow/.worktrees/minimax",
+                },
+            }
+            proc = subprocess.run(
+                [sys.executable, str(PRETOOL)],
+                input=json.dumps(payload),
+                text=True,
+                capture_output=True,
+                check=False,
+                env=env,
+            )
+            self.assertEqual(proc.returncode, 0)
+            self.assertEqual(decision(proc.stdout.strip()), "deny")
+            self.assertIn("minimax", proc.stdout.lower())
+
+    def test_minimax_lab_can_spawn_inside_itself(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["OPENFLOW_SPAWN_STATE"] = tmp
+            payload = {
+                "hookEventName": "pre_tool_use",
+                "cwd": "/home/mitun/open-flow/.worktrees/minimax",
+                "workspaceRoot": "/home/mitun/open-flow/.worktrees/minimax",
+                "toolName": "spawn_subagent",
+                "toolInput": {
+                    "prompt": "CAVEMAN. DID: x\nPASS-FAIL: n/a\nNEXT: y",
+                    "cwd": "/home/mitun/open-flow/.worktrees/minimax",
+                },
+            }
+            proc = subprocess.run(
+                [sys.executable, str(PRETOOL)],
+                input=json.dumps(payload),
+                text=True,
+                capture_output=True,
+                check=False,
+                env=env,
+            )
+            self.assertEqual(proc.returncode, 0)
+            self.assertEqual(decision(proc.stdout.strip()), "allow")
+
+    def test_other_tree_cannot_spawn_into_minimax_lab(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["OPENFLOW_SPAWN_STATE"] = tmp
+            payload = {
+                "hookEventName": "pre_tool_use",
+                "cwd": "/home/mitun/open-flow/.worktrees/tree-a",
+                "workspaceRoot": "/home/mitun/open-flow/.worktrees/tree-a",
+                "toolName": "spawn_subagent",
+                "toolInput": {
+                    "prompt": "CAVEMAN. DID: x\nPASS-FAIL: n/a\nNEXT: y",
+                    "cwd": "/home/mitun/open-flow/.worktrees/minimax",
+                },
+            }
+            proc = subprocess.run(
+                [sys.executable, str(PRETOOL)],
+                input=json.dumps(payload),
+                text=True,
+                capture_output=True,
+                check=False,
+                env=env,
+            )
+            self.assertEqual(proc.returncode, 0)
+            self.assertEqual(decision(proc.stdout.strip()), "deny")
+
     def test_internet_perm_allowed_in_worktree(self) -> None:
         self.assertTrue(PRETOOL.is_file(), "pretool_gate.py missing")
         code, out = run_hook(
@@ -441,6 +517,7 @@ class PromptGateTest(unittest.TestCase):
         self.assertIn("memory", ctx.lower())
         self.assertIn("5", ctx)
         self.assertRegex(ctx.lower(), r"isolat|jail|this repo|this project")
+        self.assertIn("minimax", ctx.lower())
 
 
 if __name__ == "__main__":

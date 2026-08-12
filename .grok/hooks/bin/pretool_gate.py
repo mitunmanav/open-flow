@@ -35,6 +35,7 @@ SHELL_TOOLS = {
 CAVEMAN_MARK = re.compile(r"(?i)\b(caveman|DID:|PASS-FAIL:)\b")
 OTHER_WT = re.compile(r"\.worktrees/([^/\s\"']+)")
 MAX_SPAWNS = 5
+LAB_SLUGS = {"minimax"}
 
 
 def file_from_input(tool_input: object) -> str:
@@ -154,10 +155,17 @@ def jail_spawn(cwd: str, tool_input: object) -> dict | None:
             "open-flow jail: do not use spawn isolation=worktree. "
             "Use project .worktrees/ + cwd. Extra trees mess us up."
         )
+    child = str(tool_input.get("cwd") or "")
+    child_slug = worktree_slug(child) if child else None
     parent = worktree_slug(cwd)
+    if child_slug in LAB_SLUGS and parent != child_slug:
+        return deny(
+            "open-flow jail: minimax lab is exclusive. "
+            "Start grok inside .worktrees/minimax. "
+            "Do not spawn into it from main or another tree."
+        )
     if not parent:
         return None
-    child = str(tool_input.get("cwd") or "")
     if not child:
         return deny(
             "open-flow jail: spawn from a worktree must set cwd to that tree."

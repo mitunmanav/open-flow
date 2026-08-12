@@ -15,6 +15,7 @@
 4. Fast must stay smart. TDD + android-cli + proof stay on for large.
 5. Agent web ≠ APK INTERNET.
 6. Caveman everywhere.
+7. MiniMax lab: `.worktrees/minimax` / `sandbox/minimax`. Exclusive. Start grok there. Never merge wholesale.
 
 ## Loop (large)
 

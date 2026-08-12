@@ -8,3 +8,4 @@
 - Fast without TDD/android-cli is dumb. Speed after the smart checks.
 - Grok session often starts on main. Spawn **must** set `cwd` to the feature worktree or agents edit main.
 - Grok `isolation=worktree` makes extra trees. Do not use. Use `.worktrees/` only.
+- `/tmp/open-flow-spawns` is sticky. Spawn-cap tests must set `OPENFLOW_SPAWN_STATE` or they fake-pass.

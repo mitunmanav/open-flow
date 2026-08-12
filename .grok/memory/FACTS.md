@@ -13,6 +13,7 @@
 - Small fix: no worktree. Large: worktree + plan + test + merge main.
 - android-cli same weight as Superpowers.
 - Author: Mitun only.
+- MiniMax lab: `.worktrees/minimax` on `sandbox/minimax`. Exclusive. Long-lived. Never merge wholesale. Cherry-pick good slices to a new `feat/` branch.
 
 ## Device
 - USB adb. Wrapper: `~/.local/bin/adb` (Windows adb.exe).

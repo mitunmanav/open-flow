@@ -55,6 +55,7 @@ def main() -> None:
             "Small fix: no worktree. Large: worktree + plan + max 5 agents.",
             "Isolate trees. One worktree must not touch another or main.",
             "Caveman everywhere. Memory: .grok/NOW.md + .grok/memory/.",
+            "LAB: .worktrees/minimax exclusive. Start grok there. Never merge sandbox/minimax wholesale.",
             "Agent web only. Not APK INTERNET.",
             "See: `.grok/rules/00-dev-gate.md`",
             "",
@@ -79,6 +80,7 @@ def main() -> None:
             "Isolate: one worktree must not touch another or main. "
             "Spawn in a tree must set cwd to that tree. No isolation=worktree. "
             "Caveman everywhere. Memory: .grok/NOW.md + .grok/memory/. "
+            "LAB: .worktrees/minimax exclusive. Start grok there. Never merge sandbox/minimax wholesale. "
             "Agent web search only — not APK INTERNET."
         )
         if now_bit:

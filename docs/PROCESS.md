@@ -66,6 +66,15 @@ git worktree remove .worktrees/<slug>   # after merge
 git worktree prune
 ```
 
+MiniMax lab (keep; not a feat tree):
+
+```bash
+cd .worktrees/minimax && grok --sandbox workspace
+# or: scripts/open-minimax-lab.sh -m <model-id>
+```
+
+Same rules. Exclusive. Never merge `sandbox/minimax` wholesale. Cherry-pick to a new `feat/` branch. Lab APK overwrites `app.openflow.debug`.
+
 ## Product locks
 
 - Bubble + AccessibilityService — **not** IME  

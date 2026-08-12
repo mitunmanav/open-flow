@@ -47,8 +47,8 @@ class BubbleGeometryTest {
 
     @Test
     fun cornerRadius_matches_shapes() {
-        assertThat(BubbleGeometry.cornerRadiusDp("pill", 2f)).isEqualTo(48f)
-        assertThat(BubbleGeometry.cornerRadiusDp("square", 2f)).isEqualTo(32f)
+        assertThat(BubbleGeometry.cornerRadiusDp("pill", 2f)).isEqualTo(24f)
+        assertThat(BubbleGeometry.cornerRadiusDp("square", 2f)).isEqualTo(4f)
         assertThat(BubbleGeometry.cornerRadiusDp("circle", 2f)).isEqualTo(1998f)
     }
 }

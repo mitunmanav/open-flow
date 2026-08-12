@@ -20,8 +20,7 @@ import androidx.compose.ui.unit.dp
 import app.openflow.ui.a11y.Dimen
 
 /**
- * Modern brutal card — existing product skin (`VisualSkin.BRUTAL`).
- * Mockup truth: 3px border + hard offset shadow (no blur). Not soft M3.
+ * Minimal brutal card — cream face, hard 2dp border, 2dp offset block (no blur).
  * Colors follow [MaterialTheme.colorScheme] so light/dark work.
  */
 @Composable
@@ -34,13 +33,13 @@ fun OpenCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val scheme = MaterialTheme.colorScheme
-    val borderWidth = 3.dp
+    val borderWidth = 2.dp
     val borderColor = when {
         disabled -> scheme.outline.copy(alpha = 0.4f)
-        selected -> scheme.secondary
+        selected -> scheme.outline
         else -> scheme.outline
     }
-    val shadowColor = if (selected) scheme.secondary else scheme.outline
+    val shadowColor = scheme.outline
 
     val faceMod = Modifier
         .fillMaxWidth()
@@ -56,6 +55,7 @@ fun OpenCard(
     val colors = CardDefaults.cardColors(
         containerColor = when {
             disabled -> scheme.surfaceVariant.copy(alpha = 0.7f)
+            selected -> scheme.surfaceVariant
             else -> scheme.surface
         },
         contentColor = scheme.onSurface,
@@ -71,16 +71,16 @@ fun OpenCard(
         hoveredElevation = 0.dp
     )
 
-    // Padding room for offset shadow; shadow block sits under face
+    // Minimal offset room (2dp) — not chunky 4dp
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(end = 4.dp, bottom = 4.dp)
+            .padding(end = 2.dp, bottom = 2.dp)
     ) {
         Box(
             Modifier
                 .matchParentSize()
-                .offset(4.dp, 4.dp)
+                .offset(2.dp, 2.dp)
                 .background(shadowColor)
         )
         if (onClick != null) {

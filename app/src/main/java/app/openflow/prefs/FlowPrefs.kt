@@ -137,7 +137,7 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
 
     /** circle | pill | square | dot */
     var bubbleShape: String
-        get() = normalizeBubbleShape(store.getString("bubble_shape", "circle"))
+        get() = normalizeBubbleShape(store.getString("bubble_shape", "square"))
         set(v) = store.putString("bubble_shape", normalizeBubbleShape(v))
 
     var bubbleHaptics: Boolean
@@ -252,7 +252,7 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         fun normalizeBubbleShape(value: String): String =
             when (value) {
                 "circle", "pill", "square", "dot" -> value
-                else -> "circle"
+                else -> "square"
             }
 
         fun normalizeCleanupLevel(value: String): String =

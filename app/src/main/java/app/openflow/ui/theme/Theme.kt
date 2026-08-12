@@ -67,7 +67,8 @@ private val BrutalLight = lightColorScheme(
     background = BrutalColors.Cream,
     onBackground = BrutalColors.OnCream,
     surfaceVariant = BrutalColors.Stone,
-    onSurfaceVariant = BrutalColors.Charcoal,
+    // Distinct muted (not same as onSurface) so secondary text stays readable
+    onSurfaceVariant = Color(0xFF4A4A48),
     outline = BrutalColors.Charcoal,
     outlineVariant = BrutalColors.Stone,
     error = BrutalColors.Error,
@@ -83,12 +84,13 @@ private val BrutalDark = darkColorScheme(
     onSecondary = BrutalColors.Charcoal,
     secondaryContainer = BrutalColors.StoneDark,
     surface = BrutalColors.CreamDark,
-    onSurface = BrutalColors.Cream,
+    onSurface = Color(0xFFF5F2EB), // high-contrast body text on dark
     background = BrutalColors.CreamDark,
-    onBackground = BrutalColors.Cream,
+    onBackground = Color(0xFFF5F2EB),
     surfaceVariant = BrutalColors.StoneDark,
-    onSurfaceVariant = BrutalColors.Stone,
-    outline = BrutalColors.Stone,
+    // Was Stone (cream-ish) — too low contrast on dark; use muted light gray
+    onSurfaceVariant = Color(0xFFC8C3B8),
+    outline = Color(0xFFB8B2A6),
     outlineVariant = BrutalColors.StoneDark,
     error = BrutalColors.Error,
     onError = BrutalColors.OnError

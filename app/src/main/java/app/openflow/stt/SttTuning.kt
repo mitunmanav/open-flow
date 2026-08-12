@@ -7,9 +7,13 @@ package app.openflow.stt
  * Formatting extras require API 33+ (applied in [SttEngine] with version guards).
  *
  * Tradeoff (API 33+ [android.speech.RecognizerIntent.EXTRA_ENABLE_FORMATTING]):
- * - **Quality** ([preferFormattingQuality]=true, default): better auto punctuation /
- *   capitalization; higher latency.
- * - **Latency** (false): snappier partials/finals; weaker auto punct.
+ * - **Quality** ([preferFormattingQuality]=true): better auto punctuation; higher latency.
+ * - **Latency** (false): snappier partials/finals; local cleanup pipeline still polishes text.
+ *
+ * Profiles (prefs `stt_profile`):
+ * - **fast** — shorter silence, latency formatting (beat cloud-feel wait)
+ * - **balanced** — default (ship)
+ * - **accurate** — longer silence, quality formatting
  */
 data class SttTuning(
     /** Min listen before endpointer may fire. */
@@ -29,13 +33,44 @@ data class SttTuning(
         /** Locked product language — English (US) only. No other locales. */
         const val DEFAULT_LANGUAGE = "en-US"
 
-        const val DEFAULT_MIN_SPEECH_MS = 600L
-        const val DEFAULT_COMPLETE_SILENCE_MS = 1200L
-        const val DEFAULT_POSSIBLY_COMPLETE_SILENCE_MS = 700L
+        // Balanced defaults — snappier than old 1200/700 without cutting mid-phrase hard.
+        const val DEFAULT_MIN_SPEECH_MS = 400L
+        const val DEFAULT_COMPLETE_SILENCE_MS = 850L
+        const val DEFAULT_POSSIBLY_COMPLETE_SILENCE_MS = 480L
         const val DEFAULT_MAX_RESULTS = 3
 
-        /** Default quality for dictation readability over partial speed. */
-        const val DEFAULT_PREFER_FORMATTING_QUALITY = true
+        /**
+         * Default latency formatting: partials/finals land faster.
+         * Accuracy for polish stays in on-device cleanup pipeline (PhraseMap, cleanup level).
+         */
+        const val DEFAULT_PREFER_FORMATTING_QUALITY = false
+
+        const val PROFILE_FAST = "fast"
+        const val PROFILE_BALANCED = "balanced"
+        const val PROFILE_ACCURATE = "accurate"
+
+        fun normalizeProfile(value: String): String = when (value.lowercase()) {
+            PROFILE_FAST, PROFILE_ACCURATE -> value.lowercase()
+            else -> PROFILE_BALANCED
+        }
+
+        fun forProfile(profile: String): SttTuning = when (normalizeProfile(profile)) {
+            PROFILE_FAST -> SttTuning(
+                minSpeechMs = 280L,
+                completeSilenceMs = 550L,
+                possiblyCompleteSilenceMs = 320L,
+                maxResults = 2,
+                preferFormattingQuality = false
+            )
+            PROFILE_ACCURATE -> SttTuning(
+                minSpeechMs = 600L,
+                completeSilenceMs = 1400L,
+                possiblyCompleteSilenceMs = 800L,
+                maxResults = 5,
+                preferFormattingQuality = true
+            )
+            else -> SttTuning() // balanced field defaults
+        }
 
         /** Historical aliases (same as field defaults). */
         const val MIN_SPEECH_MS = DEFAULT_MIN_SPEECH_MS

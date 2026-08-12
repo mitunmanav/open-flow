@@ -60,6 +60,11 @@ class SttEngine(
     private var usedOnDeviceFactory: Boolean = false
     private var offlineFallbackUsed: Boolean = false
 
+    /** Non-null while [stopAndFlush] waits for onResults/onError. */
+    private var flushCallback: (() -> Unit)? = null
+    private val flushDone = AtomicBoolean(false)
+    private val flushTimeout = Runnable { completeFlush() }
+
     val isAvailable: Boolean
         get() = SpeechRecognizer.isRecognitionAvailable(context)
 
@@ -106,14 +111,18 @@ class SttEngine(
         mainHandler.post { beginSession(forceRecreate = true) }
     }
 
+    /**
+     * Immediate stop: cancels engine, drops listener, no wait for final.
+     * Prefer [stopAndFlush] when the last utterance must reach [Listener.onFinal].
+     */
     fun stop() {
         continuous.set(false)
-        restartPosted = false
         restartCount = 0
-        mainHandler.removeCallbacksAndMessages(null)
+        clearScheduledWork()
+        abandonFlush(invokeCallback = true)
         mainHandler.post {
             try {
-                recognizer?.stopListening()
+                recognizer?.cancel()
             } catch (_: Exception) {
             }
             destroyInternal()
@@ -125,14 +134,86 @@ class SttEngine(
         }
     }
 
+    /**
+     * Stop continuous listen and **wait** for onResults/onError (Android contract)
+     * so the last final can still fire. Times out after [timeoutMs], then destroys.
+     *
+     * Listener is **kept** until [onFlushed] runs — caller should null it after commit.
+     * Does **not** call [Listener.onListeningChanged](false) (caller owns session end UI).
+     */
+    fun stopAndFlush(timeoutMs: Long = DEFAULT_FLUSH_TIMEOUT_MS, onFlushed: () -> Unit) {
+        continuous.set(false)
+        restartCount = 0
+        clearScheduledWork()
+        // Replace any prior flush waiter (should not stack).
+        abandonFlush(invokeCallback = true)
+        flushDone.set(false)
+        flushCallback = onFlushed
+        mainHandler.post {
+            if (recognizer == null) {
+                completeFlush()
+                return@post
+            }
+            try {
+                recognizer?.stopListening()
+            } catch (_: Exception) {
+                completeFlush()
+                return@post
+            }
+            mainHandler.postDelayed(flushTimeout, timeoutMs.coerceIn(100L, 2_000L))
+        }
+    }
+
     fun destroy() {
         continuous.set(false)
-        mainHandler.removeCallbacksAndMessages(null)
+        clearScheduledWork()
+        abandonFlush(invokeCallback = true)
         mainHandler.post {
             destroyInternal()
             restoreVolume()
             starting.set(false)
             listener = null
+        }
+    }
+
+    private fun clearScheduledWork() {
+        restartPosted = false
+        mainHandler.removeCallbacks(flushTimeout)
+        mainHandler.removeCallbacksAndMessages(null)
+    }
+
+    /** Drop in-flight flush; optionally notify caller so UI can commit what it has. */
+    private fun abandonFlush(invokeCallback: Boolean) {
+        val pending = flushCallback
+        flushCallback = null
+        if (invokeCallback && pending != null && flushDone.compareAndSet(false, true)) {
+            mainHandler.post { pending.invoke() }
+            return
+        }
+        flushDone.set(true)
+    }
+
+    private fun completeFlush() {
+        if (!flushDone.compareAndSet(false, true)) return
+        mainHandler.removeCallbacks(flushTimeout)
+        mainHandler.post {
+            try {
+                recognizer?.cancel()
+            } catch (_: Exception) {
+            }
+            destroyInternal()
+            restoreVolume()
+            starting.set(false)
+            val cb = flushCallback
+            flushCallback = null
+            cb?.invoke()
+        }
+    }
+
+    /** Call from recognition end when continuous is off (user stop / flush). */
+    private fun signalFlushIfNeeded() {
+        if (flushCallback != null) {
+            completeFlush()
         }
     }
 
@@ -233,12 +314,14 @@ class SttEngine(
             if (fatal) {
                 continuous.set(false)
                 listener?.onListeningChanged(false)
+                signalFlushIfNeeded()
                 return
             }
             if (policy.shouldRestart(continuous.get(), error, hadResult = false)) {
                 scheduleRestart(error)
             } else if (!continuous.get()) {
                 listener?.onListeningChanged(false)
+                signalFlushIfNeeded()
             }
         }
 
@@ -256,6 +339,7 @@ class SttEngine(
                 scheduleRestart(null)
             } else {
                 listener?.onListeningChanged(false)
+                signalFlushIfNeeded()
             }
         }
 
@@ -301,6 +385,7 @@ class SttEngine(
             continuous.set(false)
             listener?.onError("Speech engine unstable — please try again", fatal = true)
             listener?.onListeningChanged(false)
+            signalFlushIfNeeded()
             return
         }
         val delay = policy.restartDelayMs(errorCode)
@@ -449,5 +534,9 @@ class SttEngine(
             if (!formatted.isNullOrBlank()) formatted.trim() else part.rawText.trim()
         }.replace(Regex("\\s+"), " ").trim()
         return joined
+    }
+
+    companion object {
+        const val DEFAULT_FLUSH_TIMEOUT_MS = 550L
     }
 }

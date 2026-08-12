@@ -62,6 +62,25 @@ def main() -> None:
         out.write_text(body, encoding="utf-8")
     except Exception:
         pass
+
+    event = str(data.get("hookEventName") or data.get("hook_event_name") or "")
+    if event.lower() in ("userpromptsubmit", "user_prompt_submit"):
+        sys.stdout.write(
+            json.dumps(
+                {
+                    "hookSpecificOutput": {
+                        "hookEventName": "UserPromptSubmit",
+                        "additionalContext": (
+                            "open-flow GATE: Superpowers first. "
+                            "app/ edits only in a worktree. "
+                            "No PASS without gradlew/unittest proof. "
+                            "Caveman DID/PASS-FAIL/NEXT."
+                        ),
+                    }
+                }
+            )
+        )
+        sys.stdout.flush()
     sys.exit(0)
 
 

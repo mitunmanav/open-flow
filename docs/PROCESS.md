@@ -53,6 +53,8 @@ Prefer `android` over raw inventing device flows. `adb` still OK for deep inject
 8. **Commit** on feature branch (author **Mitun only**)  
 9. **Merge main** when green → **remove worktree**
 
+Hooks enforce: no `app/` edits on `main`; no fake PASS; no INTERNET perm.
+
 ```bash
 git check-ignore -q .worktrees || exit 1
 git worktree add .worktrees/<slug> -b feat/<slug>

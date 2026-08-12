@@ -1,90 +1,78 @@
-# Open Flow vs Wispr Flow Android (feature map)
+# Open Flow vs Wispr Flow Android (audit 2026-08-12)
 
-**Research:** 2026-08-10  
-**Baseline truth:** `docs/BASELINE.md` (full history + what shipped)  
-**Sources:** Wispr docs, Play listing, launch notes, Help Center + live Open Flow code.
+**Product lock:** Bubble + a11y. **Not** IME. en-US only. Local FOSS. No APK INTERNET. No tiny model this slice.
 
 **Wispr Android = cloud STT + account.**  
-**Open Flow = on-device first, no account required.**
+**Open Flow = on-device SpeechRecognizer + local rules.**
 
----
-
-## Status legend
+## Legend
 
 | Tag | Meaning |
 |-----|---------|
-| **have** | In main, testable |
-| **F14+** | Planned next |
-| **skip** | Never / N/A for FOSS local |
-| **partial** | Some coverage only |
+| **have** | On main, device-checked or unit-tested |
+| **partial** | Exists, weaker than Wispr Android |
+| **add** | Local, we will ship in F20 |
+| **skip** | Never / not product |
+| **later** | After F20 (F19 STT extras, optional model) |
 
----
+## Skip (do not build)
 
-## A–Z Wispr Flow Android vs Open Flow
+Account · billing · cloud retry · Command Mode / Transforms · Notetaker · Scratchpad (Wispr Android has **no** Notes) · 100 languages · cloud sync · team / Insights · tiny on-phone LLM · F19 `BIASING_STRINGS` (next after this)
 
-| # | Feature | Wispr Android | Open Flow | Status |
-|---|---------|---------------|-----------|--------|
-| A1 | Accessibility insert into any app | Yes | Yes | **have** |
-| A2 | Auto punctuation | Cloud | Local rules + API33 format | **have** |
-| A4 | Self / course correction | Cloud AI | Local CourseCorrector on stop | **have** |
-| A5 | No raw chunk dump into field | Polish then insert | Session accumulate → insert once on stop | **have** |
-| A3 | Account / login / billing | Yes | Never required | **skip** |
-| B1 | Bubble drag reposition | Yes | Yes | **have** |
-| B2 | Bubble size | Yes | Settings 0.7–1.15× | **have** |
-| B3 | Bubble opacity | Yes | Settings 20–100% | **have** |
-| B4 | Bubble shrink idle / dot | Yes | — | **have** |
-| B5 | Battery optimization setup | Yes | Setup card (basic) | **partial** |
-| C1 | Cancel while dictating | Yes | Stop tap | **have** |
-| C2 | Continuous / unlimited dictation | Yes | Restart loop | **have** |
-| C3 | Copy last transcript | Yes | Yes | **have** |
-| D1 | Dictionary custom words | Yes | Room + apply | **have** |
-| D2 | Dictionary edit/delete | Yes | UI | **have** |
-| D3 | Display over other apps | Yes (a11y) | a11y overlay | **have** |
-| F1 | Filler removal | Yes | Local filter | **have** |
-| F2 | Numbered list format | Yes | Local rules | **have** |
-| H1 | History by day | Yes | Room timeline | **have** |
-| H2 | History copy/delete | Yes | UI | **have** |
-| H3 | Hold-to-talk | Yes | Long-press PTT | **have** |
-| H4 | Home setup permission cards | Yes | Chips + buttons | **have** |
-| L1 | Language select | Yes | **en-US only** (locked) | **have** |
-| L2 | 100+ languages cloud | Yes | Deferred — not product now | **skip** |
-| M1 | Mic permission flow | Yes | Reliability labels | **have** |
-| N1 | Notifications | Yes | — | **F15** |
-| O1 | Offline dictation | **No** | **Yes (ours)** | **have** |
-| P1 | Privacy local store | Toggle | Always default | **have** |
-| P2 | Private cloud sync | Opt-in | Later | later |
-| P3 | Password/phone field hide | Yes | FieldPolicy | **have** |
-| P4 | Banking app hide | Yes | Package denylist | **have** |
-| R1 | Report issue | Yes | GitHub later | **skip** |
-| S1 | Snippets voice shortcuts | Yes | Room + expand | **have** |
-| S2 | Snooze bubble 10 min | Yes | Yes | **have** |
-| S3 | Shake to unsnooze | Yes | Sensor | **have** |
-| S4 | Stats (words, streak) | Yes | Local counters | **have** |
-| S5 | Writing styles | Yes | Formal/Casual/Very casual/Excited/Custom (local rules) | **have** |
-| S5b | Style per app category | Yes | Global styles only | **partial** |
-| C0 | Cleanup levels None/Light/Medium/High | Yes (AI High) | Local rules stages; High ≠ LLM | **have** |
-| C0b | Spoken punct / backspace / new line | Yes | PhraseMap + VoiceCommands | **have** |
-| S6 | Settings nav | Drawer | Bottom nav 5 tabs | **have** |
-| T1 | Tap bubble toggle | Yes | Yes | **have** |
-| T2 | Transcript retry cloud | Yes | N/A local | **skip** |
-| W1 | Waveform while recording | Yes | Basic bubble status | **have** |
-| W2 | Any text field (WhatsApp…) | Yes | Yes | **have** |
-| UI | Dark mode theme | — | system/light/dark | **have** |
-| R0 | Memo audio recorder | Notes limited | Not built | **F16** |
-| E0 | Export share history | — | Not built | **F15** |
+## Map
 
-**Not on Wispr Android (skip or later):** Scratchpad/Notes depth, IAP, Notetaker meetings.
+| # | Feature | Status | Truth |
+|---|---------|--------|--------|
+| A1 | Insert any field | **have** | a11y SET_TEXT + clipboard fallback |
+| A2 | Auto punct | **partial** | API33 format + rules. Not cloud. |
+| A4 | Course correct | **partial** | Marker rules Medium+. Not AI. |
+| A5 | One insert on stop | **have** | SessionText + mergeSession |
+| B1 | Drag | **have** | |
+| B2 | Size | **have** | 0.7–1.15× + full/compact/dot pref |
+| B3 | Opacity | **have** | |
+| B4 | Idle shrink 5s | **add** | Pref exists. **No timer.** |
+| B5 | Battery setup | **add** | Home has a11y+mic only |
+| C1 | Cancel | **have** | |
+| C2 | Continuous | **have** | Restart loop |
+| C3 | Copy last | **partial** | History + home. No bubble chip / notif action |
+| D1–D2 | Dictionary | **have** | Room + UI. No import file |
+| D3 | Overlay | **have** | TYPE_ACCESSIBILITY_OVERLAY |
+| F1–F2 | Filler / lists | **have** | Rules |
+| H1–H2 | History | **have** | + share exists |
+| H3 | Hold-to-talk | **have** | |
+| H4 | Setup cards | **partial** | a11y + mic. No battery |
+| L1 | en-US | **have** | Locked. Ignore other langs |
+| M1 | Mic flow | **have** | |
+| N1 | Notifications | **partial** | “saved” ping. No copy-last, no service-died |
+| O1 | Offline | **have** | Ours |
+| P1 | Local privacy | **have** | |
+| P3–P4 | Hide password / bank | **have** | |
+| S1 | Snippets | **have** | |
+| S2–S3 | Snooze + shake | **have** | |
+| S4 | Stats | **have** | |
+| S5 | Styles | **have** | Global only |
+| S5b | Style per app | **add** | Local category map |
+| C0 | Cleanup levels | **have** | High ≠ Wispr AI High |
+| C0b | Spoken cmds | **have** | |
+| T1 | Tap bubble | **have** | |
+| W1 | Waveform | **partial** | Fake `▮` by clock. RMS unused in label |
+| W2 | Any field | **have** | |
+| F18 | IME park + small listen | **have** | Device 2026-08-12 |
+| E0 | Export | **partial** | Share from history |
+| Keep screen on | **add** | Missing |
+| Session time warn | **add** | Missing |
+| Copy chip after stop | **add** | Missing |
+| Service-died notif | **add** | Missing |
 
----
+## F20 ship (this slice)
 
-## Open Flow ship order (current)
+1. Idle shrink after 5s (visual compact; tap restores)
+2. Copy chip 10s after insert + Copy last on notif
+3. Keep screen on while listening
+4. Session warn 4:30 / stop 5:00
+5. RMS waveform bars
+6. Battery setup chip
+7. Per-app style (personal/work/email → local style)
+8. Service-stopped notification
 
-1. **Done:** bubble · pipeline (no AI) · F17 minimal brutal chrome · en-US lock  
-2. **Next** device smoke of F17 (hard square charcoal/cream bubble)  
-3. **Then** export/share polish **or** F16 memo recorder — Mitun pick  
-4. **Later** optional on-device Whisper · sync  
-
-Privacy forever: no forced account, no cloud STT default.
-
-Research: `docs/research/` · small-features map: `docs/WISPR-SMALL-FEATURES-MAP.md`  
-Baseline: `docs/BASELINE.md`
+Then **F19** STT bias. Model still later.

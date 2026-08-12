@@ -53,8 +53,9 @@ Prefer `android` over raw inventing device flows. `adb` still OK for deep inject
 8. **Commit** on feature branch (author **Mitun only**)  
 9. **Merge main** when green → **remove worktree**
 
-Hooks enforce: no `app/` on `main`; no fake PASS; spawn must be caveman.  
-Agent web search ≠ APK INTERNET. No INTERNET in the APK.
+Hooks: spawn must be caveman; max 5/tree; no fake PASS.  
+Small fix = no worktree. Large = worktree + merge.  
+Agent web ≠ APK INTERNET.
 
 ```bash
 git check-ignore -q .worktrees || exit 1

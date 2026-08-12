@@ -1,39 +1,40 @@
 # Open Flow — Grok Build gate (this repo only)
 
-Hard. Every turn. No skip. Main **and** subagents.
+Hard. Every turn. Main **and** subagents.
 
-## Voice (everywhere)
-- Caveman ultra. Short lines. YES/NO. DID / PASS-FAIL / NEXT / ASK.
-- No essays. No filler. Same voice in subagents, hooks, NOW.
-- Every `spawn_subagent` prompt **must** start with CAVEMAN + DID/PASS-FAIL/NEXT. Hook denies if missing.
+## Voice
+- Caveman ultra. DID / PASS-FAIL / NEXT / ASK. No essays.
+- Spawn prompt **must** include CAVEMAN + DID/PASS-FAIL/NEXT.
 
 ## Required stack (same weight)
-1. **Superpowers** — `using-superpowers` first. All applicable skills.
-2. **Planning** — `writing-plans` **before** feature code. Plan file on disk first. No proceed without it.
-3. **android-cli** — same weight. `android docs` / `layout` / `screen` / `install` / `run` / `info`. No API guesses.
-4. **Agent web search** — required before feature work. **Not** APK INTERNET.
-5. Code ship → TDD + worktree + verify.
-6. Only Superpowers bypass: multi-agent (max 5, never same file), worktrees OK.
+1. Superpowers — all skills **except** “no worktree subagents”.
+2. **Bypass:** max **5** subagents **per worktree**. Never same file.
+3. android-cli — `android docs` / `layout` / `screen` / `install` / `info`.
+4. Agent web search — **not** APK INTERNET.
+5. TDD + proof on ship. Author Mitun only.
 
-## App code
-- Feature work in `.worktrees/<id>-<slug>` on `feat/<id>-<slug>`.
-- Do **not** edit `app/` on `main`. PreToolUse denies it.
-- Plan first: `docs/process/plans/YYYY-MM-DD-<id>-<slug>.md`
+## Size (smart speed)
+- **Small fix** (one file / typo / hook tweak): **no worktree**. Still proof. Still caveman.
+- **Large feature:** plan file → worktree → up to 5 agents → test → **merge main**.
+- Fast ≠ dumb. Do not skip plan / TDD / android-cli / proof on large work.
 
-## Loop
+## Loop (large)
 ```
-web search + android docs → writing-plans file → worktree → TDD → security → commit → report
+web + android docs → writing-plans → worktree → ≤5 agents → TDD → commit → merge
 ```
 
-## Claim gate
-- Never claim PASS / fixed / done without **tool proof in the same message**.
-- Proof = `gradlew` / `BUILD SUCCESSFUL` / `Ran N tests` / `adb install` / `android docs|layout|install|info|screen`.
-- Writing `PASS-FAIL: PASS` or `NEXT:` is **not** proof.
-- Author: Mitun only.
+## Memory (tiny)
+- Live: `.grok/NOW.md`
+- Durable: `.grok/memory/FACTS.md` (truths) · `LESSONS.md` (do not repeat)
+- Also: native Grok `memory_search` / `memory_get`
+- Search memory before re-asking Mitun.
+
+## Claim
+- No PASS without real output (`gradlew` / `Ran N tests` / `android layout`…).
+- `PASS-FAIL: PASS` is not proof.
 
 ## Security
-- **No INTERNET perm in the APK.** Agent may search the web. Different things.
-- No new perm without that feature’s plan.
+- No INTERNET in the APK. Agent may search the web.
 
-## Boss files
+## Boss
 - `AGENTS.md` · `docs/PROCESS.md` · `.grok/WORKFLOW.md` · `.grok/NOW.md`

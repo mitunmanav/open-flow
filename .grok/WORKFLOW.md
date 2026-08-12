@@ -4,7 +4,8 @@
 
 - Rules: `.grok/rules/00-dev-gate.md`
 - Memory: `.grok/NOW.md` + `.grok/memory/FACTS.md` + `LESSONS.md`
-- Hooks: caveman spawn; max 5 spawns/tree; stop needs real proof
+- Hooks: caveman spawn; max 5/tree; **tree jail**; stop needs real proof
+- **This repo only.** No global hooks.
 
 ## Law
 

@@ -53,8 +53,8 @@ Prefer `android` over raw inventing device flows. `adb` still OK for deep inject
 8. **Commit** on feature branch (author **Mitun only**)  
 9. **Merge main** when green → **remove worktree**
 
-Hooks: spawn must be caveman; max 5/tree; no fake PASS.  
-Small fix = no worktree. Large = worktree + merge.  
+Hooks: caveman spawn; max 5/tree; **tree jail**; no fake PASS.  
+This repo only. Small fix = no worktree. Large = worktree + merge.  
 Agent web ≠ APK INTERNET.
 
 ```bash

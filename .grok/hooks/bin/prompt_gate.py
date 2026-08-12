@@ -51,9 +51,9 @@ def main() -> None:
             "# Session stamp (auto — open-flow gate)",
             f"# refreshed: {stamp}",
             "",
-            "GATE ON: Superpowers + android-cli + agent web. Same weight.",
+            "GATE ON (this project only). Superpowers + android-cli + agent web.",
             "Small fix: no worktree. Large: worktree + plan + max 5 agents.",
-            "Fast must stay smart. No skip TDD/android-cli/proof on large.",
+            "Isolate trees. One worktree must not touch another or main.",
             "Caveman everywhere. Memory: .grok/NOW.md + .grok/memory/.",
             "Agent web only. Not APK INTERNET.",
             "See: `.grok/rules/00-dev-gate.md`",
@@ -74,12 +74,11 @@ def main() -> None:
         except Exception:
             now_bit = ""
         ctx = (
-            "open-flow GATE: Superpowers + android-cli + agent web. "
-            "Small fix: no worktree. Large feature: worktree + "
-            "writing-plans + max 5 agents (never same file) + test + merge. "
-            "Fast must stay smart — do not skip TDD/android-cli/proof. "
-            "Caveman everywhere including subagents. "
-            "Memory: .grok/NOW.md (live) + .grok/memory/FACTS.md + LESSONS.md. "
+            "open-flow GATE (this project only): Superpowers + android-cli + agent web. "
+            "Small fix: no worktree. Large: worktree + writing-plans + max 5 agents + merge. "
+            "Isolate: one worktree must not touch another or main. "
+            "Spawn in a tree must set cwd to that tree. No isolation=worktree. "
+            "Caveman everywhere. Memory: .grok/NOW.md + .grok/memory/. "
             "Agent web search only — not APK INTERNET."
         )
         if now_bit:

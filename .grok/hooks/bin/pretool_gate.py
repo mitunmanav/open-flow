@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """open-flow only — PreToolUse gate.
 
-Deny spawn_subagent if prompt lacks caveman card.
-Cap 5 spawns per worktree (or main cwd).
-Small app/ edits on main are allowed.
+Caveman spawn. Max 5 agents per worktree.
+Path jail: one worktree cannot touch another or main.
+Main cannot write into .worktrees/.
 Fail open on errors.
 """
 from __future__ import annotations
@@ -19,8 +19,21 @@ SPAWN_TOOLS = {
     "Task",
     "task",
 }
+FILE_TOOLS = {
+    "search_replace",
+    "write",
+    "Write",
+    "Edit",
+    "MultiEdit",
+}
+SHELL_TOOLS = {
+    "run_terminal_command",
+    "Bash",
+    "bash",
+}
 
 CAVEMAN_MARK = re.compile(r"(?i)\b(caveman|DID:|PASS-FAIL:)\b")
+OTHER_WT = re.compile(r"\.worktrees/([^/\s\"']+)")
 MAX_SPAWNS = 5
 
 
@@ -35,9 +48,42 @@ def file_from_input(tool_input: object) -> str:
     )
 
 
+def resolve_path(raw: str, cwd: str) -> Path:
+    p = Path(raw)
+    if not p.is_absolute():
+        p = Path(cwd) / p
+    try:
+        return p.expanduser().resolve()
+    except Exception:
+        return p
+
+
+def worktree_slug(path: str | Path) -> str | None:
+    try:
+        parts = Path(path).expanduser().resolve().parts
+    except Exception:
+        parts = Path(str(path)).parts
+    if ".worktrees" not in parts:
+        return None
+    i = parts.index(".worktrees")
+    if i + 1 < len(parts):
+        return parts[i + 1]
+    return None
+
+
 def is_spawn(data: dict) -> bool:
     name = str(data.get("toolName") or data.get("tool_name") or "")
     return name in SPAWN_TOOLS
+
+
+def is_file_tool(data: dict) -> bool:
+    name = str(data.get("toolName") or data.get("tool_name") or "")
+    return name in FILE_TOOLS
+
+
+def is_shell_tool(data: dict) -> bool:
+    name = str(data.get("toolName") or data.get("tool_name") or "")
+    return name in SHELL_TOOLS
 
 
 def spawn_lacks_caveman(data: dict, tool_input: object) -> bool:
@@ -51,8 +97,8 @@ def spawn_lacks_caveman(data: dict, tool_input: object) -> bool:
 
 def spawn_key(data: dict) -> str:
     cwd = str(data.get("cwd") or data.get("workspaceRoot") or "main")
-    sess = str(data.get("sessionId") or data.get("session_id") or "nosess")
-    safe = re.sub(r"[^A-Za-z0-9._-]+", "_", f"{sess}:{cwd}")
+    slug = worktree_slug(cwd) or "main"
+    safe = re.sub(r"[^A-Za-z0-9._-]+", "_", slug)
     return safe[:180]
 
 
@@ -78,30 +124,107 @@ def bump_spawn_count(data: dict) -> int:
     return n
 
 
+def deny(reason: str) -> dict:
+    return {"decision": "deny", "reason": reason}
+
+
+def jail_file(cwd: str, file_path: str) -> dict | None:
+    if not file_path:
+        return None
+    src = worktree_slug(cwd)
+    dst = worktree_slug(resolve_path(file_path, cwd))
+    if src and dst != src:
+        return deny(
+            "open-flow jail: this worktree cannot write main or another tree. "
+            f"you={src} target={dst or 'main'}"
+        )
+    if not src and dst:
+        return deny(
+            "open-flow jail: main cannot write .worktrees/. "
+            f"Stay on main or cd into {dst}."
+        )
+    return None
+
+
+def jail_spawn(cwd: str, tool_input: object) -> dict | None:
+    if not isinstance(tool_input, dict):
+        return deny("open-flow jail: bad spawn input")
+    if str(tool_input.get("isolation") or "") == "worktree":
+        return deny(
+            "open-flow jail: do not use spawn isolation=worktree. "
+            "Use project .worktrees/ + cwd. Extra trees mess us up."
+        )
+    parent = worktree_slug(cwd)
+    if not parent:
+        return None
+    child = str(tool_input.get("cwd") or "")
+    if not child:
+        return deny(
+            "open-flow jail: spawn from a worktree must set cwd to that tree."
+        )
+    if worktree_slug(child) != parent:
+        return deny(
+            f"open-flow jail: spawn cwd must stay in {parent}. "
+            "Do not point at another tree."
+        )
+    return None
+
+
+def jail_shell(cwd: str, tool_input: object) -> dict | None:
+    if not isinstance(tool_input, dict):
+        return None
+    cmd = str(tool_input.get("command") or "")
+    if not cmd:
+        return None
+    src = worktree_slug(cwd)
+    for match in OTHER_WT.finditer(cmd):
+        other = match.group(1)
+        if src and other != src:
+            return deny(
+                f"open-flow jail: shell in {src} mentioned .worktrees/{other}."
+            )
+        if not src:
+            if re.search(
+                r"\bgit\s+worktree\s+(add|list|prune|remove)\b", cmd
+            ):
+                continue
+            return deny(
+                "open-flow jail: main shell must not touch .worktrees/ files."
+            )
+    return None
+
+
 def decide(data: dict) -> dict | None:
     tool_input = data.get("toolInput") or data.get("tool_input") or {}
+    cwd = str(data.get("cwd") or data.get("workspaceRoot") or "")
 
     if spawn_lacks_caveman(data, tool_input):
-        return {
-            "decision": "deny",
-            "reason": (
-                "open-flow PreToolUse: subagent prompt must be caveman. "
-                "Start with CAVEMAN + DID / PASS-FAIL / NEXT / ASK. "
-                "See .grok/rules/00-dev-gate.md"
-            ),
-        }
+        return deny(
+            "open-flow PreToolUse: subagent prompt must be caveman. "
+            "Start with CAVEMAN + DID / PASS-FAIL / NEXT / ASK."
+        )
 
     if is_spawn(data):
+        hit = jail_spawn(cwd, tool_input)
+        if hit:
+            return hit
         n = bump_spawn_count(data)
         if n > MAX_SPAWNS:
-            return {
-                "decision": "deny",
-                "reason": (
-                    f"open-flow PreToolUse: max {MAX_SPAWNS} subagents "
-                    "per worktree. Finish or merge first. "
-                    "Never same file. See .grok/rules/00-dev-gate.md"
-                ),
-            }
+            return deny(
+                f"open-flow: max {MAX_SPAWNS} subagents per worktree. "
+                "Never same file."
+            )
+
+    if is_file_tool(data):
+        hit = jail_file(cwd, file_from_input(tool_input))
+        if hit:
+            return hit
+
+    if is_shell_tool(data):
+        hit = jail_shell(cwd, tool_input)
+        if hit:
+            return hit
+
     return None
 
 

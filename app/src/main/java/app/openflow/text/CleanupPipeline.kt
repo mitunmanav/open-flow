@@ -1,59 +1,84 @@
 package app.openflow.text
 
 /**
- * Staged local cleanup. Deterministic first; no LLM required.
+ * Local Auto Cleanup (Wispr levels, no cloud AI).
  *
- * Raw STT → normalize → fillers → repetitions → false starts
- * → self-corrections → punctuation → capitalization → verify
+ * | Level  | Stages |
+ * |--------|--------|
+ * | None   | identity |
+ * | Light  | normalize → fillers → reps → VoiceCommands → lightGrammar |
+ * | Medium | Light → false starts → CourseCorrector → lists → lightClarity |
+ * | High   | Medium → hedge/wordiness strip (rules only) |
+ *
+ * Writing style is applied *after* levels via [StyleApplicator] — never by level.
  */
 object CleanupPipeline {
 
     fun run(
         raw: String,
         level: CleanupLevel = CleanupLevel.NORMAL,
-        style: TextPostProcessor.Style = TextPostProcessor.Style.CASUAL
+        style: WritingStyle = WritingStyle.CASUAL,
+        custom: CustomStyleConfig = CustomStyleConfig()
     ): CleanupResult {
-        val original = raw.trim()
-        if (original.isEmpty()) {
+        val original = raw
+        if (original.isBlank()) {
             return CleanupResult(raw = "", clean = "", level = level)
         }
         if (level == CleanupLevel.RAW) {
             return CleanupResult(raw = original, clean = original, level = level)
         }
 
-        var t = normalize(original)
+        var t = original.trim()
+        val corrections = mutableListOf<Correction>()
+
+        // Light (all non-RAW)
+        t = normalize(t)
         t = stripFillers(t)
         t = collapseRepetitions(t)
-        t = stripFalseStarts(t)
+        t = VoiceCommands.apply(t)
+        t = lightGrammar(t)
 
-        val corrections = mutableListOf<Correction>()
+        // Medium+
         if (level == CleanupLevel.NORMAL || level == CleanupLevel.HIGH) {
+            t = stripFalseStarts(t)
             val analyzed = CourseCorrector.analyze(t)
             corrections += analyzed.corrections
             t = analyzed.text
+            t = applyListHints(t)
+            t = lightClarity(t)
         }
 
-        t = applySpokenPunctuation(t)
-        t = applyListHints(t)
-        t = applyPunctuation(t, style)
-        t = applyCapitalization(t)
-        t = normalize(t)
+        // High only
+        if (level == CleanupLevel.HIGH) {
+            t = stripHedges(t)
+        }
+
+        t = normalizeKeepNewlines(t)
+        t = StyleApplicator.apply(t, style, custom)
 
         return CleanupResult(
-            raw = original,
+            raw = original.trim().ifEmpty { original },
             clean = t,
             corrections = corrections,
             level = level
         )
     }
 
-    // --- stages (testable individually via package-visible helpers) ---
+    // ---- Light stages ----
 
     internal fun normalize(t: String): String =
         t.replace(Regex("\\s+"), " ").trim()
 
+    /** Collapse horizontal space; keep newlines for lists / spoken line breaks. */
+    internal fun normalizeKeepNewlines(t: String): String =
+        t.lines()
+            .joinToString("\n") { it.replace(Regex("[ \\t]+"), " ").trim() }
+            .replace(Regex("\n{3,}"), "\n\n")
+            .trim()
+
     private val fillers = listOf(
-        "um", "uh", "erm", "ah", "uhm", "hmm", "you know", "sort of", "kind of"
+        "um", "uh", "erm", "ah", "uhm", "hmm", "mm", "mhm",
+        "you know", "sort of", "kind of"
     )
 
     internal fun stripFillers(t: String): String {
@@ -64,11 +89,9 @@ object CleanupPipeline {
                 " "
             )
         }
-        // Collapse empty comma slots left by filler removal: "I, , like," → "I, like,"
         out = out.replace(Regex("""\s*,\s*,+"""), ",")
-        // Spoken filler ", like," → keep verb "like" as content ("I like pizza")
+        // ", like," filler (not "I like pizza")
         out = out.replace(Regex("""(?i),\s*like\s*,"""), " like ")
-        // Drop filler "like" only when followed by another filler / trailing alone
         out = out.replace(
             Regex("""(?i)(?<=\s)like(?=\s+(?:um|uh|you know)\b)"""),
             " "
@@ -78,7 +101,6 @@ object CleanupPipeline {
         return normalize(out)
     }
 
-    /** Collapse immediate repeated words: "I I want" → "I want". */
     internal fun collapseRepetitions(t: String): String {
         val words = t.split(Regex("\\s+")).filter { it.isNotBlank() }
         if (words.size < 2) return t
@@ -88,7 +110,6 @@ object CleanupPipeline {
             if (prev != null && prev.equals(w, ignoreCase = true)) continue
             out.add(w)
         }
-        // short phrase repeats: "go to go to"
         var s = out.joinToString(" ")
         s = s.replace(
             Regex("""(?i)\b(\w+(?:\s+\w+){0,2})\s+\1\b"""),
@@ -97,31 +118,36 @@ object CleanupPipeline {
         return normalize(s)
     }
 
-    /**
-     * Lightweight false-start: "I was going to — I will go" → take after dash/ellipsis restart.
-     */
+    /** Light grammar: lone i→I, punct spacing. Not style, not hedges. */
+    internal fun lightGrammar(t: String): String {
+        var s = t
+        s = s.replace(Regex("""\bi\b"""), "I")
+        s = s.replace(Regex("""\s+([,.!?;:])"""), "$1")
+        s = s.replace(Regex("""([,.!?;:])([A-Za-z])"""), "$1 $2")
+        return normalizeKeepNewlines(s)
+    }
+
+    // ---- Medium stages ----
+
     internal fun stripFalseStarts(t: String): String {
         var s = t
-        // "I want to... start over" style already in CourseCorrector (scratch that)
-        s = s.replace(Regex("""(?i)\bI\s+was\s+going\s+to\b[^.]*?[—–-]\s*"""), "")
-        return normalize(s)
+        // Abandoned clause before dash rethink: "I was going to call — never mind"
+        s = s.replace(Regex("""(?i)\bI\s+was\s+going\s+to\b[^.!?\n]*?[—–-]\s*"""), "")
+        s = s.replace(Regex("""(?i)\bI\s+started\s+to\b[^.!?\n]*?[—–-]\s*"""), "")
+        return normalizeKeepNewlines(s)
     }
 
-    private fun applySpokenPunctuation(t: String): String {
+    /** Drop leading empty discourse openers (first line). */
+    internal fun lightClarity(t: String): String {
         var s = t
-        s = s.replace(Regex("""(?i)\bnew\s+paragraph\b"""), "\n\n")
-        s = s.replace(Regex("""(?i)\bnew\s+line\b"""), "\n")
-        s = s.replace(Regex("""(?i)\bperiod\b"""), ".")
-        s = s.replace(Regex("""(?i)\bcomma\b"""), ",")
-        s = s.replace(Regex("""(?i)\bquestion\s+mark\b"""), "?")
-        s = s.replace(Regex("""(?i)\bexclamation\s+(?:mark|point)\b"""), "!")
-        s = s.replace(Regex("""(?i)\bcolon\b"""), ":")
-        s = s.replace(Regex("""(?i)\bsemicolon\b"""), ";")
-        s = s.replace(Regex("""\s+([.,!?;:])"""), "$1")
-        return s
+        s = s.replace(Regex("""(?i)^(well|so|okay|ok|right|anyway)\s*,\s*"""), "")
+        s = s.replace(Regex("""(?i)^(well|so|okay|ok|right|anyway)\s+"""), "")
+        return normalizeKeepNewlines(s)
     }
 
-    private fun applyListHints(t: String): String {
+    internal fun applyListHints(t: String): String {
+        splitDottedNumbered(t)?.let { return it }
+        splitSpokenDigitList(t)?.let { return it }
         val m = Regex("(?i)(?:number|item)\\s+(one|two|three|four|five|1|2|3|4|5)\\s+")
         if (!m.containsMatchIn(t)) return t
         val parts = t.split(
@@ -133,41 +159,76 @@ object CleanupPipeline {
         }.joinToString("\n")
     }
 
-    private fun applyPunctuation(t: String, style: TextPostProcessor.Style): String {
-        var s = t
-        if (s.lastOrNull()?.isLetterOrDigit() == true) {
-            s += when (style) {
-                TextPostProcessor.Style.FORMAL -> "."
-                TextPostProcessor.Style.EXCITED -> "!"
-                else -> if (s.length > 40) "." else ""
-            }
+    /** "1. Apples 2. Bananas 3. Oranges" → multiline. */
+    internal fun splitDottedNumbered(t: String): String? {
+        val trimmed = t.trim()
+        val parts = trimmed.split(Regex("""\s+(?=\d+\.\s+)""")).map { it.trim() }.filter { it.isNotEmpty() }
+        if (parts.size < 2) return null
+        if (!parts.all { it.matches(Regex("""^\d+\.\s+\S.*""")) }) return null
+        return parts.joinToString("\n") { p ->
+            p.trimEnd('.', ',', ';')
         }
-        val qStarts = listOf(
-            "who ", "what ", "where ", "when ", "why ", "how ",
-            "is ", "are ", "can ", "do "
-        )
-        if (qStarts.any { s.startsWith(it, ignoreCase = true) } && !s.endsWith("?")) {
-            s = s.trimEnd('.', '!') + "?"
-        }
-        return s
     }
 
-    private fun applyCapitalization(t: String): String {
-        if (t.isEmpty()) return t
-        val sb = StringBuilder(t)
-        sb[0] = sb[0].uppercaseChar()
-        var i = 1
-        while (i < sb.length) {
-            val c = sb[i - 1]
-            if (c == '.' || c == '!' || c == '?' || c == '\n') {
-                var j = i
-                while (j < sb.length && sb[j].isWhitespace()) j++
-                if (j < sb.length && sb[j].isLowerCase()) {
-                    sb[j] = sb[j].uppercaseChar()
-                }
-            }
-            i++
-        }
-        return sb.toString()
+    /** "1 apples 2 bananas 3 oranges" → multiline list. */
+    private fun splitSpokenDigitList(t: String): String? {
+        val trimmed = t.trim()
+        if (trimmed.isEmpty() || !trimmed.first().isDigit()) return null
+        val parts = trimmed.split(Regex("""\s+(?=\d{1,2}\s+[A-Za-z])""")).map { it.trim() }.filter { it.isNotEmpty() }
+        if (parts.size < 2) return null
+        if (!parts.all { it.matches(Regex("""^\d{1,2}\s+\S.*""")) }) return null
+        return parts.map { p ->
+            val m = Regex("""^(\d{1,2})\s+(.+)$""").find(p) ?: return null
+            val body = m.groupValues[2].trim().trimEnd('.', ',', ';')
+            "${m.groupValues[1]}. $body"
+        }.joinToString("\n")
     }
+
+    // ---- High stages ----
+
+    /**
+     * Short hedge / wordiness rules only.
+     * Not Formal style. Not LLM rewrite.
+     */
+    internal fun stripHedges(t: String): String {
+        var s = t
+        val phrases = listOf(
+            Regex("""(?i)\bdue\s+to\s+the\s+fact\s+that\b""") to "because",
+            Regex("""(?i)\bin\s+order\s+to\b""") to "to",
+            Regex("""(?i)\bat\s+this\s+point\s+in\s+time\b""") to "now",
+            Regex("""(?i)\bfor\s+all\s+intents\s+and\s+purposes,?\s*""") to "",
+            Regex("""(?i)\bto\s+be\s+honest,?\s*""") to "",
+            Regex("""(?i)\bneedless\s+to\s+say,?\s*""") to "",
+            Regex("""(?i)\bI\s+would\s+say\s+(?:that\s+)?""") to "",
+            Regex("""(?i)\bI\s+think\s+that\b""") to "",
+            Regex("""(?i)\bI\s+feel\s+like\b""") to "",
+            Regex("""(?i)\bit\s+seems\s+(?:like|that)\b""") to "",
+            Regex("""(?i)\bI\s+guess\s+(?:that\s+)?""") to "",
+            Regex("""(?i)\band\s+so\s+on\b""") to "",
+            Regex("""(?i)\band\s+stuff\b""") to "",
+            Regex("""(?i)\bor\s+whatever\b""") to "",
+            Regex("""(?i)\bpretty\s+much\b""") to "",
+            Regex("""(?i)\ba\s+little\s+bit\b""") to "a bit",
+        )
+        for ((re, rep) in phrases) {
+            s = re.replace(s, rep)
+        }
+        val hedges = listOf(
+            "basically", "literally", "actually", "really", "quite", "honestly", "obviously"
+        )
+        hedges.forEach { h ->
+            s = s.replace(
+                Regex("\\b${Regex.escape(h)}\\b[,\\s]*", RegexOption.IGNORE_CASE),
+                " "
+            )
+        }
+        s = s.replace(Regex("""(?i)\bjust\s+(?=(?:want|need|think|go|do|say|try)\b)"""), "")
+        s = s.replace(Regex("""\s*,\s*,+"""), ",")
+        s = s.replace(Regex("""\s+,"""), ",")
+        s = s.replace(Regex("""\s+\."""), ".")
+        return normalize(s)
+    }
+
+    /** @deprecated Use [stripHedges]. Kept for any external callers. */
+    internal fun polishBrevity(t: String): String = stripHedges(t)
 }

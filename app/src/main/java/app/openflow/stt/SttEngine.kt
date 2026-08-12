@@ -10,10 +10,10 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.speech.RecognitionListener
+import android.speech.RecognitionPart
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import androidx.core.content.ContextCompat
-import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -31,7 +31,8 @@ class SttEngine(
     private val preferOnDevice: Boolean = true,
     private val policy: ContinuousPolicy = ContinuousPolicy(),
     private val mainHandler: Handler = Handler(Looper.getMainLooper()),
-    private val softMuteBeeps: Boolean = false
+    private val softMuteBeeps: Boolean = false,
+    private val tuning: SttTuning = SttTuning(),
 ) {
     interface Listener {
         fun onPartial(text: String)
@@ -245,8 +246,7 @@ class SttEngine(
             restoreVolume()
             starting.set(false)
             restartCount = 0
-            val texts = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-            val best = texts?.firstOrNull().orEmpty()
+            val best = extractBestText(results)
             if (best.isNotBlank()) {
                 listener?.onFinal(best)
             } else {
@@ -261,9 +261,7 @@ class SttEngine(
 
         override fun onPartialResults(partialResults: Bundle?) {
             restartCount = 0
-            val texts = partialResults
-                ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-            val best = texts?.firstOrNull().orEmpty()
+            val best = extractBestText(partialResults)
             if (best.isNotBlank()) listener?.onPartial(best)
         }
 
@@ -383,7 +381,7 @@ class SttEngine(
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, lang)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, lang)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, SttTuning.MAX_RESULTS)
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, tuning.maxResults)
             putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName)
 
             // Only prefer offline when we still believe packs exist.
@@ -394,24 +392,62 @@ class SttEngine(
 
             putExtra(
                 RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS,
-                SttTuning.MIN_SPEECH_MS
+                tuning.minSpeechMs
             )
             putExtra(
                 RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS,
-                SttTuning.COMPLETE_SILENCE_MS
+                tuning.completeSilenceMs
             )
             putExtra(
                 RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS,
-                SttTuning.POSSIBLY_COMPLETE_SILENCE_MS
+                tuning.possiblyCompleteSilenceMs
             )
 
+            // API 33+: auto punct / capitalization.
+            // Quality = better punct, more latency; latency = snappier, weaker punct.
+            // Default quality (see SttTuning.preferFormattingQuality).
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                putExtra(
-                    RecognizerIntent.EXTRA_ENABLE_FORMATTING,
+                val mode = if (tuning.preferFormattingQuality) {
+                    RecognizerIntent.FORMATTING_OPTIMIZE_QUALITY
+                } else {
                     RecognizerIntent.FORMATTING_OPTIMIZE_LATENCY
-                )
+                }
+                putExtra(RecognizerIntent.EXTRA_ENABLE_FORMATTING, mode)
                 putExtra(RecognizerIntent.EXTRA_HIDE_PARTIAL_TRAILING_PUNCTUATION, true)
             }
         }
+    }
+
+    /**
+     * Best engine transcript only — never invent text.
+     * Prefer RESULTS_RECOGNITION; API 33+ may also supply RECOGNITION_PARTS.
+     */
+    private fun extractBestText(bundle: Bundle?): String {
+        val fromResults = bundle
+            ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+            ?.firstOrNull()
+            ?.trim()
+            .orEmpty()
+        if (fromResults.isNotEmpty()) return fromResults
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || bundle == null) {
+            return ""
+        }
+        val parts = try {
+            bundle.getParcelableArrayList(
+                SpeechRecognizer.RECOGNITION_PARTS,
+                RecognitionPart::class.java
+            )
+        } catch (_: Exception) {
+            null
+        }
+        if (parts.isNullOrEmpty()) return ""
+
+        // Structured parts only when engine filled them (formatted if present).
+        val joined = parts.joinToString(" ") { part ->
+            val formatted = part.formattedText
+            if (!formatted.isNullOrBlank()) formatted.trim() else part.rawText.trim()
+        }.replace(Regex("\\s+"), " ").trim()
+        return joined
     }
 }

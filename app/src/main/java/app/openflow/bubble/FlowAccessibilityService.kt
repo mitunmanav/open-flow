@@ -3,6 +3,10 @@ package app.openflow.bubble
 import android.Manifest
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
@@ -10,6 +14,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -28,6 +33,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
+import app.openflow.BuildConfig
 import app.openflow.OpenFlowApp
 import app.openflow.R
 import app.openflow.notify.DictationNotifier
@@ -36,7 +42,9 @@ import app.openflow.stt.LanguagePolicy
 import app.openflow.stt.SttEngine
 import app.openflow.text.CleanupLevel
 import app.openflow.text.CleanupResult
+import app.openflow.text.CustomStyleConfig
 import app.openflow.text.TextPostProcessor
+import app.openflow.text.WritingStyle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -84,6 +92,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     private val shakeDetector = ShakeDetector()
     private var shakeRegistered = false
     private var pulseUp = true
+    private var injectReceiverRegistered = false
 
     private val pulseRunnable = object : Runnable {
         override fun run() {
@@ -92,6 +101,17 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             bubbleView?.alpha = if (pulseUp) base else (base * 0.65f)
             pulseUp = !pulseUp
             mainHandler.postDelayed(this, 350L)
+        }
+    }
+
+    /** Debug-only: adb inject without mic (see companion ACTION_INJECT). */
+    private val injectReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (!BuildConfig.DEBUG) return
+            if (intent?.action != ACTION_INJECT) return
+            val raw = intent.getStringExtra(EXTRA_TEXT).orEmpty()
+            android.util.Log.i("OpenFlow.Inject", "recv rawLen=${raw.length}")
+            injectDictation(raw)
         }
     }
 
@@ -121,6 +141,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         )
         showBubble()
         instance = this
+        registerInjectReceiver()
+        android.util.Log.i("OpenFlow.Bubble", "onServiceConnected overlay=ready debugInject=${BuildConfig.DEBUG}")
         refreshBubbleVisibility()
     }
 
@@ -170,6 +192,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     override fun onDestroy() {
         stopPulse()
         unregisterShake()
+        unregisterInjectReceiver()
         stopListening(save = false)
         hideBubble()
         stt?.destroy()
@@ -640,21 +663,101 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
     }
 
+    /**
+     * Debug inject: same polish + field commit path as stopListening, no STT.
+     * adb: am broadcast -a app.openflow.INJECT_DICTATION -p <pkg> --es text "…"
+     */
+    fun injectDictation(raw: String) {
+        if (!BuildConfig.DEBUG) return
+        val text = raw.trim()
+        if (text.isBlank()) {
+            android.util.Log.w("OpenFlow.Inject", "blank")
+            return
+        }
+        val prefix = captureFieldPrefix()
+        val dur = 0L
+        polishSession(text) { result ->
+            val finalText = result.clean
+            android.util.Log.i(
+                "OpenFlow.Inject",
+                "done cleanLen=${finalText.length} prefixLen=${prefix.length} " +
+                    "level=${result.level} fieldOk=${finalText.isNotBlank()}"
+            )
+            if (finalText.isNotBlank()) {
+                commitSessionToField(finalText, prefix)
+                prefs?.setLastSession(raw = result.raw, clean = finalText)
+                val wordCount = finalText.split(Regex("\\s+")).filter { it.isNotBlank() }.size
+                val retention = prefs?.retentionPolicy ?: "keep"
+                val lang = LanguagePolicy.LOCKED
+                scope.launch(Dispatchers.IO) {
+                    runCatching {
+                        app.dictations.saveDictation(
+                            rawText = result.raw,
+                            cleanText = finalText,
+                            durationMs = dur,
+                            languageTag = lang,
+                            retentionPolicy = retention
+                        )
+                    }
+                }
+                DictationNotifier.notifyIfPermitted(this@FlowAccessibilityService, wordCount)
+            }
+        }
+    }
+
+    private fun registerInjectReceiver() {
+        if (!BuildConfig.DEBUG || injectReceiverRegistered) return
+        val filter = IntentFilter(ACTION_INJECT)
+        try {
+            if (Build.VERSION.SDK_INT >= 33) {
+                registerReceiver(injectReceiver, filter, Context.RECEIVER_EXPORTED)
+            } else {
+                @Suppress("UnspecifiedRegisterReceiverFlag")
+                registerReceiver(injectReceiver, filter)
+            }
+            injectReceiverRegistered = true
+            android.util.Log.i("OpenFlow.Inject", "receiver registered action=$ACTION_INJECT")
+        } catch (e: Exception) {
+            android.util.Log.e("OpenFlow.Inject", "register failed", e)
+        }
+    }
+
+    private fun unregisterInjectReceiver() {
+        if (!injectReceiverRegistered) return
+        try {
+            unregisterReceiver(injectReceiver)
+        } catch (_: Exception) {
+        }
+        injectReceiverRegistered = false
+    }
+
+    /**
+     * Same path for stopListening + debug inject:
+     * dict → snippets → CleanupPipeline(level, style, custom) via [TextPostProcessor.polishSessionResult].
+     */
     private fun polishSession(text: String, onDone: (CleanupResult) -> Unit) {
         scope.launch(Dispatchers.Default) {
             val dict = app.dictations.dictionaryMap()
             val snip = app.dictations.snippetMap()
-            val expanded = TextPostProcessor.expandSnippets(text, snip)
-            val snippetHit = expanded != text && snip.values.any { it == expanded }
-            val result = if (snippetHit) {
-                CleanupResult(raw = text, clean = expanded)
-            } else {
-                val level = CleanupLevel.fromPref(prefs?.cleanupLevel ?: "medium")
-                val style = prefs?.style() ?: TextPostProcessor.Style.CASUAL
-                val polished = TextPostProcessor.polishSessionResult(expanded, style, level)
-                val clean = TextPostProcessor.applyDictionary(polished.clean, dict)
-                polished.copy(clean = clean)
-            }
+            val prefLevel = prefs?.cleanupLevel ?: "medium"
+            val level = CleanupLevel.fromPref(prefLevel)
+            val style = prefs?.style() ?: WritingStyle.CASUAL
+            val custom = prefs?.customStyleConfig() ?: CustomStyleConfig()
+            val result = TextPostProcessor.polishSessionResult(
+                raw = text,
+                style = style,
+                level = level,
+                custom = custom,
+                dictionary = dict,
+                snippets = snip
+            )
+            android.util.Log.i(
+                "OpenFlow.Cleanup",
+                "level=$level pref=$prefLevel style=$style lang=${LanguagePolicy.LOCKED} " +
+                    "rawLen=${text.length} cleanLen=${result.clean.length} " +
+                    "corr=${result.corrections.size} " +
+                    "changed=${text.trim() != result.clean.trim()}"
+            )
             mainHandler.post { onDone(result) }
         }
     }
@@ -867,6 +970,10 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     }
 
     companion object {
+        /** Debug broadcast action (any build id; handler no-ops if not DEBUG). */
+        const val ACTION_INJECT = "app.openflow.INJECT_DICTATION"
+        const val EXTRA_TEXT = "text"
+
         @Volatile
         var instance: FlowAccessibilityService? = null
             private set

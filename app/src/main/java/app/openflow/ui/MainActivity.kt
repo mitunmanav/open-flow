@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -45,9 +46,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -79,7 +82,7 @@ import app.openflow.data.SnippetEntity
 import app.openflow.export.HistoryExport
 import app.openflow.prefs.FlowPrefs
 import app.openflow.prefs.LayoutPrefs
-import app.openflow.text.TextPostProcessor
+import app.openflow.text.WritingStyle
 import app.openflow.ui.components.ButtonVariant
 import app.openflow.ui.components.EmptyState
 import app.openflow.ui.components.OpenButton
@@ -194,14 +197,15 @@ class MainActivity : ComponentActivity() {
                                     try {
                                         android.widget.Toast.makeText(
                                             this@MainActivity,
-                                            "Enable Open Flow in Accessibility, then return here.",
+                                            "Turn ON Open Flow Bubble in Accessibility, then return.",
                                             android.widget.Toast.LENGTH_LONG
                                         ).show()
                                         startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                                    } catch (e: Exception) {
+                                    } catch (_: Exception) {
                                         try {
                                             startActivity(Intent(Settings.ACTION_SETTINGS))
-                                        } catch (e2: Exception) {}
+                                        } catch (_: Exception) {
+                                        }
                                     }
                                 },
                                 onMic = { micPermission.launch(Manifest.permission.RECORD_AUDIO) },
@@ -368,10 +372,13 @@ private fun HomeHub(
                                 }
                             }
                             Text(
-                                if (ready) {
-                                    "Focus a text field → tap the floating bubble → speak → tap again. Polished text inserts once."
-                                } else {
-                                    "Turn on Accessibility (Flow Bubble) and allow the microphone."
+                                when {
+                                    ready ->
+                                        "Focus a text field → tap the floating bubble → speak → tap again. Polished text inserts once."
+                                    !bubbleOn ->
+                                        "Repair: Open Flow is not in Accessibility. Tap Enable bubble, turn it ON, then return. Force-stop or reinstall turns this off."
+                                    else ->
+                                        "Allow the microphone, then focus a field and tap the bubble."
                                 },
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -451,16 +458,19 @@ private fun HomeHub(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
+                                // Wispr Auto Cleanup names (honest local levels)
                                 listOf(
-                                    "none" to "Raw",
+                                    "none" to "None",
                                     "light" to "Light",
-                                    "medium" to "Smart",
-                                    "high" to "Formal"
+                                    "medium" to "Medium",
+                                    "high" to "High"
                                 ).forEach { (level, label) ->
                                     OpenChip(
                                         label = label,
                                         isOn = cleanup == level,
-                                        modifier = Modifier.weight(1f),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .testTag("cleanup_$level"),
                                         onClick = {
                                             cleanup = level
                                             app.prefs.cleanupLevel = level
@@ -974,8 +984,32 @@ private fun SnippetsTab(app: OpenFlowApp) {
 
 @Composable
 private fun StyleTab(prefs: FlowPrefs) {
-    val styles = TextPostProcessor.Style.entries
     var selected by remember { mutableStateOf(prefs.style()) }
+    var customEnd by remember { mutableStateOf(prefs.customEndPunct) }
+    var customCaps by remember { mutableStateOf(prefs.customCaps) }
+    var customExpand by remember { mutableStateOf(prefs.customExpandInformal) }
+    var customRepl by remember { mutableStateOf(prefs.customStyleReplacements) }
+
+    fun label(st: WritingStyle): String = when (st) {
+        WritingStyle.FORMAL -> "Formal"
+        WritingStyle.CASUAL -> "Casual"
+        WritingStyle.VERY_CASUAL -> "Very casual"
+        WritingStyle.EXCITED -> "Excited"
+        WritingStyle.CUSTOM -> "Custom"
+    }
+
+    fun desc(st: WritingStyle): String = when (st) {
+        WritingStyle.FORMAL ->
+            "Sentence case, always ends with ., expands informal (gonna → going to)."
+        WritingStyle.CASUAL ->
+            "Everyday tone, sentence case, period on longer lines."
+        WritingStyle.VERY_CASUAL ->
+            "Chat-like: soft caps, no forced period."
+        WritingStyle.EXCITED ->
+            "High energy, prefers ! endings."
+        WritingStyle.CUSTOM ->
+            "Your end punctuation, caps, informal expand, and replace rules."
+    }
 
     Column(
         Modifier
@@ -985,12 +1019,12 @@ private fun StyleTab(prefs: FlowPrefs) {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Text(
-                "Choose the default tone for post-processing voice transcripts.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            "Pipeline: dictionary → snippets → cleanup → style. Local rules only — no AI tone model.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
 
-        styles.forEach { st ->
+        WritingStyle.entries.forEach { st ->
             val on = selected == st
             OpenCard(
                 selected = on,
@@ -1008,16 +1042,12 @@ private fun StyleTab(prefs: FlowPrefs) {
                 ) {
                     Column(Modifier.weight(1f)) {
                         Text(
-                            st.name.lowercase().replaceFirstChar { it.uppercase() },
+                            label(st),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            when (st) {
-                                TextPostProcessor.Style.CASUAL -> "Natural, everyday spoken tone with clean punctuation."
-                                TextPostProcessor.Style.FORMAL -> "Professional, polished phrasing suitable for emails & docs."
-                                TextPostProcessor.Style.EXCITED -> "High energy with exclamation accents."
-                            },
+                            desc(st),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -1030,6 +1060,104 @@ private fun StyleTab(prefs: FlowPrefs) {
                             modifier = Modifier.size(20.dp)
                         )
                     }
+                }
+            }
+        }
+
+        if (selected == WritingStyle.CUSTOM) {
+            OpenCard {
+                Column(
+                    Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        "Custom rules",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        "End punctuation",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(
+                            "auto" to "Auto",
+                            "period" to "Period",
+                            "bang" to "!",
+                            "none" to "None"
+                        ).forEach { (v, lab) ->
+                            OpenChip(
+                                label = lab,
+                                isOn = customEnd == v,
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    customEnd = v
+                                    prefs.customEndPunct = v
+                                }
+                            )
+                        }
+                    }
+                    Text("Capitalization", style = MaterialTheme.typography.labelMedium)
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(
+                            "sentence" to "Sentence",
+                            "first" to "First",
+                            "none" to "None"
+                        ).forEach { (v, lab) ->
+                            OpenChip(
+                                label = lab,
+                                isOn = customCaps == v,
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    customCaps = v
+                                    prefs.customCaps = v
+                                }
+                            )
+                        }
+                    }
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Expand informal", style = MaterialTheme.typography.titleSmall)
+                            Text(
+                                "gonna → going to, don't → do not, …",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = customExpand,
+                            onCheckedChange = {
+                                customExpand = it
+                                prefs.customExpandInformal = it
+                            }
+                        )
+                    }
+                    Text(
+                        "Replacements (one per line: from=>to)",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                    OutlinedTextField(
+                        value = customRepl,
+                        onValueChange = {
+                            customRepl = it
+                            prefs.customStyleReplacements = it
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 100.dp),
+                        placeholder = { Text("cheers=>Thanks\nyeah=>yes") },
+                        minLines = 3
+                    )
                 }
             }
         }
@@ -1117,11 +1245,12 @@ private fun CleanupSettings(prefs: FlowPrefs) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
+        // Match Wispr Auto Cleanup copy; rules are local FOSS (no cloud AI).
         listOf(
-            "none" to ("Raw STT" to "Exact words without any filtering or post-processing."),
-            "light" to ("Smart Filter" to "Strips filler words (um, uh, like) and fixes basic punctuation."),
-            "medium" to ("Normal" to "Smart filter + course corrections ('430 actually 530') + punctuation commands."),
-            "high" to ("High Polish" to "Normal + numbered lists auto-formatting and strong syntax cleanup.")
+            "none" to ("None" to "Exact speech — zero edits (Wispr None)."),
+            "light" to ("Light" to "Fillers + grammar: um/uh, repeats, spoken punct commands."),
+            "medium" to ("Medium" to "Light + course-correct, false starts, lists, light clarity openers."),
+            "high" to ("High" to "Medium + brevity hedges/wordiness (rules). Style still controls tone.")
         ).forEach { (v, pair) ->
             val (title, desc) = pair
             val on = level == v

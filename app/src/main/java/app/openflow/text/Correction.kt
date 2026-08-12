@@ -11,14 +11,18 @@ data class Correction(
     val confidence: Float = 0.8f
 )
 
+/**
+ * Pref keys: none | light | medium | high (Wispr Auto Cleanup names).
+ * LOCAL stages only — no cloud rewrite.
+ */
 enum class CleanupLevel {
-    /** Minimal / raw STT only. */
+    /** None: exact STT. */
     RAW,
-    /** Fillers + light punct; no self-correct. */
+    /** Light: normalize, fillers, reps, commands, light grammar. */
     LIGHT,
-    /** Fillers, reps, false starts, self-correct, punct. */
+    /** Medium: + false starts, course-correct, lists, light clarity. */
     NORMAL,
-    /** Same local rules as NORMAL for now; room for aggressive later. */
+    /** High: + short hedge / wordiness rules. */
     HIGH;
 
     companion object {

@@ -39,9 +39,9 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ## NEXT
 
-1. Device smoke: modern brutal + cleanup + spoken `period` / `backspace`
-2. F16 memo recorder (if Mitun orders)
-3. Live harness gates Bound + overlay always
+1. Gate harden on `feat/gate-harden` — merge first
+2. Device smoke: modern brutal + cleanup + spoken `period` / `backspace`
+3. F17 minimal brutal bubble (plan on disk) or F16 if Mitun orders
 
 ## ASK
 

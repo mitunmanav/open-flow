@@ -3,7 +3,10 @@
 ## Gate (this repo only)
 
 - Rules: `.grok/rules/00-dev-gate.md`
-- Hooks: `.grok/hooks/dev-gate.json` (SessionStart / prompt stamp / Stop claim check)
+- Hooks: `.grok/hooks/dev-gate.json`
+  - SessionStart / UserPromptSubmit: stamp + short inject
+  - PreToolUse: deny `app/` writes on main; deny INTERNET perm
+  - Stop / SubagentStop: block fake PASS (need real command proof)
 - Trust once: `/hooks-trust` in this folder (or trust path in `~/.grok/trusted_folders.toml`)
 - Global Grok rules stay global; **this gate does not touch other projects.**
 

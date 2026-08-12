@@ -283,13 +283,12 @@ private fun HomeHub(
         owner.lifecycle.addObserver(obs)
         scope.launch {
             val s = app.dictations.stats()
-            statsText = "${s.totalWords} words spoken · ${s.totalSessions} sessions · ${s.streakDays}d streak"
+            statsText = "${s.totalWords} words · ${s.totalSessions} sessions · ${s.streakDays}d streak"
         }
         onDispose { owner.lifecycle.removeObserver(obs) }
     }
 
     val ready = bubbleOn && micOn
-
     val homeModules = app.prefs.homeModules()
 
     Column(
@@ -302,282 +301,245 @@ private fun HomeHub(
         homeModules.filter { it.visible }.forEach { module ->
             when (module.id) {
                 "setup" -> {
-                    // Hero Brand Status Card
-        OpenCard {
-            Column(
-                Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            if (ready) "Flow Ready" else "Setup Required",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            "Wispr-grade On-Device Voice Flow",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    Surface(
-                        color = if (ready) OpenFlowColors.SuccessContainer else MaterialTheme.colorScheme.error.copy(alpha = 0.15f),
-                        shape = MaterialTheme.shapes.small
-                    ) {
-                        Text(
-                            text = if (ready) "ACTIVE" else "OFFLINE",
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = if (ready) OpenFlowColors.Success else MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
-
-                Text(
-                    if (ready) {
-                        "Open any app → tap the floating Flow Bubble → speak → tap stop. Clean text is automatically inserted."
-                    } else {
-                        "Enable the Accessibility Service and Microphone permission to activate the floating bubble."
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OpenChip(
-                        label = if (bubbleOn) "Bubble Active" else "Bubble Disabled",
-                        isOn = bubbleOn,
-                        showCheckWhenOn = true,
-                        onClick = onEnableBubble
-                    )
-                    OpenChip(
-                        label = if (micOn) "Mic Allowed" else "Mic Denied",
-                        isOn = micOn,
-                        showCheckWhenOn = true,
-                        onClick = onMic
-                    )
-                }
-
-                if (!bubbleOn) {
-                    OpenButton(
-                        text = "Enable Floating Bubble",
-                        onClick = onEnableBubble
-                    )
-                }
-                if (!micOn) {
-                    OpenButton(
-                        text = "Allow Microphone",
-                        onClick = onMic,
-                        variant = if (bubbleOn) ButtonVariant.Filled else ButtonVariant.Outlined
-                    )
-                }
-                if (ready) {
-                    OpenButton(
-                        text = "Customize Floating Bubble",
-                        onClick = onOpenBubbleSettings,
-                        variant = ButtonVariant.Outlined
-                    )
-                }
-            }
-                }
-                "test" -> {
-                    // Practice Field
                     OpenCard {
-            Column(
-                Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "Live Playground",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    if (localNote.isNotBlank()) {
-                        Text(
-                            "${localNote.split(Regex("\\s+")).filter { it.isNotBlank() }.size} words",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-                Text(
-                    "Focus this box, then tap the floating bubble to test dictation.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                OpenTextField(
-                    value = localNote,
-                    onValueChange = { localNote = it },
-                    placeholder = "Tap floating bubble · speak · tap stop…",
-                    minLines = 3
-                )
-            }
-                }
-                "keys" -> {
-                    // Quick Tuning Bar
-                    OpenCard {
-            Column(
-                Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "Cleanup Polish",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        "English (en-US)",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    listOf(
-                        "none" to "Raw",
-                        "light" to "Smart",
-                        "medium" to "Normal",
-                        "high" to "Formal"
-                    ).forEach { (level, label) ->
-                        OpenChip(
-                            label = label,
-                            isOn = cleanup == level,
-                            modifier = Modifier.weight(1f),
-                            onClick = {
-                                cleanup = level
-                                app.prefs.cleanupLevel = level
+                        Column(
+                            Modifier.padding(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        if (ready) "Ready to dictate" else "Finish setup",
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        "Floating bubble · local polish · any app",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                Surface(
+                                    color = if (ready) {
+                                        OpenFlowColors.SuccessContainerLight
+                                    } else {
+                                        MaterialTheme.colorScheme.errorContainer
+                                    },
+                                    shape = MaterialTheme.shapes.small
+                                ) {
+                                    Text(
+                                        text = if (ready) "ON" else "SETUP",
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (ready) OpenFlowColors.Success else MaterialTheme.colorScheme.error
+                                    )
+                                }
                             }
-                        )
-                    }
-                }
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    TextButton(onClick = onOpenCleanup) { Text("Cleanup rules") }
-                    TextButton(onClick = onOpenStyle) { Text("Voice style") }
-                    TextButton(onClick = onOpenAppearance) { Text("Theme") }
-                }
-            }
-                }
-                "stats" -> {
-                    // Last Result Card + Recent Activity header
-                    if (lastClean.isNotBlank()) {
-            OpenCard {
-                Column(
-                    Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "Latest Dictation",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            "Last session",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Text(
-                        lastClean.take(600),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        CopyButton(text = lastClean, label = "Copy Clean")
-                        if (lastRaw.isNotBlank() && lastRaw != lastClean) {
-                            CopyButton(text = lastRaw, label = "Copy Raw")
+                            Text(
+                                if (ready) {
+                                    "Focus a text field → tap the floating bubble → speak → tap again. Polished text inserts once."
+                                } else {
+                                    "Turn on Accessibility (Flow Bubble) and allow the microphone."
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OpenChip(
+                                    label = if (bubbleOn) "Bubble on" else "Enable bubble",
+                                    isOn = bubbleOn,
+                                    showCheckWhenOn = true,
+                                    onClick = onEnableBubble
+                                )
+                                OpenChip(
+                                    label = if (micOn) "Mic on" else "Allow mic",
+                                    isOn = micOn,
+                                    showCheckWhenOn = true,
+                                    onClick = onMic
+                                )
+                            }
+                            if (!bubbleOn) {
+                                OpenButton(text = "Open Accessibility", onClick = onEnableBubble)
+                            }
+                            if (!micOn) {
+                                OpenButton(
+                                    text = "Allow microphone",
+                                    onClick = onMic,
+                                    variant = if (bubbleOn) ButtonVariant.Filled else ButtonVariant.Outlined
+                                )
+                            }
+                            if (ready) {
+                                OpenButton(
+                                    text = "Bubble settings",
+                                    onClick = onOpenBubbleSettings,
+                                    variant = ButtonVariant.Outlined
+                                )
+                            }
                         }
                     }
                 }
-            }
+                "test" -> {
+                    OpenCard {
+                        Column(
+                            Modifier.padding(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Text(
+                                "Practice field",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                "Focus here, then use the floating bubble.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            OpenTextField(
+                                value = localNote,
+                                onValueChange = { localNote = it },
+                                placeholder = "Tap bubble · speak · tap stop…",
+                                minLines = 3
+                            )
+                        }
                     }
-
-                    // Recent Dictations
+                }
+                "keys" -> {
+                    OpenCard {
+                        Column(
+                            Modifier.padding(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                "Cleanup level",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                listOf(
+                                    "none" to "Raw",
+                                    "light" to "Light",
+                                    "medium" to "Smart",
+                                    "high" to "Formal"
+                                ).forEach { (level, label) ->
+                                    OpenChip(
+                                        label = label,
+                                        isOn = cleanup == level,
+                                        modifier = Modifier.weight(1f),
+                                        onClick = {
+                                            cleanup = level
+                                            app.prefs.cleanupLevel = level
+                                        }
+                                    )
+                                }
+                            }
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                TextButton(onClick = onOpenCleanup) { Text("Rules") }
+                                TextButton(onClick = onOpenStyle) { Text("Style") }
+                                TextButton(onClick = onOpenAppearance) { Text("Theme") }
+                            }
+                        }
+                    }
+                }
+                "stats" -> {
+                    if (lastClean.isNotBlank()) {
+                        OpenCard {
+                            Column(
+                                Modifier.padding(20.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Text(
+                                    "Last dictation",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    lastClean.take(600),
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    CopyButton(text = lastClean, label = "Copy clean")
+                                    if (lastRaw.isNotBlank() && lastRaw != lastClean) {
+                                        CopyButton(text = lastRaw, label = "Copy raw")
+                                    }
+                                }
+                            }
+                        }
+                    }
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-            Column {
-                Text(
-                    "Recent Activity",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    statsText,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            TextButton(onClick = onOpenHistory) { Text("View all (${dictations.size})") }
-        }
-
-                        )
+                        Column {
+                            Text(
+                                "Recent",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                statsText,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        TextButton(onClick = onOpenHistory) {
+                            Text("All (${dictations.size})")
+                        }
                     }
                 }
                 "recent" -> {
                     if (dictations.isEmpty()) {
-            EmptyState(
-                icon = Icons.Default.MicNone,
-                title = "No dictations yet",
-                subtitle = "Dictate with the floating bubble anywhere to build your private memory."
-            )
-        } else {
-            dictations.take(4).forEach { d: DictationEntity ->
-                DictationCard(
-                    d = d,
-                    onDelete = {
-                        scope.launch { app.dictations.deleteDictation(d.id) }
-                    },
-                    onShare = {
-                        val rows = listOf(HistoryExport.Row(d.createdAtEpochMs, d.text, d.languageTag, d.wordCount))
-                        val shareText = HistoryExport.shareText(rows)
-                        val send = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, shareText)
+                        EmptyState(
+                            icon = Icons.Default.MicNone,
+                            title = "No dictations yet",
+                            subtitle = "Use the floating bubble in any app to build private history."
+                        )
+                    } else {
+                        dictations.take(4).forEach { d: DictationEntity ->
+                            DictationCard(
+                                d = d,
+                                onDelete = {
+                                    scope.launch { app.dictations.deleteDictation(d.id) }
+                                },
+                                onShare = {
+                                    val rows = listOf(
+                                        HistoryExport.Row(
+                                            d.createdAtEpochMs,
+                                            d.text,
+                                            d.languageTag,
+                                            d.wordCount
+                                        )
+                                    )
+                                    val shareText = HistoryExport.shareText(rows)
+                                    val send = Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(Intent.EXTRA_TEXT, shareText)
+                                    }
+                                    try {
+                                        ctx.startActivity(Intent.createChooser(send, "Share dictation"))
+                                    } catch (_: Exception) {
+                                    }
+                                }
+                            )
                         }
-                        try {
-                            ctx.startActivity(Intent.createChooser(send, "Share dictation"))
-                        } catch (e: Exception) {}
-                    }
-                )
-            }
-        }
-
                     }
                 }
             }
         }
 
         Text(
-            "Speech recognition runs locally via Android SpeechRecognizer. Open Flow never sends your audio to the cloud.",
+            "System SpeechRecognizer may use network depending on your device. Open Flow itself never uploads audio or transcripts.",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
         )
@@ -1092,11 +1054,11 @@ private fun SettingsHub(
         SettingsRow("Appearance", "Dark / light theme, visual skins", onAppearance)
         SettingsRow("Privacy & Retention", "Zero-cloud audit, auto-wipe policies", onPrivacy)
         SettingsRow("Haptics & Feedback", "Tactile clicks and audio feedback", onSounds)
-        SettingsRow("Home Layout", "Reorder and toggle Home cards", onHomeLayout)
-        SettingsRow("Drawer Extras", "Customize navigation drawer", onNavLayout)
+        SettingsRow("Home layout", "Reorder and toggle Home cards", onHomeLayout)
+        SettingsRow("Menu visibility", "Show or hide optional menu entries", onNavLayout)
 
         Text(
-            "Open Flow is 100% Free & Open Source (MIT License). Zero trackers. Zero analytics.",
+            "Open Flow is free and open source (MIT). No trackers. No analytics.",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             modifier = Modifier.padding(top = 8.dp)
@@ -1203,9 +1165,9 @@ private fun PrivacySettings(prefs: FlowPrefs) {
         }
 
         listOf(
-            "keep" to ("Keep Forever" to "Store private dictation history in encrypted on-device SQLite database."),
-            "wipe_24h" to ("Wipe After 24h" to "Automatically clear dictation history older than 24 hours."),
-            "never_store" to ("Incognito Mode" to "Never write transcripts to local storage. Only insert directly.")
+            "keep" to ("Keep forever" to "Store history in on-device SQLite (not encrypted). Never uploaded by Open Flow."),
+            "wipe_24h" to ("Wipe after 24h" to "Delete dictations older than 24 hours on each new save."),
+            "never_store" to ("Never store" to "Do not write history. Last-session copy still available until you clear it.")
         ).forEach { (v, pair) ->
             val (title, desc) = pair
             val on = ret == v

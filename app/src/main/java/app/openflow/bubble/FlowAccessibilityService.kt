@@ -67,9 +67,12 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     private var pushToTalk = false
     private var focusedEditable: AccessibilityNodeInfo? = null
     private var listenStartedAt = 0L
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val serviceJob = SupervisorJob()
+    private val scope = CoroutineScope(serviceJob + Dispatchers.Main.immediate)
     private val mainHandler = Handler(Looper.getMainLooper())
     private var prefs: FlowPrefs? = null
+    /** Bumps on each start/stop so late STT events are ignored. */
+    private var listenGeneration = 0
 
     /** Raw STT segments for this listen (not written to field until stop). */
     private var sessionBuffer = StringBuilder()
@@ -100,16 +103,16 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
         accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
         serviceInfo = (serviceInfo ?: AccessibilityServiceInfo()).apply {
+            // Skip TYPE_WINDOW_CONTENT_CHANGED — spam while typing; focus + window enough.
             eventTypes = AccessibilityEvent.TYPE_VIEW_FOCUSED or
                 AccessibilityEvent.TYPE_VIEW_CLICKED or
-                AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or
-                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
+                AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
             feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
             flags = flags or
                 AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or
                 AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS or
                 AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS
-            notificationTimeout = 80
+            notificationTimeout = 100
         }
         stt = SttEngine(
             applicationContext,
@@ -140,8 +143,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                     source.recycle()
                 }
             }
-            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
-            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED -> {
+            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
                 rootInActiveWindow?.let { root ->
                     try {
                         root.packageName?.toString()?.let { lastPackage = it }
@@ -178,6 +180,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
         focusedEditable = null
         instance = null
+        serviceJob.cancel()
         super.onDestroy()
     }
 
@@ -472,6 +475,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         sessionBuffer = StringBuilder()
         fieldPrefix = captureFieldPrefix()
         listenStartedAt = SystemClock.elapsedRealtime()
+        val gen = ++listenGeneration
 
         if (prefs?.bubblePulse != false) startPulse()
         updateBubbleVisuals()
@@ -480,7 +484,10 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
         val lang = LanguagePolicy.LOCKED
         stt?.setListener(object : SttEngine.Listener {
+            private fun live(): Boolean = listening && gen == listenGeneration
+
             override fun onPartial(text: String) {
+                if (!live()) return
                 val elapsed = (SystemClock.elapsedRealtime() - listenStartedAt) / 1000
                 if (prefs?.bubbleShowText == true) {
                     val preview = if (sessionBuffer.isEmpty()) text
@@ -492,6 +499,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             }
 
             override fun onFinal(text: String) {
+                if (!live()) return
                 if (text.isBlank()) return
                 if (sessionBuffer.isNotEmpty()) sessionBuffer.append(' ')
                 sessionBuffer.append(text.trim())
@@ -505,10 +513,20 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             }
 
             override fun onError(message: String, fatal: Boolean) {
-                bubbleLabel?.text = if (
-                    message.contains("Microphone", true) ||
+                if (!live() && !fatal) return
+                val mic = message.contains("Microphone", true) ||
                     message.contains("Allow mic", true)
-                ) {
+                val soft = !fatal && !mic && (
+                    message.contains("Silence", true) ||
+                        message.contains("No match", true) ||
+                        message.contains("Busy", true)
+                    )
+                if (soft) {
+                    // Continuous restart noise — keep listening chrome, no error spam.
+                    setListenChrome((SystemClock.elapsedRealtime() - listenStartedAt) / 1000)
+                    return
+                }
+                bubbleLabel?.text = if (mic) {
                     BubbleLabelFormatter.needMic()
                 } else {
                     message.take(48)
@@ -522,11 +540,13 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             }
 
             override fun onNeedMicPermission() {
+                if (!live()) return
                 bubbleLabel?.text = BubbleLabelFormatter.needMic()
                 listening = false
             }
 
             override fun onReady() {
+                if (!live()) return
                 val elapsed = (SystemClock.elapsedRealtime() - listenStartedAt) / 1000
                 if (prefs?.bubbleShowText == true) {
                     val current = bubbleLabel?.text?.toString().orEmpty()
@@ -542,7 +562,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             }
 
             override fun onRmsChanged(rmsdB: Float) {
-                if (!listening) return
+                if (!live()) return
                 val base = effectiveScale()
                 val pulse = BubbleGeometry.rmsScaleY(rmsdB)
                 bubbleView?.scaleX = base * pulse
@@ -550,6 +570,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             }
 
             override fun onListeningChanged(isOn: Boolean) {
+                if (!live()) return
                 if (!isOn) {
                     listening = false
                     stopPulse()
@@ -564,24 +585,31 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         listening = false
         pushToTalk = false
         stopPulse()
+        listenGeneration++
+        stt?.setListener(null)
         stt?.stop()
         val raw = sessionBuffer.toString().trim()
+        val prefix = fieldPrefix
         val dur = SystemClock.elapsedRealtime() - listenStartedAt
+        sessionBuffer = StringBuilder()
+        fieldPrefix = ""
         if (save && raw.isNotBlank()) {
             val lang = LanguagePolicy.LOCKED
             polishSession(raw) { result ->
                 val finalText = result.clean
                 if (finalText.isNotBlank()) {
-                    commitSessionToField(finalText)
+                    commitSessionToField(finalText, prefix)
                     prefs?.setLastSession(raw = result.raw, clean = finalText)
                     val wordCount = finalText.split(Regex("\\s+")).filter { it.isNotBlank() }.size
+                    val retention = prefs?.retentionPolicy ?: "keep"
                     scope.launch(Dispatchers.IO) {
                         runCatching {
                             app.dictations.saveDictation(
                                 rawText = result.raw,
                                 cleanText = finalText,
                                 durationMs = dur,
-                                languageTag = lang
+                                languageTag = lang,
+                                retentionPolicy = retention
                             )
                         }
                     }
@@ -589,8 +617,6 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 }
             }
         }
-        sessionBuffer = StringBuilder()
-        fieldPrefix = ""
         updateBubbleVisuals()
         setBubbleEmphasis(focusedEditable != null)
     }
@@ -615,7 +641,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     }
 
     private fun polishSession(text: String, onDone: (CleanupResult) -> Unit) {
-        scope.launch {
+        scope.launch(Dispatchers.Default) {
             val dict = app.dictations.dictionaryMap()
             val snip = app.dictations.snippetMap()
             val expanded = TextPostProcessor.expandSnippets(text, snip)
@@ -633,7 +659,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
     }
 
-    private fun commitSessionToField(finalText: String) {
+    private fun commitSessionToField(finalText: String, prefix: String) {
         if (finalText.isBlank()) return
         val root = rootInActiveWindow
         val node = resolveEditable(root, focusedEditable)
@@ -653,7 +679,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 Toast.makeText(this, R.string.flow_bubble_saved_in_app, Toast.LENGTH_SHORT).show()
                 return
             }
-            val merged = FieldPolicy.mergeSession(fieldPrefix, finalText)
+            val merged = FieldPolicy.mergeSession(prefix, finalText)
             val args = Bundle().apply {
                 putCharSequence(
                     AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,

@@ -44,7 +44,8 @@ object OpenFlowColors {
 
     // States & Accents
     val Success = Color(0xFF10B981)             // Emerald 500
-    val SuccessContainer = Color(0xFF064E3B)
+    val SuccessContainer = Color(0xFF064E3B)    // dark surfaces
+    val SuccessContainerLight = Color(0xFFD1FAE5) // light surfaces
     val OnSuccess = Color(0xFFFFFFFF)
     val Warning = Color(0xFFF59E0B)             // Amber 500
     val Error = Color(0xFFEF4444)               // Rose 500

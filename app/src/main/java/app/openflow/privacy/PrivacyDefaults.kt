@@ -1,5 +1,7 @@
 package app.openflow.privacy
 
+import app.openflow.prefs.FlowPrefs
+
 /**
  * Static privacy report. Honest about Android system STT
  * (may stream audio remotely depending on device / OEM).
@@ -8,8 +10,12 @@ package app.openflow.privacy
 object PrivacyDefaults {
     fun reportText(prefs: FlowPrefs? = null): String {
         val retention = prefs?.retentionPolicy ?: "keep"
-        val historyLocation = if (retention == "never_store") "not stored" else "on device"
-        
+        val historyLocation = when (retention) {
+            "never_store" -> "not stored in Room history"
+            "wipe_24h" -> "on device, purged after 24h"
+            else -> "on device SQLite (not encrypted)"
+        }
+
         return """
             Open Flow privacy report
             - Speech recognition: Android system STT (may leave device)

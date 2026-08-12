@@ -7,7 +7,8 @@ object BubbleLabelFormatter {
 
     fun idle(): String = "🎙 Tap to talk"
 
-    fun listening(elapsedSec: Long): String = "Listening ${elapsedSec}s"
+    fun listening(elapsedSec: Long): String =
+        if (elapsedSec > 0) "Listening ${elapsedSec}s" else "Listening…"
 
     fun partial(text: String, elapsedSec: Long = 0L, maxChars: Int = 80): String {
         val t = text.trim()

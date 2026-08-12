@@ -7,38 +7,49 @@ import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 private val M3Light = lightColorScheme(
-    primary = OpenFlowColors.Primary,
-    onPrimary = OpenFlowColors.OnPrimaryLight,
-    primaryContainer = OpenFlowColors.PrimaryLight,
+    primary = OpenFlowColors.PrimaryDark,
+    onPrimary = Color.White,
+    primaryContainer = OpenFlowColors.PrimaryContainerLight,
+    onPrimaryContainer = OpenFlowColors.OnPrimaryContainerLight,
     secondary = OpenFlowColors.Secondary,
-    secondaryContainer = OpenFlowColors.SecondaryLight,
+    onSecondary = Color.White,
+    secondaryContainer = OpenFlowColors.SecondaryContainerLight,
+    onSecondaryContainer = Color(0xFF075985),
     surface = OpenFlowColors.SurfaceLight,
     onSurface = OpenFlowColors.OnSurfaceLight,
     background = OpenFlowColors.BackgroundLight,
     onBackground = OpenFlowColors.OnBackgroundLight,
     surfaceVariant = OpenFlowColors.SurfaceVariantLight,
     onSurfaceVariant = OpenFlowColors.OnSurfaceVariantLight,
+    outline = OpenFlowColors.CardBorderLight,
+    outlineVariant = Color(0xFFCBD5E1),
     error = OpenFlowColors.Error,
-    onError = OpenFlowColors.OnError
+    onError = Color.White
 )
 
 private val M3Dark = darkColorScheme(
-    primary = OpenFlowColors.PrimaryLight,
-    onPrimary = OpenFlowColors.OnPrimaryDark,
-    primaryContainer = OpenFlowColors.Primary,
+    primary = OpenFlowColors.Primary,
+    onPrimary = Color.White,
+    primaryContainer = OpenFlowColors.PrimaryContainerDark,
+    onPrimaryContainer = OpenFlowColors.OnPrimaryContainerDark,
     secondary = OpenFlowColors.SecondaryLight,
-    secondaryContainer = OpenFlowColors.Secondary,
+    onSecondary = Color(0xFF082F49),
+    secondaryContainer = OpenFlowColors.SecondaryContainerDark,
+    onSecondaryContainer = Color(0xFFBAE6FD),
     surface = OpenFlowColors.SurfaceDark,
     onSurface = OpenFlowColors.OnSurfaceDark,
     background = OpenFlowColors.BackgroundDark,
     onBackground = OpenFlowColors.OnBackgroundDark,
     surfaceVariant = OpenFlowColors.SurfaceVariantDark,
     onSurfaceVariant = OpenFlowColors.OnSurfaceVariantDark,
+    outline = OpenFlowColors.CardBorderDark,
+    outlineVariant = Color(0xFF3F3F46),
     error = OpenFlowColors.ErrorDark,
-    onError = OpenFlowColors.OnError
+    onError = Color.White
 )
 
 private val BrutalLight = lightColorScheme(
@@ -55,6 +66,7 @@ private val BrutalLight = lightColorScheme(
     onBackground = BrutalColors.OnCream,
     surfaceVariant = BrutalColors.Stone,
     onSurfaceVariant = BrutalColors.Charcoal,
+    outline = BrutalColors.Charcoal,
     error = BrutalColors.Error,
     onError = BrutalColors.OnCharcoal
 )
@@ -73,19 +85,19 @@ private val BrutalDark = darkColorScheme(
     onBackground = BrutalColors.Cream,
     surfaceVariant = BrutalColors.StoneDark,
     onSurfaceVariant = BrutalColors.Stone,
+    outline = BrutalColors.Stone,
     error = BrutalColors.Error,
     onError = BrutalColors.Cream
 )
 
 private val M3Shapes = Shapes(
-    extraSmall = RoundedCornerShape(10.dp),
-    small = RoundedCornerShape(14.dp),
-    medium = RoundedCornerShape(20.dp),
-    large = RoundedCornerShape(24.dp),
-    extraLarge = RoundedCornerShape(32.dp)
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(22.dp),
+    extraLarge = RoundedCornerShape(28.dp)
 )
 
-/** Near-square corners for subtle brutal. */
 private val BrutalShapes = Shapes(
     extraSmall = RoundedCornerShape(2.dp),
     small = RoundedCornerShape(2.dp),

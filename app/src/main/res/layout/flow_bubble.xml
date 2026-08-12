@@ -1,28 +1,53 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/bubble_root"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/bubble_container"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:background="@drawable/bg_flow_bubble"
-    android:elevation="10dp"
-    android:gravity="center_vertical"
-    android:minWidth="88dp"
-    android:minHeight="48dp"
-    android:orientation="horizontal"
-    android:paddingStart="14dp"
-    android:paddingTop="12dp"
-    android:paddingEnd="14dp"
-    android:paddingBottom="12dp">
+    android:clipChildren="false"
+    android:clipToPadding="false">
 
-    <TextView
-        android:id="@+id/bubble_label"
+    <!-- Glowing accent pulse ring for recording state -->
+    <View
+        android:id="@+id/bubble_pulse_ring"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="center"
+        android:visibility="gone" />
+
+    <!-- Main bubble card body with dynamic shape background -->
+    <LinearLayout
+        android:id="@+id/bubble_root"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:ellipsize="end"
-        android:maxWidth="280dp"
-        android:maxLines="3"
-        android:text="@string/flow_bubble_idle"
-        android:textColor="#FFFFFF"
-        android:textSize="13sp"
-        android:textStyle="bold" />
-</LinearLayout>
+        android:layout_gravity="center"
+        android:elevation="8dp"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:paddingStart="14dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="14dp"
+        android:paddingBottom="10dp">
+
+        <!-- Mic / Status icon -->
+        <ImageView
+            android:id="@+id/bubble_icon"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:src="@drawable/ic_mic"
+            android:contentDescription="@string/app_name" />
+
+        <!-- Status / Speech / Timer Text -->
+        <TextView
+            android:id="@+id/bubble_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif-medium"
+            android:maxWidth="260dp"
+            android:maxLines="2"
+            android:text="@string/flow_bubble_idle"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp" />
+    </LinearLayout>
+</FrameLayout>

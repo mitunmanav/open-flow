@@ -105,6 +105,12 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     private val shakeDetector = ShakeDetector()
     private var shakeRegistered = false
     private var injectReceiverRegistered = false
+    private var copyReceiverRegistered = false
+    private var draggingNow = false
+    private var compactVisual = false
+    private var lastInteractionAt = 0L
+    private var lastCommitAt = -1L
+    private var lastRms = 0f
     /** Soft keyboard present (Wispr: bubble lives with field + keyboard). */
     private var imeVisible: Boolean = false
     /** TYPE_INPUT_METHOD height in px. 0 = IME down / unknown. Not written to prefs. */
@@ -118,6 +124,20 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             val raw = intent.getStringExtra(EXTRA_TEXT).orEmpty()
             android.util.Log.i("OpenFlow.Inject", "recv rawLen=${raw.length}")
             injectDictation(raw)
+        }
+    }
+
+    private val copyReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != ACTION_COPY_LAST) return
+            copyLastToClipboard()
+        }
+    }
+
+    private val pulseTick = object : Runnable {
+        override fun run() {
+            onPulseTick()
+            mainHandler.postDelayed(this, 500L)
         }
     }
 
@@ -156,7 +176,11 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         )
         showBubble()
         instance = this
+        lastInteractionAt = SystemClock.elapsedRealtime()
         registerInjectReceiver()
+        registerCopyReceiver()
+        mainHandler.removeCallbacks(pulseTick)
+        mainHandler.post(pulseTick)
         android.util.Log.i("OpenFlow.Bubble", "onServiceConnected overlay=ready debugInject=${BuildConfig.DEBUG}")
         refreshBubbleVisibility()
     }
@@ -217,8 +241,11 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     }
 
     override fun onDestroy() {
+        mainHandler.removeCallbacks(pulseTick)
         unregisterShake()
         unregisterInjectReceiver()
+        unregisterCopyReceiver()
+        DictationNotifier.notifyServiceStopped(this)
         stopListening(save = false)
         hideBubble()
         stt?.destroy()
@@ -328,7 +355,11 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             if (listening || stopInProgress) stopListening(save = false)
         }
         bubbleDone?.setOnClickListener {
-            if (listening || stopInProgress) stopListening(save = true)
+            if (listening || stopInProgress) {
+                stopListening(save = true)
+            } else if (copyChipVisible()) {
+                copyLastToClipboard()
+            }
         }
 
         if (prefs == null) prefs = FlowPrefs(this)
@@ -400,6 +431,12 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                     val dy = (event.rawY - downRawY).toInt()
                     if (abs(dx) + abs(dy) > 14) {
                         dragged = true
+                        draggingNow = true
+                        lastInteractionAt = SystemClock.elapsedRealtime()
+                        if (compactVisual) {
+                            compactVisual = false
+                            applyVisualScale()
+                        }
                         mainHandler.removeCallbacks(longPress)
                     }
                     val dm = resources.displayMetrics
@@ -423,6 +460,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     mainHandler.removeCallbacks(longPress)
+                    draggingNow = false
+                    lastInteractionAt = SystemClock.elapsedRealtime()
                     animatePress(v, pressed = false)
                     val dm = resources.displayMetrics
                     val h = v.height.takeIf { it > 0 } ?: v.measuredHeight.takeIf { it > 0 } ?: 120
@@ -624,12 +663,90 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
     private fun effectiveScale(): Float {
         val p = prefs ?: return 0.9f
-        val modeMul = when (FlowPrefs.normalizeBubbleMode(p.bubbleMode)) {
+        val mode = if (compactVisual && !listening) {
+            "compact"
+        } else {
+            FlowPrefs.normalizeBubbleMode(p.bubbleMode)
+        }
+        val modeMul = when (mode) {
             "compact" -> 0.75f
             "dot" -> 0.55f
             else -> 1f
         }
         return p.bubbleScale * modeMul
+    }
+
+    private fun applyVisualScale() {
+        val s = effectiveScale()
+        bubbleView?.scaleX = s
+        bubbleView?.scaleY = s
+    }
+
+    private fun copyChipAgeMs(): Long {
+        if (lastCommitAt < 0L) return -1L
+        return SystemClock.elapsedRealtime() - lastCommitAt
+    }
+
+    private fun copyChipVisible(): Boolean =
+        CopyChip.shouldShow(copyChipAgeMs(), listening)
+
+    private fun refreshCopyChip() {
+        if (listening) return
+        val show = copyChipVisible()
+        bubbleDone?.visibility = if (show) View.VISIBLE else View.GONE
+        if (show) {
+            bubbleDone?.setColorFilter(BubbleChrome.DONE)
+            bubbleLabel?.visibility = View.VISIBLE
+            bubbleLabel?.text = "Copy"
+        }
+        applyOverlayWindowSize()
+    }
+
+    private fun copyLastToClipboard() {
+        val text = prefs?.lastSessionClean.orEmpty()
+        if (text.isBlank()) {
+            Toast.makeText(this, R.string.flow_bubble_saved_in_app, Toast.LENGTH_SHORT).show()
+            return
+        }
+        try {
+            val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            cm.setPrimaryClip(android.content.ClipData.newPlainText("Open Flow", text))
+            Toast.makeText(this, R.string.flow_bubble_copied_clipboard, Toast.LENGTH_SHORT).show()
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun onPulseTick() {
+        val now = SystemClock.elapsedRealtime()
+        if (listening) {
+            bubbleView?.keepScreenOn = true
+            val elapsed = now - listenStartedAt
+            when (SessionGuard.phase(elapsed)) {
+                SessionPhase.STOP -> {
+                    if (!stopInProgress) stopListening(save = true)
+                    return
+                }
+                SessionPhase.WARN -> {
+                    val sec = elapsed / 1000
+                    if (prefs?.bubbleShowText == true) {
+                        bubbleLabel?.text = "Wrap up ${sec}s"
+                    } else {
+                        setListenChrome(sec)
+                    }
+                }
+                SessionPhase.NONE -> { }
+            }
+        }
+        val wantCompact = IdleShrink.shouldCompact(
+            idleMs = now - lastInteractionAt,
+            listening = listening,
+            dragging = draggingNow
+        )
+        if (wantCompact != compactVisual && !listening) {
+            compactVisual = wantCompact
+            applyVisualScale()
+        }
+        if (!listening) refreshCopyChip()
     }
 
     private fun setBubbleEmphasis(hasField: Boolean) {
@@ -661,10 +778,13 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             return
         }
         listening = true
+        compactVisual = false
         sessionBuffer = StringBuilder()
         lastPartial = ""
         fieldPrefix = captureFieldPrefix()
         listenStartedAt = SystemClock.elapsedRealtime()
+        lastInteractionAt = listenStartedAt
+        bubbleView?.keepScreenOn = true
         val gen = ++listenGeneration
 
         updateBubbleVisuals()
@@ -757,6 +877,11 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
             override fun onRmsChanged(rmsdB: Float) {
                 if (!live() || !listening) return
+                lastRms = rmsdB
+                if (prefs?.bubbleShowText != true) {
+                    val elapsed = (SystemClock.elapsedRealtime() - listenStartedAt) / 1000
+                    setListenChrome(elapsed)
+                }
                 if (prefs?.bubblePulse == false) return
                 val base = effectiveScale()
                 val pulse = BubbleGeometry.rmsScaleY(rmsdB)
@@ -804,6 +929,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             )
             listenGeneration++
             listening = false
+            bubbleView?.keepScreenOn = false
             sessionBuffer = StringBuilder()
             lastPartial = ""
             fieldPrefix = ""
@@ -821,6 +947,9 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                     if (finalText.isNotBlank()) {
                         commitSessionToField(finalText, prefix)
                         prefs?.setLastSession(raw = result.raw, clean = finalText)
+                        lastCommitAt = SystemClock.elapsedRealtime()
+                        lastInteractionAt = lastCommitAt
+                        refreshCopyChip()
                         val wordCount = finalText.split(Regex("\\s+"))
                             .filter { it.isNotBlank() }.size
                         val retention = prefs?.retentionPolicy ?: "keep"
@@ -907,6 +1036,9 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             if (finalText.isNotBlank()) {
                 commitSessionToField(finalText, prefix)
                 prefs?.setLastSession(raw = result.raw, clean = finalText)
+                lastCommitAt = SystemClock.elapsedRealtime()
+                lastInteractionAt = lastCommitAt
+                refreshCopyChip()
                 val wordCount = finalText.split(Regex("\\s+")).filter { it.isNotBlank() }.size
                 val retention = prefs?.retentionPolicy ?: "keep"
                 val lang = LanguagePolicy.LOCKED
@@ -952,6 +1084,30 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         injectReceiverRegistered = false
     }
 
+    private fun registerCopyReceiver() {
+        if (copyReceiverRegistered) return
+        val filter = IntentFilter(ACTION_COPY_LAST)
+        try {
+            if (Build.VERSION.SDK_INT >= 33) {
+                registerReceiver(copyReceiver, filter, Context.RECEIVER_EXPORTED)
+            } else {
+                @Suppress("UnspecifiedRegisterReceiverFlag")
+                registerReceiver(copyReceiver, filter)
+            }
+            copyReceiverRegistered = true
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun unregisterCopyReceiver() {
+        if (!copyReceiverRegistered) return
+        try {
+            unregisterReceiver(copyReceiver)
+        } catch (_: Exception) {
+        }
+        copyReceiverRegistered = false
+    }
+
     /**
      * Same path for stopListening + debug inject:
      * dict → snippets → CleanupPipeline(level, style, custom) via [TextPostProcessor.polishSessionResult].
@@ -962,7 +1118,10 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             val snip = app.dictations.snippetMap()
             val prefLevel = prefs?.cleanupLevel ?: "medium"
             val level = CleanupLevel.fromPref(prefLevel)
-            val style = prefs?.style() ?: WritingStyle.CASUAL
+            val style = AppStylePolicy.styleFor(
+                lastPackage,
+                prefs?.style() ?: WritingStyle.CASUAL
+            )
             val custom = prefs?.customStyleConfig() ?: CustomStyleConfig()
             val result = TextPostProcessor.polishSessionResult(
                 raw = text,
@@ -1170,13 +1329,10 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         if (p.bubbleShowText) {
             bubbleLabel?.text = BubbleLabelFormatter.listening(elapsedSec)
         } else {
-            // Simple waveform proxy — animated dots via time
-            val bars = when ((elapsedSec % 3).toInt()) {
-                0 -> "▮▯▯"
-                1 -> "▮▮▯"
-                else -> "▮▮▮"
-            }
-            bubbleLabel?.text = if (elapsedSec > 0) "$bars  ${elapsedSec}s" else bars
+            val bars = WaveformBars.fromRms(lastRms)
+            val warn = SessionGuard.phase(elapsedSec * 1000L) == SessionPhase.WARN
+            val suffix = if (warn) " wrap" else if (elapsedSec > 0) "  ${elapsedSec}s" else ""
+            bubbleLabel?.text = bars + suffix
         }
     }
 
@@ -1195,6 +1351,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     companion object {
         /** Debug broadcast action (any build id; handler no-ops if not DEBUG). */
         const val ACTION_INJECT = "app.openflow.INJECT_DICTATION"
+        const val ACTION_COPY_LAST = "app.openflow.COPY_LAST"
         const val EXTRA_TEXT = "text"
 
         @Volatile

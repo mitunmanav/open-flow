@@ -44,6 +44,7 @@ import app.openflow.notify.DictationNotifier
 import app.openflow.prefs.FlowPrefs
 import app.openflow.stt.LanguagePolicy
 import app.openflow.stt.SttEngine
+import app.openflow.stt.SttTuning
 import app.openflow.text.CleanupLevel
 import app.openflow.text.CleanupResult
 import app.openflow.text.CustomStyleConfig
@@ -137,11 +138,18 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS
             notificationTimeout = 100
         }
+        val tuning = prefs?.sttTuning() ?: SttTuning()
         stt = SttEngine(
             applicationContext,
             preferOnDevice = true,
             // Mute system STT ding on every continuous restart segment.
-            softMuteBeeps = true
+            softMuteBeeps = true,
+            tuning = tuning
+        )
+        android.util.Log.i(
+            "OpenFlow.Bubble",
+            "stt profile=${prefs?.sttProfile} silence=${tuning.completeSilenceMs}ms " +
+                "qualityFmt=${tuning.preferFormattingQuality}"
         )
         showBubble()
         instance = this
@@ -944,7 +952,16 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 "setText ok=$ok mergedLen=${merged.length} class=${node.className}"
             )
             if (!ok) {
-                Toast.makeText(this, R.string.flow_bubble_saved_in_app, Toast.LENGTH_SHORT).show()
+                // Wispr-style fallback: put on clipboard so user can paste.
+                try {
+                    val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                    cm.setPrimaryClip(
+                        android.content.ClipData.newPlainText("Open Flow", merged)
+                    )
+                    Toast.makeText(this, R.string.flow_bubble_copied_clipboard, Toast.LENGTH_SHORT).show()
+                } catch (_: Exception) {
+                    Toast.makeText(this, R.string.flow_bubble_saved_in_app, Toast.LENGTH_SHORT).show()
+                }
             }
             focusedEditable?.let {
                 @Suppress("DEPRECATION")

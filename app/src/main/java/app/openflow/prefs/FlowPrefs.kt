@@ -208,6 +208,29 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
     fun isDrawerItemVisible(routeName: String): Boolean =
         LayoutPrefs.isDrawerVisible(navLayout, routeName)
 
+    /**
+     * STT speed/accuracy profile: fast | balanced | accurate.
+     * Applied when Accessibility service creates [app.openflow.stt.SttEngine].
+     */
+    var sttProfile: String
+        get() = SttTuning.normalizeProfile(store.getString("stt_profile", SttTuning.PROFILE_BALANCED))
+        set(v) = store.putString("stt_profile", SttTuning.normalizeProfile(v))
+
+    fun sttTuning(): SttTuning = SttTuning.forProfile(sttProfile)
+
+    /**
+     * Preferred UI refresh Hz: 60 | 90 | 120 | 144.
+     * Best-effort via display modes; device may clamp.
+     */
+    var refreshHz: Int
+        get() = app.openflow.display.DisplayRefreshPolicy.normalizePreference(
+            store.getString("refresh_hz", "120").toIntOrNull() ?: 120
+        )
+        set(v) = store.putString(
+            "refresh_hz",
+            app.openflow.display.DisplayRefreshPolicy.normalizePreference(v).toString()
+        )
+
     companion object {
         const val PREFS_NAME = "openflow_prefs"
 

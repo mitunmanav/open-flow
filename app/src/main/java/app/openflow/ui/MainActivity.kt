@@ -128,9 +128,9 @@ private object SecUi {
     val muted: androidx.compose.ui.graphics.Color
         @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
     val hardBorder: BorderStroke
-        @Composable get() = BorderStroke(3.dp, MaterialTheme.colorScheme.outline)
-    val thinBorder: BorderStroke
         @Composable get() = BorderStroke(2.dp, MaterialTheme.colorScheme.outline)
+    val thinBorder: BorderStroke
+        @Composable get() = BorderStroke(1.5.dp, MaterialTheme.colorScheme.outline)
 }
 
 class MainActivity : ComponentActivity() {

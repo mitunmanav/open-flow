@@ -997,10 +997,10 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     }
 
     /**
-     * Wispr-style visuals:
-     * - Idle: dark circular mic orb
-     * - Listening: expanded pill with Cancel | status | Done
-     * Size prefs (dot/compact/full) only scale idle orb.
+     * Minimal brutal chrome:
+     * - Idle: hard charcoal tile + cream stroke + mic
+     * - Listening: hard bar Cancel | status | Done (no purple)
+     * Shape pref: circle/dot/pill/square; default square (product brutal).
      */
     private fun updateBubbleVisuals() {
         val p = prefs ?: return
@@ -1011,21 +1011,22 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         val cancel = bubbleCancel
         val done = bubbleDone
         val density = resources.displayMetrics.density
+        val shape = FlowPrefs.normalizeBubbleShape(p.bubbleShape)
 
         val mode = FlowPrefs.normalizeBubbleMode(p.bubbleMode)
         val orbDp = when (mode) {
             "dot" -> 40f
             "compact" -> 48f
-            else -> 56f
+            else -> 52f
         }
+        val stroke = BubbleChrome.strokePx(density)
 
         if (listening) {
-            // Expanded recording bar
             val bg = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadius = 28f * density
-                setColor(0xF01A1A1A.toInt())
-                setStroke((1.5f * density).toInt().coerceAtLeast(1), 0xFF6366F1.toInt())
+                this.shape = GradientDrawable.RECTANGLE
+                cornerRadius = BubbleChrome.cornerPx("listen", density)
+                setColor(BubbleChrome.LISTEN_FILL)
+                setStroke(stroke, BubbleChrome.LISTEN_STROKE)
             }
             root.background = bg
             root.layoutParams = FrameLayout.LayoutParams(
@@ -1033,22 +1034,22 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.CENTER
             )
-            val padH = (8f * density).toInt()
+            val padH = (10f * density).toInt()
             val padV = (8f * density).toInt()
             root.setPadding(padH, padV, padH, padV)
 
             cancel?.visibility = View.VISIBLE
-            cancel?.setColorFilter(0xFFE4E4E7.toInt())
+            cancel?.setColorFilter(BubbleChrome.CANCEL)
             done?.visibility = View.VISIBLE
-            done?.setColorFilter(0xFFA5B4FC.toInt())
+            done?.setColorFilter(BubbleChrome.DONE)
             icon.visibility = View.VISIBLE
-            icon.setColorFilter(0xFFFFFFFF.toInt())
+            icon.setColorFilter(BubbleChrome.ICON)
             icon.layoutParams = LinearLayout.LayoutParams(
                 (20f * density).toInt(),
                 (20f * density).toInt()
             )
             label.visibility = View.VISIBLE
-            label.setTextColor(0xFFFFFFFF.toInt())
+            label.setTextColor(BubbleChrome.LABEL)
             if (label.text.isNullOrBlank()) {
                 label.text = BubbleLabelFormatter.listening(0)
             }
@@ -1056,15 +1057,14 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             if (p.bubblePulse) {
                 pulseRing.visibility = View.VISIBLE
                 pulseRing.background = GradientDrawable().apply {
-                    shape = GradientDrawable.RECTANGLE
-                    cornerRadius = 30f * density
-                    setColor(0x336366F1.toInt())
+                    this.shape = GradientDrawable.RECTANGLE
+                    cornerRadius = BubbleChrome.cornerPx("listen", density) + density
+                    setColor(BubbleChrome.PULSE)
                 }
             } else {
                 pulseRing.visibility = View.GONE
             }
         } else {
-            // Idle orb — mic only (Wispr floating bubble)
             cancel?.visibility = View.GONE
             done?.visibility = View.GONE
             label.visibility = View.GONE
@@ -1073,13 +1073,17 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             val size = (orbDp * density).toInt()
             root.layoutParams = FrameLayout.LayoutParams(size, size, Gravity.CENTER)
             root.setPadding(0, 0, 0, 0)
+            val useOval = shape == "circle" || shape == "dot"
             root.background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(0xF018181B.toInt())
-                setStroke((1.5f * density).toInt().coerceAtLeast(1), 0x6052525B.toInt())
+                this.shape = if (useOval) GradientDrawable.OVAL else GradientDrawable.RECTANGLE
+                if (!useOval) {
+                    cornerRadius = BubbleChrome.cornerPx(shape, density)
+                }
+                setColor(BubbleChrome.IDLE_FILL)
+                setStroke(stroke, BubbleChrome.IDLE_STROKE)
             }
             icon.visibility = View.VISIBLE
-            icon.setColorFilter(0xFFF4F4F5.toInt())
+            icon.setColorFilter(BubbleChrome.ICON)
             val iconSz = (orbDp * 0.42f * density).toInt()
             icon.layoutParams = LinearLayout.LayoutParams(iconSz, iconSz)
         }

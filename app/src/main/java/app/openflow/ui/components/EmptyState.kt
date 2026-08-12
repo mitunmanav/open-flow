@@ -21,9 +21,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.openflow.ui.a11y.Dimen
-import app.openflow.ui.theme.BrutalColors
 
-/** Empty panel — charcoal type on cream, no soft M3 wash. */
+/** Empty panel — theme-aware onSurface colors. */
 @Composable
 fun EmptyState(
     icon: ImageVector,
@@ -31,6 +30,7 @@ fun EmptyState(
     modifier: Modifier = Modifier,
     subtitle: String? = null
 ) {
+    val scheme = MaterialTheme.colorScheme
     val a11y = if (subtitle.isNullOrBlank()) title else "$title. $subtitle"
     Column(
         modifier = modifier
@@ -44,7 +44,7 @@ fun EmptyState(
             imageVector = icon,
             contentDescription = null,
             modifier = Modifier.size(48.dp),
-            tint = BrutalColors.Charcoal
+            tint = scheme.onSurface
         )
         Spacer(Modifier.height(Dimen.MIN_PADDING))
         Text(
@@ -52,7 +52,7 @@ fun EmptyState(
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
-            color = BrutalColors.Charcoal,
+            color = scheme.onSurface,
             modifier = Modifier.widthIn(max = 320.dp)
         )
         if (!subtitle.isNullOrBlank()) {
@@ -61,7 +61,7 @@ fun EmptyState(
                 text = subtitle,
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
-                color = BrutalColors.Charcoal.copy(alpha = 0.62f),
+                color = scheme.onSurfaceVariant,
                 modifier = Modifier.widthIn(max = 320.dp)
             )
         }

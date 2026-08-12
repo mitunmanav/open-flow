@@ -58,6 +58,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -69,11 +70,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -95,7 +99,6 @@ import app.openflow.ui.components.OpenChip
 import app.openflow.ui.components.OpenTextField
 import app.openflow.ui.shell.AppRoute
 import app.openflow.ui.shell.AppShell
-import app.openflow.ui.theme.BrutalColors
 import app.openflow.ui.theme.OpenFlowTheme
 import app.openflow.ui.theme.VisualSkin
 import kotlinx.coroutines.launch
@@ -103,16 +106,27 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** Modern brutal tokens — VisualSkin.BRUTAL (cream / charcoal / ink). Not soft M3. */
+/**
+ * Theme tokens for MainActivity screens.
+ * MUST read [MaterialTheme.colorScheme] so light/dark/system work.
+ */
 private object SecUi {
-    val cream = BrutalColors.Cream
-    val charcoal = BrutalColors.Charcoal
-    val stone = BrutalColors.Stone
-    val ink = BrutalColors.Ink
-    val error = BrutalColors.Error
-    val muted = BrutalColors.Charcoal.copy(alpha = 0.62f)
-    val hardBorder = BorderStroke(3.dp, BrutalColors.Charcoal)
-    val thinBorder = BorderStroke(2.dp, BrutalColors.Charcoal)
+    val cream: androidx.compose.ui.graphics.Color
+        @Composable get() = MaterialTheme.colorScheme.background
+    val charcoal: androidx.compose.ui.graphics.Color
+        @Composable get() = MaterialTheme.colorScheme.onBackground
+    val stone: androidx.compose.ui.graphics.Color
+        @Composable get() = MaterialTheme.colorScheme.surfaceVariant
+    val ink: androidx.compose.ui.graphics.Color
+        @Composable get() = MaterialTheme.colorScheme.secondary
+    val error: androidx.compose.ui.graphics.Color
+        @Composable get() = MaterialTheme.colorScheme.error
+    val muted: androidx.compose.ui.graphics.Color
+        @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
+    val hardBorder: BorderStroke
+        @Composable get() = BorderStroke(3.dp, MaterialTheme.colorScheme.outline)
+    val thinBorder: BorderStroke
+        @Composable get() = BorderStroke(2.dp, MaterialTheme.colorScheme.outline)
 }
 
 class MainActivity : ComponentActivity() {
@@ -133,6 +147,16 @@ class MainActivity : ComponentActivity() {
             val darkMode by app.prefs.darkMode.collectAsState()
             val skin by app.prefs.visualSkin.collectAsState()
             OpenFlowTheme(darkMode = darkMode, skin = skin) {
+                val scheme = MaterialTheme.colorScheme
+                val isDark = scheme.background.luminance() < 0.5f
+                val view = LocalView.current
+                SideEffect {
+                    val window = window
+                    WindowCompat.getInsetsController(window, view).apply {
+                        isAppearanceLightStatusBars = !isDark
+                        isAppearanceLightNavigationBars = !isDark
+                    }
+                }
                 var route by remember { mutableStateOf(AppRoute.Home) }
                 androidx.compose.runtime.LaunchedEffect(intent) {
                     if (intent?.getBooleanExtra("open_history", false) == true) {
@@ -390,9 +414,13 @@ private fun HomeHub(
                                 }
                                 // Hard badge: charcoal block when ON, cream + hard border when SETUP.
                                 Surface(
-                                    color = if (ready) BrutalColors.Charcoal else BrutalColors.Cream,
+                                    color = if (ready) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.surface
+                                    },
                                     shape = MaterialTheme.shapes.small,
-                                    border = BorderStroke(2.dp, BrutalColors.Charcoal),
+                                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.outline),
                                     modifier = Modifier.testTag(
                                         if (ready) "home_setup_badge_on" else "home_setup_badge_setup"
                                     )
@@ -403,9 +431,9 @@ private fun HomeHub(
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
                                         color = if (ready) {
-                                            BrutalColors.OnCharcoal
+                                            MaterialTheme.colorScheme.onPrimary
                                         } else {
-                                            BrutalColors.Charcoal
+                                            MaterialTheme.colorScheme.onSurface
                                         }
                                     )
                                 }
@@ -1427,7 +1455,7 @@ private fun CleanupSettings(prefs: FlowPrefs) {
                         Icon(
                             Icons.Default.Check,
                             contentDescription = "Selected",
-                            tint = BrutalColors.Charcoal,
+                            tint = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.size(20.dp)
                         )
                     }

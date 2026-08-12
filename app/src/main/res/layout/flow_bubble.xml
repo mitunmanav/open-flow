@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Wispr-style Flow Bubble: idle orb, listening bar with Cancel | status | Done -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/bubble_container"
     android:layout_width="wrap_content"
@@ -6,7 +7,6 @@
     android:clipChildren="false"
     android:clipToPadding="false">
 
-    <!-- Glowing accent pulse ring for recording state -->
     <View
         android:id="@+id/bubble_pulse_ring"
         android:layout_width="match_parent"
@@ -14,29 +14,38 @@
         android:layout_gravity="center"
         android:visibility="gone" />
 
-    <!-- Main bubble card body with dynamic shape background -->
     <LinearLayout
         android:id="@+id/bubble_root"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:elevation="8dp"
-        android:gravity="center"
+        android:elevation="10dp"
+        android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingStart="14dp"
+        android:paddingStart="10dp"
         android:paddingTop="10dp"
-        android:paddingEnd="14dp"
+        android:paddingEnd="10dp"
         android:paddingBottom="10dp">
 
-        <!-- Mic / Status icon -->
+        <!-- Cancel (listening only) -->
+        <ImageView
+            android:id="@+id/bubble_cancel"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/flow_bubble_cancel"
+            android:padding="6dp"
+            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            android:visibility="gone" />
+
         <ImageView
             android:id="@+id/bubble_icon"
             android:layout_width="22dp"
             android:layout_height="22dp"
-            android:src="@drawable/ic_mic"
-            android:contentDescription="@string/app_name" />
+            android:contentDescription="@string/app_name"
+            android:src="@drawable/ic_mic" />
 
-        <!-- Status / Speech / Timer Text -->
+        <!-- Live status / partials / simple wave proxy -->
         <TextView
             android:id="@+id/bubble_label"
             android:layout_width="wrap_content"
@@ -44,10 +53,23 @@
             android:layout_marginStart="8dp"
             android:ellipsize="end"
             android:fontFamily="sans-serif-medium"
-            android:maxWidth="260dp"
-            android:maxLines="2"
+            android:maxWidth="220dp"
+            android:maxLines="1"
             android:text="@string/flow_bubble_idle"
             android:textColor="#FFFFFF"
-            android:textSize="13sp" />
+            android:textSize="13sp"
+            android:visibility="gone" />
+
+        <!-- Done / commit (listening only) -->
+        <ImageView
+            android:id="@+id/bubble_done"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="4dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/flow_bubble_done"
+            android:padding="6dp"
+            android:src="@android:drawable/ic_menu_save"
+            android:visibility="gone" />
     </LinearLayout>
 </FrameLayout>

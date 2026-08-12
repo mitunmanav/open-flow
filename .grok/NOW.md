@@ -1,14 +1,13 @@
 # NOW (Grok pickup)
 
 ## main
-- Tip: local Wispr-style pipeline without AI (`6079605` era — re-check `git log -1`)
-- Tests: 141 unit green at merge
+- Pipeline without AI + modern brutal UI merged
+- Verify: unit tests green on tip
 
 ## Active worktrees
-- `ui-optimize` — modern brutal UI (subagent may be live)
-- `wispr-research` — deep research pack (docs)
+- `ui-optimize` — can remove after Mitun confirms device look
+- `wispr-research` — research docs (also on main under docs/research/)
 
 ## Do not
-- Merge research as product code
 - Force-push
-- Kill live UI subagent mid-run unless Mitun says stop
+- Re-open M3 as default skin

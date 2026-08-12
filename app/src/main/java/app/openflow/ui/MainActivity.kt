@@ -237,7 +237,6 @@ private fun HomeHub(
     val ctx = LocalContext.current
     var statsText by remember { mutableStateOf("…") }
     var localNote by remember { mutableStateOf("") }
-    var lang by remember { mutableStateOf(app.prefs.languageTag) }
     var cleanup by remember { mutableStateOf(app.prefs.cleanupLevel) }
     DisposableEffect(Unit) {
         scope.launch {
@@ -312,23 +311,15 @@ private fun HomeHub(
                                 )
                             }
                         }
-                        Text("Language", style = MaterialTheme.typography.titleSmall)
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            listOf(
-                                SttTuning.DEFAULT_LANGUAGE to "en-US",
-                                "en-GB" to "en-GB",
-                                java.util.Locale.getDefault().toLanguageTag() to "Device"
-                            ).distinctBy { it.first }.forEach { (tag, label) ->
-                                OpenChip(
-                                    label = label,
-                                    isOn = lang.equals(tag, ignoreCase = true),
-                                    onClick = {
-                                        lang = tag
-                                        app.prefs.languageTag = tag
-                                    }
-                                )
-                            }
-                        }
+                        Text(
+                            "Language: English (en-US) only",
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                        Text(
+                            "STT locked to en-US — no other languages",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OpenButton(
                                 text = "Copy last",
@@ -841,7 +832,6 @@ private fun AppearanceSettings(prefs: FlowPrefs) {
 private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
     var scale by remember { mutableFloatStateOf(prefs.bubbleScale) }
     var opacity by remember { mutableFloatStateOf(prefs.bubbleOpacity) }
-    var lang by remember { mutableStateOf(prefs.languageTag) }
     var mode by remember { mutableStateOf(prefs.bubbleMode) }
     var shape by remember { mutableStateOf(prefs.bubbleShape) }
     var showText by remember { mutableStateOf(prefs.bubbleShowText) }
@@ -940,6 +930,7 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
             OpenChip(label = if (snap) "ON" else "OFF", isOn = snap, onClick = {
                 snap = !snap
                 prefs.bubbleEdgeSnap = snap
+                onApplyBubble()
             })
         }
         Row(
@@ -951,6 +942,7 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
             OpenChip(label = if (haptics) "ON" else "OFF", isOn = haptics, onClick = {
                 haptics = !haptics
                 prefs.bubbleHaptics = haptics
+                onApplyBubble()
             })
         }
         var pulse by remember { mutableStateOf(prefs.bubblePulse) }
@@ -965,14 +957,9 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                 prefs.bubblePulse = pulse
             })
         }
-        OpenTextField(
-            value = lang,
-            onValueChange = {
-                lang = it
-                prefs.languageTag = it
-            },
-            label = "STT language tag e.g. en-US",
-            supportingText = { Text("Offline pack may be required on device") }
+        Text(
+            "STT: English (en-US) only — locked",
+            style = MaterialTheme.typography.bodyMedium
         )
         OutlinedButton(
             onClick = {

@@ -2,6 +2,7 @@ package app.openflow.prefs
 
 import android.content.Context
 import android.content.SharedPreferences
+import app.openflow.stt.LanguagePolicy
 import app.openflow.stt.SttTuning
 import app.openflow.text.TextPostProcessor
 import app.openflow.ui.theme.VisualSkin
@@ -32,12 +33,10 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         set(v) = store.putString("bubble_mode", normalizeBubbleMode(v))
 
     var languageTag: String
-        get() = store.getString(
-            "language_tag",
-            // English-first product focus; override in Bubble / Home settings
-            SttTuning.DEFAULT_LANGUAGE
+        get() = LanguagePolicy.force(
+            store.getString("language_tag", SttTuning.DEFAULT_LANGUAGE)
         )
-        set(v) = store.putString("language_tag", v)
+        set(v) = store.putString("language_tag", LanguagePolicy.force(v))
 
     var styleName: String
         get() = store.getString("style", TextPostProcessor.Style.CASUAL.name)

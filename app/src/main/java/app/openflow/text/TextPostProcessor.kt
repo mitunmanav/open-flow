@@ -81,12 +81,24 @@ object TextPostProcessor {
         s = s.replace(Regex("""(?i)\bcomma\b"""), ",")
         s = s.replace(Regex("""(?i)\bquestion\s+mark\b"""), "?")
         s = s.replace(Regex("""(?i)\bexclamation\s+(?:mark|point)\b"""), "!")
-        // tidy spaces before punctuation
-        s = s.replace(Regex("""\s+([.,!?])"""), "$1")
+        // paren / colon / quote (Wispr-style spoken punctuation)
+        s = s.replace(Regex("""(?i)\bopen\s+paren(?:thesis)?\b"""), "(")
+        s = s.replace(Regex("""(?i)\bclose\s+paren(?:thesis)?\b"""), ")")
+        s = s.replace(Regex("""(?i)\bleft\s+paren(?:thesis)?\b"""), "(")
+        s = s.replace(Regex("""(?i)\bright\s+paren(?:thesis)?\b"""), ")")
+        s = s.replace(Regex("""(?i)\bopen\s+quote\b"""), "\"")
+        s = s.replace(Regex("""(?i)\bclose\s+quote\b"""), "\"")
+        s = s.replace(Regex("""(?i)\bcolon\b"""), ":")
+        s = s.replace(Regex("""(?i)\bquote\b"""), "\"")
+        // tidy spaces around inserted punctuation
+        s = s.replace(Regex("""\s+([.,!?:)])"""), "$1")
+        s = s.replace(Regex("""([(])\s+"""), "$1")
         return s
     }
 
     private fun applyListHints(t: String): String {
+        splitDottedNumbered(t)?.let { return it }
+        splitSpokenDigitList(t)?.let { return it }
         // "number one X number two Y" -> "1. X\n2. Y"
         val m = Regex(
             "(?i)(?:number|item)\\s+(one|two|three|four|five|1|2|3|4|5)\\s+",
@@ -97,6 +109,42 @@ object TextPostProcessor {
             .filter { it.isNotEmpty() }
         if (parts.size < 2) return t
         return parts.mapIndexed { i, p -> "${i + 1}. ${p.trim().trimEnd('.', ',')}" }.joinToString("\n")
+    }
+
+    /** Wispr-style: "1. Apples 2. Bananas 3. Oranges" → multiline list. */
+    private fun splitDottedNumbered(t: String): String? {
+        val marker = Regex("""(\d+)\.\s+""")
+        val matches = marker.findAll(t).toList()
+        if (matches.size < 2) return null
+        val items = mutableListOf<String>()
+        for (i in matches.indices) {
+            val num = matches[i].groupValues[1]
+            val start = matches[i].range.last + 1
+            val end = if (i + 1 < matches.size) matches[i + 1].range.first else t.length
+            val body = t.substring(start, end).trim().trimEnd('.', ',', ';')
+            if (body.isEmpty()) return null
+            items.add("$num. $body")
+        }
+        return items.joinToString("\n")
+    }
+
+    /** Spoken: "1 apples 2 bananas 3 oranges" (must start with a digit marker). */
+    private fun splitSpokenDigitList(t: String): String? {
+        val first = t.firstOrNull() ?: return null
+        if (!first.isDigit()) return null
+        val marker = Regex("""\b(\d{1,2})\s+(?=[A-Za-z])""")
+        val matches = marker.findAll(t).toList()
+        if (matches.size < 2) return null
+        val items = mutableListOf<String>()
+        for (i in matches.indices) {
+            val num = matches[i].groupValues[1]
+            val start = matches[i].range.last + 1
+            val end = if (i + 1 < matches.size) matches[i + 1].range.first else t.length
+            val body = t.substring(start, end).trim().trimEnd('.', ',', ';')
+            if (body.isEmpty()) return null
+            items.add("$num. $body")
+        }
+        return items.joinToString("\n")
     }
 
     private fun applyPunctuation(t: String, style: Style): String {

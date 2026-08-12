@@ -28,6 +28,7 @@ import androidx.core.content.ContextCompat
 import app.openflow.OpenFlowApp
 import app.openflow.R
 import app.openflow.prefs.FlowPrefs
+import app.openflow.stt.LanguagePolicy
 import app.openflow.stt.SttEngine
 import app.openflow.stt.SttTuning
 import app.openflow.text.TextPostProcessor
@@ -328,6 +329,9 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                         refreshBubbleVisibility()
                         return@setOnTouchListener true
                     }
+                    if (dragged && prefs?.bubbleEdgeSnap == true) {
+                        snapBubbleToEdge(v, params)
+                    }
                     if (longPressFired || pushToTalk) {
                         // release ends PTT
                         if (listening) stopListening(save = true)
@@ -339,6 +343,23 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 }
                 else -> false
             }
+        }
+    }
+
+    private fun snapBubbleToEdge(view: View, params: WindowManager.LayoutParams) {
+        val dm = resources.displayMetrics
+        val w = view.width.takeIf { it > 0 } ?: view.measuredWidth.takeIf { it > 0 } ?: 120
+        params.x = BubbleGeometry.snapOffsetFromEnd(
+            x = params.x,
+            screenWidthPx = dm.widthPixels,
+            bubbleWidthPx = w
+        )
+        try {
+            windowManager?.updateViewLayout(view, params)
+        } catch (_: Exception) {
+        }
+        if (prefs?.bubbleHaptics != false) {
+            view.performHapticFeedback(android.view.HapticFeedbackConstants.CONTEXT_CLICK)
         }
     }
 
@@ -440,7 +461,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         if (prefs?.bubblePulse != false) startPulse()
         setListenChrome(0)
         setBubbleEmphasis(true)
-        val lang = prefs?.languageTag?.ifBlank { null } ?: SttTuning.DEFAULT_LANGUAGE
+        val lang = LanguagePolicy.LOCKED
         stt?.setListener(object : SttEngine.Listener {
             override fun onPartial(text: String) {
                 val elapsed = (SystemClock.elapsedRealtime() - listenStartedAt) / 1000
@@ -503,6 +524,14 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 }
             }
 
+            override fun onRmsChanged(rmsdB: Float) {
+                if (!listening) return
+                val base = effectiveScale()
+                val pulse = BubbleGeometry.rmsScaleY(rmsdB)
+                bubbleView?.scaleX = base * pulse
+                bubbleView?.scaleY = base * pulse
+            }
+
             override fun onListeningChanged(isOn: Boolean) {
                 // Continuous restarts do not emit false; false = user/engine full stop.
                 if (!isOn) {
@@ -524,7 +553,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         val raw = sessionBuffer.toString().trim()
         if (save && raw.isNotBlank()) {
             val dur = SystemClock.elapsedRealtime() - listenStartedAt
-            val lang = prefs?.languageTag ?: SttTuning.DEFAULT_LANGUAGE
+            val lang = LanguagePolicy.LOCKED
             // One polish + one field write (no raw chunk dump)
             polishSession(raw) { finalText ->
                 if (finalText.isNotBlank()) {

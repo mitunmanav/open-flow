@@ -35,6 +35,7 @@ class SttEngine(
         fun onReady()
         fun onListeningChanged(listening: Boolean)
         fun onNeedMicPermission() {}
+        fun onRmsChanged(rmsdB: Float) {}
     }
 
     private var recognizer: SpeechRecognizer? = null
@@ -42,7 +43,7 @@ class SttEngine(
     private val continuous = AtomicBoolean(false)
     private val starting = AtomicBoolean(false)
     private val sessionCount = AtomicInteger(0)
-    private var languageTag: String = Locale.getDefault().toLanguageTag()
+    private var languageTag: String = LanguagePolicy.LOCKED
     private var restartPosted = false
     private var savedMusicVolume: Int? = null
 
@@ -57,8 +58,8 @@ class SttEngine(
         listener = l
     }
 
-    fun startContinuous(languageTag: String = Locale.getDefault().toLanguageTag()) {
-        this.languageTag = languageTag
+    fun startContinuous(languageTag: String = LanguagePolicy.LOCKED) {
+        this.languageTag = LanguagePolicy.force(languageTag)
         if (!hasMicPermission()) {
             listener?.onNeedMicPermission()
             listener?.onError("Microphone permission required", fatal = true)
@@ -75,8 +76,8 @@ class SttEngine(
         mainHandler.post { beginSession(forceRecreate = true) }
     }
 
-    fun startOnce(languageTag: String = Locale.getDefault().toLanguageTag()) {
-        this.languageTag = languageTag
+    fun startOnce(languageTag: String = LanguagePolicy.LOCKED) {
+        this.languageTag = LanguagePolicy.force(languageTag)
         if (!hasMicPermission()) {
             listener?.onNeedMicPermission()
             listener?.onError("Microphone permission required", fatal = true)
@@ -171,7 +172,9 @@ class SttEngine(
         }
 
         override fun onBeginningOfSpeech() {}
-        override fun onRmsChanged(rmsdB: Float) {}
+        override fun onRmsChanged(rmsdB: Float) {
+            listener?.onRmsChanged(rmsdB)
+        }
         override fun onBufferReceived(buffer: ByteArray?) {}
         override fun onEndOfSpeech() {}
 
@@ -284,14 +287,13 @@ class SttEngine(
     }
 
     private fun buildIntent(languageTag: String): Intent {
-        val lang = languageTag.ifBlank { SttTuning.DEFAULT_LANGUAGE }
+        val lang = LanguagePolicy.force(languageTag)
         return Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(
                 RecognizerIntent.EXTRA_LANGUAGE_MODEL,
                 RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
             )
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, lang)
-            // Bias engine toward this locale when supported
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, lang)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, SttTuning.MAX_RESULTS)

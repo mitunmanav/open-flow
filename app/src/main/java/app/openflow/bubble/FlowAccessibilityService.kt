@@ -350,6 +350,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             alpha = opacity
         }
         bubbleParams = params
+        applyOverlayWindowSize()
         view.scaleX = scale
         view.scaleY = scale
         setupTouch(view, params)
@@ -1121,16 +1122,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 label.text = BubbleLabelFormatter.listening(0)
             }
 
-            if (p.bubblePulse) {
-                pulseRing.visibility = View.VISIBLE
-                pulseRing.background = GradientDrawable().apply {
-                    this.shape = GradientDrawable.RECTANGLE
-                    cornerRadius = BubbleChrome.cornerPx("listen", density) + density
-                    setColor(BubbleChrome.PULSE)
-                }
-            } else {
-                pulseRing.visibility = View.GONE
-            }
+            // Pulse WRAP_CONTENT was the grey veil. Idle-only; never on listen.
+            pulseRing.visibility = View.GONE
         } else {
             cancel?.visibility = View.GONE
             done?.visibility = View.GONE
@@ -1153,6 +1146,21 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             icon.setColorFilter(BubbleChrome.ICON)
             val iconSz = (orbDp * 0.42f * density).toInt()
             icon.layoutParams = LinearLayout.LayoutParams(iconSz, iconSz)
+        }
+        applyOverlayWindowSize()
+    }
+
+    /** Pin overlay window. WRAP_CONTENT measures against the screen. */
+    private fun applyOverlayWindowSize() {
+        val params = bubbleParams ?: return
+        val density = resources.displayMetrics.density
+        val (w, h) = BubbleGeometry.overlaySizePx(listening, density)
+        params.width = if (w > 0) w else WindowManager.LayoutParams.WRAP_CONTENT
+        params.height = if (h > 0) h else WindowManager.LayoutParams.WRAP_CONTENT
+        val view = bubbleView ?: return
+        try {
+            windowManager?.updateViewLayout(view, params)
+        } catch (_: Exception) {
         }
     }
 

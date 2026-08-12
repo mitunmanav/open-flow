@@ -66,4 +66,11 @@ object BubbleGeometry {
         if (bottom <= top) return 0
         return (bottom - top).coerceIn(0, screenHeightPx.coerceAtLeast(0))
     }
+
+    /** Overlay window px. WRAP_CONTENT measures against the screen — pin a bar. */
+    fun overlaySizePx(listening: Boolean, density: Float): Pair<Int, Int> {
+        val barH = (52f * density).toInt()
+        val w = if (listening) (240f * density).toInt() else barH
+        return w to barH
+    }
 }

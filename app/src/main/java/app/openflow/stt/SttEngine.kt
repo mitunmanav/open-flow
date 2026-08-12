@@ -51,7 +51,7 @@ class SttEngine(
     private var languageTag: String = LanguagePolicy.LOCKED
     private var restartPosted = false
     private var restartCount = 0
-    private val maxRestartsPerSession = 20
+    private val maxRestartsPerSession = 200
     private var savedMusicVolume: Int? = null
 
     /** When true, force EXTRA_PREFER_OFFLINE. Flips false after offline-related errors. */
@@ -242,6 +242,7 @@ class SttEngine(
         override fun onResults(results: Bundle?) {
             restoreVolume()
             starting.set(false)
+            restartCount = 0
             val texts = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
             val best = texts?.firstOrNull().orEmpty()
             if (best.isNotBlank()) {
@@ -257,6 +258,7 @@ class SttEngine(
         }
 
         override fun onPartialResults(partialResults: Bundle?) {
+            restartCount = 0
             val texts = partialResults
                 ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
             val best = texts?.firstOrNull().orEmpty()

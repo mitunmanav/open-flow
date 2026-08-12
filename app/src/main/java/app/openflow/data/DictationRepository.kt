@@ -54,11 +54,12 @@ class DictationRepository(
     suspend fun latestText(): String? = dictationDao.latest()?.text
 
     suspend fun addWord(word: String, replacement: String = word) {
+        val w = word.trim()
         dictionaryDao.upsert(
             DictionaryWordEntity(
-                id = UUID.randomUUID().toString(),
-                word = word.trim(),
-                replacement = replacement.trim().ifBlank { word.trim() },
+                id = w,
+                word = w,
+                replacement = replacement.trim().ifBlank { w },
                 createdAtEpochMs = System.currentTimeMillis()
             )
         )
@@ -67,10 +68,11 @@ class DictationRepository(
     suspend fun deleteWord(id: String) = dictionaryDao.delete(id)
 
     suspend fun addSnippet(trigger: String, body: String) {
+        val t = trigger.trim()
         snippetDao.upsert(
             SnippetEntity(
-                id = UUID.randomUUID().toString(),
-                trigger = trigger.trim(),
+                id = t,
+                trigger = t,
                 body = body,
                 createdAtEpochMs = System.currentTimeMillis()
             )

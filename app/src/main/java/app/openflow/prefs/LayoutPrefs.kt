@@ -67,7 +67,7 @@ object LayoutPrefs {
         if (id == "home" || id == "settings") return true
         if (id in listOf("dictionary", "snippets", "style")) return false
         val mods = parseModules(raw, DRAWER_EXTRAS)
-        return mods.find { it.id == id }?.visible != false
+        return mods.find { it.id == id }?.visible == true
     }
 
     /** @deprecated use isDrawerVisible */

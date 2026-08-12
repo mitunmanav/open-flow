@@ -1,6 +1,6 @@
 # NOW
 
-**main:** F18 on tip `e92c15d` — bubble above IME + small listen bar + no prefix double
+**main:** F20 `68c313c` — Wispr local gaps (shrink, copy, session, RMS, app style, battery)
 **dev:** this-repo gate · tree jail · spawn-5 · tiny memory
 
-**NEXT:** F19 STT bias + unmask (dictionary names). Not the tiny model yet.
+**NEXT:** F19 STT bias + unmask. Tiny model still later.

@@ -30,8 +30,8 @@ Account · billing · cloud retry · Command Mode / Transforms · Notetaker · S
 | B1 | Drag | **have** | |
 | B2 | Size | **have** | 0.7–1.15× + full/compact/dot pref |
 | B3 | Opacity | **have** | |
-| B4 | Idle shrink 5s | **add** | Pref exists. **No timer.** |
-| B5 | Battery setup | **add** | Home has a11y+mic only |
+| B4 | Idle shrink 5s | **have** | F20 visual compact after 5s |
+| B5 | Battery setup | **have** | F20 Home Battery chip |
 | C1 | Cancel | **have** | |
 | C2 | Continuous | **have** | Restart loop |
 | C3 | Copy last | **partial** | History + home. No bubble chip / notif action |
@@ -43,7 +43,7 @@ Account · billing · cloud retry · Command Mode / Transforms · Notetaker · S
 | H4 | Setup cards | **partial** | a11y + mic. No battery |
 | L1 | en-US | **have** | Locked. Ignore other langs |
 | M1 | Mic flow | **have** | |
-| N1 | Notifications | **partial** | “saved” ping. No copy-last, no service-died |
+| N1 | Notifications | **have** | F20 saved + Copy last + service-stopped |
 | O1 | Offline | **have** | Ours |
 | P1 | Local privacy | **have** | |
 | P3–P4 | Hide password / bank | **have** | |
@@ -51,18 +51,18 @@ Account · billing · cloud retry · Command Mode / Transforms · Notetaker · S
 | S2–S3 | Snooze + shake | **have** | |
 | S4 | Stats | **have** | |
 | S5 | Styles | **have** | Global only |
-| S5b | Style per app | **add** | Local category map |
+| S5b | Style per app | **have** | F20 AppStylePolicy personal/work/email |
 | C0 | Cleanup levels | **have** | High ≠ Wispr AI High |
 | C0b | Spoken cmds | **have** | |
 | T1 | Tap bubble | **have** | |
-| W1 | Waveform | **partial** | Fake `▮` by clock. RMS unused in label |
+| W1 | Waveform | **have** | F20 RMS 4-bar |
 | W2 | Any field | **have** | |
 | F18 | IME park + small listen | **have** | Device 2026-08-12 |
 | E0 | Export | **partial** | Share from history |
-| Keep screen on | **add** | Missing |
-| Session time warn | **add** | Missing |
-| Copy chip after stop | **add** | Missing |
-| Service-died notif | **add** | Missing |
+| Keep screen on | **have** | F20 while listening |
+| Session time warn | **have** | F20 4:30 warn / 5:00 stop |
+| Copy chip after stop | **have** | F20 10s Copy |
+| Service-died notif | **have** | F20 |
 
 ## F20 ship (this slice)
 

@@ -1,6 +1,6 @@
 # Open Flow — handoff (live)
 
-**main tip:** `e92c15d` F18 IME park  
+**main tip:** `68c313c` F20 Wispr gaps  
 **Product:** Bubble + AccessibilityService · **not** IME · en-US · local FOSS · minimal brutal UI
 
 ## WHERE (2026-08-12)

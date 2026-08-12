@@ -48,4 +48,16 @@ class FieldPolicyTest {
     fun edittext_class_is_editable() {
         assertThat(FieldPolicy.isEditableClass("android.widget.EditText")).isTrue()
     }
+
+    @Test
+    fun merge_session_skips_overlapping_prefix() {
+        val piece = "Does naren know if ram know if narendra on the call?"
+        assertThat(FieldPolicy.mergeSession("Does", piece)).isEqualTo(piece)
+    }
+
+    @Test
+    fun merge_session_prefix_overlap_ignore_case() {
+        assertThat(FieldPolicy.mergeSession("does", "Does naren know"))
+            .isEqualTo("Does naren know")
+    }
 }

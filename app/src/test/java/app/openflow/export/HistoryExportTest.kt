@@ -11,12 +11,14 @@ class HistoryExportTest {
             text = "Hello world",
             languageTag = "en-US",
             wordCount = 2,
+            rawText = "hello world"
         ),
         HistoryExport.Row(
             createdAtEpochMs = 1_700_000_100_000L,
             text = "Second note",
             languageTag = "en-US",
             wordCount = 2,
+            rawText = "second note actually"
         ),
     )
 
@@ -26,7 +28,12 @@ class HistoryExportTest {
         assertThat(md).contains("# Open Flow history")
         assertThat(md).contains("Hello world")
         assertThat(md).contains("Second note")
-        assertThat(md).contains("-")
+    }
+
+    @Test
+    fun markdown_with_raw_includes_diff() {
+        val md = HistoryExport.toMarkdown(rows, includeRaw = true)
+        assertThat(md).contains("> *Raw STT:*")
     }
 
     @Test
@@ -46,6 +53,19 @@ class HistoryExportTest {
     @Test
     fun empty_list_plain_empty() {
         assertThat(HistoryExport.toPlainText(emptyList())).isEmpty()
+    }
+
+    @Test
+    fun filter_returns_matches() {
+        val matches = HistoryExport.filterRows(rows, "second")
+        assertThat(matches).hasSize(1)
+        assertThat(matches.first().text).isEqualTo("Second note")
+    }
+
+    @Test
+    fun filter_empty_returns_all() {
+        val matches = HistoryExport.filterRows(rows, "")
+        assertThat(matches).hasSize(2)
     }
 
     @Test

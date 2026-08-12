@@ -1,6 +1,9 @@
 package app.openflow.ui.components
 
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material3.Icon
@@ -13,9 +16,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
-import app.openflow.ui.theme.OpenFlowColors
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import app.openflow.ui.a11y.Dimen
+import app.openflow.ui.theme.BrutalColors
 
+/** Light brutal field: cream fill, charcoal border — no indigo M3 primary hardcode. */
 @Composable
 fun OpenTextField(
     value: String,
@@ -24,47 +31,99 @@ fun OpenTextField(
     label: String? = null,
     placeholder: String? = null,
     error: String? = null,
+    enabled: Boolean = true,
+    singleLine: Boolean = true,
     minLines: Int = 1,
-    maxLines: Int = Int.MAX_VALUE,
+    maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
     showClearButton: Boolean = true,
     leadingIcon: (@Composable () -> Unit)? = null,
     contentDescription: String? = null,
+    keyboardOptions: KeyboardOptions? = null,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
     supportingText: (@Composable () -> Unit)? = null
 ) {
+    val effectiveSingleLine = singleLine && minLines <= 1
+    val effectiveMaxLines = when {
+        effectiveSingleLine -> 1
+        else -> maxLines.coerceAtLeast(minLines)
+    }
+    val a11yLabel = contentDescription ?: label ?: placeholder
+    val resolvedKeyboard = keyboardOptions ?: KeyboardOptions(
+        capitalization = KeyboardCapitalization.Sentences,
+        keyboardType = KeyboardType.Text,
+        imeAction = if (effectiveSingleLine) ImeAction.Done else ImeAction.Default
+    )
+    val muted = BrutalColors.Charcoal.copy(alpha = 0.55f)
+
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier
             .fillMaxWidth()
+            .defaultMinSize(minHeight = Dimen.TOUCH_TARGET)
             .then(
-                if (contentDescription != null)
-                    Modifier.semantics { this.contentDescription = contentDescription }
+                if (a11yLabel != null)
+                    Modifier.semantics { this.contentDescription = a11yLabel }
                 else Modifier
             ),
+        enabled = enabled,
         label = label?.let { { Text(it) } },
-        placeholder = placeholder?.let { { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)) } },
+        placeholder = placeholder?.let {
+            {
+                Text(it, color = muted)
+            }
+        },
         isError = error != null,
-        supportingText = supportingText,
-        minLines = minLines,
-        maxLines = maxLines,
+        supportingText = when {
+            error != null -> {
+                { Text(error, color = BrutalColors.Error) }
+            }
+            supportingText != null -> supportingText
+            else -> null
+        },
+        singleLine = effectiveSingleLine,
+        minLines = if (effectiveSingleLine) 1 else minLines,
+        maxLines = effectiveMaxLines,
         shape = MaterialTheme.shapes.small,
         leadingIcon = leadingIcon,
-        trailingIcon = if (showClearButton && value.isNotEmpty()) {
+        trailingIcon = if (showClearButton && value.isNotEmpty() && enabled) {
             {
-                IconButton(onClick = { onValueChange("") }) {
+                IconButton(
+                    onClick = { onValueChange("") },
+                    modifier = Modifier.defaultMinSize(
+                        minWidth = Dimen.TOUCH_TARGET,
+                        minHeight = Dimen.TOUCH_TARGET
+                    )
+                ) {
                     Icon(
                         imageVector = Icons.Default.Clear,
                         contentDescription = "Clear text",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = muted
                     )
                 }
             }
         } else null,
+        keyboardOptions = resolvedKeyboard,
+        keyboardActions = keyboardActions,
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = OpenFlowColors.Primary,
-            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-            focusedContainerColor = MaterialTheme.colorScheme.surface,
-            unfocusedContainerColor = MaterialTheme.colorScheme.surface
+            focusedBorderColor = BrutalColors.Charcoal,
+            unfocusedBorderColor = BrutalColors.Charcoal,
+            disabledBorderColor = BrutalColors.Charcoal.copy(alpha = 0.35f),
+            errorBorderColor = BrutalColors.Error,
+            focusedContainerColor = BrutalColors.Cream,
+            unfocusedContainerColor = BrutalColors.Cream,
+            disabledContainerColor = BrutalColors.Stone.copy(alpha = 0.45f),
+            focusedTextColor = BrutalColors.OnCream,
+            unfocusedTextColor = BrutalColors.OnCream,
+            disabledTextColor = BrutalColors.OnCream.copy(alpha = 0.38f),
+            focusedLabelColor = BrutalColors.Charcoal,
+            unfocusedLabelColor = muted,
+            disabledLabelColor = BrutalColors.OnCream.copy(alpha = 0.38f),
+            disabledPlaceholderColor = BrutalColors.OnCream.copy(alpha = 0.38f),
+            cursorColor = BrutalColors.Ink,
+            errorCursorColor = BrutalColors.Error,
+            focusedTrailingIconColor = muted,
+            unfocusedTrailingIconColor = muted
         )
     )
 }

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -14,9 +15,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import app.openflow.ui.a11y.Dimen
+import app.openflow.ui.theme.BrutalColors
 
+/** Empty panel — charcoal type on cream, no soft M3 wash. */
 @Composable
 fun EmptyState(
     icon: ImageVector,
@@ -24,8 +31,12 @@ fun EmptyState(
     modifier: Modifier = Modifier,
     subtitle: String? = null
 ) {
+    val a11y = if (subtitle.isNullOrBlank()) title else "$title. $subtitle"
     Column(
-        modifier = modifier.fillMaxWidth().padding(32.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = Dimen.PAGE_PAD, vertical = Dimen.PAGE_PAD + Dimen.GAP)
+            .semantics(mergeDescendants = true) { contentDescription = a11y },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -33,22 +44,25 @@ fun EmptyState(
             imageVector = icon,
             contentDescription = null,
             modifier = Modifier.size(48.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
+            tint = BrutalColors.Charcoal
         )
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(Dimen.MIN_PADDING))
         Text(
             text = title,
-            style = MaterialTheme.typography.titleSmall,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = BrutalColors.Charcoal,
+            modifier = Modifier.widthIn(max = 320.dp)
         )
-        if (subtitle != null) {
-            Spacer(Modifier.height(8.dp))
+        if (!subtitle.isNullOrBlank()) {
+            Spacer(Modifier.height(Dimen.GAP))
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                color = BrutalColors.Charcoal.copy(alpha = 0.62f),
+                modifier = Modifier.widthIn(max = 320.dp)
             )
         }
     }

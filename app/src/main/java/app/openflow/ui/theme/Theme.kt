@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
+// --- Alternate soft skin (opt-in only) ---
 private val M3Light = lightColorScheme(
     primary = OpenFlowColors.PrimaryDark,
     onPrimary = Color.White,
@@ -52,6 +53,7 @@ private val M3Dark = darkColorScheme(
     onError = Color.White
 )
 
+// --- Ship default: light brutal (cream / charcoal / ink) ---
 private val BrutalLight = lightColorScheme(
     primary = BrutalColors.Charcoal,
     onPrimary = BrutalColors.OnCharcoal,
@@ -67,8 +69,9 @@ private val BrutalLight = lightColorScheme(
     surfaceVariant = BrutalColors.Stone,
     onSurfaceVariant = BrutalColors.Charcoal,
     outline = BrutalColors.Charcoal,
+    outlineVariant = BrutalColors.Stone,
     error = BrutalColors.Error,
-    onError = BrutalColors.OnCharcoal
+    onError = BrutalColors.OnError
 )
 
 private val BrutalDark = darkColorScheme(
@@ -86,30 +89,37 @@ private val BrutalDark = darkColorScheme(
     surfaceVariant = BrutalColors.StoneDark,
     onSurfaceVariant = BrutalColors.Stone,
     outline = BrutalColors.Stone,
+    outlineVariant = BrutalColors.StoneDark,
     error = BrutalColors.Error,
-    onError = BrutalColors.Cream
+    onError = BrutalColors.OnError
 )
 
 private val M3Shapes = Shapes(
     extraSmall = RoundedCornerShape(8.dp),
     small = RoundedCornerShape(12.dp),
     medium = RoundedCornerShape(16.dp),
-    large = RoundedCornerShape(22.dp),
+    large = RoundedCornerShape(20.dp),
     extraLarge = RoundedCornerShape(28.dp)
 )
 
+/** Hard edges — product default skin. */
 private val BrutalShapes = Shapes(
-    extraSmall = RoundedCornerShape(2.dp),
+    extraSmall = RoundedCornerShape(0.dp),
     small = RoundedCornerShape(2.dp),
-    medium = RoundedCornerShape(4.dp),
+    medium = RoundedCornerShape(2.dp),
     large = RoundedCornerShape(4.dp),
-    extraLarge = RoundedCornerShape(6.dp)
+    extraLarge = RoundedCornerShape(4.dp)
 )
 
+/**
+ * Product theme. Default = modern brutal already in codebase
+ * ([VisualSkin.BRUTAL] + [BrutalColors] + cream surfaces).
+ * M3 only when [skin] is explicit M3.
+ */
 @Composable
 fun OpenFlowTheme(
-    darkMode: String = "system",
-    skin: VisualSkin = VisualSkin.M3,
+    darkMode: String = "light",
+    skin: VisualSkin = VisualSkin.DEFAULT,
     content: @Composable () -> Unit
 ) {
     val systemDark = isSystemInDarkTheme()
@@ -119,13 +129,14 @@ fun OpenFlowTheme(
         else -> systemDark
     }
 
+    // Prefer light brutal; dark only if user/system dark
     val colors = when (skin) {
-        VisualSkin.M3 -> if (isDark) M3Dark else M3Light
         VisualSkin.BRUTAL -> if (isDark) BrutalDark else BrutalLight
+        VisualSkin.M3 -> if (isDark) M3Dark else M3Light
     }
     val shapes = when (skin) {
-        VisualSkin.M3 -> M3Shapes
         VisualSkin.BRUTAL -> BrutalShapes
+        VisualSkin.M3 -> M3Shapes
     }
 
     MaterialTheme(

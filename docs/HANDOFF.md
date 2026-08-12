@@ -8,7 +8,7 @@
 | Layer | Status |
 |-------|--------|
 | Local no-AI pipeline | **on main** |
-| F17 chrome + F18 IME park | **on main** — orb above Gboard; listen bar 630×136 |
+| F17 chrome + F18 IME park + F20 gaps | **on main** |
 | Mic insert + theme + nav + STT Hz | **on main** |
 | Worktrees | none |
 

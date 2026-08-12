@@ -5,6 +5,9 @@ import org.junit.Test
 
 class CleanupPipelineTest {
 
+    private val sample =
+        "I, uh, basically think that we should meet at 4:30 actually 5:30 and stuff"
+
     @Test
     fun amount_actually_replaces_number() {
         val r = CleanupPipeline.run("The amount is 430, actually 530.")
@@ -48,7 +51,7 @@ class CleanupPipelineTest {
     @Test
     fun real_like_kept() {
         val r = CleanupPipeline.run("I like pizza.")
-        assertThat(r.clean.lowercase()).isEqualTo("i like pizza.")
+        assertThat(r.clean.lowercase()).contains("i like pizza")
     }
 
     @Test
@@ -63,12 +66,12 @@ class CleanupPipelineTest {
         val r = CleanupPipeline.run("I, uh, actually want pizza", CleanupLevel.RAW)
         assertThat(r.clean).contains("uh")
         assertThat(r.clean).contains("actually")
+        assertThat(r.clean).isEqualTo(r.raw)
     }
 
     @Test
     fun light_skips_course_correct() {
         val r = CleanupPipeline.run("amount is 430 actually 530", CleanupLevel.LIGHT)
-        // fillers only; correction optional off
         assertThat(r.clean.lowercase()).contains("430")
     }
 
@@ -77,5 +80,101 @@ class CleanupPipelineTest {
         val r = CleanupPipeline.run("   ")
         assertThat(r.clean).isEmpty()
         assertThat(r.raw).isEmpty()
+    }
+
+    /** Four levels must produce four different outcomes on the same speech. */
+    @Test
+    fun four_levels_properly_differ() {
+        val none = CleanupPipeline.run(sample, CleanupLevel.RAW).clean
+        val light = CleanupPipeline.run(sample, CleanupLevel.LIGHT).clean
+        val medium = CleanupPipeline.run(sample, CleanupLevel.NORMAL).clean
+        val high = CleanupPipeline.run(sample, CleanupLevel.HIGH).clean
+
+        assertThat(none).isEqualTo(sample)
+
+        // Light: fillers gone, no course-correct
+        assertThat(light.lowercase()).doesNotContain("uh")
+        assertThat(light.lowercase()).contains("4:30")
+        assertThat(light.lowercase()).contains("basically")
+
+        // Medium: course-correct time
+        assertThat(medium.lowercase()).contains("5:30")
+        assertThat(medium.lowercase()).doesNotContain("4:30")
+        assertThat(medium.lowercase()).doesNotContain("actually")
+        assertThat(medium).isNotEqualTo(light)
+
+        // High: + brevity (hedges / wordiness)
+        assertThat(high).isNotEqualTo(medium)
+        assertThat(high.lowercase()).doesNotContain("basically")
+        assertThat(high.lowercase()).doesNotContain("and stuff")
+        assertThat(high.lowercase()).doesNotContain("i think that")
+        assertThat(high.lowercase()).contains("5:30")
+    }
+
+    @Test
+    fun medium_keeps_hedges_high_does_not() {
+        val raw = "Basically we need clarity"
+        val med = CleanupPipeline.run(raw, CleanupLevel.NORMAL).clean.lowercase()
+        val high = CleanupPipeline.run(raw, CleanupLevel.HIGH).clean.lowercase()
+        assertThat(med).contains("basically")
+        assertThat(high).doesNotContain("basically")
+        assertThat(high).isNotEqualTo(med)
+    }
+
+    @Test
+    fun high_does_not_force_formal_over_style() {
+        // Excited style must survive High (level must not steal style)
+        val r = CleanupPipeline.run(
+            "this is a short excited line",
+            CleanupLevel.HIGH,
+            WritingStyle.EXCITED
+        )
+        assertThat(r.clean.trimEnd().last()).isEqualTo('!')
+    }
+
+    @Test
+    fun course_correct_leading_time_any_tail() {
+        val a = CleanupPipeline.run(
+            "meet at 4:30 actually 5:30",
+            CleanupLevel.NORMAL
+        ).clean.lowercase()
+        assertThat(a).contains("5:30")
+        assertThat(a).doesNotContain("4:30")
+        assertThat(a).doesNotContain("4:5:30")
+
+        val b = CleanupPipeline.run(
+            "meet at 4:30 actually 5:30 tomorrow with Sam",
+            CleanupLevel.NORMAL
+        ).clean.lowercase()
+        assertThat(b).contains("5:30")
+        assertThat(b).contains("tomorrow")
+        assertThat(b).contains("sam")
+        assertThat(b).doesNotContain("4:30")
+    }
+
+    @Test
+    fun medium_lists_light_does_not() {
+        val raw = "1. Apples 2. Bananas 3. Oranges"
+        val light = CleanupPipeline.run(raw, CleanupLevel.LIGHT).clean
+        val medium = CleanupPipeline.run(raw, CleanupLevel.NORMAL).clean
+        assertThat(light).doesNotContain("\n")
+        assertThat(medium).contains("\n")
+        assertThat(medium).contains("1. Apples")
+    }
+
+    @Test
+    fun light_grammar_lone_i() {
+        val r = CleanupPipeline.run("i want pizza", CleanupLevel.LIGHT)
+        assertThat(r.clean).contains("I want")
+    }
+
+    @Test
+    fun light_skips_clarity_opener_strip() {
+        // lightClarity is Medium+ only
+        val light = CleanupPipeline.run("Well, we should go", CleanupLevel.LIGHT).clean.lowercase()
+        val medium = CleanupPipeline.run("Well, we should go", CleanupLevel.NORMAL).clean.lowercase()
+        assertThat(light).contains("well")
+        assertThat(medium).doesNotContain("well")
+        assertThat(medium).contains("we should go")
     }
 }

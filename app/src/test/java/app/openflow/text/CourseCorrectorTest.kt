@@ -24,6 +24,8 @@ class CourseCorrectorTest {
         val out = CourseCorrector.apply("let's meet Tuesday wait no Friday")
         assertThat(out.lowercase()).contains("friday")
         assertThat(out.lowercase()).doesNotContain("tuesday")
+        // structural chunk replace — keep prefix (not full drop)
+        assertThat(out.lowercase()).contains("meet")
     }
 
     @Test
@@ -117,9 +119,21 @@ class CourseCorrectorTest {
         val a = CourseCorrector.apply("pick option A rather option B")
         assertThat(a.lowercase()).contains("b")
         assertThat(a.lowercase()).doesNotContain("option a")
+        assertThat(a.lowercase()).contains("pick")
 
         val b = CourseCorrector.apply("meet at 3 sorry 4")
         assertThat(b.lowercase()).contains("4")
         assertThat(b.lowercase()).doesNotContain("at 3")
+        assertThat(b.lowercase()).contains("meet")
+    }
+
+    @Test
+    fun no_fluff_phrase_hardcode_generic_tail() {
+        // Any tail after entity replace must survive (not one test phrase)
+        val out = CourseCorrector.apply("call at 9 actually 10 with the team later")
+        assertThat(out.lowercase()).contains("10")
+        assertThat(out.lowercase()).doesNotContain(" 9 ")
+        assertThat(out.lowercase()).contains("team")
+        assertThat(out.lowercase()).contains("later")
     }
 }

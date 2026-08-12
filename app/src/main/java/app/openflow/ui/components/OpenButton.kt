@@ -3,10 +3,12 @@ package app.openflow.ui.components
 import android.os.Build
 import android.view.HapticFeedbackConstants
 import android.view.View
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -21,6 +23,7 @@ import app.openflow.ui.a11y.Dimen
 
 enum class ButtonVariant { Filled, Outlined, Text }
 
+/** Modern brutal CTA (`VisualSkin.BRUTAL`): solid primary, hard edge. Theme-aware. */
 @Composable
 fun OpenButton(
     text: String,
@@ -31,9 +34,18 @@ fun OpenButton(
     contentDescription: String? = null
 ) {
     val view = LocalView.current
-    val semanticsMod = if (contentDescription != null)
-        Modifier.semantics { this.contentDescription = contentDescription }
-    else Modifier
+    val scheme = MaterialTheme.colorScheme
+    val shape = MaterialTheme.shapes.small
+    val semanticsMod = Modifier.semantics {
+        this.contentDescription = contentDescription ?: text
+    }
+    val minTouch = Modifier.defaultMinSize(
+        minWidth = Dimen.TOUCH_TARGET,
+        minHeight = Dimen.TOUCH_TARGET
+    )
+    val contentPad = PaddingValues(horizontal = Dimen.MIN_PADDING, vertical = 0.dp)
+    val disabledContainer = scheme.onSurface.copy(alpha = 0.12f)
+    val disabledContent = scheme.onSurface.copy(alpha = 0.38f)
 
     when (variant) {
         ButtonVariant.Filled -> Button(
@@ -41,9 +53,23 @@ fun OpenButton(
                 performClickHaptic(view)
                 onClick()
             },
-            modifier = modifier.fillMaxWidth().height(Dimen.TOUCH_TARGET).then(semanticsMod),
+            modifier = modifier.fillMaxWidth().then(minTouch).then(semanticsMod),
             enabled = enabled,
-            contentPadding = PaddingValues(horizontal = 16.dp)
+            shape = shape,
+            contentPadding = contentPad,
+            elevation = ButtonDefaults.buttonElevation(
+                defaultElevation = 0.dp,
+                pressedElevation = 0.dp,
+                focusedElevation = 0.dp,
+                hoveredElevation = 0.dp,
+                disabledElevation = 0.dp
+            ),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = scheme.primary,
+                contentColor = scheme.onPrimary,
+                disabledContainerColor = disabledContainer,
+                disabledContentColor = disabledContent
+            )
         ) { Text(text) }
 
         ButtonVariant.Outlined -> OutlinedButton(
@@ -51,8 +77,19 @@ fun OpenButton(
                 performClickHaptic(view)
                 onClick()
             },
-            modifier = modifier.fillMaxWidth().height(Dimen.TOUCH_TARGET).then(semanticsMod),
-            enabled = enabled
+            modifier = modifier.fillMaxWidth().then(minTouch).then(semanticsMod),
+            enabled = enabled,
+            shape = shape,
+            contentPadding = contentPad,
+            border = BorderStroke(
+                width = 2.dp,
+                color = if (enabled) scheme.outline else scheme.outline.copy(alpha = 0.35f)
+            ),
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = scheme.surface,
+                contentColor = scheme.onSurface,
+                disabledContentColor = disabledContent
+            )
         ) { Text(text) }
 
         ButtonVariant.Text -> TextButton(
@@ -60,8 +97,14 @@ fun OpenButton(
                 performClickHaptic(view)
                 onClick()
             },
-            modifier = modifier.height(Dimen.TOUCH_TARGET).then(semanticsMod),
-            enabled = enabled
+            modifier = modifier.then(minTouch).then(semanticsMod),
+            enabled = enabled,
+            shape = shape,
+            contentPadding = contentPad,
+            colors = ButtonDefaults.textButtonColors(
+                contentColor = scheme.onSurface,
+                disabledContentColor = disabledContent
+            )
         ) { Text(text) }
     }
 }

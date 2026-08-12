@@ -48,10 +48,7 @@ object BubbleGeometry {
         return 0.95f + t * 0.10f
     }
 
-    /** Dynamic corner radius calculation for shapes. */
-    fun cornerRadiusDp(shape: String, density: Float): Float = when (shape) {
-        "circle", "dot" -> 999f * density
-        "square" -> 16f * density
-        else -> 24f * density // pill
-    }
+    /** Dynamic corner radius (px). Square = minimal hard 2dp. */
+    fun cornerRadiusDp(shape: String, density: Float): Float =
+        BubbleChrome.cornerPx(shape, density)
 }

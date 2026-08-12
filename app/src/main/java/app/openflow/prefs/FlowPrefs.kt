@@ -4,7 +4,10 @@ import android.content.Context
 import android.content.SharedPreferences
 import app.openflow.stt.LanguagePolicy
 import app.openflow.stt.SttTuning
-import app.openflow.text.TextPostProcessor
+import app.openflow.text.CapsMode
+import app.openflow.text.CustomStyleConfig
+import app.openflow.text.EndPunct
+import app.openflow.text.WritingStyle
 import app.openflow.ui.theme.VisualSkin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -46,17 +49,42 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         )
         set(v) = store.putString("language_tag", LanguagePolicy.force(v))
 
+    /** formal | casual | very_casual | excited | custom */
     var styleName: String
-        get() = store.getString("style", TextPostProcessor.Style.CASUAL.name)
-        set(v) = store.putString("style", v)
+        get() = WritingStyle.fromPref(store.getString("style", WritingStyle.CASUAL.name)).name
+        set(v) = store.putString("style", WritingStyle.fromPref(v).name)
+
+    /** Custom style: auto | period | bang | none */
+    var customEndPunct: String
+        get() = store.getString("custom_end_punct", "auto")
+        set(v) = store.putString("custom_end_punct", v)
+
+    /** Custom style: sentence | first | none */
+    var customCaps: String
+        get() = store.getString("custom_caps", "sentence")
+        set(v) = store.putString("custom_caps", v)
+
+    var customExpandInformal: Boolean
+        get() = store.getString("custom_expand_informal", "false") == "true"
+        set(v) = store.putString("custom_expand_informal", if (v) "true" else "false")
+
+    /** Lines `from=>to` for custom style only. */
+    var customStyleReplacements: String
+        get() = store.getString("custom_style_replacements", "")
+        set(v) = store.putString("custom_style_replacements", v)
 
     var snoozeUntilMs: Long
         get() = store.getLong("snooze_until", 0L)
         set(v) = store.putLong("snooze_until", v)
 
-    fun style(): TextPostProcessor.Style =
-        runCatching { TextPostProcessor.Style.valueOf(styleName) }
-            .getOrDefault(TextPostProcessor.Style.CASUAL)
+    fun style(): WritingStyle = WritingStyle.fromPref(styleName)
+
+    fun customStyleConfig(): CustomStyleConfig = CustomStyleConfig(
+        endPunct = EndPunct.fromPref(customEndPunct),
+        caps = CapsMode.fromPref(customCaps),
+        expandInformal = customExpandInformal,
+        replacements = CustomStyleConfig.parseReplacements(customStyleReplacements)
+    )
 
     fun isSnoozed(now: Long = System.currentTimeMillis()): Boolean = now < snoozeUntilMs
 
@@ -68,7 +96,7 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         snoozeUntilMs = 0L
     }
 
-    private val _darkMode = MutableStateFlow(normalizeDarkMode(store.getString("dark_mode", "system")))
+    private val _darkMode = MutableStateFlow(normalizeDarkMode(store.getString("dark_mode", "light")))
     val darkMode: StateFlow<String> = _darkMode.asStateFlow()
 
     fun setDarkMode(value: String) {
@@ -109,7 +137,7 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
 
     /** circle | pill | square | dot */
     var bubbleShape: String
-        get() = normalizeBubbleShape(store.getString("bubble_shape", "circle"))
+        get() = normalizeBubbleShape(store.getString("bubble_shape", "square"))
         set(v) = store.putString("bubble_shape", normalizeBubbleShape(v))
 
     var bubbleHaptics: Boolean
@@ -180,16 +208,39 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
     fun isDrawerItemVisible(routeName: String): Boolean =
         LayoutPrefs.isDrawerVisible(navLayout, routeName)
 
+    /**
+     * STT speed/accuracy profile: fast | balanced | accurate.
+     * Applied when Accessibility service creates [app.openflow.stt.SttEngine].
+     */
+    var sttProfile: String
+        get() = SttTuning.normalizeProfile(store.getString("stt_profile", SttTuning.PROFILE_BALANCED))
+        set(v) = store.putString("stt_profile", SttTuning.normalizeProfile(v))
+
+    fun sttTuning(): SttTuning = SttTuning.forProfile(sttProfile)
+
+    /**
+     * Preferred UI refresh Hz: 60 | 90 | 120 | 144.
+     * Best-effort via display modes; device may clamp.
+     */
+    var refreshHz: Int
+        get() = app.openflow.display.DisplayRefreshPolicy.normalizePreference(
+            store.getString("refresh_hz", "120").toIntOrNull() ?: 120
+        )
+        set(v) = store.putString(
+            "refresh_hz",
+            app.openflow.display.DisplayRefreshPolicy.normalizePreference(v).toString()
+        )
+
     companion object {
         const val PREFS_NAME = "openflow_prefs"
 
-        /** Override in product-brutal flavor via subclass or build config later. */
-        fun defaultVisualSkinStorage(): String = VisualSkin.M3.storage
+        /** Product default: light brutal (not soft M3). */
+        fun defaultVisualSkinStorage(): String = VisualSkin.BRUTAL.storage
 
         fun normalizeDarkMode(value: String): String =
             when (value) {
                 "dark", "light", "system" -> value
-                else -> "system"
+                else -> "light"
             }
 
         fun normalizeBubbleMode(value: String): String =
@@ -201,7 +252,7 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         fun normalizeBubbleShape(value: String): String =
             when (value) {
                 "circle", "pill", "square", "dot" -> value
-                else -> "circle"
+                else -> "square"
             }
 
         fun normalizeCleanupLevel(value: String): String =

@@ -9,17 +9,18 @@ import org.junit.Test
 class FlowPrefsDarkModeTest {
 
     @Test
-    fun normalize_defaults_unknown_to_system() {
-        assertThat(FlowPrefs.normalizeDarkMode("weird")).isEqualTo("system")
+    fun normalize_defaults_unknown_to_light() {
+        // Ship default = light cream surfaces (VisualSkin.BRUTAL).
+        assertThat(FlowPrefs.normalizeDarkMode("weird")).isEqualTo("light")
         assertThat(FlowPrefs.normalizeDarkMode("dark")).isEqualTo("dark")
         assertThat(FlowPrefs.normalizeDarkMode("light")).isEqualTo("light")
         assertThat(FlowPrefs.normalizeDarkMode("system")).isEqualTo("system")
     }
 
     @Test
-    fun darkMode_defaults_to_system() {
+    fun darkMode_defaults_to_light() {
         val prefs = FlowPrefs(MemoryPrefsStore())
-        assertThat(prefs.darkMode.value).isEqualTo("system")
+        assertThat(prefs.darkMode.value).isEqualTo("light")
     }
 
     @Test
@@ -43,6 +44,6 @@ class FlowPrefsDarkModeTest {
     fun setDarkMode_rejects_garbage() {
         val prefs = FlowPrefs(MemoryPrefsStore())
         prefs.setDarkMode("neon")
-        assertThat(prefs.darkMode.value).isEqualTo("system")
+        assertThat(prefs.darkMode.value).isEqualTo("light")
     }
 }

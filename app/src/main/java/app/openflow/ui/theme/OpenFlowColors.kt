@@ -40,7 +40,8 @@ object OpenFlowColors {
 
     val OnBackgroundLight = Color(0xFF09090B)
     val OnSurfaceLight = Color(0xFF0F172A)
-    val OnSurfaceVariantLight = Color(0xFF64748B) // Slate 500
+    // Slate 600 — ≥4.5:1 on white (Slate 500 was edge-case AA)
+    val OnSurfaceVariantLight = Color(0xFF475569)
 
     // States & Accents
     val Success = Color(0xFF10B981)             // Emerald 500

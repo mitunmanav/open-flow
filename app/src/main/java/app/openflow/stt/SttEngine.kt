@@ -10,10 +10,10 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.speech.RecognitionListener
+import android.speech.RecognitionPart
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import androidx.core.content.ContextCompat
-import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -31,7 +31,8 @@ class SttEngine(
     private val preferOnDevice: Boolean = true,
     private val policy: ContinuousPolicy = ContinuousPolicy(),
     private val mainHandler: Handler = Handler(Looper.getMainLooper()),
-    private val softMuteBeeps: Boolean = false
+    private val softMuteBeeps: Boolean = false,
+    private val tuning: SttTuning = SttTuning(),
 ) {
     interface Listener {
         fun onPartial(text: String)
@@ -58,6 +59,11 @@ class SttEngine(
     private var forceOfflineOnly: Boolean = preferOnDevice
     private var usedOnDeviceFactory: Boolean = false
     private var offlineFallbackUsed: Boolean = false
+
+    /** Non-null while [stopAndFlush] waits for onResults/onError. */
+    private var flushCallback: (() -> Unit)? = null
+    private val flushDone = AtomicBoolean(false)
+    private val flushTimeout = Runnable { completeFlush() }
 
     val isAvailable: Boolean
         get() = SpeechRecognizer.isRecognitionAvailable(context)
@@ -105,14 +111,18 @@ class SttEngine(
         mainHandler.post { beginSession(forceRecreate = true) }
     }
 
+    /**
+     * Immediate stop: cancels engine, drops listener, no wait for final.
+     * Prefer [stopAndFlush] when the last utterance must reach [Listener.onFinal].
+     */
     fun stop() {
         continuous.set(false)
-        restartPosted = false
         restartCount = 0
-        mainHandler.removeCallbacksAndMessages(null)
+        clearScheduledWork()
+        abandonFlush(invokeCallback = true)
         mainHandler.post {
             try {
-                recognizer?.stopListening()
+                recognizer?.cancel()
             } catch (_: Exception) {
             }
             destroyInternal()
@@ -124,14 +134,86 @@ class SttEngine(
         }
     }
 
+    /**
+     * Stop continuous listen and **wait** for onResults/onError (Android contract)
+     * so the last final can still fire. Times out after [timeoutMs], then destroys.
+     *
+     * Listener is **kept** until [onFlushed] runs — caller should null it after commit.
+     * Does **not** call [Listener.onListeningChanged](false) (caller owns session end UI).
+     */
+    fun stopAndFlush(timeoutMs: Long = DEFAULT_FLUSH_TIMEOUT_MS, onFlushed: () -> Unit) {
+        continuous.set(false)
+        restartCount = 0
+        clearScheduledWork()
+        // Replace any prior flush waiter (should not stack).
+        abandonFlush(invokeCallback = true)
+        flushDone.set(false)
+        flushCallback = onFlushed
+        mainHandler.post {
+            if (recognizer == null) {
+                completeFlush()
+                return@post
+            }
+            try {
+                recognizer?.stopListening()
+            } catch (_: Exception) {
+                completeFlush()
+                return@post
+            }
+            mainHandler.postDelayed(flushTimeout, timeoutMs.coerceIn(100L, 2_000L))
+        }
+    }
+
     fun destroy() {
         continuous.set(false)
-        mainHandler.removeCallbacksAndMessages(null)
+        clearScheduledWork()
+        abandonFlush(invokeCallback = true)
         mainHandler.post {
             destroyInternal()
             restoreVolume()
             starting.set(false)
             listener = null
+        }
+    }
+
+    private fun clearScheduledWork() {
+        restartPosted = false
+        mainHandler.removeCallbacks(flushTimeout)
+        mainHandler.removeCallbacksAndMessages(null)
+    }
+
+    /** Drop in-flight flush; optionally notify caller so UI can commit what it has. */
+    private fun abandonFlush(invokeCallback: Boolean) {
+        val pending = flushCallback
+        flushCallback = null
+        if (invokeCallback && pending != null && flushDone.compareAndSet(false, true)) {
+            mainHandler.post { pending.invoke() }
+            return
+        }
+        flushDone.set(true)
+    }
+
+    private fun completeFlush() {
+        if (!flushDone.compareAndSet(false, true)) return
+        mainHandler.removeCallbacks(flushTimeout)
+        mainHandler.post {
+            try {
+                recognizer?.cancel()
+            } catch (_: Exception) {
+            }
+            destroyInternal()
+            restoreVolume()
+            starting.set(false)
+            val cb = flushCallback
+            flushCallback = null
+            cb?.invoke()
+        }
+    }
+
+    /** Call from recognition end when continuous is off (user stop / flush). */
+    private fun signalFlushIfNeeded() {
+        if (flushCallback != null) {
+            completeFlush()
         }
     }
 
@@ -232,12 +314,14 @@ class SttEngine(
             if (fatal) {
                 continuous.set(false)
                 listener?.onListeningChanged(false)
+                signalFlushIfNeeded()
                 return
             }
             if (policy.shouldRestart(continuous.get(), error, hadResult = false)) {
                 scheduleRestart(error)
             } else if (!continuous.get()) {
                 listener?.onListeningChanged(false)
+                signalFlushIfNeeded()
             }
         }
 
@@ -245,8 +329,7 @@ class SttEngine(
             restoreVolume()
             starting.set(false)
             restartCount = 0
-            val texts = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-            val best = texts?.firstOrNull().orEmpty()
+            val best = extractBestText(results)
             if (best.isNotBlank()) {
                 listener?.onFinal(best)
             } else {
@@ -256,14 +339,13 @@ class SttEngine(
                 scheduleRestart(null)
             } else {
                 listener?.onListeningChanged(false)
+                signalFlushIfNeeded()
             }
         }
 
         override fun onPartialResults(partialResults: Bundle?) {
             restartCount = 0
-            val texts = partialResults
-                ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-            val best = texts?.firstOrNull().orEmpty()
+            val best = extractBestText(partialResults)
             if (best.isNotBlank()) listener?.onPartial(best)
         }
 
@@ -303,6 +385,7 @@ class SttEngine(
             continuous.set(false)
             listener?.onError("Speech engine unstable — please try again", fatal = true)
             listener?.onListeningChanged(false)
+            signalFlushIfNeeded()
             return
         }
         val delay = policy.restartDelayMs(errorCode)
@@ -383,7 +466,7 @@ class SttEngine(
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, lang)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, lang)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, SttTuning.MAX_RESULTS)
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, tuning.maxResults)
             putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName)
 
             // Only prefer offline when we still believe packs exist.
@@ -394,24 +477,66 @@ class SttEngine(
 
             putExtra(
                 RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS,
-                SttTuning.MIN_SPEECH_MS
+                tuning.minSpeechMs
             )
             putExtra(
                 RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS,
-                SttTuning.COMPLETE_SILENCE_MS
+                tuning.completeSilenceMs
             )
             putExtra(
                 RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS,
-                SttTuning.POSSIBLY_COMPLETE_SILENCE_MS
+                tuning.possiblyCompleteSilenceMs
             )
 
+            // API 33+: auto punct / capitalization.
+            // Quality = better punct, more latency; latency = snappier, weaker punct.
+            // Default quality (see SttTuning.preferFormattingQuality).
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                putExtra(
-                    RecognizerIntent.EXTRA_ENABLE_FORMATTING,
+                val mode = if (tuning.preferFormattingQuality) {
+                    RecognizerIntent.FORMATTING_OPTIMIZE_QUALITY
+                } else {
                     RecognizerIntent.FORMATTING_OPTIMIZE_LATENCY
-                )
+                }
+                putExtra(RecognizerIntent.EXTRA_ENABLE_FORMATTING, mode)
                 putExtra(RecognizerIntent.EXTRA_HIDE_PARTIAL_TRAILING_PUNCTUATION, true)
             }
         }
+    }
+
+    /**
+     * Best engine transcript only — never invent text.
+     * Prefer RESULTS_RECOGNITION; API 33+ may also supply RECOGNITION_PARTS.
+     */
+    private fun extractBestText(bundle: Bundle?): String {
+        val fromResults = bundle
+            ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+            ?.firstOrNull()
+            ?.trim()
+            .orEmpty()
+        if (fromResults.isNotEmpty()) return fromResults
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || bundle == null) {
+            return ""
+        }
+        val parts = try {
+            bundle.getParcelableArrayList(
+                SpeechRecognizer.RECOGNITION_PARTS,
+                RecognitionPart::class.java
+            )
+        } catch (_: Exception) {
+            null
+        }
+        if (parts.isNullOrEmpty()) return ""
+
+        // Structured parts only when engine filled them (formatted if present).
+        val joined = parts.joinToString(" ") { part ->
+            val formatted = part.formattedText
+            if (!formatted.isNullOrBlank()) formatted.trim() else part.rawText.trim()
+        }.replace(Regex("\\s+"), " ").trim()
+        return joined
+    }
+
+    companion object {
+        const val DEFAULT_FLUSH_TIMEOUT_MS = 550L
     }
 }

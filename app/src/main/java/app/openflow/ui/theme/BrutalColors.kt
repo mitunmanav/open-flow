@@ -2,7 +2,7 @@ package app.openflow.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-/** Subtle brutal palette — cream / charcoal / ink (not neon). */
+/** Ship palette — light brutal cream / charcoal / ink. */
 object BrutalColors {
     val Cream = Color(0xFFF4F1EA)
     val CreamDark = Color(0xFF1C1B19)
@@ -13,5 +13,7 @@ object BrutalColors {
     val StoneDark = Color(0xFF2A2926)
     val OnCream = Color(0xFF1A1A1A)
     val OnCharcoal = Color(0xFFF4F1EA)
+    // Slightly brighter than Material error so cream text stays clear on dark
     val Error = Color(0xFFB3261E)
+    val OnError = Color(0xFFF4F1EA)
 }

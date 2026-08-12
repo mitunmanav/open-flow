@@ -1,14 +1,21 @@
 package app.openflow.ui.a11y
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ShortText
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.automirrored.filled.ShortText
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Style
+import androidx.compose.ui.graphics.vector.ImageVector
+
+/** Icon + stable contentDescription pair for a11y. */
+data class LabeledIcon(
+    val image: ImageVector,
+    val contentDescription: String
+)
 
 object OpenIcons {
     val Home = Icons.Default.Home
@@ -28,4 +35,31 @@ object OpenIcons {
     const val CopyDesc = "Copy to clipboard"
     const val DeleteDesc = "Delete item"
     const val ShareDesc = "Share"
+
+    val HomeLabeled = LabeledIcon(Home, HomeDesc)
+    val BookLabeled = LabeledIcon(Book, BookDesc)
+    val ShortTextLabeled = LabeledIcon(ShortText, ShortTextDesc)
+    val StyleLabeled = LabeledIcon(Style, StyleDesc)
+    val SettingsLabeled = LabeledIcon(Settings, SettingsDesc)
+    val CopyLabeled = LabeledIcon(ContentCopy, CopyDesc)
+    val DeleteLabeled = LabeledIcon(Delete, DeleteDesc)
+    val ShareLabeled = LabeledIcon(Share, ShareDesc)
+
+    /** Resolve description for a known OpenIcons vector; null if unknown. */
+    fun contentDescription(icon: ImageVector): String? = when (icon) {
+        Home -> HomeDesc
+        Book -> BookDesc
+        ShortText -> ShortTextDesc
+        Style -> StyleDesc
+        Settings -> SettingsDesc
+        ContentCopy -> CopyDesc
+        Delete -> DeleteDesc
+        Share -> ShareDesc
+        else -> null
+    }
+
+    fun labeled(icon: ImageVector, fallback: String = ""): LabeledIcon {
+        val desc = contentDescription(icon) ?: fallback
+        return LabeledIcon(icon, desc)
+    }
 }

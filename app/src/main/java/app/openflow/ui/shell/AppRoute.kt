@@ -25,4 +25,31 @@ val BottomBarRoutes = listOf(
     AppRoute.Settings,
 )
 
+/**
+ * Settings hub + every settings child.
+ * Bottom nav keeps Settings selected; Back returns to Settings.
+ */
+val SettingsSubtreeRoutes = setOf(
+    AppRoute.Settings,
+    AppRoute.Appearance,
+    AppRoute.BubbleSettings,
+    AppRoute.Cleanup,
+    AppRoute.Privacy,
+    AppRoute.Sounds,
+    AppRoute.Snippets,
+    AppRoute.Style,
+    AppRoute.Customize,
+    AppRoute.HomeModules,
+    AppRoute.NavModules,
+)
+
 fun AppRoute.isBottomBar(): Boolean = this in BottomBarRoutes
+
+fun AppRoute.isSettingsSubtree(): Boolean = this in SettingsSubtreeRoutes
+
+/** Toolbar / system Back target. Root tabs return self (Back disabled there). */
+fun AppRoute.backTarget(): AppRoute = when {
+    isBottomBar() -> this
+    isSettingsSubtree() -> AppRoute.Settings
+    else -> AppRoute.Home
+}

@@ -33,6 +33,18 @@ class FieldPolicyTest {
     }
 
     @Test
+    fun merge_session_once() {
+        assertThat(FieldPolicy.mergeSession("Hello", "world")).isEqualTo("Hello world")
+        assertThat(FieldPolicy.mergeSession("", "only")).isEqualTo("only")
+        assertThat(FieldPolicy.mergeSession("Hi", "")).isEqualTo("Hi")
+    }
+
+    @Test
+    fun merge_session_no_double_space_before_punct() {
+        assertThat(FieldPolicy.mergeSession("Hi", ".")).isEqualTo("Hi.")
+    }
+
+    @Test
     fun edittext_class_is_editable() {
         assertThat(FieldPolicy.isEditableClass("android.widget.EditText")).isTrue()
     }

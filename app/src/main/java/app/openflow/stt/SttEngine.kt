@@ -18,15 +18,20 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * SpeechRecognizer wrapper with continuous-dictation restart loop.
- * Prefer on-device. Unlimited speak = auto-restart while continuous.
+ * SpeechRecognizer wrapper with continuous restart.
+ *
+ * Reliability (Android 11+ / docs):
+ * - Manifest must query RecognitionService (package visibility).
+ * - Prefer on-device when available; never hard-fail offline-only when pack missing.
+ * - On offline/language/client errors → one network-capable retry.
+ * - Must run start/stop on main thread.
  */
 class SttEngine(
     private val context: Context,
     private val preferOnDevice: Boolean = true,
     private val policy: ContinuousPolicy = ContinuousPolicy(),
     private val mainHandler: Handler = Handler(Looper.getMainLooper()),
-    private val softMuteBeeps: Boolean = true
+    private val softMuteBeeps: Boolean = false
 ) {
     interface Listener {
         fun onPartial(text: String)
@@ -35,6 +40,7 @@ class SttEngine(
         fun onReady()
         fun onListeningChanged(listening: Boolean)
         fun onNeedMicPermission() {}
+        fun onRmsChanged(rmsdB: Float) {}
     }
 
     private var recognizer: SpeechRecognizer? = null
@@ -42,9 +48,16 @@ class SttEngine(
     private val continuous = AtomicBoolean(false)
     private val starting = AtomicBoolean(false)
     private val sessionCount = AtomicInteger(0)
-    private var languageTag: String = Locale.getDefault().toLanguageTag()
+    private var languageTag: String = LanguagePolicy.LOCKED
     private var restartPosted = false
+    private var restartCount = 0
+    private val maxRestartsPerSession = 200
     private var savedMusicVolume: Int? = null
+
+    /** When true, force EXTRA_PREFER_OFFLINE. Flips false after offline-related errors. */
+    private var forceOfflineOnly: Boolean = preferOnDevice
+    private var usedOnDeviceFactory: Boolean = false
+    private var offlineFallbackUsed: Boolean = false
 
     val isAvailable: Boolean
         get() = SpeechRecognizer.isRecognitionAvailable(context)
@@ -57,8 +70,8 @@ class SttEngine(
         listener = l
     }
 
-    fun startContinuous(languageTag: String = Locale.getDefault().toLanguageTag()) {
-        this.languageTag = languageTag
+    fun startContinuous(languageTag: String = LanguagePolicy.LOCKED) {
+        this.languageTag = LanguagePolicy.force(languageTag)
         if (!hasMicPermission()) {
             listener?.onNeedMicPermission()
             listener?.onError("Microphone permission required", fatal = true)
@@ -66,20 +79,25 @@ class SttEngine(
             return
         }
         if (!isAvailable) {
-            listener?.onError("Speech recognition not available", fatal = true)
+            listener?.onError("No speech service — install Google app / offline pack", fatal = true)
             listener?.onListeningChanged(false)
             return
         }
         continuous.set(true)
+        restartCount = 0
         listener?.onListeningChanged(true)
         mainHandler.post { beginSession(forceRecreate = true) }
     }
 
-    fun startOnce(languageTag: String = Locale.getDefault().toLanguageTag()) {
-        this.languageTag = languageTag
+    fun startOnce(languageTag: String = LanguagePolicy.LOCKED) {
+        this.languageTag = LanguagePolicy.force(languageTag)
         if (!hasMicPermission()) {
             listener?.onNeedMicPermission()
             listener?.onError("Microphone permission required", fatal = true)
+            return
+        }
+        if (!isAvailable) {
+            listener?.onError("No speech service on this device", fatal = true)
             return
         }
         continuous.set(false)
@@ -90,6 +108,7 @@ class SttEngine(
     fun stop() {
         continuous.set(false)
         restartPosted = false
+        restartCount = 0
         mainHandler.removeCallbacksAndMessages(null)
         mainHandler.post {
             try {
@@ -99,7 +118,9 @@ class SttEngine(
             destroyInternal()
             restoreVolume()
             starting.set(false)
-            listener?.onListeningChanged(false)
+            val l = listener
+            listener = null
+            l?.onListeningChanged(false)
         }
     }
 
@@ -125,7 +146,6 @@ class SttEngine(
             return
         }
         if (!starting.compareAndSet(false, true)) {
-            // serialize starts
             scheduleRestart(ContinuousPolicy.ERROR_RECOGNIZER_BUSY)
             return
         }
@@ -156,11 +176,13 @@ class SttEngine(
                 r.startListening(buildIntent(languageTag))
             } catch (e: Exception) {
                 listener?.onError(e.message ?: "start failed", fatal = false)
+                // Factory failed — try default recognizer next
+                forceOfflineOnly = false
+                usedOnDeviceFactory = false
                 scheduleRestart(ContinuousPolicy.ERROR_CLIENT)
             }
         } finally {
-            // unlock after short delay so engine can claim mic
-            mainHandler.postDelayed({ starting.set(false) }, 80)
+            mainHandler.postDelayed({ starting.set(false) }, 120)
         }
     }
 
@@ -171,21 +193,41 @@ class SttEngine(
         }
 
         override fun onBeginningOfSpeech() {}
-        override fun onRmsChanged(rmsdB: Float) {}
+        override fun onRmsChanged(rmsdB: Float) {
+            listener?.onRmsChanged(rmsdB)
+        }
         override fun onBufferReceived(buffer: ByteArray?) {}
-        override fun onEndOfSpeech() {}
+        override fun onEndOfSpeech() {
+            restoreVolume()
+        }
 
         override fun onError(error: Int) {
             restoreVolume()
             starting.set(false)
-            val fatal = error == ContinuousPolicy.ERROR_INSUFFICIENT_PERMISSIONS
-            val msg = when (error) {
-                ContinuousPolicy.ERROR_INSUFFICIENT_PERMISSIONS -> "Allow microphone"
-                ContinuousPolicy.ERROR_SPEECH_TIMEOUT -> "Silence — continuing"
-                ContinuousPolicy.ERROR_NO_MATCH -> "No match — continuing"
-                ContinuousPolicy.ERROR_RECOGNIZER_BUSY -> "Busy — retry"
-                else -> "STT $error"
+
+            // Offline / language / client → one soft fallback to non-offline default engine
+            val offlineRelated = error == SpeechRecognizer.ERROR_CLIENT ||
+                error == SpeechRecognizer.ERROR_SERVER ||
+                error == SpeechRecognizer.ERROR_NETWORK ||
+                error == SpeechRecognizer.ERROR_NETWORK_TIMEOUT ||
+                (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                    (error == SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED ||
+                        error == SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE))
+
+            if (offlineRelated && !offlineFallbackUsed && continuous.get()) {
+                offlineFallbackUsed = true
+                forceOfflineOnly = false
+                usedOnDeviceFactory = false
+                listener?.onError("Retrying speech engine…", fatal = false)
+                mainHandler.postDelayed({
+                    if (continuous.get()) beginSession(forceRecreate = true)
+                }, 350)
+                return
             }
+
+            val fatal = error == ContinuousPolicy.ERROR_INSUFFICIENT_PERMISSIONS ||
+                error == SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS
+            val msg = humanError(error)
             listener?.onError(msg, fatal = fatal)
             if (fatal) {
                 continuous.set(false)
@@ -202,9 +244,14 @@ class SttEngine(
         override fun onResults(results: Bundle?) {
             restoreVolume()
             starting.set(false)
+            restartCount = 0
             val texts = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
             val best = texts?.firstOrNull().orEmpty()
-            if (best.isNotBlank()) listener?.onFinal(best)
+            if (best.isNotBlank()) {
+                listener?.onFinal(best)
+            } else {
+                listener?.onError("No recognition result", fatal = false)
+            }
             if (policy.shouldRestart(continuous.get(), null, hadResult = true)) {
                 scheduleRestart(null)
             } else {
@@ -213,6 +260,7 @@ class SttEngine(
         }
 
         override fun onPartialResults(partialResults: Bundle?) {
+            restartCount = 0
             val texts = partialResults
                 ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
             val best = texts?.firstOrNull().orEmpty()
@@ -222,15 +270,47 @@ class SttEngine(
         override fun onEvent(eventType: Int, params: Bundle?) {}
     }
 
+    private fun humanError(error: Int): String = when (error) {
+        SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Allow microphone"
+        SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Silence — listen again"
+        SpeechRecognizer.ERROR_NO_MATCH -> "No match — try again"
+        SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Busy — retry"
+        SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT ->
+            "Network speech failed (system STT)"
+        SpeechRecognizer.ERROR_SERVER -> "Speech service error"
+        SpeechRecognizer.ERROR_CLIENT -> "Speech client error"
+        SpeechRecognizer.ERROR_AUDIO -> "Mic audio error"
+        else -> {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                when (error) {
+                    SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED -> "Language not supported"
+                    SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE ->
+                        "Language pack missing — install offline speech"
+                    else -> "STT error $error"
+                }
+            } else {
+                "STT error $error"
+            }
+        }
+    }
+
     private fun scheduleRestart(errorCode: Int?) {
         if (!continuous.get() || restartPosted) return
         restartPosted = true
+        restartCount++
+        if (restartCount > maxRestartsPerSession) {
+            restartPosted = false
+            continuous.set(false)
+            listener?.onError("Speech engine unstable — please try again", fatal = true)
+            listener?.onListeningChanged(false)
+            return
+        }
         val delay = policy.restartDelayMs(errorCode)
         mainHandler.postDelayed({
             restartPosted = false
             if (continuous.get()) {
-                // busy → force new recognizer
-                val force = errorCode == ContinuousPolicy.ERROR_RECOGNIZER_BUSY
+                val force = errorCode == ContinuousPolicy.ERROR_RECOGNIZER_BUSY ||
+                    errorCode == ContinuousPolicy.ERROR_CLIENT
                 beginSession(forceRecreate = force)
             }
         }, delay)
@@ -272,39 +352,66 @@ class SttEngine(
 
     private fun createRecognizer(): SpeechRecognizer? {
         if (!SpeechRecognizer.isRecognitionAvailable(context)) return null
-        return if (preferOnDevice && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (SpeechRecognizer.isOnDeviceRecognitionAvailable(context)) {
-                SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
-            } else {
-                SpeechRecognizer.createSpeechRecognizer(context)
+        // Prefer on-device factory when available (API 31+) and still trying offline path
+        if (preferOnDevice && forceOfflineOnly && !offlineFallbackUsed &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+        ) {
+            try {
+                if (SpeechRecognizer.isOnDeviceRecognitionAvailable(context)) {
+                    usedOnDeviceFactory = true
+                    return SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
+                }
+            } catch (_: Exception) {
+                usedOnDeviceFactory = false
             }
-        } else {
+        }
+        usedOnDeviceFactory = false
+        return try {
             SpeechRecognizer.createSpeechRecognizer(context)
+        } catch (_: Exception) {
+            null
         }
     }
 
     private fun buildIntent(languageTag: String): Intent {
+        val lang = LanguagePolicy.force(languageTag)
         return Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(
                 RecognizerIntent.EXTRA_LANGUAGE_MODEL,
                 RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
             )
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, languageTag)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, lang)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, lang)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
-            if (preferOnDevice) {
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, SttTuning.MAX_RESULTS)
+            putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName)
+
+            // Only prefer offline when we still believe packs exist.
+            // Hard offline-only breaks many devices without downloaded language packs.
+            if (forceOfflineOnly && usedOnDeviceFactory) {
                 putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
             }
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 2_000L)
+
+            putExtra(
+                RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS,
+                SttTuning.MIN_SPEECH_MS
+            )
             putExtra(
                 RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS,
-                2_800L
+                SttTuning.COMPLETE_SILENCE_MS
             )
             putExtra(
                 RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS,
-                2_200L
+                SttTuning.POSSIBLY_COMPLETE_SILENCE_MS
             )
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                putExtra(
+                    RecognizerIntent.EXTRA_ENABLE_FORMATTING,
+                    RecognizerIntent.FORMATTING_OPTIMIZE_LATENCY
+                )
+                putExtra(RecognizerIntent.EXTRA_HIDE_PARTIAL_TRAILING_PUNCTUATION, true)
+            }
         }
     }
 }
-

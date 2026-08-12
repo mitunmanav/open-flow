@@ -36,7 +36,24 @@ object FieldPolicy {
         val piece = spoken.trim()
         if (piece.isEmpty()) return base
         if (base.isEmpty()) return piece
-        val needsSpace = !base.last().isWhitespace() && !piece.first().isWhitespace()
+        val needsSpace = !base.last().isWhitespace() &&
+            !piece.first().isWhitespace() &&
+            piece.first() !in ".,!?;:\n"
+        return if (needsSpace) "$base $piece" else base + piece
+    }
+
+    /**
+     * Wispr-style session write: prefix (text already in field before listen)
+     * + one polished session blob. Never stacks every STT final as a dump.
+     */
+    fun mergeSession(prefix: CharSequence?, sessionText: String): String {
+        val base = prefix?.toString().orEmpty()
+        val piece = sessionText.trim()
+        if (piece.isEmpty()) return base
+        if (base.isEmpty()) return piece
+        val needsSpace = !base.last().isWhitespace() &&
+            !piece.first().isWhitespace() &&
+            piece.first() !in ".,!?;:\n"
         return if (needsSpace) "$base $piece" else base + piece
     }
 

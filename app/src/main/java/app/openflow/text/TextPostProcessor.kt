@@ -2,19 +2,40 @@ package app.openflow.text
 
 /**
  * Local post-process to approximate Wispr cleanup without cloud.
- * Filler strip, light punctuation, numbered-list detection.
+ * Prefer [CleanupPipeline] for session polish; [process] remains for light unit use.
+ * Full session is polished once on stop (not every raw STT chunk into the field).
  */
 object TextPostProcessor {
 
+    // "i mean" is a course-correct marker — handled by CourseCorrector, not stripped here
     private val fillers = listOf(
-        "um", "uh", "erm", "ah", "like", "you know", "i mean", "sort of", "kind of"
+        "um", "uh", "erm", "ah", "uhm", "hmm", "you know", "sort of", "kind of"
     )
+
+    /**
+     * Full production polish for one dictation session.
+     * Thin wrap over [CleanupPipeline]; [courseCorrect] maps light vs normal/high.
+     */
+    fun polishSession(raw: String, style: Style = Style.CASUAL, courseCorrect: Boolean = true): String =
+        polishSessionResult(
+            raw = raw,
+            style = style,
+            level = if (courseCorrect) CleanupLevel.NORMAL else CleanupLevel.LIGHT
+        ).clean
+
+    /** Dual raw/clean result for stop path + history. */
+    fun polishSessionResult(
+        raw: String,
+        style: Style = Style.CASUAL,
+        level: CleanupLevel = CleanupLevel.NORMAL
+    ): CleanupResult = CleanupPipeline.run(raw, level, style)
 
     fun process(raw: String, style: Style = Style.CASUAL): String {
         if (raw.isBlank()) return raw
         var t = raw.trim()
         t = stripFillers(t)
         t = normalizeSpaces(t)
+        t = applyVoiceCommands(t)
         t = applyListHints(t)
         t = applyPunctuation(t, style)
         t = applyCapitalization(t)
@@ -51,12 +72,40 @@ object TextPostProcessor {
         fillers.sortedByDescending { it.length }.forEach { f ->
             out = out.replace(Regex("\\b${Regex.escape(f)}\\b[,\\s]*", RegexOption.IGNORE_CASE), " ")
         }
+        // standalone "like" only when filler (surrounded by pauses / not "I like X")
+        out = out.replace(Regex("""(?i)(?<=\s|^)like(?=\s)(?!\s+(?:to|a|an|the|my|your|this|that)\b)"""), " ")
         return normalizeSpaces(out)
     }
 
     private fun normalizeSpaces(t: String) = t.replace(Regex("\\s+"), " ").trim()
 
+    /** Spoken layout commands → real newlines / punctuation tokens. */
+    private fun applyVoiceCommands(t: String): String {
+        var s = t
+        s = s.replace(Regex("""(?i)\bnew\s+paragraph\b"""), "\n\n")
+        s = s.replace(Regex("""(?i)\bnew\s+line\b"""), "\n")
+        s = s.replace(Regex("""(?i)\bperiod\b"""), ".")
+        s = s.replace(Regex("""(?i)\bcomma\b"""), ",")
+        s = s.replace(Regex("""(?i)\bquestion\s+mark\b"""), "?")
+        s = s.replace(Regex("""(?i)\bexclamation\s+(?:mark|point)\b"""), "!")
+        // paren / colon / quote (Wispr-style spoken punctuation)
+        s = s.replace(Regex("""(?i)\bopen\s+paren(?:thesis)?\b"""), "(")
+        s = s.replace(Regex("""(?i)\bclose\s+paren(?:thesis)?\b"""), ")")
+        s = s.replace(Regex("""(?i)\bleft\s+paren(?:thesis)?\b"""), "(")
+        s = s.replace(Regex("""(?i)\bright\s+paren(?:thesis)?\b"""), ")")
+        s = s.replace(Regex("""(?i)\bopen\s+quote\b"""), "\"")
+        s = s.replace(Regex("""(?i)\bclose\s+quote\b"""), "\"")
+        s = s.replace(Regex("""(?i)\bcolon\b"""), ":")
+        s = s.replace(Regex("""(?i)\bquote\b"""), "\"")
+        // tidy spaces around inserted punctuation
+        s = s.replace(Regex("""\s+([.,!?:)])"""), "$1")
+        s = s.replace(Regex("""([(])\s+"""), "$1")
+        return s
+    }
+
     private fun applyListHints(t: String): String {
+        splitDottedNumbered(t)?.let { return it }
+        splitSpokenDigitList(t)?.let { return it }
         // "number one X number two Y" -> "1. X\n2. Y"
         val m = Regex(
             "(?i)(?:number|item)\\s+(one|two|three|four|five|1|2|3|4|5)\\s+",
@@ -67,6 +116,42 @@ object TextPostProcessor {
             .filter { it.isNotEmpty() }
         if (parts.size < 2) return t
         return parts.mapIndexed { i, p -> "${i + 1}. ${p.trim().trimEnd('.', ',')}" }.joinToString("\n")
+    }
+
+    /** Wispr-style: "1. Apples 2. Bananas 3. Oranges" → multiline list. */
+    private fun splitDottedNumbered(t: String): String? {
+        val marker = Regex("""(\d+)\.\s+""")
+        val matches = marker.findAll(t).toList()
+        if (matches.size < 2) return null
+        val items = mutableListOf<String>()
+        for (i in matches.indices) {
+            val num = matches[i].groupValues[1]
+            val start = matches[i].range.last + 1
+            val end = if (i + 1 < matches.size) matches[i + 1].range.first else t.length
+            val body = t.substring(start, end).trim().trimEnd('.', ',', ';')
+            if (body.isEmpty()) return null
+            items.add("$num. $body")
+        }
+        return items.joinToString("\n")
+    }
+
+    /** Spoken: "1 apples 2 bananas 3 oranges" (must start with a digit marker). */
+    private fun splitSpokenDigitList(t: String): String? {
+        val first = t.firstOrNull() ?: return null
+        if (!first.isDigit()) return null
+        val marker = Regex("""\b(\d{1,2})\s+(?=[A-Za-z])""")
+        val matches = marker.findAll(t).toList()
+        if (matches.size < 2) return null
+        val items = mutableListOf<String>()
+        for (i in matches.indices) {
+            val num = matches[i].groupValues[1]
+            val start = matches[i].range.last + 1
+            val end = if (i + 1 < matches.size) matches[i + 1].range.first else t.length
+            val body = t.substring(start, end).trim().trimEnd('.', ',', ';')
+            if (body.isEmpty()) return null
+            items.add("$num. $body")
+        }
+        return items.joinToString("\n")
     }
 
     private fun applyPunctuation(t: String, style: Style): String {

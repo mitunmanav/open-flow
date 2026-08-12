@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#0F766E</color>
+    <color name="ic_launcher_background">#0F172A</color>
+    <color name="openflow_primary">#4F46E5</color>
+    <color name="openflow_indigo">#6366F1</color>
+    <color name="openflow_dark">#09090B</color>
+    <color name="openflow_surface_dark">#18181B</color>
+    <color name="openflow_border_dark">#27272A</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 </resources>

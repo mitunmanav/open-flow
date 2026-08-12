@@ -63,7 +63,11 @@ class TextPostProcessorTest {
 
     @Test
     fun numbered_list_inline_dots_to_multiline() {
-        val out = TextPostProcessor.process("1. Apples 2. Bananas 3. Oranges")
+        // Lists are Medium+ (clarity), not Light
+        val out = CleanupPipeline.run(
+            "1. Apples 2. Bananas 3. Oranges",
+            CleanupLevel.NORMAL
+        ).clean
         assertThat(out).contains("1. Apples")
         assertThat(out).contains("2. Bananas")
         assertThat(out).contains("3. Oranges")
@@ -76,7 +80,10 @@ class TextPostProcessorTest {
 
     @Test
     fun numbered_list_spoken_digits() {
-        val out = TextPostProcessor.process("1 apples 2 bananas 3 oranges")
+        val out = CleanupPipeline.run(
+            "1 apples 2 bananas 3 oranges",
+            CleanupLevel.NORMAL
+        ).clean
         val lines = out.lines().map { it.trim() }.filter { it.isNotEmpty() }
         assertThat(lines).hasSize(3)
         assertThat(lines[0].lowercase()).contains("apples")
@@ -105,5 +112,48 @@ class TextPostProcessorTest {
         val out = TextPostProcessor.process("say quote hello")
         assertThat(out).contains("\"")
         assertThat(out.lowercase()).doesNotContain("quote")
+    }
+
+    @Test
+    fun polishSessionResult_dict_then_snippet_then_cleanup_preserves_raw() {
+        val result = TextPostProcessor.polishSessionResult(
+            raw = "um openflow",
+            level = CleanupLevel.LIGHT,
+            style = WritingStyle.CASUAL,
+            dictionary = mapOf("openflow" to "Open Flow"),
+            snippets = emptyMap()
+        )
+        assertThat(result.raw).isEqualTo("um openflow")
+        assertThat(result.clean.lowercase()).doesNotContain("um")
+        assertThat(result.clean).contains("Open Flow")
+    }
+
+    @Test
+    fun polishSessionResult_snippet_exact_expand_before_cleanup() {
+        val result = TextPostProcessor.polishSessionResult(
+            raw = "sig",
+            level = CleanupLevel.LIGHT,
+            style = WritingStyle.CASUAL,
+            snippets = mapOf("sig" to "Best regards,\nMitun")
+        )
+        assertThat(result.raw).isEqualTo("sig")
+        assertThat(result.clean).contains("Best regards")
+        assertThat(result.clean).contains("Mitun")
+    }
+
+    @Test
+    fun polishSessionResult_passes_custom_style() {
+        val custom = CustomStyleConfig(
+            endPunct = EndPunct.BANG,
+            caps = CapsMode.SENTENCE,
+            expandInformal = false
+        )
+        val result = TextPostProcessor.polishSessionResult(
+            raw = "hello there friend this is a longer custom line",
+            level = CleanupLevel.LIGHT,
+            style = WritingStyle.CUSTOM,
+            custom = custom
+        )
+        assertThat(result.clean).endsWith("!")
     }
 }

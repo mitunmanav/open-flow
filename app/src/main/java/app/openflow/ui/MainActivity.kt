@@ -1155,7 +1155,7 @@ private fun StyleTab(prefs: FlowPrefs) {
         verticalArrangement = Arrangement.spacedBy(Dimen.GAP)
     ) {
         Text(
-            "Writing style runs after cleanup. Local rules only — no AI tone model.",
+            "Pipeline: dictionary → snippets → cleanup → style. Local rules only — no AI tone model.",
             style = MaterialTheme.typography.bodySmall,
             color = SecUi.muted
         )

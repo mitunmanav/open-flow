@@ -1,16 +1,16 @@
 # Open Flow — handoff (live)
 
-**main tip:** check `git log -1 --oneline`  
-**Product:** Bubble + AccessibilityService · **not** IME · en-US · local FOSS · modern brutal UI
+**main tip:** `42d4241` merge F15–F17  
+**Product:** Bubble + AccessibilityService · **not** IME · en-US · local FOSS · minimal brutal UI
 
 ## WHERE (2026-08-12)
 
 | Layer | Status |
 |-------|--------|
-| Local no-AI pipeline | **on main** — PhraseMap, cleanup levels, styles, STT formatting |
-| Modern brutal UI | **on main** — `VisualSkin.BRUTAL` default |
-| Research pack | `docs/research/` (docs only) |
-| Worktrees | **none** (merged / removed) |
+| Local no-AI pipeline | **on main** |
+| Minimal brutal UI + bubble | **on main** — charcoal/cream, hard square, 2dp |
+| Mic insert + theme + nav + STT Hz | **on main** (was F15 worktree) |
+| Worktrees | prune `15-bubble-mic-fix` after this merge |
 
 ## Pipeline (no AI model)
 
@@ -40,12 +40,15 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 # Enable a11y → bubble → speak or debug inject
 ```
 
+APK: `app/build/outputs/apk/debug/app-debug.apk` (17M, built after merge)
+
 ## NEXT
 
-1. Device smoke: modern brutal + cleanup + spoken `period` / `backspace`
-2. F17 minimal brutal bubble (plan on disk) or F16 if Mitun orders
-3. Leftover worktree: `.worktrees/15-bubble-mic-fix` (already on main?) — prune if yes
+1. USB Allow on phone (`unauthorized` now)
+2. Install + smoke: hard square bubble, cream stroke, no purple
+3. Spoken `period` / `backspace`
+4. Then F16 recorder **or** export polish — Mitun pick
 
 ## ASK
 
-None — pick NEXT with GO.
+None — smoke first.

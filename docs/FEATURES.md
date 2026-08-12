@@ -79,9 +79,9 @@
 
 ## Open Flow ship order (current)
 
-1. **Done:** bubble · pipeline (no AI) · modern brutal UI · en-US lock  
-2. **F15** export/share polish + optional notifs (export already partial)  
-3. **F16** memo recorder (audio + transcript)  
+1. **Done:** bubble · pipeline (no AI) · F17 minimal brutal chrome · en-US lock  
+2. **Next** device smoke of F17 (hard square charcoal/cream bubble)  
+3. **Then** export/share polish **or** F16 memo recorder — Mitun pick  
 4. **Later** optional on-device Whisper · sync  
 
 Privacy forever: no forced account, no cloud STT default.

@@ -34,7 +34,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.openflow.ui.a11y.Dimen
-import app.openflow.ui.theme.BrutalColors
 
 /** Modern brutal chip (`VisualSkin.BRUTAL`): hard border, solid selected block. */
 @Composable
@@ -47,19 +46,20 @@ fun OpenChip(
     enabled: Boolean = true,
     onClick: () -> Unit = {}
 ) {
+    val scheme = MaterialTheme.colorScheme
     val bgColor by animateColorAsState(
-        targetValue = if (isOn) BrutalColors.Charcoal else BrutalColors.Cream,
+        targetValue = if (isOn) scheme.primary else scheme.surface,
         animationSpec = tween(100),
         label = "chip_bg"
     )
 
     val textColor by animateColorAsState(
-        targetValue = if (isOn) BrutalColors.OnCharcoal else BrutalColors.Charcoal,
+        targetValue = if (isOn) scheme.onPrimary else scheme.onSurface,
         animationSpec = tween(100),
         label = "chip_text"
     )
 
-    val borderColor = BrutalColors.Charcoal
+    val borderColor = scheme.outline
     val borderWidth = 2.dp
 
     val stateLabel = if (isOn) "$label, selected" else label

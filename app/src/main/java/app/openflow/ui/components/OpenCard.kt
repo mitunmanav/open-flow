@@ -18,11 +18,11 @@ import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.openflow.ui.a11y.Dimen
-import app.openflow.ui.theme.BrutalColors
 
 /**
  * Modern brutal card — existing product skin (`VisualSkin.BRUTAL`).
  * Mockup truth: 3px border + hard offset shadow (no blur). Not soft M3.
+ * Colors follow [MaterialTheme.colorScheme] so light/dark work.
  */
 @Composable
 fun OpenCard(
@@ -33,13 +33,14 @@ fun OpenCard(
     contentDescription: String? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val scheme = MaterialTheme.colorScheme
     val borderWidth = 3.dp
     val borderColor = when {
-        disabled -> BrutalColors.Charcoal.copy(alpha = 0.4f)
-        selected -> BrutalColors.Ink
-        else -> BrutalColors.Charcoal
+        disabled -> scheme.outline.copy(alpha = 0.4f)
+        selected -> scheme.secondary
+        else -> scheme.outline
     }
-    val shadowColor = if (selected) BrutalColors.Ink else BrutalColors.Charcoal
+    val shadowColor = if (selected) scheme.secondary else scheme.outline
 
     val faceMod = Modifier
         .fillMaxWidth()
@@ -54,12 +55,12 @@ fun OpenCard(
 
     val colors = CardDefaults.cardColors(
         containerColor = when {
-            disabled -> BrutalColors.Stone.copy(alpha = 0.7f)
-            else -> BrutalColors.Cream
+            disabled -> scheme.surfaceVariant.copy(alpha = 0.7f)
+            else -> scheme.surface
         },
-        contentColor = BrutalColors.OnCream,
-        disabledContainerColor = BrutalColors.Stone.copy(alpha = 0.7f),
-        disabledContentColor = BrutalColors.OnCream.copy(alpha = 0.38f)
+        contentColor = scheme.onSurface,
+        disabledContainerColor = scheme.surfaceVariant.copy(alpha = 0.7f),
+        disabledContentColor = scheme.onSurface.copy(alpha = 0.38f)
     )
 
     val elevation = CardDefaults.cardElevation(

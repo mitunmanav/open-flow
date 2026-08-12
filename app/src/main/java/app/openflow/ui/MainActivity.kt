@@ -95,9 +95,12 @@ import java.util.Locale
 
 class MainActivity : ComponentActivity() {
 
+    private val _micGranted = mutableStateOf(false)
     private val micPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { }
+    ) { granted ->
+        _micGranted.value = granted
+    }
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -110,14 +113,11 @@ class MainActivity : ComponentActivity() {
             OpenFlowTheme(darkMode = darkMode, skin = skin) {
                 var route by remember { mutableStateOf(AppRoute.Home) }
                 var bubbleOn by remember { mutableStateOf(FlowAccessibilityService.isRunning()) }
-                var micOn by remember {
-                    mutableStateOf(
-                        ContextCompat.checkSelfPermission(
-                            this,
-                            Manifest.permission.RECORD_AUDIO
-                        ) == PackageManager.PERMISSION_GRANTED
-                    )
-                }
+                var micOn by remember { _micGranted }
+                _micGranted.value = ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.RECORD_AUDIO
+                ) == PackageManager.PERMISSION_GRANTED
                 val owner = LocalLifecycleOwner.current
                 DisposableEffect(owner) {
                     val obs = LifecycleEventObserver { _, e ->
@@ -154,7 +154,13 @@ class MainActivity : ComponentActivity() {
                                 bubbleOn = bubbleOn,
                                 micOn = micOn,
                                 onEnableBubble = {
-                                    startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                                    try {
+                                        startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                                    } catch (e: Exception) {
+                                        try {
+                                            startActivity(Intent(Settings.ACTION_SETTINGS))
+                                        } catch (e2: Exception) {}
+                                    }
                                 },
                                 onMic = { micPermission.launch(Manifest.permission.RECORD_AUDIO) },
                                 onOpenHistory = { route = AppRoute.History },
@@ -533,7 +539,9 @@ private fun HomeHub(
                             type = "text/plain"
                             putExtra(Intent.EXTRA_TEXT, shareText)
                         }
-                        ctx.startActivity(Intent.createChooser(send, "Share dictation"))
+                        try {
+                            ctx.startActivity(Intent.createChooser(send, "Share dictation"))
+                        } catch (e: Exception) {}
                     }
                 )
             }
@@ -599,7 +607,9 @@ private fun HistoryScreen(app: OpenFlowApp) {
                             type = "text/plain"
                             putExtra(Intent.EXTRA_TEXT, shareText)
                         }
-                        ctx.startActivity(Intent.createChooser(send, "Export history (Markdown)"))
+                        try {
+                            ctx.startActivity(Intent.createChooser(send, "Export history (Markdown)"))
+                        } catch (e: Exception) {}
                     },
                     variant = ButtonVariant.Outlined
                 )
@@ -639,7 +649,9 @@ private fun HistoryScreen(app: OpenFlowApp) {
                             type = "text/plain"
                             putExtra(Intent.EXTRA_TEXT, shareText)
                         }
-                        ctx.startActivity(Intent.createChooser(send, "Share dictation"))
+                        try {
+                            ctx.startActivity(Intent.createChooser(send, "Share dictation"))
+                        } catch (e: Exception) {}
                     }
                 )
             }
@@ -739,8 +751,8 @@ private fun CopyButton(text: String, label: String = "Copy") {
 
     OutlinedButton(
         onClick = {
-            val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            cm.setPrimaryClip(android.content.ClipData.newPlainText("dictation", text))
+            val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+            cm?.setPrimaryClip(android.content.ClipData.newPlainText("dictation", text))
             copied = true
         }
     ) {

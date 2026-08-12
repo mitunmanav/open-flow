@@ -18,11 +18,10 @@ import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.openflow.ui.a11y.Dimen
-import app.openflow.ui.theme.BrutalColors
 
 /**
- * Modern brutal card — existing product skin (`VisualSkin.BRUTAL`).
- * Mockup truth: 3px border + hard offset shadow (no blur). Not soft M3.
+ * Minimal brutal card — cream face, hard 2dp border, 2dp offset block (no blur).
+ * Colors follow [MaterialTheme.colorScheme] so light/dark work.
  */
 @Composable
 fun OpenCard(
@@ -33,13 +32,14 @@ fun OpenCard(
     contentDescription: String? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val borderWidth = 3.dp
+    val scheme = MaterialTheme.colorScheme
+    val borderWidth = 2.dp
     val borderColor = when {
-        disabled -> BrutalColors.Charcoal.copy(alpha = 0.4f)
-        selected -> BrutalColors.Ink
-        else -> BrutalColors.Charcoal
+        disabled -> scheme.outline.copy(alpha = 0.4f)
+        selected -> scheme.outline
+        else -> scheme.outline
     }
-    val shadowColor = if (selected) BrutalColors.Ink else BrutalColors.Charcoal
+    val shadowColor = scheme.outline
 
     val faceMod = Modifier
         .fillMaxWidth()
@@ -54,12 +54,13 @@ fun OpenCard(
 
     val colors = CardDefaults.cardColors(
         containerColor = when {
-            disabled -> BrutalColors.Stone.copy(alpha = 0.7f)
-            else -> BrutalColors.Cream
+            disabled -> scheme.surfaceVariant.copy(alpha = 0.7f)
+            selected -> scheme.surfaceVariant
+            else -> scheme.surface
         },
-        contentColor = BrutalColors.OnCream,
-        disabledContainerColor = BrutalColors.Stone.copy(alpha = 0.7f),
-        disabledContentColor = BrutalColors.OnCream.copy(alpha = 0.38f)
+        contentColor = scheme.onSurface,
+        disabledContainerColor = scheme.surfaceVariant.copy(alpha = 0.7f),
+        disabledContentColor = scheme.onSurface.copy(alpha = 0.38f)
     )
 
     val elevation = CardDefaults.cardElevation(
@@ -70,16 +71,16 @@ fun OpenCard(
         hoveredElevation = 0.dp
     )
 
-    // Padding room for offset shadow; shadow block sits under face
+    // Minimal offset room (2dp) — not chunky 4dp
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(end = 4.dp, bottom = 4.dp)
+            .padding(end = 2.dp, bottom = 2.dp)
     ) {
         Box(
             Modifier
                 .matchParentSize()
-                .offset(4.dp, 4.dp)
+                .offset(2.dp, 2.dp)
                 .background(shadowColor)
         )
         if (onClick != null) {

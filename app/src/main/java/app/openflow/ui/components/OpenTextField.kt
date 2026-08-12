@@ -20,9 +20,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import app.openflow.ui.a11y.Dimen
-import app.openflow.ui.theme.BrutalColors
 
-/** Light brutal field: cream fill, charcoal border — no indigo M3 primary hardcode. */
+/** Theme-aware brutal field: surface fill, outline border. */
 @Composable
 fun OpenTextField(
     value: String,
@@ -42,6 +41,7 @@ fun OpenTextField(
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     supportingText: (@Composable () -> Unit)? = null
 ) {
+    val scheme = MaterialTheme.colorScheme
     val effectiveSingleLine = singleLine && minLines <= 1
     val effectiveMaxLines = when {
         effectiveSingleLine -> 1
@@ -53,7 +53,7 @@ fun OpenTextField(
         keyboardType = KeyboardType.Text,
         imeAction = if (effectiveSingleLine) ImeAction.Done else ImeAction.Default
     )
-    val muted = BrutalColors.Charcoal.copy(alpha = 0.55f)
+    val muted = scheme.onSurfaceVariant.copy(alpha = 0.75f)
 
     OutlinedTextField(
         value = value,
@@ -76,7 +76,7 @@ fun OpenTextField(
         isError = error != null,
         supportingText = when {
             error != null -> {
-                { Text(error, color = BrutalColors.Error) }
+                { Text(error, color = scheme.error) }
             }
             supportingText != null -> supportingText
             else -> null
@@ -106,22 +106,22 @@ fun OpenTextField(
         keyboardOptions = resolvedKeyboard,
         keyboardActions = keyboardActions,
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = BrutalColors.Charcoal,
-            unfocusedBorderColor = BrutalColors.Charcoal,
-            disabledBorderColor = BrutalColors.Charcoal.copy(alpha = 0.35f),
-            errorBorderColor = BrutalColors.Error,
-            focusedContainerColor = BrutalColors.Cream,
-            unfocusedContainerColor = BrutalColors.Cream,
-            disabledContainerColor = BrutalColors.Stone.copy(alpha = 0.45f),
-            focusedTextColor = BrutalColors.OnCream,
-            unfocusedTextColor = BrutalColors.OnCream,
-            disabledTextColor = BrutalColors.OnCream.copy(alpha = 0.38f),
-            focusedLabelColor = BrutalColors.Charcoal,
+            focusedBorderColor = scheme.outline,
+            unfocusedBorderColor = scheme.outline,
+            disabledBorderColor = scheme.outline.copy(alpha = 0.35f),
+            errorBorderColor = scheme.error,
+            focusedContainerColor = scheme.surface,
+            unfocusedContainerColor = scheme.surface,
+            disabledContainerColor = scheme.surfaceVariant.copy(alpha = 0.45f),
+            focusedTextColor = scheme.onSurface,
+            unfocusedTextColor = scheme.onSurface,
+            disabledTextColor = scheme.onSurface.copy(alpha = 0.38f),
+            focusedLabelColor = scheme.onSurface,
             unfocusedLabelColor = muted,
-            disabledLabelColor = BrutalColors.OnCream.copy(alpha = 0.38f),
-            disabledPlaceholderColor = BrutalColors.OnCream.copy(alpha = 0.38f),
-            cursorColor = BrutalColors.Ink,
-            errorCursorColor = BrutalColors.Error,
+            disabledLabelColor = scheme.onSurface.copy(alpha = 0.38f),
+            disabledPlaceholderColor = scheme.onSurface.copy(alpha = 0.38f),
+            cursorColor = scheme.secondary,
+            errorCursorColor = scheme.error,
             focusedTrailingIconColor = muted,
             unfocusedTrailingIconColor = muted
         )

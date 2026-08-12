@@ -20,11 +20,10 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.openflow.ui.a11y.Dimen
-import app.openflow.ui.theme.BrutalColors
 
 enum class ButtonVariant { Filled, Outlined, Text }
 
-/** Modern brutal CTA (`VisualSkin.BRUTAL`): solid charcoal, hard edge. */
+/** Modern brutal CTA (`VisualSkin.BRUTAL`): solid primary, hard edge. Theme-aware. */
 @Composable
 fun OpenButton(
     text: String,
@@ -35,6 +34,7 @@ fun OpenButton(
     contentDescription: String? = null
 ) {
     val view = LocalView.current
+    val scheme = MaterialTheme.colorScheme
     val shape = MaterialTheme.shapes.small
     val semanticsMod = Modifier.semantics {
         this.contentDescription = contentDescription ?: text
@@ -44,8 +44,8 @@ fun OpenButton(
         minHeight = Dimen.TOUCH_TARGET
     )
     val contentPad = PaddingValues(horizontal = Dimen.MIN_PADDING, vertical = 0.dp)
-    val disabledContainer = BrutalColors.Charcoal.copy(alpha = 0.12f)
-    val disabledContent = BrutalColors.Charcoal.copy(alpha = 0.38f)
+    val disabledContainer = scheme.onSurface.copy(alpha = 0.12f)
+    val disabledContent = scheme.onSurface.copy(alpha = 0.38f)
 
     when (variant) {
         ButtonVariant.Filled -> Button(
@@ -65,8 +65,8 @@ fun OpenButton(
                 disabledElevation = 0.dp
             ),
             colors = ButtonDefaults.buttonColors(
-                containerColor = BrutalColors.Charcoal,
-                contentColor = BrutalColors.OnCharcoal,
+                containerColor = scheme.primary,
+                contentColor = scheme.onPrimary,
                 disabledContainerColor = disabledContainer,
                 disabledContentColor = disabledContent
             )
@@ -83,11 +83,11 @@ fun OpenButton(
             contentPadding = contentPad,
             border = BorderStroke(
                 width = 2.dp,
-                color = if (enabled) BrutalColors.Charcoal else BrutalColors.Charcoal.copy(alpha = 0.35f)
+                color = if (enabled) scheme.outline else scheme.outline.copy(alpha = 0.35f)
             ),
             colors = ButtonDefaults.outlinedButtonColors(
-                containerColor = BrutalColors.Cream,
-                contentColor = BrutalColors.Charcoal,
+                containerColor = scheme.surface,
+                contentColor = scheme.onSurface,
                 disabledContentColor = disabledContent
             )
         ) { Text(text) }
@@ -102,7 +102,7 @@ fun OpenButton(
             shape = shape,
             contentPadding = contentPad,
             colors = ButtonDefaults.textButtonColors(
-                contentColor = BrutalColors.Charcoal,
+                contentColor = scheme.onSurface,
                 disabledContentColor = disabledContent
             )
         ) { Text(text) }

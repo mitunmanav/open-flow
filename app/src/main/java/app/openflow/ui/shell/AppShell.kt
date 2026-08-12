@@ -31,7 +31,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import app.openflow.ui.theme.BrutalColors
 
 /**
  * Bottom-tab item. [label] may be short for bar width;
@@ -60,6 +59,7 @@ private val bottomItems = listOf(
 fun AppShell(
     route: AppRoute,
     onNavigate: (AppRoute) -> Unit,
+    onBack: () -> Unit = { onNavigate(route.backTarget()) },
     isDrawerExtraVisible: (AppRoute) -> Boolean = { true },
     content: @Composable (PaddingValues) -> Unit
 ) {
@@ -68,14 +68,15 @@ fun AppShell(
 
     val title = route.title
     val showBack = !route.isBottomBar()
-    val backTarget = remember(route) { route.backTarget() }
     val settingsSelected = remember(route) { route.isSettingsSubtree() }
 
-    // Light brutal shell tokens (not M3 tonal purple).
-    val cream = BrutalColors.Cream
-    val charcoal = BrutalColors.Charcoal
-    val onCharcoal = BrutalColors.OnCharcoal
-    val mutedInk = BrutalColors.Charcoal.copy(alpha = 0.55f)
+    // Theme-aware shell (light + dark readable)
+    val scheme = MaterialTheme.colorScheme
+    val surface = scheme.background
+    val onSurface = scheme.onBackground
+    val muted = scheme.onSurfaceVariant
+    val selectedBg = scheme.primary
+    val onSelected = scheme.onPrimary
 
     Scaffold(
         contentWindowInsets = WindowInsets.safeDrawing,
@@ -86,14 +87,14 @@ fun AppShell(
                         title,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = charcoal,
+                        color = onSurface,
                         modifier = Modifier.testTag("shell_title")
                     )
                 },
                 navigationIcon = {
                     if (showBack) {
                         IconButton(
-                            onClick = { onNavigate(backTarget) },
+                            onClick = onBack,
                             modifier = Modifier
                                 .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
                                 .testTag("nav_back")
@@ -101,25 +102,23 @@ fun AppShell(
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back",
-                                tint = charcoal
+                                tint = onSurface
                             )
                         }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = cream,
-                    titleContentColor = charcoal,
-                    navigationIconContentColor = charcoal,
-                    actionIconContentColor = charcoal,
-                    scrolledContainerColor = cream
+                    containerColor = surface,
+                    titleContentColor = onSurface,
+                    navigationIconContentColor = onSurface,
+                    actionIconContentColor = onSurface,
+                    scrolledContainerColor = surface
                 ),
-                // Edge-to-edge: pad for status bar / cutout.
                 windowInsets = TopAppBarDefaults.windowInsets,
                 modifier = Modifier.drawBehind {
-                    // Hard bottom rule (brutal, not soft elevation).
                     val y = size.height - 1.dp.toPx()
                     drawLine(
-                        color = charcoal,
+                        color = scheme.outline,
                         start = Offset(0f, y),
                         end = Offset(size.width, y),
                         strokeWidth = 2.dp.toPx()
@@ -128,16 +127,14 @@ fun AppShell(
             )
         },
         bottomBar = {
-            // ALWAYS show — previous bug hid nav on Settings children
             NavigationBar(
-                containerColor = cream,
-                contentColor = charcoal,
+                containerColor = surface,
+                contentColor = onSurface,
                 tonalElevation = 0.dp,
                 windowInsets = WindowInsets.navigationBars,
                 modifier = Modifier.drawBehind {
-                    // Hard top rule under content.
                     drawLine(
-                        color = charcoal,
+                        color = scheme.outline,
                         start = Offset(0f, 0f),
                         end = Offset(size.width, 0f),
                         strokeWidth = 2.dp.toPx()
@@ -163,19 +160,18 @@ fun AppShell(
                                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
                             )
                         },
-                        // Hard selected: charcoal pill + cream icon (not soft primaryContainer).
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = onCharcoal,
-                            selectedTextColor = charcoal,
-                            indicatorColor = charcoal,
-                            unselectedIconColor = mutedInk,
-                            unselectedTextColor = mutedInk
+                            selectedIconColor = onSelected,
+                            selectedTextColor = onSurface,
+                            indicatorColor = selectedBg,
+                            unselectedIconColor = muted,
+                            unselectedTextColor = muted
                         )
                     )
                 }
             }
         },
-        containerColor = cream,
+        containerColor = surface,
         content = content
     )
 }

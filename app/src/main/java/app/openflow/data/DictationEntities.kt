@@ -6,7 +6,10 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "dictations")
 data class DictationEntity(
     @PrimaryKey val id: String,
+    /** Clean / polished transcript (UI shows this). */
     val text: String,
+    /** Original STT before cleanup. Empty for pre-v4 rows. */
+    val rawText: String = "",
     val createdAtEpochMs: Long,
     val durationMs: Long,
     val languageTag: String,

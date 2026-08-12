@@ -51,4 +51,75 @@ class CourseCorrectorTest {
         assertThat(CourseCorrector.apply("")).isEmpty()
         assertThat(CourseCorrector.apply("   ")).isEmpty()
     }
+
+    @Test
+    fun amount_comma_actually_number() {
+        val out = CourseCorrector.apply("The amount is 430, actually 530.")
+        assertThat(out.lowercase()).contains("530")
+        assertThat(out.lowercase()).doesNotContain("430")
+        assertThat(out.lowercase()).doesNotContain("actually")
+    }
+
+    @Test
+    fun meeting_comma_actually_time() {
+        val out = CourseCorrector.apply("The meeting is at 4:30, actually 5:30.")
+        assertThat(out.lowercase()).contains("5:30")
+        assertThat(out.lowercase()).doesNotContain("4:30")
+        assertThat(out.lowercase()).doesNotContain("actually")
+    }
+
+    @Test
+    fun deadline_no_date_ordinal() {
+        val out = CourseCorrector.apply("The deadline is August 12th, no, August 15th.")
+        assertThat(out.lowercase()).contains("15")
+        assertThat(out.lowercase()).doesNotContain("12")
+        assertThat(out.lowercase()).contains("deadline")
+        assertThat(out.lowercase()).contains("august")
+    }
+
+    @Test
+    fun send_to_john_no_james() {
+        val out = CourseCorrector.apply("Send it to John. No, send it to James.")
+        assertThat(out.lowercase()).contains("james")
+        assertThat(out.lowercase()).doesNotContain("john")
+    }
+
+    @Test
+    fun analyze_records_corrections() {
+        val r = CourseCorrector.analyze("The amount is 430, actually 530.")
+        assertThat(r.text.lowercase()).contains("530")
+        assertThat(r.text.lowercase()).doesNotContain("430")
+        assertThat(r.corrections).isNotEmpty()
+        assertThat(r.corrections.first().originalText).contains("430")
+        assertThat(r.corrections.first().replacementText).contains("530")
+        assertThat(r.corrections.first().marker.lowercase()).contains("actually")
+    }
+
+    @Test
+    fun apply_matches_analyze_text() {
+        val raw = "let's meet Tuesday wait no Friday"
+        assertThat(CourseCorrector.apply(raw)).isEqualTo(CourseCorrector.analyze(raw).text)
+    }
+
+    @Test
+    fun i_mean_and_instead_markers() {
+        val a = CourseCorrector.apply("call Bob i mean Rob")
+        assertThat(a.lowercase()).contains("rob")
+        assertThat(a.lowercase()).doesNotContain("bob")
+
+        val b = CourseCorrector.apply("use red instead blue")
+        assertThat(b.lowercase()).contains("blue")
+        assertThat(b.lowercase()).doesNotContain("red")
+    }
+
+    @Test
+    fun rather_and_sorry_markers() {
+        val a = CourseCorrector.apply("pick option A rather option B")
+        assertThat(a.lowercase()).contains("b")
+        assertThat(a.lowercase()).doesNotContain("option a")
+
+        val b = CourseCorrector.apply("meet at 3 sorry 4")
+        assertThat(b.lowercase()).contains("4")
+        assertThat(b.lowercase()).doesNotContain("at 3")
+    }
 }

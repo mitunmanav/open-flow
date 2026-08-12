@@ -20,11 +20,21 @@ class DictationRepository(
     suspend fun snippetMap(): Map<String, String> =
         snippetDao.all().associate { it.trigger to it.body }
 
-    suspend fun saveDictation(text: String, durationMs: Long, languageTag: String): DictationEntity {
-        val words = text.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }.size
+    /**
+     * Persist a dictation with raw STT + clean text.
+     * [text] on the entity stays clean (UI-compatible). [wordCount] from clean only.
+     */
+    suspend fun saveDictation(
+        rawText: String,
+        cleanText: String,
+        durationMs: Long,
+        languageTag: String
+    ): DictationEntity {
+        val words = cleanText.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }.size
         val e = DictationEntity(
             id = UUID.randomUUID().toString(),
-            text = text,
+            text = cleanText,
+            rawText = rawText,
             createdAtEpochMs = System.currentTimeMillis(),
             durationMs = durationMs,
             languageTag = languageTag,
@@ -34,6 +44,10 @@ class DictationRepository(
         bumpStats(words)
         return e
     }
+
+    /** Compat: single string → both raw and clean (pre-pipeline callers). */
+    suspend fun saveDictation(text: String, durationMs: Long, languageTag: String): DictationEntity =
+        saveDictation(rawText = text, cleanText = text, durationMs = durationMs, languageTag = languageTag)
 
     suspend fun deleteDictation(id: String) = dictationDao.delete(id)
 

@@ -1,15 +1,23 @@
 package app.openflow.privacy
 
-/** Local-first privacy report. Flags not toggled yet — hard defaults. */
+/**
+ * Static privacy report. Honest about Android system STT
+ * (may stream audio remotely depending on device / OEM).
+ * OpenFlow itself has no server, analytics, or uploads.
+ */
 object PrivacyDefaults {
     fun reportText(): String = """
         Open Flow privacy report
-        - prefer on-device STT: ON
-        - cloud STT: OFF
+        - Speech recognition: Android system STT (may leave device)
+        - OpenFlow server: none
+        - Analytics: disabled
+        - Audio uploaded by OpenFlow: never
+        - Transcript uploaded by OpenFlow: never
+        - Local history: on device
+        - prefer offline STT extras: ON (device may still use remote STT)
         - sync: OFF
         - crash reports: OFF
-        - analytics: OFF
-        - INTERNET permission: not declared by default
+        - INTERNET permission: not declared by OpenFlow
         - account required: no
     """.trimIndent() + "\n"
 }

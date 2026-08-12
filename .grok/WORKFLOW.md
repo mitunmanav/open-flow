@@ -1,57 +1,26 @@
-# Open Flow — worktree + dev workflow
+# Open Flow — workflow (Superpowers + android-cli)
 
-## Active trees (keep lean)
+## Law
 
-| Path | Branch | Purpose |
-|------|--------|---------|
-| `/home/mitun/open-flow` | `main` | Ship line. Merge only green features. |
-| `.worktrees/ui-optimize` | `feat/ui-optimize` | Modern brutal UI optimize (active) |
-| `.worktrees/wispr-research` | `research/wispr-flow-deep` | Research docs only — no product code |
+1. **Superpowers** — all skills when they apply (plans, TDD, worktrees, debug, verify, review).
+2. **android-cli** — device, docs, layout, install.
+3. **Bypass (only one):** multi-agent **inside** a worktree is allowed (max 5, different files).  
+   Do **not** treat Superpowers as forbidding worktree sub-agents.
 
-Remove a worktree when its branch is **fully merged** to main and dirty=0:
-```bash
-git worktree remove .worktrees/<name>
-git branch -d feat/<name>   # if merged
-git worktree prune
-```
+## Active trees
 
-## Rules
+Keep lean. After merge → remove worktree + delete branch.
 
-1. **One feature = one worktree = one branch.** Never share files across parallel agents.
-2. **Max 5 subagents** per task. No two agents edit the same file.
-3. **Main stays clean.** WIP lives in worktrees. Stash only short-lived.
-4. **Do not force-stop a11y** during live bubble tests.
-5. **Author Mitun only.** No Co-Authored-By.
-6. **Verify before merge:** `./gradlew :app:testDebugUnitTest` + compile green.
-7. **Research ≠ product.** Research stays in docs/research or research wt; don't block main ship.
+| Path | Role |
+|------|------|
+| repo root `main` | Ship line only |
 
-## Feature loop
+## Loop
 
 ```
-plan → worktree → TDD → security → commit on branch → verify → merge main → remove wt
+superpowers check → plan → worktree → TDD → android verify → commit → merge → remove wt
 ```
 
-## Product locks (do not reopen)
+## Product
 
-- Bubble + AccessibilityService (not IME)
-- en-US only for now
-- Local FOSS, no cloud AI by default
-- Cleanup levels + phrase map + styles = **rules**, not LLM
-- Default UI skin: **modern brutal** (`VisualSkin.BRUTAL`) when that lands
-
-## Pipeline (local no-AI)
-
-```
-STT (+ formatting extras)
-  → PhraseMap / VoiceCommands
-  → Cleanup None|Light|Medium|High
-  → Writing style
-  → Dictionary + snippets
-  → ACTION_SET_TEXT
-```
-
-## Shell / tools
-
-- Prefer `rtk` when available
-- Android: `android` CLI (layout, screen, install, docs)
-- Voice: caveman ultra — DID / PASS-FAIL / NEXT / SUGGEST / ASK
+Bubble+a11y · en-US · no cloud AI default · modern brutal UI · rules-based polish.

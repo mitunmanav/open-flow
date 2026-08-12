@@ -1,54 +1,93 @@
 # open-flow build process (hard)
 
-Follow Superpowers + these rules. No exceptions.
+**Stack:** Superpowers plugin + **android-cli**. No freestyle agent process.
+
+## Superpowers — use all of it
+
+Before real work, load and follow applicable Superpowers skills:
+
+| Skill | When |
+|-------|------|
+| `using-superpowers` | Session start / any task |
+| `brainstorming` | New creative / feature shape (product already locked — don't re-open "what is the app?") |
+| `writing-plans` | Multi-step feature before code |
+| `using-git-worktrees` | Feature isolation |
+| `test-driven-development` | Logic / pipeline / pure Kotlin |
+| `systematic-debugging` | Bugs before random fixes |
+| `verification-before-completion` | Before claim done / merge |
+| `dispatching-parallel-agents` | Independent parallel work |
+| `subagent-driven-development` | Plan execution with agents |
+| `requesting-code-review` / `receiving-code-review` | Pre-merge quality |
+| `finishing-a-development-branch` | After green, merge options |
+| `executing-plans` | Multi-PR plan runs |
+
+### One Superpowers bypass (Mitun law)
+
+**Allowed:** spawn **multiple sub-agents inside one worktree** for parallel slices  
+(different files only; max 5).  
+
+Bypass any Superpowers / harness rule that says *not* to run sub-agents in a worktree.  
+Everything else Superpowers remains **on**.
+
+## android-cli (required for Android work)
+
+Use `android` CLI for:
+
+- `android info` — SDK / device
+- `android docs search|fetch` — API truth (not guesses)
+- `android layout` / `android screen capture` — UI verify
+- `android install` / `android run` — deploy
+- SDK: `android sdk …` when missing packages
+
+Prefer `android` over raw inventing device flows. `adb` still OK for deep inject/logs.
 
 ## Per feature (every time)
 
-1. **Web search** — APIs + Android security for that feature.
-2. **Quick plan** — save under `docs/process/plans/YYYY-MM-DD-<feature>.md`.
-3. **Worktree** — `git worktree add .worktrees/<feature> -b feat/<feature>`  
-   (`.worktrees/` must be gitignored.)
-4. **TDD** — failing test first → green → refactor.
-5. **Security** — no new risky perm without plan note; no INTERNET by default; cleartext off.
-6. **Commit** — one focused commit on that feature branch (author Mitun only).
-7. **Merge to main** when feature green (fast-forward or merge commit).
+1. Superpowers skill check  
+2. **Web search** + **android docs** for APIs/security  
+3. **Plan** → `docs/process/plans/YYYY-MM-DD-<feature>.md`  
+4. **Worktree** → `.worktrees/<feature>` + branch `feat/<feature>`  
+5. **TDD** → red → green → refactor  
+6. **Security** → no INTERNET default; no new risky perm without plan  
+7. **Verify** → unit tests + compile; device when UI/bubble  
+8. **Commit** on feature branch (author **Mitun only**)  
+9. **Merge main** when green → **remove worktree**
 
-## Skills order
+```bash
+git check-ignore -q .worktrees || exit 1
+git worktree add .worktrees/<slug> -b feat/<slug>
+cd .worktrees/<slug>
+# … build …
+git worktree remove .worktrees/<slug>   # after merge
+git worktree prune
+```
 
-1. using-superpowers (check skills)
-2. using-git-worktrees (isolate)
-3. writing-plans (plan file)
-4. test-driven-development (code)
-5. verification-before-completion (prove)
+## Product locks
 
-## Interruptions
+- Bubble + AccessibilityService — **not** IME  
+- en-US only  
+- Local FOSS; no cloud AI default  
+- Cleanup High = **rules**, not LLM rewrite  
+- Default UI: **modern brutal** (`VisualSkin.BRUTAL`)
 
-Side requests (new rules, docs, questions) **never cancel** in-flight feature work.
-Do the side task, then **resume** the same feature/worktree/step. See `AGENTS.md` → Interruptions.
+## Local polish pipeline
 
-## Feature map (order)
-
-| ID | Branch | What |
-|----|--------|------|
-| F0 | feat/00-bootstrap | git, LICENSE, SECURITY, process |
-| F1 | feat/01-scaffold | Gradle/Compose shell, builds debug APK |
-| F2 | feat/02-privacy | PrivacyDefaults + report UI |
-| F3 | feat/03-search-export | TranscriptSearch + TranscriptExporter |
-| F4 | feat/04-room | Room sessions + FTS |
-| F5 | feat/05-stt | On-device SpeechRecognizer engine |
-| F6 | cancelled | ~~Voice IME~~ — not product path |
-| F7 | feat/07-recorder | Record + save session |
-| F8 | feat/08-timeline-ui | Compose timeline + search |
-| F9 | feat/09-export-ui | Share/export files |
-| F10 | feat/10-flow-bubble | Floating bubble + a11y (Wispr Android) |
+```
+STT → PhraseMap/VoiceCommands → Cleanup level → Style → Dict/Snippets → insert
+```
 
 ## Test on device
 
 ```bash
-export JAVA_HOME=$HOME/.local/jdk
-export ANDROID_HOME=$HOME/Android/Sdk
+export JAVA_HOME=${JAVA_HOME:-$HOME/.local/jdk}
+export ANDROID_HOME=${ANDROID_HOME:-$HOME/Android/Sdk}
 export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
-cd .worktrees/<feature>   # or main after merge
-./gradlew :app:assembleDebug
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+./gradlew :app:assembleDebug :app:testDebugUnitTest
+android install --apks app/build/outputs/apk/debug/app-debug.apk
+# or: adb install -r …
+android layout -p   # inspect UI
 ```
+
+## Voice with Mitun
+
+Caveman ultra. DID / PASS-FAIL / NEXT / SUGGEST / ASK.

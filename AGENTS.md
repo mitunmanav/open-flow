@@ -51,18 +51,29 @@ Ship in ordered features (F0…Fn), not one mega dump.
 
 ---
 
-## Superpowers (strict)
+## Superpowers + android-cli (strict)
 
-Before any real work:
+**Required stack for all development:**
 
-1. Check applicable skills (`using-superpowers` first).
-2. **Brainstorm already done** for product shape — do not re-open “what is the app?” unless Mitun changes goal.
-3. **writing-plans** → plan file per feature before code.
-4. **using-git-worktrees** → one worktree per feature.
-5. **test-driven-development** → failing test first (pure logic always; Android UI/instrumented when feasible).
-6. **verification-before-completion** → prove build/tests before claiming done.
+1. **Superpowers plugin** — use **all** applicable skills (not optional):
+   - `using-superpowers` first every task
+   - `brainstorming` (only if product shape re-opens — default: locked)
+   - `writing-plans` · `using-git-worktrees` · `test-driven-development`
+   - `systematic-debugging` · `verification-before-completion`
+   - `dispatching-parallel-agents` · `subagent-driven-development`
+   - review / finishing-branch skills when merging
+2. **android-cli** — `android docs`, `layout`, `screen`, `install`/`run`, `info`, SDK. Prefer over guessing Android APIs.
 
-If a skill applies even 1%, use it.
+### One Superpowers bypass (Mitun)
+
+**May spawn multiple sub-agents inside one worktree** (max 5, **never same file**).  
+Bypass any Superpowers/harness rule that forbids worktree sub-agents.  
+All other Superpowers rules stay **on**.
+
+### Also
+
+- **Brainstorm already done** for product shape — do not re-open “what is the app?” unless Mitun changes goal.
+- Detail: `docs/PROCESS.md` · `.grok/WORKFLOW.md`
 
 ---
 

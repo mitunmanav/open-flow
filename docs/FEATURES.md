@@ -46,8 +46,8 @@
 | H2 | History copy/delete | Yes | UI | **have** |
 | H3 | Hold-to-talk | Yes | Long-press PTT | **have** |
 | H4 | Home setup permission cards | Yes | Chips + buttons | **have** |
-| L1 | Language select | Yes | en-US default + Home chips | **have** |
-| L2 | 100+ languages cloud | Yes | OS offline packs | **partial** |
+| L1 | Language select | Yes | **en-US only** (locked) | **have** |
+| L2 | 100+ languages cloud | Yes | Deferred — not product now | **skip** |
 | M1 | Mic permission flow | Yes | Reliability labels | **have** |
 | N1 | Notifications | Yes | — | **F15** |
 | O1 | Offline dictation | **No** | **Yes (ours)** | **have** |
@@ -60,7 +60,10 @@
 | S2 | Snooze bubble 10 min | Yes | Yes | **have** |
 | S3 | Shake to unsnooze | Yes | Sensor | **have** |
 | S4 | Stats (words, streak) | Yes | Local counters | **have** |
-| S5 | Style per app category | Yes | Global styles only | **have** |
+| S5 | Writing styles | Yes | Formal/Casual/Very casual/Excited/Custom (local rules) | **have** |
+| S5b | Style per app category | Yes | Global styles only | **partial** |
+| C0 | Cleanup levels None/Light/Medium/High | Yes (AI High) | Local rules stages; High ≠ LLM | **have** |
+| C0b | Spoken punct / backspace / new line | Yes | PhraseMap + VoiceCommands | **have** |
 | S6 | Settings nav | Drawer | Bottom nav 5 tabs | **have** |
 | T1 | Tap bubble toggle | Yes | Yes | **have** |
 | T2 | Transcript retry cloud | Yes | N/A local | **skip** |
@@ -76,12 +79,12 @@
 
 ## Open Flow ship order (current)
 
-1. **Done:** … · F12-ux · **F14 polish**  
-2. **F15** export/share + optional notifs  
-4. **F16** memo recorder (audio + transcript)  
-5. **F17** language pack UX  
-6. **Later** Whisper opt-in, sync  
+1. **Done:** bubble · pipeline (no AI) · modern brutal UI · en-US lock  
+2. **F15** export/share polish + optional notifs (export already partial)  
+3. **F16** memo recorder (audio + transcript)  
+4. **Later** optional on-device Whisper · sync  
 
 Privacy forever: no forced account, no cloud STT default.
 
-See **`docs/BASELINE.md`** for commit hashes and agent history.
+Research: `docs/research/` · small-features map: `docs/WISPR-SMALL-FEATURES-MAP.md`  
+Baseline: `docs/BASELINE.md`

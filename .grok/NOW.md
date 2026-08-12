@@ -1,13 +1,7 @@
-# NOW (Grok pickup)
+# NOW
 
-## main
-- Pipeline without AI + modern brutal UI merged
-- Verify: unit tests green on tip
+**main:** pipeline + modern brutal UI merged  
+**worktrees:** none (cleaned)  
+**dev:** Superpowers + android-cli (worktree multi-agent allowed)
 
-## Active worktrees
-- `ui-optimize` — can remove after Mitun confirms device look
-- `wispr-research` — research docs (also on main under docs/research/)
-
-## Do not
-- Force-push
-- Re-open M3 as default skin
+**NEXT:** device smoke or F16 when Mitun says GO

@@ -17,20 +17,4 @@ class NoAITest {
         assertThat(NoAI.enhance("", mode = "cleanup")).isEqualTo("")
         assertThat(NoAI.enhance("  spaced  ", mode = "formal")).isEqualTo("  spaced  ")
     }
-
-    @Test
-    fun local_llm_stub_throws() = runTest {
-        val p = LocalLLM("gemma-test")
-        assertThat(p.name).isEqualTo("local:gemma-test")
-        val err = runCatching { p.enhance("x") }.exceptionOrNull()
-        assertThat(err).isInstanceOf(UnsupportedOperationException::class.java)
-    }
-
-    @Test
-    fun remote_llm_stub_throws() = runTest {
-        val p = RemoteLLM("openai")
-        assertThat(p.name).isEqualTo("remote:openai")
-        val err = runCatching { p.enhance("x", mode = "cleanup") }.exceptionOrNull()
-        assertThat(err).isInstanceOf(UnsupportedOperationException::class.java)
-    }
 }

@@ -2,14 +2,24 @@
 """open-flow only — PreToolUse gate.
 
 Deny app/ file writes on main (must use .worktrees/).
-INTERNET perm is allowed in a worktree (app still ships without it
-until a feature plan adds it). Fail open on errors.
+Deny spawn_subagent if prompt lacks caveman card.
+Agent web search is OK. APK INTERNET is not this hook's job.
+Fail open on errors.
 """
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
+
+SPAWN_TOOLS = {
+    "spawn_subagent",
+    "Task",
+    "task",
+}
+
+CAVEMAN_MARK = re.compile(r"(?i)\b(caveman|DID:|PASS-FAIL:)\b")
 
 
 def file_from_input(tool_input: object) -> str:
@@ -39,6 +49,16 @@ def is_app_path(path: str) -> bool:
     return "app" in parts
 
 
+def spawn_lacks_caveman(data: dict, tool_input: object) -> bool:
+    name = str(data.get("toolName") or data.get("tool_name") or "")
+    if name not in SPAWN_TOOLS:
+        return False
+    if not isinstance(tool_input, dict):
+        return True
+    prompt = str(tool_input.get("prompt") or "")
+    return not bool(CAVEMAN_MARK.search(prompt))
+
+
 def decide(data: dict) -> dict | None:
     tool_input = data.get("toolInput") or data.get("tool_input") or {}
     path = file_from_input(tool_input)
@@ -47,6 +67,16 @@ def decide(data: dict) -> dict | None:
         or data.get("workspaceRoot")
         or ""
     )
+
+    if spawn_lacks_caveman(data, tool_input):
+        return {
+            "decision": "deny",
+            "reason": (
+                "open-flow PreToolUse: subagent prompt must be caveman. "
+                "Start with CAVEMAN + DID / PASS-FAIL / NEXT / ASK. "
+                "No essays. See .grok/rules/00-dev-gate.md"
+            ),
+        }
 
     if is_app_path(path) and not in_worktree(cwd, path):
         return {

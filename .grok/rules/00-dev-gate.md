@@ -1,37 +1,38 @@
 # Open Flow — Grok Build gate (this repo only)
 
-Hard. Every turn. No skip.
+Hard. Every turn. No skip. Main **and** subagents.
 
-## Voice
+## Voice (everywhere)
 - Caveman ultra. Short lines. YES/NO. DID / PASS-FAIL / NEXT / ASK.
-- No essays. No generic agent advice.
+- No essays. No filler. Same voice in subagents, hooks, NOW.
+- Every `spawn_subagent` prompt **must** start with CAVEMAN + DID/PASS-FAIL/NEXT. Hook denies if missing.
 
 ## Required stack (same weight)
-1. **Superpowers** — read `using-superpowers` first. All applicable skills.
-2. **android-cli** — same as Superpowers. Read the skill. Use `android docs` / `layout` / `screen` / `install` / `run` / `info`. Do **not** guess Android APIs.
-3. **Internet / web search** — required before feature work (current Android + security docs).
-4. Code ship → TDD + worktree + plan + verify.
-5. Only Superpowers bypass: multi-agent (max 5, never same file), worktrees OK.
+1. **Superpowers** — `using-superpowers` first. All applicable skills.
+2. **Planning** — `writing-plans` **before** feature code. Plan file on disk first. No proceed without it.
+3. **android-cli** — same weight. `android docs` / `layout` / `screen` / `install` / `run` / `info`. No API guesses.
+4. **Agent web search** — required before feature work. **Not** APK INTERNET.
+5. Code ship → TDD + worktree + verify.
+6. Only Superpowers bypass: multi-agent (max 5, never same file), worktrees OK.
 
 ## App code
 - Feature work in `.worktrees/<id>-<slug>` on `feat/<id>-<slug>`.
 - Do **not** edit `app/` on `main`. PreToolUse denies it.
 - Plan first: `docs/process/plans/YYYY-MM-DD-<id>-<slug>.md`
 
-## Loop (feature work)
+## Loop
 ```
-web search + android docs → plan file → worktree → TDD → security → commit → report
+web search + android docs → writing-plans file → worktree → TDD → security → commit → report
 ```
 
 ## Claim gate
 - Never claim PASS / fixed / done without **tool proof in the same message**.
 - Proof = `gradlew` / `BUILD SUCCESSFUL` / `Ran N tests` / `adb install` / `android docs|layout|install|info|screen`.
 - Writing `PASS-FAIL: PASS` or `NEXT:` is **not** proof.
-- Author: Mitun only. No Co-Authored-By. No agent footers.
+- Author: Mitun only.
 
 ## Security
-- Base app still has **no INTERNET perm** until a feature plan adds it.
-- Hook does **not** block adding INTERNET in a worktree.
+- **No INTERNET perm in the APK.** Agent may search the web. Different things.
 - No new perm without that feature’s plan.
 
 ## Boss files

@@ -4,7 +4,10 @@ import android.content.Context
 import android.content.SharedPreferences
 import app.openflow.stt.LanguagePolicy
 import app.openflow.stt.SttTuning
-import app.openflow.text.TextPostProcessor
+import app.openflow.text.CapsMode
+import app.openflow.text.CustomStyleConfig
+import app.openflow.text.EndPunct
+import app.openflow.text.WritingStyle
 import app.openflow.ui.theme.VisualSkin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -46,17 +49,42 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         )
         set(v) = store.putString("language_tag", LanguagePolicy.force(v))
 
+    /** formal | casual | very_casual | excited | custom */
     var styleName: String
-        get() = store.getString("style", TextPostProcessor.Style.CASUAL.name)
-        set(v) = store.putString("style", v)
+        get() = WritingStyle.fromPref(store.getString("style", WritingStyle.CASUAL.name)).name
+        set(v) = store.putString("style", WritingStyle.fromPref(v).name)
+
+    /** Custom style: auto | period | bang | none */
+    var customEndPunct: String
+        get() = store.getString("custom_end_punct", "auto")
+        set(v) = store.putString("custom_end_punct", v)
+
+    /** Custom style: sentence | first | none */
+    var customCaps: String
+        get() = store.getString("custom_caps", "sentence")
+        set(v) = store.putString("custom_caps", v)
+
+    var customExpandInformal: Boolean
+        get() = store.getString("custom_expand_informal", "false") == "true"
+        set(v) = store.putString("custom_expand_informal", if (v) "true" else "false")
+
+    /** Lines `from=>to` for custom style only. */
+    var customStyleReplacements: String
+        get() = store.getString("custom_style_replacements", "")
+        set(v) = store.putString("custom_style_replacements", v)
 
     var snoozeUntilMs: Long
         get() = store.getLong("snooze_until", 0L)
         set(v) = store.putLong("snooze_until", v)
 
-    fun style(): TextPostProcessor.Style =
-        runCatching { TextPostProcessor.Style.valueOf(styleName) }
-            .getOrDefault(TextPostProcessor.Style.CASUAL)
+    fun style(): WritingStyle = WritingStyle.fromPref(styleName)
+
+    fun customStyleConfig(): CustomStyleConfig = CustomStyleConfig(
+        endPunct = EndPunct.fromPref(customEndPunct),
+        caps = CapsMode.fromPref(customCaps),
+        expandInformal = customExpandInformal,
+        replacements = CustomStyleConfig.parseReplacements(customStyleReplacements)
+    )
 
     fun isSnoozed(now: Long = System.currentTimeMillis()): Boolean = now < snoozeUntilMs
 

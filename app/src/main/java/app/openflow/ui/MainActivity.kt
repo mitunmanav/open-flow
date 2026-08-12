@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -150,6 +151,26 @@ class MainActivity : ComponentActivity() {
                 }
 
                 var layoutTick by remember { mutableIntStateOf(0) }
+
+                // Single-activity routes: system Back must pop Compose route,
+                // not leave the app (or return to system Settings).
+                val rootTabs = setOf(
+                    AppRoute.Home,
+                    AppRoute.History,
+                    AppRoute.Dictionary,
+                    AppRoute.Settings
+                )
+                val backTarget = when (route) {
+                    AppRoute.Snippets, AppRoute.Style, AppRoute.Appearance,
+                    AppRoute.BubbleSettings, AppRoute.Cleanup, AppRoute.Privacy,
+                    AppRoute.Sounds, AppRoute.Customize, AppRoute.HomeModules,
+                    AppRoute.NavModules -> AppRoute.Settings
+                    else -> AppRoute.Home
+                }
+                BackHandler(enabled = route !in rootTabs) {
+                    route = backTarget
+                }
+
                 AppShell(
                     route = route,
                     onNavigate = { dest -> route = dest },

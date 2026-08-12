@@ -6,7 +6,7 @@ package app.openflow.stt
  * Android docs: set silence extras only when needed; values are device-dependent.
  */
 object SttTuning {
-    /** Prefer English (US) for quality focus; user can override in prefs. */
+    /** Locked product language — English (US) only. No other locales. */
     const val DEFAULT_LANGUAGE = "en-US"
 
     /** Min listen before endpointer may fire. Lower = snappier short phrases. */

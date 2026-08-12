@@ -201,12 +201,12 @@ rec("B2b", "cleanup_pref_smart", "medium" in pref2 or "cleanup" in pref2.lower()
 nav_tab("Dict")
 shot("C0-dict")
 nodes = dump_nodes()
-focus_edit(nodes, 0); clear_field(); type_txt("wisper")
+focus_edit(nodes, 0); clear_field(); type_txt("qazword99")
 nodes = dump_nodes()
-focus_edit(nodes, 1); clear_field(); type_txt("wispr")
+focus_edit(nodes, 1); clear_field(); type_txt("qazrepl99")
 nodes = dump_nodes()
 tap_text(nodes, "Save Word", min_w=60)
-ok_w, nodes = wait_until(lambda ns: any(n["text"] == "wisper" for n in ns) or any("wispr" in (n["text"] or "") for n in ns), timeout=6)
+ok_w, nodes = wait_until(lambda ns: any(n["text"] == "qazword99" for n in ns) or any(n["text"] == "qazword99" or "qazrepl99" in (n["text"] or "") for n in ns), timeout=6)
 shot("C1-dict-saved")
 # Room / persist
 # force-stop relaunch
@@ -215,7 +215,7 @@ time.sleep(0.4)
 sh("shell", "am", "start", "-n", ACT)
 time.sleep(1.8)
 nav_tab("Dict")
-ok_p, nodes = wait_until(lambda ns: any(n["text"] == "wisper" for n in ns), timeout=5)
+ok_p, nodes = wait_until(lambda ns: any(n["text"] == "qazword99" for n in ns), timeout=5)
 shot("C1b-dict-persist")
 rec("C1", "dict_add_and_persist", ok_w and ok_p, f"after_save={ok_w} after_relaunch={ok_p} texts={texts(nodes)[:15]}")
 
@@ -226,7 +226,7 @@ for n in nodes:
     if "delete" in (n["desc"] or "").lower():
         tap(n["cx"], n["cy"]); deleted = True; break
 time.sleep(0.8)
-ok_g, nodes = wait_until(lambda ns: not any(n["text"] == "wisper" for n in ns), timeout=4)
+ok_g, nodes = wait_until(lambda ns: not any(n["text"] == "qazword99" for n in ns), timeout=4)
 shot("C2-dict-deleted")
 rec("C2", "dict_delete", deleted and ok_g, f"tap={deleted} gone={ok_g}")
 
@@ -260,11 +260,16 @@ if not tap_text(nodes, "Privacy", min_w=80):
     tap_text(dump_nodes(), "Privacy", min_w=80)
 time.sleep(0.8)
 nodes = dump_nodes()
-tap_text(nodes, "Wipe", min_w=60)
-time.sleep(0.6)
-pref = prefs_blob()
+ok_wipe = tap_text(nodes, "Wipe after 24h", min_w=100) or tap_text(nodes, "Wipe after", min_w=80)
+time.sleep(0.8)
+pref = ""
+for _ in range(10):
+    pref = prefs_blob()
+    if "wipe_24h" in pref:
+        break
+    time.sleep(0.3)
 shot("F1-privacy")
-rec("F1", "privacy_wipe_pref", "wipe_24h" in pref or "wipe" in pref.lower(), pref[:250])
+rec("F1", "privacy_wipe_pref", "wipe_24h" in pref, f"tap={ok_wipe} pref={pref[:280]}")
 tap_text(dump_nodes(), "Keep forever", min_w=60)
 time.sleep(0.4)
 sh("shell", "input", "keyevent", "4")

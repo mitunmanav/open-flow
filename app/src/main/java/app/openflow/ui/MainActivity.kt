@@ -63,6 +63,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -191,6 +192,11 @@ class MainActivity : ComponentActivity() {
                                 micOn = micOn,
                                 onEnableBubble = {
                                     try {
+                                        android.widget.Toast.makeText(
+                                            this@MainActivity,
+                                            "Enable Open Flow in Accessibility, then return here.",
+                                            android.widget.Toast.LENGTH_LONG
+                                        ).show()
                                         startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                                     } catch (e: Exception) {
                                         try {
@@ -252,7 +258,7 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                             AppRoute.NavModules -> ModuleEditor(
-                                title = "Drawer extras",
+                                title = "Menu visibility",
                                 subtitle = "Settings always stays. Bottom tabs are not listed here.",
                                 modules = app.prefs.navModules(),
                                 labels = mapOf(
@@ -424,7 +430,8 @@ private fun HomeHub(
                                 value = localNote,
                                 onValueChange = { localNote = it },
                                 placeholder = "Tap bubble · speak · tap stop…",
-                                minLines = 3
+                                minLines = 3,
+                                modifier = Modifier.testTag("practice_field")
                             )
                         }
                     }
@@ -596,11 +603,7 @@ private fun HistoryScreen(app: OpenFlowApp) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text(
-                    "Private History",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
+                /* title in TopAppBar */
                 Text(
                     "${dictations.size} recordings on device",
                     style = MaterialTheme.typography.bodySmall,
@@ -610,6 +613,7 @@ private fun HistoryScreen(app: OpenFlowApp) {
             if (dictations.isNotEmpty()) {
                 OpenButton(
                     text = "Export",
+                    modifier = Modifier.testTag("history_export"),
                     onClick = {
                         val rows = dictations.map { d ->
                             HistoryExport.Row(d.createdAtEpochMs, d.text, d.languageTag, d.wordCount)
@@ -794,7 +798,7 @@ private fun DictionaryTab(app: OpenFlowApp) {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Column {
-            Text("Custom Vocabulary", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            /* title in TopAppBar */
             Text(
                 "Local replacement rules applied instantly during insertion.",
                 style = MaterialTheme.typography.bodySmall,
@@ -808,15 +812,18 @@ private fun DictionaryTab(app: OpenFlowApp) {
                 OpenTextField(
                     value = word,
                     onValueChange = { word = it },
-                    placeholder = "Heard word / mistake (e.g. Wisper)"
+                    placeholder = "Heard word / mistake (e.g. Wisper)",
+                    modifier = Modifier.testTag("dict_word")
                 )
                 OpenTextField(
                     value = repl,
                     onValueChange = { repl = it },
-                    placeholder = "Replace with (e.g. Wispr)"
+                    placeholder = "Replace with (e.g. Wispr)",
+                    modifier = Modifier.testTag("dict_repl")
                 )
                 OpenButton(
                     text = "Save Word",
+                    modifier = Modifier.testTag("dict_save_word"),
                     onClick = {
                         if (word.isNotBlank()) {
                             scope.launch {
@@ -887,7 +894,7 @@ private fun SnippetsTab(app: OpenFlowApp) {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Column {
-            Text("Voice Snippets", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            /* title in TopAppBar */
             Text(
                 "Speak the trigger phrase alone to automatically expand into full text.",
                 style = MaterialTheme.typography.bodySmall,
@@ -911,6 +918,7 @@ private fun SnippetsTab(app: OpenFlowApp) {
                 )
                 OpenButton(
                     text = "Add Snippet",
+                    modifier = Modifier.testTag("snippet_add"),
                     onClick = {
                         if (trigger.isNotBlank() && body.isNotBlank()) {
                             scope.launch {
@@ -983,7 +991,7 @@ private fun StyleTab(prefs: FlowPrefs) {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Column {
-            Text("Writing Style", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            /* title in TopAppBar */
             Text(
                 "Choose the default tone for post-processing voice transcripts.",
                 style = MaterialTheme.typography.bodySmall,
@@ -1059,7 +1067,7 @@ private fun SettingsHub(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Column {
-            Text("Settings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            /* title in TopAppBar */
             Text(
                 "Preferences & local configuration",
                 style = MaterialTheme.typography.bodySmall,
@@ -1100,9 +1108,9 @@ private fun CustomizeHub(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Text("Customize", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        /* title in TopAppBar */
         SettingsRow("Home layout", "Modules on Home", onHomeLayout)
-        SettingsRow("Drawer extras", "What appears in the menu", onNavLayout)
+        SettingsRow("Menu visibility", "Show or hide optional menu entries", onNavLayout)
     }
 }
 
@@ -1117,7 +1125,7 @@ private fun CleanupSettings(prefs: FlowPrefs) {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Column {
-            Text("Cleanup Engine", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            /* title in TopAppBar */
             Text(
                 "Real-time local text cleanup applied before inserting into fields.",
                 style = MaterialTheme.typography.bodySmall,
@@ -1177,7 +1185,7 @@ private fun PrivacySettings(prefs: FlowPrefs) {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Column {
-            Text("Privacy & Storage", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            /* title in TopAppBar */
             Text(
                 "All transcripts and settings remain strictly on your device.",
                 style = MaterialTheme.typography.bodySmall,
@@ -1238,7 +1246,7 @@ private fun SoundsSettings(prefs: FlowPrefs) {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Column {
-            Text("Feedback & Cues", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            /* title in TopAppBar */
             Text("Haptic and audio cues during dictation.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
@@ -1308,7 +1316,7 @@ private fun ModuleEditor(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        /* title in TopAppBar */
         Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         local.forEach { m ->
             val locked = m.id in lockVisible
@@ -1395,7 +1403,7 @@ private fun AppearanceSettings(prefs: FlowPrefs) {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Column {
-            Text("Appearance", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            /* title in TopAppBar */
             Text("Customize theme colors and component styling.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
@@ -1456,7 +1464,7 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Column {
-            Text("Flow Bubble Customizer", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            /* title in TopAppBar */
             Text(
                 "Morph the shape, size, and interaction physics of your floating bubble.",
                 style = MaterialTheme.typography.bodySmall,

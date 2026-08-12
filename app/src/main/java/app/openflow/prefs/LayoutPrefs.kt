@@ -10,7 +10,7 @@ package app.openflow.prefs
  */
 object LayoutPrefs {
 
-    val HOME_MODULES = listOf("setup", "stats", "keys", "test", "recent")
+    val HOME_MODULES = listOf("setup", "test", "keys", "stats", "recent")
 
     /** Drawer-only destinations the user may hide (Settings always shown in shell). */
     val DRAWER_EXTRAS = listOf("history", "customize")
@@ -18,7 +18,7 @@ object LayoutPrefs {
     @Deprecated("Use DRAWER_EXTRAS — bottom tabs are not drawer items")
     val NAV_ITEMS = DRAWER_EXTRAS
 
-    const val DEFAULT_HOME = "setup,stats,keys,test,recent"
+    const val DEFAULT_HOME = "setup,test,keys,stats,recent"
     const val DEFAULT_NAV = "history,customize"
 
     data class Module(val id: String, val visible: Boolean)

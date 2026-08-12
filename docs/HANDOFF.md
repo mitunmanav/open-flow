@@ -1,6 +1,6 @@
 # Open Flow — handoff (live)
 
-**main tip:** `42d4241` merge F15–F17  
+**main tip:** `e92c15d` F18 IME park  
 **Product:** Bubble + AccessibilityService · **not** IME · en-US · local FOSS · minimal brutal UI
 
 ## WHERE (2026-08-12)
@@ -8,9 +8,9 @@
 | Layer | Status |
 |-------|--------|
 | Local no-AI pipeline | **on main** |
-| Minimal brutal UI + bubble | **on main** — charcoal/cream, hard square, 2dp |
-| Mic insert + theme + nav + STT Hz | **on main** (was F15 worktree) |
-| Worktrees | prune `15-bubble-mic-fix` after this merge |
+| F17 chrome + F18 IME park | **on main** — orb above Gboard; listen bar 630×136 |
+| Mic insert + theme + nav + STT Hz | **on main** |
+| Worktrees | none |
 
 ## Pipeline (no AI model)
 
@@ -44,11 +44,10 @@ APK: `app/build/outputs/apk/debug/app-debug.apk` (17M, built after merge)
 
 ## NEXT
 
-1. USB Allow on phone (`unauthorized` now)
-2. Install + smoke: hard square bubble, cream stroke, no purple
-3. Spoken `period` / `backspace`
-4. Then F16 recorder **or** export polish — Mitun pick
+1. F19 STT `BIASING_STRINGS` + `MASK_OFFENSIVE_WORDS=false`
+2. Then leftover Wispr gaps (per-app style, copy chip)
+3. Tiny cleanup model = later opt-in only
 
 ## ASK
 
-None — smoke first.
+None — F19 next unless Mitun says else.

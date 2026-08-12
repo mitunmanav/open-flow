@@ -1,6 +1,6 @@
 # NOW
 
-**main:** F17 on tip `42d4241` — minimal brutal bubble + F15/F16 nav/theme/STT
+**main:** F18 on tip `e92c15d` — bubble above IME + small listen bar + no prefix double
 **dev:** this-repo gate · tree jail · spawn-5 · tiny memory
 
-**NEXT:** device smoke (phone USB **unauthorized** — tap Allow)
+**NEXT:** F19 STT bias + unmask (dictionary names). Not the tiny model yet.

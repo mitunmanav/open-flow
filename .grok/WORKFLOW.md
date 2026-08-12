@@ -1,11 +1,20 @@
 # Open Flow — workflow (Superpowers + android-cli)
 
+## Gate (this repo only)
+
+- Rules: `.grok/rules/00-dev-gate.md`
+- Hooks: `.grok/hooks/dev-gate.json` (SessionStart / prompt stamp / Stop claim check)
+- Trust once: `/hooks-trust` in this folder (or trust path in `~/.grok/trusted_folders.toml`)
+- Global Grok rules stay global; **this gate does not touch other projects.**
+
 ## Law
 
 1. **Superpowers** — all skills when they apply (plans, TDD, worktrees, debug, verify, review).
 2. **android-cli** — device, docs, layout, install.
 3. **Bypass (only one):** multi-agent **inside** a worktree is allowed (max 5, different files).  
    Do **not** treat Superpowers as forbidding worktree sub-agents.
+4. **Caveman** — DID / PASS-FAIL / NEXT / ASK. No essays.
+5. **Proof** — no PASS without test/build output.
 
 ## Active trees
 

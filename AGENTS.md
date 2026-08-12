@@ -4,6 +4,9 @@ Read this first. Do not ask Mitun to re-state these rules.
 
 Also follow: `docs/PROCESS.md`, `SECURITY.md`, global `~/.grok/AGENTS.md` / `~/.grok/rules/00-voice.md`.
 
+**Grok Build gate (this repo only):** `.grok/rules/00-dev-gate.md` + `.grok/hooks/dev-gate.json`.  
+Superpowers full · android-cli + web for Android · caveman report · Stop blocks empty PASS claims.
+
 ---
 
 ## Product (locked)

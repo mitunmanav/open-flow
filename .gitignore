@@ -60,3 +60,6 @@ Thumbs.db
 
 # Local agent notes (optional machine state)
 .grok/NOW.local.md
+
+# Grok session auto stamp (hooks)
+.grok/rules/01-session-stamp.md

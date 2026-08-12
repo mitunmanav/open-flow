@@ -98,6 +98,10 @@ cd .worktrees/<feature-id>-<slug>
 - **One feature = one worktree = one branch.**
 - Do not pile unrelated features in the same worktree.
 - Merge to `main` only when feature is green and committed.
+- **Hygiene:** after merge, `git worktree remove .worktrees/<name>` + `git branch -d` + `git worktree prune`.
+- **Do not** leave merged feature trees sitting forever (disk + confusion).
+- Live map: `.grok/WORKFLOW.md` · pickup: `.grok/NOW.md`.
+- Max **5** subagents/task; **never** same file in parallel.
 
 ### 4) TDD (required)
 

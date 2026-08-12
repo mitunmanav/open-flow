@@ -83,4 +83,21 @@ class BubbleGeometryTest {
             BubbleGeometry.imeHeightFromBounds(top = 2000, bottom = 1000, screenHeightPx = 2392)
         ).isEqualTo(0)
     }
+
+    @Test
+    fun overlaySizePx_idle_is_52dp_square() {
+        val (w, h) = BubbleGeometry.overlaySizePx(listening = false, density = 2.625f)
+        // 52dp * 2.625 = 136.5 → 136px
+        assertThat(w).isEqualTo(136)
+        assertThat(h).isEqualTo(136)
+    }
+
+    @Test
+    fun overlaySizePx_listen_is_small_bar_not_screen() {
+        val (w, h) = BubbleGeometry.overlaySizePx(listening = true, density = 2.625f)
+        assertThat(w).isAtMost((280 * 2.625f).toInt())
+        assertThat(h).isAtMost((64 * 2.625f).toInt())
+        assertThat(w).isGreaterThan(0)
+        assertThat(h).isGreaterThan(0)
+    }
 }

@@ -1,6 +1,8 @@
 package app.openflow.ui.components
 
+import android.os.Build
 import android.view.HapticFeedbackConstants
+import android.view.View
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -36,7 +38,7 @@ fun OpenButton(
     when (variant) {
         ButtonVariant.Filled -> Button(
             onClick = {
-                view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                performClickHaptic(view)
                 onClick()
             },
             modifier = modifier.fillMaxWidth().height(Dimen.TOUCH_TARGET).then(semanticsMod),
@@ -46,7 +48,7 @@ fun OpenButton(
 
         ButtonVariant.Outlined -> OutlinedButton(
             onClick = {
-                view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                performClickHaptic(view)
                 onClick()
             },
             modifier = modifier.fillMaxWidth().height(Dimen.TOUCH_TARGET).then(semanticsMod),
@@ -55,11 +57,19 @@ fun OpenButton(
 
         ButtonVariant.Text -> TextButton(
             onClick = {
-                view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                performClickHaptic(view)
                 onClick()
             },
             modifier = modifier.height(Dimen.TOUCH_TARGET).then(semanticsMod),
             enabled = enabled
         ) { Text(text) }
+    }
+}
+
+private fun performClickHaptic(view: View) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+    } else {
+        view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
     }
 }

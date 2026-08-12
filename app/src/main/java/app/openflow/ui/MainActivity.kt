@@ -42,6 +42,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -89,8 +90,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val app = application as OpenFlowApp
         setContent {
-            val darkMode by app.prefs.darkMode.collectAsState(initial = app.prefs.darkMode.value)
-            val skin by app.prefs.visualSkin.collectAsState(initial = app.prefs.visualSkin.value)
+            val darkMode by app.prefs.darkMode.collectAsState()
+            val skin by app.prefs.visualSkin.collectAsState()
             OpenFlowTheme(darkMode = darkMode, skin = skin) {
                 var route by remember { mutableStateOf(AppRoute.Home) }
                 var bubbleOn by remember { mutableStateOf(FlowAccessibilityService.isRunning()) }
@@ -118,7 +119,7 @@ class MainActivity : ComponentActivity() {
                     onDispose { owner.lifecycle.removeObserver(obs) }
                 }
 
-                var layoutTick by remember { mutableStateOf(0) }
+                var layoutTick by remember { mutableIntStateOf(0) }
                 AppShell(
                     route = route,
                     onNavigate = { dest -> route = dest },

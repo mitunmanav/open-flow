@@ -22,15 +22,13 @@ object DictationNotifier {
     private const val NOTIF_ID = 1
 
     fun createChannel(ctx: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val desc = "Dictation saved"
-            val ch = NotificationChannel(CHANNEL_ID, "Dictations", NotificationManager.IMPORTANCE_LOW).apply {
-                this.description = desc
-                setShowBadge(false)
-            }
-            val nm = ctx.getSystemService(NotificationManager::class.java)
-            nm.createNotificationChannel(ch)
+        val desc = "Dictation saved"
+        val ch = NotificationChannel(CHANNEL_ID, "Dictations", NotificationManager.IMPORTANCE_LOW).apply {
+            this.description = desc
+            setShowBadge(false)
         }
+        val nm = ctx.getSystemService(NotificationManager::class.java)
+        nm.createNotificationChannel(ch)
     }
 
     fun notifyIfPermitted(ctx: Context, wordCount: Int) {

@@ -5,6 +5,7 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.pm.PackageManager
 import android.graphics.PixelFormat
+import android.graphics.drawable.GradientDrawable
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -17,19 +18,22 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import app.openflow.OpenFlowApp
 import app.openflow.R
+import app.openflow.notify.DictationNotifier
 import app.openflow.prefs.FlowPrefs
 import app.openflow.stt.LanguagePolicy
 import app.openflow.stt.SttEngine
-import app.openflow.notify.DictationNotifier
-import app.openflow.stt.SttTuning
 import app.openflow.text.CleanupLevel
 import app.openflow.text.CleanupResult
 import app.openflow.text.TextPostProcessor
@@ -42,17 +46,22 @@ import kotlin.math.abs
 /**
  * Wispr-style Flow Bubble + continuous on-device STT.
  *
- * Insert model (matches Wispr Android docs, local only):
- * - Listen accumulates speech on bubble only (no raw dump into keyboard).
- * - Stop / PTT release → CleanupPipeline once → single SET_TEXT of clean text.
- * - No automatic clipboard; last raw/clean held in prefs for in-app Copy.
+ * Floating overlay features:
+ * - Dynamic shapes: Pill, Circle/Orb, Squircle, Dot.
+ * - Glassmorphism surface with electric indigo / emerald recording glow.
+ * - Live volume pulsing (RMS) and magnetic edge-snapping.
+ * - Single-commit text insertion into focused accessible field on stop.
  */
 class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
     private var windowManager: WindowManager? = null
     private var bubbleView: View? = null
+    private var bubbleRoot: LinearLayout? = null
+    private var bubbleIcon: ImageView? = null
     private var bubbleLabel: TextView? = null
+    private var bubblePulseRing: View? = null
     private var bubbleParams: WindowManager.LayoutParams? = null
+
     private var stt: SttEngine? = null
     private var listening = false
     private var pushToTalk = false
@@ -61,6 +70,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val mainHandler = Handler(Looper.getMainLooper())
     private var prefs: FlowPrefs? = null
+
     /** Raw STT segments for this listen (not written to field until stop). */
     private var sessionBuffer = StringBuilder()
     /** Field text snapshot at listen start — session rewrite base. */
@@ -75,10 +85,10 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     private val pulseRunnable = object : Runnable {
         override fun run() {
             if (!listening) return
-            val base = prefs?.bubbleOpacity ?: 0.8f
-            bubbleView?.alpha = if (pulseUp) base else (base * 0.55f)
+            val base = prefs?.bubbleOpacity ?: 0.85f
+            bubbleView?.alpha = if (pulseUp) base else (base * 0.65f)
             pulseUp = !pulseUp
-            mainHandler.postDelayed(this, 400L)
+            mainHandler.postDelayed(this, 350L)
         }
     }
 
@@ -101,7 +111,6 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS
             notificationTimeout = 80
         }
-        // prefer on-device when packs exist; engine falls back if offline fails
         stt = SttEngine(
             applicationContext,
             preferOnDevice = true,
@@ -155,7 +164,6 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         hideBubble()
         stopPulse()
     }
-
 
     override fun onDestroy() {
         stopPulse()
@@ -255,7 +263,11 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         if (bubbleView != null) return
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         val view = LayoutInflater.from(this).inflate(R.layout.flow_bubble, null)
+        bubbleRoot = view.findViewById(R.id.bubble_root)
+        bubbleIcon = view.findViewById(R.id.bubble_icon)
         bubbleLabel = view.findViewById(R.id.bubble_label)
+        bubblePulseRing = view.findViewById(R.id.bubble_pulse_ring)
+
         if (prefs == null) prefs = FlowPrefs(this)
         val p = prefs!!
         val scale = effectiveScale()
@@ -280,7 +292,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         try {
             windowManager?.addView(view, params)
             bubbleView = view
-            renderIdle()
+            updateBubbleVisuals()
             setBubbleEmphasis(false)
         } catch (_: Exception) {
             bubbleView = null
@@ -342,7 +354,6 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                         snapBubbleToEdge(v, params)
                     }
                     if (longPressFired || pushToTalk) {
-                        // release ends PTT
                         if (listening) stopListening(save = true)
                         pushToTalk = false
                     } else if (!dragged) {
@@ -380,7 +391,10 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             }
         }
         bubbleView = null
+        bubbleRoot = null
+        bubbleIcon = null
         bubbleLabel = null
+        bubblePulseRing = null
         bubbleParams = null
     }
 
@@ -390,7 +404,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         val hide = snoozed || bankHide
         bubbleView?.visibility = if (hide) View.GONE else View.VISIBLE
         if (snoozed) registerShake() else unregisterShake()
-        if (!hide && !listening) applyModeLabel()
+        if (!hide) updateBubbleVisuals()
     }
 
     private fun registerShake() {
@@ -408,21 +422,13 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     }
 
     private fun effectiveScale(): Float {
-        val p = prefs ?: return 0.85f
+        val p = prefs ?: return 0.9f
         val modeMul = when (FlowPrefs.normalizeBubbleMode(p.bubbleMode)) {
-            "compact" -> 0.65f
-            "dot" -> 0.42f
+            "compact" -> 0.75f
+            "dot" -> 0.55f
             else -> 1f
         }
         return p.bubbleScale * modeMul
-    }
-
-    private fun applyModeLabel() {
-        if (listening) return
-        when (FlowPrefs.normalizeBubbleMode(prefs?.bubbleMode ?: "full")) {
-            "dot" -> bubbleLabel?.text = "🎙"
-            else -> renderIdle()
-        }
     }
 
     private fun startPulse() {
@@ -436,11 +442,11 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     }
 
     private fun setBubbleEmphasis(hasField: Boolean) {
-        if (listening) return // pulse owns alpha while listening
+        if (listening) return
         bubbleView?.alpha = if (hasField) {
-            (prefs?.bubbleOpacity ?: 0.9f)
+            (prefs?.bubbleOpacity ?: 0.95f)
         } else {
-            (prefs?.bubbleOpacity ?: 0.8f) * 0.75f
+            (prefs?.bubbleOpacity ?: 0.85f) * 0.8f
         }
     }
 
@@ -462,19 +468,16 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         sessionBuffer = StringBuilder()
         fieldPrefix = captureFieldPrefix()
         listenStartedAt = SystemClock.elapsedRealtime()
-        // Dot mode: grow slightly while active
-        if (FlowPrefs.normalizeBubbleMode(prefs?.bubbleMode ?: "full") == "dot") {
-            bubbleView?.scaleX = (prefs?.bubbleScale ?: 0.85f) * 0.75f
-            bubbleView?.scaleY = (prefs?.bubbleScale ?: 0.85f) * 0.75f
-        }
+
         if (prefs?.bubblePulse != false) startPulse()
+        updateBubbleVisuals()
         setListenChrome(0)
         setBubbleEmphasis(true)
+
         val lang = LanguagePolicy.LOCKED
         stt?.setListener(object : SttEngine.Listener {
             override fun onPartial(text: String) {
                 val elapsed = (SystemClock.elapsedRealtime() - listenStartedAt) / 1000
-                // Never dump partials into the field. Bubble caption only if pref on.
                 if (prefs?.bubbleShowText == true) {
                     val preview = if (sessionBuffer.isEmpty()) text
                     else "${sessionBuffer} $text"
@@ -486,7 +489,6 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
             override fun onFinal(text: String) {
                 if (text.isBlank()) return
-                // Accumulate only. Field write happens once on stop (Wispr checkmark model).
                 if (sessionBuffer.isNotEmpty()) sessionBuffer.append(' ')
                 sessionBuffer.append(text.trim())
                 if (prefs?.bubbleShowText == true) {
@@ -499,7 +501,6 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             }
 
             override fun onError(message: String, fatal: Boolean) {
-                // Always surface STT state on bubble (was silent for non-fatal)
                 bubbleLabel?.text = if (
                     message.contains("Microphone", true) ||
                     message.contains("Allow mic", true)
@@ -511,7 +512,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 if (fatal) {
                     listening = false
                     stopPulse()
-                    applyPrefsVisual()
+                    updateBubbleVisuals()
                     setBubbleEmphasis(focusedEditable != null)
                 }
             }
@@ -545,12 +546,10 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             }
 
             override fun onListeningChanged(isOn: Boolean) {
-                // Continuous restarts do not emit false; false = user/engine full stop.
                 if (!isOn) {
                     listening = false
                     stopPulse()
-                    applyPrefsVisual()
-                    renderIdle()
+                    updateBubbleVisuals()
                 }
             }
         })
@@ -566,7 +565,6 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         val dur = SystemClock.elapsedRealtime() - listenStartedAt
         if (save && raw.isNotBlank()) {
             val lang = LanguagePolicy.LOCKED
-            // One polish + one field write (no raw chunk dump)
             polishSession(raw) { result ->
                 val finalText = result.clean
                 if (finalText.isNotBlank()) {
@@ -589,7 +587,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
         sessionBuffer = StringBuilder()
         fieldPrefix = ""
-        applyModeLabel()
+        updateBubbleVisuals()
         setBubbleEmphasis(focusedEditable != null)
     }
 
@@ -617,7 +615,6 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             val dict = app.dictations.dictionaryMap()
             val snip = app.dictations.snippetMap()
             val expanded = TextPostProcessor.expandSnippets(text, snip)
-            // Snippet full-replace skips further polish
             val snippetHit = expanded != text && snip.values.any { it == expanded }
             val result = if (snippetHit) {
                 CleanupResult(raw = text, clean = expanded)
@@ -632,10 +629,6 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
     }
 
-    /**
-     * Single SET_TEXT of prefix + clean session.
-     * No automatic clipboard — result stays in app prefs; user Copy explicitly.
-     */
     private fun commitSessionToField(finalText: String) {
         if (finalText.isBlank()) return
         val root = rootInActiveWindow
@@ -683,7 +676,6 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
     }
 
-    /** Prefer live FOCUS_INPUT; fall back to cached node. */
     private fun resolveEditable(
         root: AccessibilityNodeInfo?,
         cached: AccessibilityNodeInfo?
@@ -705,26 +697,124 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         return null
     }
 
-    private fun renderIdle() {
-        when (FlowPrefs.normalizeBubbleMode(prefs?.bubbleMode ?: "full")) {
-            "dot" -> bubbleLabel?.text = "🎙"
-            else -> bubbleLabel?.text = when (prefs?.bubbleShape) {
-                "pill" -> "🎙"
-                "square" -> "■"
-                "dot" -> "●"
-                else -> "🎙"
-            }.let { icon ->
-                if (prefs?.bubbleShowText == true) BubbleLabelFormatter.idle() else icon
+    /**
+     * Dynamic Shape and Visual Styler:
+     * - Pill: wrap width with label + icon, rounded corners
+     * - Circle: 56dp x 56dp orb with centered icon
+     * - Square / Squircle: 52dp x 52dp rounded superellipse
+     * - Dot: 38dp x 38dp compact sphere
+     */
+    private fun updateBubbleVisuals() {
+        val p = prefs ?: return
+        val root = bubbleRoot ?: return
+        val icon = bubbleIcon ?: return
+        val label = bubbleLabel ?: return
+        val pulseRing = bubblePulseRing ?: return
+        val dm = resources.displayMetrics
+        val density = dm.density
+
+        val shape = FlowPrefs.normalizeBubbleShape(p.bubbleShape)
+        val mode = FlowPrefs.normalizeBubbleMode(p.bubbleMode)
+        val isDot = mode == "dot" || shape == "dot"
+        val isCircle = shape == "circle" && !isDot
+        val isSquare = shape == "square" && !isDot
+
+        val (bgColor, strokeColor, iconTint) = if (listening) {
+            Triple(0xF04F46E5.toInt(), 0xFF818CF8.toInt(), 0xFFFFFFFF.toInt())
+        } else {
+            Triple(0xF018181B.toInt(), 0x5052525B.toInt(), 0xFFF4F4F5.toInt())
+        }
+
+        icon.setColorFilter(iconTint)
+
+        val bgDrawable = GradientDrawable().apply {
+            setColor(bgColor)
+            setStroke((1.5f * density).toInt().coerceAtLeast(1), strokeColor)
+            when {
+                isDot -> {
+                    this.shape = GradientDrawable.OVAL
+                }
+                isCircle -> {
+                    this.shape = GradientDrawable.OVAL
+                }
+                isSquare -> {
+                    this.shape = GradientDrawable.RECTANGLE
+                    cornerRadius = 14f * density
+                }
+                else -> { // Pill
+                    this.shape = GradientDrawable.RECTANGLE
+                    cornerRadius = 24f * density
+                }
             }
+        }
+        root.background = bgDrawable
+
+        when {
+            isDot -> {
+                val size = (38f * density).toInt()
+                root.layoutParams = FrameLayout.LayoutParams(size, size, Gravity.CENTER)
+                root.setPadding(0, 0, 0, 0)
+                label.visibility = View.GONE
+                icon.visibility = View.VISIBLE
+                icon.layoutParams = LinearLayout.LayoutParams((18f * density).toInt(), (18f * density).toInt())
+            }
+            isCircle -> {
+                val size = (56f * density).toInt()
+                root.layoutParams = FrameLayout.LayoutParams(size, size, Gravity.CENTER)
+                root.setPadding(0, 0, 0, 0)
+                label.visibility = if (listening && p.bubbleShowText && sessionBuffer.isNotEmpty()) View.VISIBLE else View.GONE
+                icon.visibility = View.VISIBLE
+                icon.layoutParams = LinearLayout.LayoutParams((24f * density).toInt(), (24f * density).toInt())
+            }
+            isSquare -> {
+                val size = (52f * density).toInt()
+                root.layoutParams = FrameLayout.LayoutParams(size, size, Gravity.CENTER)
+                root.setPadding(0, 0, 0, 0)
+                label.visibility = if (listening && p.bubbleShowText && sessionBuffer.isNotEmpty()) View.VISIBLE else View.GONE
+                icon.visibility = View.VISIBLE
+                icon.layoutParams = LinearLayout.LayoutParams((22f * density).toInt(), (22f * density).toInt())
+            }
+            else -> { // Pill
+                val padH = (14f * density).toInt()
+                val padV = (10f * density).toInt()
+                root.layoutParams = FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    Gravity.CENTER
+                )
+                root.setPadding(padH, padV, padH, padV)
+                icon.visibility = View.VISIBLE
+                icon.layoutParams = LinearLayout.LayoutParams((22f * density).toInt(), (22f * density).toInt())
+                label.visibility = View.VISIBLE
+                if (!listening) {
+                    label.text = BubbleLabelFormatter.idle()
+                }
+            }
+        }
+
+        if (listening && p.bubblePulse) {
+            pulseRing.visibility = View.VISIBLE
+            val ringDrawable = GradientDrawable().apply {
+                setColor(0x336366F1.toInt())
+                if (isDot || isCircle) {
+                    this.shape = GradientDrawable.OVAL
+                } else {
+                    this.shape = GradientDrawable.RECTANGLE
+                    cornerRadius = if (isSquare) 16f * density else 26f * density
+                }
+            }
+            pulseRing.background = ringDrawable
+        } else {
+            pulseRing.visibility = View.GONE
         }
     }
 
-    /** Icon / wave status — no speech transcript when showText is off. */
     private fun setListenChrome(elapsedSec: Long) {
-        bubbleLabel?.text = when {
-            prefs?.bubbleShowText == true -> BubbleLabelFormatter.listening(elapsedSec)
-            elapsedSec > 0 -> "● $elapsedSec"
-            else -> "●"
+        val p = prefs ?: return
+        if (p.bubbleShowText) {
+            bubbleLabel?.text = BubbleLabelFormatter.listening(elapsedSec)
+        } else {
+            bubbleLabel?.text = if (elapsedSec > 0) "$elapsedSec s" else "●"
         }
     }
 
@@ -742,7 +832,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 }
             }
         }
-        if (!listening) applyModeLabel()
+        updateBubbleVisuals()
         refreshBubbleVisibility()
     }
 

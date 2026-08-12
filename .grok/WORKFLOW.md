@@ -15,7 +15,7 @@
 4. Fast must stay smart. TDD + android-cli + proof stay on for large.
 5. Agent web ≠ APK INTERNET.
 6. Caveman everywhere.
-7. MiniMax lab: `.worktrees/minimax` / `sandbox/minimax`. Exclusive. Start grok there. Never merge wholesale.
+7. MiniMax lab: `.worktrees/minimax` / `sandbox/minimax`. Exclusive. Claude via `ccr "Claude Code"`. Same `.grok` gate only. Never merge wholesale.
 
 ## Loop (large)
 

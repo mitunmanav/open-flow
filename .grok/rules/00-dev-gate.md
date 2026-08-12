@@ -27,7 +27,7 @@ Hard. Every turn. Main **and** subagents.
 - Do **not** use spawn `isolation=worktree` (extra trees mess us up).
 - Never same file in two agents.
 - After merge: remove that worktree. Do not leave ghosts.
-- **MiniMax lab** `.worktrees/minimax` (`sandbox/minimax`) is exclusive. Start grok there. Main / other trees must not write or spawn into it. Never merge that branch wholesale. Do not prune it after a feature.
+- **MiniMax lab** `.worktrees/minimax` (`sandbox/minimax`) is exclusive. Claude: `ccr "Claude Code"` only. Hooks = this gate only. Main / other trees must not write or spawn into it. Never merge that branch wholesale. Do not prune it after a feature.
 
 ## Loop (large)
 ```

@@ -18,6 +18,7 @@ SPAWN_TOOLS = {
     "spawn_subagent",
     "Task",
     "task",
+    "Agent",
 }
 FILE_TOOLS = {
     "search_replace",
@@ -25,6 +26,7 @@ FILE_TOOLS = {
     "Write",
     "Edit",
     "MultiEdit",
+    "NotebookEdit",
 }
 SHELL_TOOLS = {
     "run_terminal_command",

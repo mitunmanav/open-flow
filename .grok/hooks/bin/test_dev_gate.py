@@ -90,6 +90,69 @@ class StopGateTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(decision(out), "allow")
 
+    def test_claude_transcript_pass_without_proof_blocks(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "t.jsonl"
+            path.write_text(
+                json.dumps(
+                    {
+                        "type": "assistant",
+                        "message": {
+                            "content": [
+                                {"type": "text", "text": "DID: stuff\nPASS-FAIL: PASS\nNEXT: merge"}
+                            ]
+                        },
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            code, out = run_hook(
+                STOP,
+                {
+                    "hookEventName": "Stop",
+                    "hook_event_name": "Stop",
+                    "transcript_path": str(path),
+                },
+            )
+            self.assertEqual(code, 0)
+            self.assertEqual(decision(out), "block")
+
+    def test_claude_transcript_gradle_proof_allows(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "t.jsonl"
+            path.write_text(
+                json.dumps(
+                    {
+                        "type": "assistant",
+                        "message": {
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": (
+                                        "DID: tests\nPASS-FAIL: PASS\n"
+                                        "./gradlew :app:testDebugUnitTest\n"
+                                        "BUILD SUCCESSFUL"
+                                    ),
+                                }
+                            ]
+                        },
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            code, out = run_hook(
+                STOP,
+                {
+                    "hookEventName": "Stop",
+                    "transcript_path": str(path),
+                },
+            )
+            self.assertEqual(code, 0)
+            self.assertEqual(decision(out), "allow")
+            self.assertEqual(out, "")
+
     def test_unittest_proof_allows(self) -> None:
         msg = "DID: hook tests\nPASS-FAIL: PASS\npython3 test_dev_gate.py\nRan 12 tests\nOK"
         code, out = run_hook(

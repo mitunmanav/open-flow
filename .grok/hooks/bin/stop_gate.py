@@ -44,6 +44,58 @@ def is_success_claim(msg: str) -> bool:
     return bool(OTHER_CLAIM.search(stripped))
 
 
+def _text_from_content(content: object) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        bits: list[str] = []
+        for part in content:
+            if isinstance(part, str):
+                bits.append(part)
+            elif isinstance(part, dict) and part.get("type") in ("text", None):
+                bits.append(str(part.get("text") or ""))
+        return "\n".join(bits)
+    return ""
+
+
+def last_assistant_from_transcript(path: str) -> str:
+    last = ""
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                kind = str(obj.get("type") or obj.get("role") or "")
+                msg = obj.get("message") if isinstance(obj.get("message"), dict) else obj
+                role = str(msg.get("role") or kind)
+                if "assistant" not in (kind + role).lower():
+                    continue
+                last = _text_from_content(msg.get("content"))
+    except OSError:
+        return ""
+    return last
+
+
+def assistant_message(data: dict) -> str:
+    msg = str(
+        data.get("lastAssistantMessage")
+        or data.get("last_assistant_message")
+        or data.get("assistant_message")
+        or ""
+    )
+    if msg.strip():
+        return msg
+    path = str(data.get("transcript_path") or data.get("transcriptPath") or "")
+    if path:
+        return last_assistant_from_transcript(path)
+    return ""
+
+
 def should_block(data: dict) -> bool:
     event = str(data.get("hookEventName") or data.get("hook_event_name") or "")
     if event not in ("Stop", "stop", "SubagentStop", "subagent_stop", "subagentStop", ""):
@@ -56,12 +108,7 @@ def should_block(data: dict) -> bool:
     if data.get("stopHookActive") or data.get("stop_hook_active"):
         return False
 
-    msg = str(
-        data.get("lastAssistantMessage")
-        or data.get("last_assistant_message")
-        or data.get("assistant_message")
-        or ""
-    )
+    msg = assistant_message(data)
     if not msg.strip():
         return False
     if not is_success_claim(msg):

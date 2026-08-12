@@ -27,6 +27,14 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         get() = store.getFloat("bubble_opacity", 0.80f)
         set(v) = store.putFloat("bubble_opacity", v)
 
+    var bubbleX: Int
+        get() = store.getString("bubble_x", "32").toIntOrNull() ?: 32
+        set(v) = store.putString("bubble_x", v.toString())
+
+    var bubbleY: Int
+        get() = store.getString("bubble_y", "220").toIntOrNull() ?: 220
+        set(v) = store.putString("bubble_y", v.toString())
+
     /** full | compact | dot — idle bubble size mode (F14) */
     var bubbleMode: String
         get() = normalizeBubbleMode(store.getString("bubble_mode", "full"))

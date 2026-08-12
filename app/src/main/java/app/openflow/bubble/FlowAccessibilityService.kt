@@ -30,6 +30,7 @@ import app.openflow.R
 import app.openflow.prefs.FlowPrefs
 import app.openflow.stt.LanguagePolicy
 import app.openflow.stt.SttEngine
+import app.openflow.notify.DictationNotifier
 import app.openflow.stt.SttTuning
 import app.openflow.text.TextPostProcessor
 import kotlinx.coroutines.CoroutineScope
@@ -146,7 +147,10 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
     override fun onInterrupt() {
         stopListening(save = false)
+        hideBubble()
+        stopPulse()
     }
+
 
     override fun onDestroy() {
         stopPulse()
@@ -558,11 +562,13 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             polishSession(raw) { finalText ->
                 if (finalText.isNotBlank()) {
                     commitSessionToField(finalText)
+                    val wordCount = finalText.split(Regex("\\s+")).filter { it.isNotBlank() }.size
                     scope.launch(Dispatchers.IO) {
                         runCatching {
                             app.dictations.saveDictation(finalText, dur, lang)
                         }
                     }
+                    DictationNotifier.notifyIfPermitted(this@FlowAccessibilityService, wordCount)
                 }
             }
         }

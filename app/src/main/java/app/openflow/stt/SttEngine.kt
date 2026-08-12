@@ -45,6 +45,8 @@ class SttEngine(
     private val sessionCount = AtomicInteger(0)
     private var languageTag: String = LanguagePolicy.LOCKED
     private var restartPosted = false
+    private var restartCount = 0
+    private val maxRestartsPerSession = 20
     private var savedMusicVolume: Int? = null
 
     val isAvailable: Boolean
@@ -72,6 +74,7 @@ class SttEngine(
             return
         }
         continuous.set(true)
+        restartCount = 0
         listener?.onListeningChanged(true)
         mainHandler.post { beginSession(forceRecreate = true) }
     }
@@ -91,6 +94,7 @@ class SttEngine(
     fun stop() {
         continuous.set(false)
         restartPosted = false
+        restartCount = 0
         mainHandler.removeCallbacksAndMessages(null)
         mainHandler.post {
             try {
@@ -176,7 +180,9 @@ class SttEngine(
             listener?.onRmsChanged(rmsdB)
         }
         override fun onBufferReceived(buffer: ByteArray?) {}
-        override fun onEndOfSpeech() {}
+        override fun onEndOfSpeech() {
+            restoreVolume()
+        }
 
         override fun onError(error: Int) {
             restoreVolume()
@@ -207,7 +213,11 @@ class SttEngine(
             starting.set(false)
             val texts = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
             val best = texts?.firstOrNull().orEmpty()
-            if (best.isNotBlank()) listener?.onFinal(best)
+            if (best.isNotBlank()) {
+                listener?.onFinal(best)
+            } else {
+                listener?.onError("No recognition result", fatal = false)
+            }
             if (policy.shouldRestart(continuous.get(), null, hadResult = true)) {
                 scheduleRestart(null)
             } else {
@@ -228,11 +238,18 @@ class SttEngine(
     private fun scheduleRestart(errorCode: Int?) {
         if (!continuous.get() || restartPosted) return
         restartPosted = true
+        restartCount++
+        if (restartCount > maxRestartsPerSession) {
+            restartPosted = false
+            continuous.set(false)
+            listener?.onError("Speech engine unstable — please try again", fatal = true)
+            listener?.onListeningChanged(false)
+            return
+        }
         val delay = policy.restartDelayMs(errorCode)
         mainHandler.postDelayed({
             restartPosted = false
             if (continuous.get()) {
-                // busy → force new recognizer
                 val force = errorCode == ContinuousPolicy.ERROR_RECOGNIZER_BUSY
                 beginSession(forceRecreate = force)
             }

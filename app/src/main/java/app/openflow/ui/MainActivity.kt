@@ -62,6 +62,7 @@ import app.openflow.data.SnippetEntity
 import app.openflow.prefs.FlowPrefs
 import app.openflow.prefs.LayoutPrefs
 import app.openflow.privacy.PrivacyDefaults
+import app.openflow.export.HistoryExport
 import app.openflow.stt.SttTuning
 import app.openflow.text.TextPostProcessor
 import app.openflow.ui.components.EmptyState
@@ -361,9 +362,21 @@ private fun HomeHub(
                         )
                     } else {
                         dictations.take(8).forEach { d: DictationEntity ->
-                            DictationCard(d, onDelete = {
-                                scope.launch { app.dictations.deleteDictation(d.id) }
-                            })
+                            DictationCard(
+                                d = d,
+                                onDelete = {
+                                    scope.launch { app.dictations.deleteDictation(d.id) }
+                                },
+                                onShare = {
+                                    val rows = listOf(HistoryExport.Row(d.createdAtEpochMs, d.text, d.languageTag, d.wordCount))
+                                    val shareText = HistoryExport.shareText(rows)
+                                    val send = Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(Intent.EXTRA_TEXT, shareText)
+                                    }
+                                    ctx.startActivity(Intent.createChooser(send, "Share dictation"))
+                                }
+                            )
                         }
                     }
                 }
@@ -383,6 +396,7 @@ private fun HomeHub(
 private fun HistoryScreen(app: OpenFlowApp) {
     val dictations by app.dictations.observeDictations().collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
+    val ctx = LocalContext.current
     Column(
         Modifier
             .fillMaxSize()
@@ -390,7 +404,26 @@ private fun HistoryScreen(app: OpenFlowApp) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text("All dictations (on device)", style = MaterialTheme.typography.titleMedium)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("All dictations (on device)", style = MaterialTheme.typography.titleMedium)
+            if (dictations.isNotEmpty()) {
+                TextButton(onClick = {
+                    val rows = dictations.map { d ->
+                        HistoryExport.Row(d.createdAtEpochMs, d.text, d.languageTag, d.wordCount)
+                    }
+                    val shareText = HistoryExport.shareText(rows)
+                    val send = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, shareText)
+                    }
+                    ctx.startActivity(Intent.createChooser(send, "Share dictation history"))
+                }) { Text("Export all") }
+            }
+        }
         if (dictations.isEmpty()) {
             EmptyState(
                 icon = Icons.Default.MicNone,
@@ -399,9 +432,21 @@ private fun HistoryScreen(app: OpenFlowApp) {
             )
         } else {
             dictations.forEach { d ->
-                DictationCard(d, onDelete = {
-                    scope.launch { app.dictations.deleteDictation(d.id) }
-                })
+                DictationCard(
+                    d = d,
+                    onDelete = {
+                        scope.launch { app.dictations.deleteDictation(d.id) }
+                    },
+                    onShare = {
+                        val rows = listOf(HistoryExport.Row(d.createdAtEpochMs, d.text, d.languageTag, d.wordCount))
+                        val shareText = HistoryExport.shareText(rows)
+                        val send = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, shareText)
+                        }
+                        ctx.startActivity(Intent.createChooser(send, "Share dictation"))
+                    }
+                )
             }
         }
         Spacer(Modifier.height(24.dp))
@@ -409,7 +454,7 @@ private fun HistoryScreen(app: OpenFlowApp) {
 }
 
 @Composable
-private fun DictationCard(d: DictationEntity, onDelete: () -> Unit) {
+private fun DictationCard(d: DictationEntity, onDelete: () -> Unit, onShare: () -> Unit) {
     OpenCard {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
@@ -420,6 +465,7 @@ private fun DictationCard(d: DictationEntity, onDelete: () -> Unit) {
             Text(d.text.take(400), style = MaterialTheme.typography.bodyMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 CopyButton(text = d.text)
+                OutlinedButton(onClick = onShare) { Text("Share") }
                 OutlinedButton(onClick = onDelete) { Text("Delete") }
             }
         }

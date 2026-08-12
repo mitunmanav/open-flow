@@ -1,6 +1,9 @@
 package app.openflow.export
 
 import app.openflow.stt.LanguagePolicy
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * Pure on-device history export (markdown / plain text).
@@ -8,6 +11,8 @@ import app.openflow.stt.LanguagePolicy
  * Language always shown as en-US (product lock).
  */
 object HistoryExport {
+
+    private val stampFmt = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US)
 
     data class Row(
         val createdAtEpochMs: Long,
@@ -19,7 +24,7 @@ object HistoryExport {
     fun toMarkdown(rows: List<Row>): String {
         if (rows.isEmpty()) return "# Open Flow history"
         val body = rows.joinToString("\n") { row ->
-            val stamp = row.createdAtEpochMs
+            val stamp = stampFmt.format(Date(row.createdAtEpochMs))
             val lang = LanguagePolicy.force(row.languageTag)
             "- **$stamp** ($lang, ${row.wordCount}w): ${row.text.trim()}"
         }
@@ -30,7 +35,8 @@ object HistoryExport {
         if (rows.isEmpty()) return ""
         return rows.joinToString("\n---\n") { row ->
             buildString {
-                append(row.createdAtEpochMs)
+                val stamp = stampFmt.format(Date(row.createdAtEpochMs))
+                append(stamp)
                 append(" [")
                 append(LanguagePolicy.force(row.languageTag))
                 append("]\n")
@@ -38,4 +44,6 @@ object HistoryExport {
             }
         }
     }
+
+    fun shareText(rows: List<Row>): String = toPlainText(rows)
 }

@@ -25,7 +25,8 @@ STT (+ API33 formatting extras)
 
 ## Dev law (strict)
 
-1. Superpowers on. Only skip: no-subagents-in-worktree. Max 5/tree.
+1. Superpowers on (this repo only). Only skip: no-subagents-in-worktree. Max 5/tree.
+1b. Tree jail: A ≠ B ≠ main. Spawn cwd = that tree.
 2. Small fix: no worktree. Large: plan + worktree + ≤5 agents + merge.
 3. android-cli + agent web. Not APK INTERNET.
 4. Memory: `.grok/NOW.md` + `.grok/memory/FACTS.md` + `LESSONS.md`

@@ -4,7 +4,8 @@ Read this first. Do not ask Mitun to re-state these rules.
 
 Also follow: `docs/PROCESS.md`, `SECURITY.md`, global `~/.grok/AGENTS.md` / `~/.grok/rules/00-voice.md`.
 
-**Grok Build gate (this repo only):** `.grok/rules/00-dev-gate.md` + `.grok/hooks/dev-gate.json`.  
+**Grok Build gate (this repo only — not other projects):** `.grok/rules/00-dev-gate.md` + `.grok/hooks/dev-gate.json`.  
+**Isolate:** one worktree must not touch another or main. Spawn `cwd` = that tree.  
 Superpowers + **android-cli** + **agent web** — same weight.  
 **Plan first** on large work. Small fix = no worktree.  
 Max **5** subagents per worktree. Caveman everywhere.  

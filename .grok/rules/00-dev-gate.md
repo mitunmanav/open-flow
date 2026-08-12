@@ -1,4 +1,6 @@
-# Open Flow — Grok Build gate (this repo only)
+# Open Flow — Grok Build gate (**this repo only**)
+
+Does **not** apply to other Mitun projects. No global `~/.grok` hooks.
 
 Hard. Every turn. Main **and** subagents.
 
@@ -17,6 +19,14 @@ Hard. Every turn. Main **and** subagents.
 - **Small fix** (one file / typo / hook tweak): **no worktree**. Still proof. Still caveman.
 - **Large feature:** plan file → worktree → up to 5 agents → test → **merge main**.
 - Fast ≠ dumb. Do not skip plan / TDD / android-cli / proof on large work.
+
+## Isolate (hard)
+- Tree A must not write tree B or `main`.
+- `main` must not write `.worktrees/*`.
+- Spawn from a tree **must** set `cwd` to that same tree.
+- Do **not** use spawn `isolation=worktree` (extra trees mess us up).
+- Never same file in two agents.
+- After merge: remove that worktree. Do not leave ghosts.
 
 ## Loop (large)
 ```

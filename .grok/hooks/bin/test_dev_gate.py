@@ -200,7 +200,10 @@ class PretoolGateTest(unittest.TestCase):
                 "cwd": "/home/mitun/open-flow/.worktrees/gate-smart-mem",
                 "workspaceRoot": "/home/mitun/open-flow/.worktrees/gate-smart-mem",
                 "toolName": "spawn_subagent",
-                "toolInput": {"prompt": "CAVEMAN. DID: x\nPASS-FAIL: n/a\nNEXT: y"},
+                "toolInput": {
+                    "prompt": "CAVEMAN. DID: x\nPASS-FAIL: n/a\nNEXT: y",
+                    "cwd": "/home/mitun/open-flow/.worktrees/gate-smart-mem",
+                },
             }
             last_out = ""
             for _ in range(5):
@@ -239,12 +242,159 @@ class PretoolGateTest(unittest.TestCase):
                     "prompt": (
                         "CAVEMAN. Short lines. DID / PASS-FAIL / NEXT / ASK.\n"
                         "Explore bubble chrome. No essays."
-                    )
+                    ),
+                    "cwd": "/home/mitun/open-flow/.worktrees/gate-plan-caveman",
                 },
             },
         )
         self.assertEqual(code, 0)
         self.assertEqual(decision(out), "allow")
+
+    def test_tree_a_cannot_write_tree_b(self) -> None:
+        code, out = run_hook(
+            PRETOOL,
+            {
+                "hookEventName": "pre_tool_use",
+                "cwd": "/home/mitun/open-flow/.worktrees/tree-a",
+                "workspaceRoot": "/home/mitun/open-flow/.worktrees/tree-a",
+                "toolName": "search_replace",
+                "toolInput": {
+                    "file_path": "/home/mitun/open-flow/.worktrees/tree-b/app/Foo.kt"
+                },
+            },
+        )
+        self.assertEqual(code, 0)
+        self.assertEqual(decision(out), "deny")
+
+    def test_tree_cannot_write_main_app(self) -> None:
+        code, out = run_hook(
+            PRETOOL,
+            {
+                "hookEventName": "pre_tool_use",
+                "cwd": "/home/mitun/open-flow/.worktrees/tree-a",
+                "workspaceRoot": "/home/mitun/open-flow/.worktrees/tree-a",
+                "toolName": "write",
+                "toolInput": {"file_path": "/home/mitun/open-flow/app/src/Foo.kt"},
+            },
+        )
+        self.assertEqual(code, 0)
+        self.assertEqual(decision(out), "deny")
+
+    def test_main_cannot_write_worktree(self) -> None:
+        code, out = run_hook(
+            PRETOOL,
+            {
+                "hookEventName": "pre_tool_use",
+                "cwd": "/home/mitun/open-flow",
+                "workspaceRoot": "/home/mitun/open-flow",
+                "toolName": "write",
+                "toolInput": {
+                    "file_path": "/home/mitun/open-flow/.worktrees/tree-b/app/Foo.kt"
+                },
+            },
+        )
+        self.assertEqual(code, 0)
+        self.assertEqual(decision(out), "deny")
+
+    def test_spawn_from_tree_requires_same_cwd(self) -> None:
+        code, out = run_hook(
+            PRETOOL,
+            {
+                "hookEventName": "pre_tool_use",
+                "cwd": "/home/mitun/open-flow/.worktrees/tree-a",
+                "workspaceRoot": "/home/mitun/open-flow/.worktrees/tree-a",
+                "toolName": "spawn_subagent",
+                "toolInput": {
+                    "prompt": "CAVEMAN. DID: x\nPASS-FAIL: n/a\nNEXT: y"
+                },
+            },
+        )
+        self.assertEqual(code, 0)
+        self.assertEqual(decision(out), "deny")
+
+    def test_spawn_into_other_tree_denied(self) -> None:
+        code, out = run_hook(
+            PRETOOL,
+            {
+                "hookEventName": "pre_tool_use",
+                "cwd": "/home/mitun/open-flow/.worktrees/tree-a",
+                "workspaceRoot": "/home/mitun/open-flow/.worktrees/tree-a",
+                "toolName": "spawn_subagent",
+                "toolInput": {
+                    "prompt": "CAVEMAN. DID: x\nPASS-FAIL: n/a\nNEXT: y",
+                    "cwd": "/home/mitun/open-flow/.worktrees/tree-b",
+                },
+            },
+        )
+        self.assertEqual(code, 0)
+        self.assertEqual(decision(out), "deny")
+
+    def test_spawn_isolation_worktree_denied(self) -> None:
+        code, out = run_hook(
+            PRETOOL,
+            {
+                "hookEventName": "pre_tool_use",
+                "cwd": "/home/mitun/open-flow/.worktrees/tree-a",
+                "workspaceRoot": "/home/mitun/open-flow/.worktrees/tree-a",
+                "toolName": "spawn_subagent",
+                "toolInput": {
+                    "prompt": "CAVEMAN. DID: x\nPASS-FAIL: n/a\nNEXT: y",
+                    "cwd": "/home/mitun/open-flow/.worktrees/tree-a",
+                    "isolation": "worktree",
+                },
+            },
+        )
+        self.assertEqual(code, 0)
+        self.assertEqual(decision(out), "deny")
+
+    def test_shell_other_tree_denied(self) -> None:
+        code, out = run_hook(
+            PRETOOL,
+            {
+                "hookEventName": "pre_tool_use",
+                "cwd": "/home/mitun/open-flow/.worktrees/tree-a",
+                "workspaceRoot": "/home/mitun/open-flow/.worktrees/tree-a",
+                "toolName": "run_terminal_command",
+                "toolInput": {
+                    "command": "rm /home/mitun/open-flow/.worktrees/tree-b/app/Foo.kt"
+                },
+            },
+        )
+        self.assertEqual(code, 0)
+        self.assertEqual(decision(out), "deny")
+
+    def test_spawn_counts_per_tree_independent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["OPENFLOW_SPAWN_STATE"] = tmp
+
+            def spawn(tree: str) -> str:
+                payload = {
+                    "hookEventName": "pre_tool_use",
+                    "sessionId": "sess-iso",
+                    "cwd": f"/home/mitun/open-flow/.worktrees/{tree}",
+                    "workspaceRoot": f"/home/mitun/open-flow/.worktrees/{tree}",
+                    "toolName": "spawn_subagent",
+                    "toolInput": {
+                        "prompt": "CAVEMAN. DID: x\nPASS-FAIL: n/a\nNEXT: y",
+                        "cwd": f"/home/mitun/open-flow/.worktrees/{tree}",
+                    },
+                }
+                proc = subprocess.run(
+                    [sys.executable, str(PRETOOL)],
+                    input=json.dumps(payload),
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                    env=env,
+                )
+                self.assertEqual(proc.returncode, 0)
+                return decision(proc.stdout.strip())
+
+            for _ in range(5):
+                self.assertEqual(spawn("tree-a"), "allow")
+            self.assertEqual(spawn("tree-a"), "deny")
+            self.assertEqual(spawn("tree-b"), "allow")
 
     def test_internet_perm_allowed_in_worktree(self) -> None:
         self.assertTrue(PRETOOL.is_file(), "pretool_gate.py missing")
@@ -290,6 +440,7 @@ class PromptGateTest(unittest.TestCase):
         self.assertRegex(ctx.lower(), r"small")
         self.assertIn("memory", ctx.lower())
         self.assertIn("5", ctx)
+        self.assertRegex(ctx.lower(), r"isolat|jail|this repo|this project")
 
 
 if __name__ == "__main__":

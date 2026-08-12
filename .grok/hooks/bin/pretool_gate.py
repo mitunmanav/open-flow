@@ -2,8 +2,8 @@
 """open-flow only — PreToolUse gate.
 
 Deny app/ file writes on main (must use .worktrees/).
-Deny adding android.permission.INTERNET.
-Fail open on errors.
+INTERNET perm is allowed in a worktree (app still ships without it
+until a feature plan adds it). Fail open on errors.
 """
 from __future__ import annotations
 
@@ -39,17 +39,6 @@ def is_app_path(path: str) -> bool:
     return "app" in parts
 
 
-def adds_internet(tool_input: object, path: str) -> bool:
-    if "AndroidManifest" not in path.replace("\\", "/"):
-        return False
-    if not isinstance(tool_input, dict):
-        return False
-    blob = "\n".join(
-        str(tool_input.get(k) or "") for k in ("new_string", "content")
-    )
-    return "android.permission.INTERNET" in blob
-
-
 def decide(data: dict) -> dict | None:
     tool_input = data.get("toolInput") or data.get("tool_input") or {}
     path = file_from_input(tool_input)
@@ -58,15 +47,6 @@ def decide(data: dict) -> dict | None:
         or data.get("workspaceRoot")
         or ""
     )
-
-    if adds_internet(tool_input, path):
-        return {
-            "decision": "deny",
-            "reason": (
-                "open-flow PreToolUse: INTERNET permission blocked. "
-                "Base app stays offline. See SECURITY.md"
-            ),
-        }
 
     if is_app_path(path) and not in_worktree(cwd, path):
         return {

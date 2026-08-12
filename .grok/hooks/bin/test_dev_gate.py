@@ -76,6 +76,18 @@ class StopGateTest(unittest.TestCase):
         self.assertEqual(decision(out), "allow")
         self.assertEqual(out, "")
 
+    def test_android_cli_proof_allows(self) -> None:
+        msg = (
+            "DID: device layout\nPASS-FAIL: PASS\n"
+            "android layout -p\nNEXT: merge"
+        )
+        code, out = run_hook(
+            STOP,
+            {"hookEventName": "Stop", "lastAssistantMessage": msg},
+        )
+        self.assertEqual(code, 0)
+        self.assertEqual(decision(out), "allow")
+
     def test_unittest_proof_allows(self) -> None:
         msg = "DID: hook tests\nPASS-FAIL: PASS\npython3 test_dev_gate.py\nRan 12 tests\nOK"
         code, out = run_hook(
@@ -158,18 +170,18 @@ class PretoolGateTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(decision(out), "allow")
 
-    def test_internet_perm_denied(self) -> None:
+    def test_internet_perm_allowed_in_worktree(self) -> None:
         self.assertTrue(PRETOOL.is_file(), "pretool_gate.py missing")
         code, out = run_hook(
             PRETOOL,
             {
                 "hookEventName": "pre_tool_use",
-                "cwd": "/home/mitun/open-flow/.worktrees/gate-harden",
-                "workspaceRoot": "/home/mitun/open-flow/.worktrees/gate-harden",
+                "cwd": "/home/mitun/open-flow/.worktrees/gate-cli-web",
+                "workspaceRoot": "/home/mitun/open-flow/.worktrees/gate-cli-web",
                 "toolName": "search_replace",
                 "toolInput": {
                     "file_path": (
-                        "/home/mitun/open-flow/.worktrees/gate-harden"
+                        "/home/mitun/open-flow/.worktrees/gate-cli-web"
                         "/app/src/main/AndroidManifest.xml"
                     ),
                     "new_string": '<uses-permission android:name="android.permission.INTERNET"/>',
@@ -177,7 +189,7 @@ class PretoolGateTest(unittest.TestCase):
             },
         )
         self.assertEqual(code, 0)
-        self.assertEqual(decision(out), "deny")
+        self.assertEqual(decision(out), "allow")
 
 
 class PromptGateTest(unittest.TestCase):
@@ -194,6 +206,8 @@ class PromptGateTest(unittest.TestCase):
         ctx = data["hookSpecificOutput"]["additionalContext"]
         self.assertIn("GATE", ctx)
         self.assertIn("worktree", ctx.lower())
+        self.assertIn("android-cli", ctx.lower())
+        self.assertIn("web", ctx.lower())
 
 
 if __name__ == "__main__":

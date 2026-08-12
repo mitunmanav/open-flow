@@ -15,6 +15,7 @@ PROOF = re.compile(
     r"(?i)("
     r"gradlew|testDebugUnitTest|assembleDebug|BUILD SUCCESSFUL|"
     r"adb\s+install|"
+    r"android\s+(docs|layout|install|info|screen|run)\b|"
     r"Ran\s+\d+\s+tests?|"
     r"tests?\s+(passed|ok)|"
     r"\b\d+\s+passed\b|"
@@ -83,8 +84,8 @@ def main() -> None:
         "decision": "block",
         "reason": (
             "open-flow Stop gate: claimed PASS/fixed/done without proof. "
-            "Run tests or assemble. Cite real output "
-            "(gradlew / BUILD SUCCESSFUL / Ran N tests). "
+            "Run tests, assemble, or android-cli. Cite real output "
+            "(gradlew / BUILD SUCCESSFUL / android docs|layout|install). "
             "PASS-FAIL: PASS is not proof. "
             "See .grok/rules/00-dev-gate.md"
         ),

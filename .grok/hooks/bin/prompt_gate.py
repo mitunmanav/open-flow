@@ -51,8 +51,9 @@ def main() -> None:
             "# Session stamp (auto — open-flow gate)",
             f"# refreshed: {stamp}",
             "",
-            "GATE ON: Superpowers → android-cli + web when Android → caveman report.",
-            "Claim PASS only with test/build proof. Worktree for features.",
+            "GATE ON: Superpowers + android-cli + web. Same weight. Every turn.",
+            "android docs/layout/screen/install/info — do not guess APIs.",
+            "Claim PASS only with test/build/android proof. Worktree for app/.",
             "Only bypass: multi-agent max 5, different files.",
             "See: `.grok/rules/00-dev-gate.md`",
             "",
@@ -71,9 +72,11 @@ def main() -> None:
                     "hookSpecificOutput": {
                         "hookEventName": "UserPromptSubmit",
                         "additionalContext": (
-                            "open-flow GATE: Superpowers first. "
+                            "open-flow GATE: Superpowers + android-cli + web "
+                            "(same weight, every turn). "
+                            "Use android docs/layout/screen/install/info. "
                             "app/ edits only in a worktree. "
-                            "No PASS without gradlew/unittest proof. "
+                            "No PASS without gradlew/android/unittest proof. "
                             "Caveman DID/PASS-FAIL/NEXT."
                         ),
                     }

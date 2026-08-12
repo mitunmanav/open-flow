@@ -5,8 +5,8 @@ Read this first. Do not ask Mitun to re-state these rules.
 Also follow: `docs/PROCESS.md`, `SECURITY.md`, global `~/.grok/AGENTS.md` / `~/.grok/rules/00-voice.md`.
 
 **Grok Build gate (this repo only):** `.grok/rules/00-dev-gate.md` + `.grok/hooks/dev-gate.json`.  
-Superpowers full · android-cli + web for Android · caveman report.  
-Stop blocks fake PASS. PreToolUse blocks `app/` edits on main + INTERNET perm.
+Superpowers + **android-cli** + **web** — same weight, every turn.  
+Stop blocks fake PASS. PreToolUse blocks `app/` edits on main (not INTERNET perm).
 
 ---
 
@@ -66,7 +66,8 @@ Ship in ordered features (F0…Fn), not one mega dump.
    - `systematic-debugging` · `verification-before-completion`
    - `dispatching-parallel-agents` · `subagent-driven-development`
    - review / finishing-branch skills when merging
-2. **android-cli** — `android docs`, `layout`, `screen`, `install`/`run`, `info`, SDK. Prefer over guessing Android APIs.
+2. **android-cli** — **same weight as Superpowers.** Read the skill every Android turn. Use `android docs` / `layout` / `screen` / `install` / `run` / `info` / SDK. **Do not guess APIs.**
+3. **Internet / web search** — required before feature work (current docs + security).
 
 ### One Superpowers bypass (Mitun)
 

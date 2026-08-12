@@ -97,8 +97,12 @@ import app.openflow.ui.components.OpenButton
 import app.openflow.ui.components.OpenCard
 import app.openflow.ui.components.OpenChip
 import app.openflow.ui.components.OpenTextField
+import app.openflow.display.DisplayRefreshController
+import app.openflow.display.DisplayRefreshPolicy
+import app.openflow.stt.SttTuning
 import app.openflow.ui.shell.AppRoute
 import app.openflow.ui.shell.AppShell
+import app.openflow.ui.shell.NavStack
 import app.openflow.ui.theme.OpenFlowTheme
 import app.openflow.ui.theme.VisualSkin
 import kotlinx.coroutines.launch
@@ -157,16 +161,24 @@ class MainActivity : ComponentActivity() {
                         isAppearanceLightNavigationBars = !isDark
                     }
                 }
-                var route by remember { mutableStateOf(AppRoute.Home) }
+                // Real back stack — Back pops one level; bottom tabs reset stack.
+                var navStack by remember { mutableStateOf(listOf(AppRoute.Home)) }
+                val route = NavStack.current(navStack)
+                fun goTo(dest: AppRoute) {
+                    navStack = NavStack.navigate(navStack, dest)
+                }
+                fun goBack() {
+                    navStack = NavStack.goBack(navStack)
+                }
                 androidx.compose.runtime.LaunchedEffect(intent) {
                     if (intent?.getBooleanExtra("open_history", false) == true) {
-                        route = AppRoute.History
+                        navStack = NavStack.openDeepLink(AppRoute.History)
                     }
                 }
                 DisposableEffect(Unit) {
                     val listener = androidx.core.util.Consumer<Intent> { newIntent ->
                         if (newIntent.getBooleanExtra("open_history", false)) {
-                            route = AppRoute.History
+                            navStack = NavStack.openDeepLink(AppRoute.History)
                         }
                     }
                     addOnNewIntentListener(listener)
@@ -188,39 +200,31 @@ class MainActivity : ComponentActivity() {
                                 Manifest.permission.RECORD_AUDIO
                             ) == PackageManager.PERMISSION_GRANTED
                             FlowAccessibilityService.instance?.applyPrefsVisual()
+                            DisplayRefreshController.apply(
+                                this@MainActivity,
+                                app.prefs.refreshHz
+                            )
                         }
                     }
                     owner.lifecycle.addObserver(obs)
                     onDispose { owner.lifecycle.removeObserver(obs) }
                 }
 
+                // Apply preferred Hz on first composition
+                androidx.compose.runtime.LaunchedEffect(app.prefs.refreshHz) {
+                    DisplayRefreshController.apply(this@MainActivity, app.prefs.refreshHz)
+                }
+
                 var layoutTick by remember { mutableIntStateOf(0) }
 
-                // Single-activity routes: system Back must pop Compose route,
-                // not leave the app (or return to system Settings).
-                val rootTabs = remember {
-                    setOf(
-                        AppRoute.Home,
-                        AppRoute.History,
-                        AppRoute.Dictionary,
-                        AppRoute.Settings
-                    )
-                }
-                val onSubScreen = route !in rootTabs
-                val backTarget = when (route) {
-                    AppRoute.Snippets, AppRoute.Style, AppRoute.Appearance,
-                    AppRoute.BubbleSettings, AppRoute.Cleanup, AppRoute.Privacy,
-                    AppRoute.Sounds, AppRoute.Customize, AppRoute.HomeModules,
-                    AppRoute.NavModules -> AppRoute.Settings
-                    else -> AppRoute.Home
-                }
-                BackHandler(enabled = onSubScreen) {
-                    route = backTarget
+                BackHandler(enabled = NavStack.canGoBack(navStack)) {
+                    goBack()
                 }
 
                 AppShell(
                     route = route,
-                    onNavigate = { dest -> route = dest },
+                    onNavigate = { dest -> goTo(dest) },
+                    onBack = { goBack() },
                     isDrawerExtraVisible = { true }
                 ) { padding ->
                     AnimatedContent(
@@ -252,31 +256,31 @@ class MainActivity : ComponentActivity() {
                                     }
                                 },
                                 onMic = { micPermission.launch(Manifest.permission.RECORD_AUDIO) },
-                                onOpenHistory = { route = AppRoute.History },
-                                onOpenBubbleSettings = { route = AppRoute.BubbleSettings },
-                                onOpenAppearance = { route = AppRoute.Appearance },
-                                onOpenCleanup = { route = AppRoute.Cleanup },
-                                onOpenStyle = { route = AppRoute.Style }
+                                onOpenHistory = { goTo(AppRoute.History) },
+                                onOpenBubbleSettings = { goTo(AppRoute.BubbleSettings) },
+                                onOpenAppearance = { goTo(AppRoute.Appearance) },
+                                onOpenCleanup = { goTo(AppRoute.Cleanup) },
+                                onOpenStyle = { goTo(AppRoute.Style) }
                             )
                             AppRoute.History -> HistoryScreen(app)
                             AppRoute.Dictionary -> DictionaryTab(app)
                             AppRoute.Snippets -> SnippetsTab(app)
                             AppRoute.Style -> StyleTab(app.prefs)
                             AppRoute.Settings -> SettingsHub(
-                                onDictionary = { route = AppRoute.Dictionary },
-                                onSnippets = { route = AppRoute.Snippets },
-                                onStyle = { route = AppRoute.Style },
-                                onAppearance = { route = AppRoute.Appearance },
-                                onBubble = { route = AppRoute.BubbleSettings },
-                                onCleanup = { route = AppRoute.Cleanup },
-                                onPrivacy = { route = AppRoute.Privacy },
-                                onSounds = { route = AppRoute.Sounds },
-                                onHomeLayout = { route = AppRoute.HomeModules },
-                                onNavLayout = { route = AppRoute.NavModules }
+                                onDictionary = { goTo(AppRoute.Dictionary) },
+                                onSnippets = { goTo(AppRoute.Snippets) },
+                                onStyle = { goTo(AppRoute.Style) },
+                                onAppearance = { goTo(AppRoute.Appearance) },
+                                onBubble = { goTo(AppRoute.BubbleSettings) },
+                                onCleanup = { goTo(AppRoute.Cleanup) },
+                                onPrivacy = { goTo(AppRoute.Privacy) },
+                                onSounds = { goTo(AppRoute.Sounds) },
+                                onHomeLayout = { goTo(AppRoute.HomeModules) },
+                                onNavLayout = { goTo(AppRoute.NavModules) }
                             )
                             AppRoute.Customize -> CustomizeHub(
-                                onHomeLayout = { route = AppRoute.HomeModules },
-                                onNavLayout = { route = AppRoute.NavModules }
+                                onHomeLayout = { goTo(AppRoute.HomeModules) },
+                                onNavLayout = { goTo(AppRoute.NavModules) }
                             )
                             AppRoute.Appearance -> AppearanceSettings(app.prefs)
                             AppRoute.BubbleSettings -> BubbleSettings(
@@ -299,6 +303,7 @@ class MainActivity : ComponentActivity() {
                                     "test" to "Test field",
                                     "recent" to "Recent history"
                                 ),
+                                defaultEncode = LayoutPrefs.DEFAULT_HOME,
                                 onChange = {
                                     app.prefs.setHomeModules(it)
                                     layoutTick++
@@ -312,6 +317,7 @@ class MainActivity : ComponentActivity() {
                                     "history" to "History",
                                     "customize" to "Customize"
                                 ),
+                                defaultEncode = LayoutPrefs.DEFAULT_NAV,
                                 onChange = {
                                     app.prefs.setNavModules(it)
                                     layoutTick++
@@ -1603,32 +1609,53 @@ private fun ModuleEditor(
     modules: List<LayoutPrefs.Module>,
     labels: Map<String, String>,
     lockVisible: Set<String> = emptySet(),
+    defaultEncode: String? = null,
     onChange: (List<LayoutPrefs.Module>) -> Unit
 ) {
     var local by remember(modules) { mutableStateOf(modules) }
     Column(
         Modifier
             .fillMaxSize()
+            .background(SecUi.cream)
             .padding(20.dp)
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = SecUi.charcoal)
         Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        local.forEach { m ->
+        Text(
+            "Order = top to bottom on Home. Hide blocks you never use. Bottom tabs stay fixed.",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        local.forEachIndexed { index, m ->
             val locked = m.id in lockVisible
             OpenCard {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        labels[m.id] ?: m.id,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "${index + 1}. ${labels[m.id] ?: m.id}",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = SecUi.charcoal
+                        )
+                        Text(
+                            if (m.visible) "ON" else "OFF",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = if (m.visible) SecUi.ink else SecUi.muted
+                        )
+                    }
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         OpenChip(
-                            label = if (m.visible) "Visible" else "Hidden",
+                            label = if (m.visible) "Show" else "Hide",
                             isOn = m.visible,
                             onClick = {
                                 if (!locked) {
@@ -1637,24 +1664,47 @@ private fun ModuleEditor(
                                 }
                             }
                         )
-                        TextButton(onClick = {
-                            local = LayoutPrefs.move(local, m.id, -1)
-                            onChange(local)
-                        }) { Text("Move Up") }
-                        TextButton(onClick = {
-                            local = LayoutPrefs.move(local, m.id, 1)
-                            onChange(local)
-                        }) { Text("Move Down") }
+                        OpenChip(
+                            label = "↑ Up",
+                            isOn = false,
+                            onClick = {
+                                local = LayoutPrefs.move(local, m.id, -1)
+                                onChange(local)
+                            }
+                        )
+                        OpenChip(
+                            label = "↓ Down",
+                            isOn = false,
+                            onClick = {
+                                local = LayoutPrefs.move(local, m.id, 1)
+                                onChange(local)
+                            }
+                        )
                     }
                     if (locked) {
                         Text(
-                            "Always visible by default",
+                            "Always available",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
             }
+        }
+        if (defaultEncode != null) {
+            OpenButton(
+                text = "Reset to default order",
+                variant = ButtonVariant.Outlined,
+                onClick = {
+                    val catalog = if (defaultEncode == LayoutPrefs.DEFAULT_HOME) {
+                        LayoutPrefs.HOME_MODULES
+                    } else {
+                        LayoutPrefs.DRAWER_EXTRAS
+                    }
+                    local = LayoutPrefs.parseModules(defaultEncode, catalog)
+                    onChange(local)
+                }
+            )
         }
         Spacer(Modifier.height(24.dp))
     }
@@ -1696,18 +1746,52 @@ private fun SettingsRow(title: String, subtitle: String, onClick: () -> Unit) {
 private fun AppearanceSettings(prefs: FlowPrefs) {
     val dark by prefs.darkMode.collectAsState()
     val skin by prefs.visualSkin.collectAsState()
+    val context = LocalContext.current
+    var refreshHz by remember { mutableIntStateOf(prefs.refreshHz) }
+    var sttProfile by remember { mutableStateOf(prefs.sttProfile) }
+    val deviceModes = remember(context) {
+        try {
+            val d = if (android.os.Build.VERSION.SDK_INT >= 30) {
+                context.display
+            } else {
+                @Suppress("DEPRECATION")
+                (context.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager)
+                    .defaultDisplay
+            }
+            d?.supportedModes?.map {
+                DisplayRefreshPolicy.ModeInfo(it.modeId, it.refreshRate)
+            }.orEmpty()
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+    val hzChoices = remember(deviceModes) {
+        DisplayRefreshPolicy.availableTargets(deviceModes).ifEmpty {
+            DisplayRefreshPolicy.TARGETS_HZ
+        }
+    }
     Column(
         Modifier
             .fillMaxSize()
+            .background(SecUi.cream)
             .padding(horizontal = 20.dp, vertical = 12.dp)
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Text("Customize theme colors and component styling.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            "Theme, motion smoothness, and STT speed. Changes apply now.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
 
         OpenCard {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Color Theme", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text("Color theme", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "Light / Dark / System — all screens + bubble chrome follow this.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("system" to "System", "light" to "Light", "dark" to "Dark").forEach { (v, label) ->
                         OpenChip(
@@ -1723,7 +1807,7 @@ private fun AppearanceSettings(prefs: FlowPrefs) {
 
         OpenCard {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Design Language", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text("Design language", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OpenChip(
                         label = "Modern Brutal",
@@ -1738,6 +1822,66 @@ private fun AppearanceSettings(prefs: FlowPrefs) {
                         onClick = { prefs.setVisualSkin(VisualSkin.M3) }
                     )
                 }
+            }
+        }
+
+        OpenCard {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Screen refresh", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "Prefer 60 / 90 / 120 / 144 Hz when the phone supports it. Device may clamp.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    hzChoices.forEach { hz ->
+                        OpenChip(
+                            label = "${hz}Hz",
+                            isOn = refreshHz == hz,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                refreshHz = hz
+                                prefs.refreshHz = hz
+                                (context as? android.app.Activity)?.let {
+                                    DisplayRefreshController.apply(it, hz)
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        OpenCard {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Dictation speed (STT)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "Fast = shorter silence wait. Accurate = longer listen + engine punctuation. Local cleanup still runs.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(
+                        SttTuning.PROFILE_FAST to "Fast",
+                        SttTuning.PROFILE_BALANCED to "Balanced",
+                        SttTuning.PROFILE_ACCURATE to "Accurate"
+                    ).forEach { (id, label) ->
+                        OpenChip(
+                            label = label,
+                            isOn = sttProfile == id,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                sttProfile = id
+                                prefs.sttProfile = id
+                            }
+                        )
+                    }
+                }
+                Text(
+                    "Re-enable Flow Bubble in Accessibility after changing STT profile (service reloads knobs).",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
         Spacer(Modifier.height(24.dp))

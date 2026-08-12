@@ -25,11 +25,11 @@ STT (+ API33 formatting extras)
 
 ## Dev law (strict)
 
-1. **Superpowers** — `writing-plans` before feature code
-2. **android-cli** — same weight. `android docs` / `layout` / `screen` / `install` / `info`
-3. **Agent web search** — not APK INTERNET
-4. **Caveman** — main + subagents (spawn hook)
-5. **Exception:** multi-agent inside a worktree is **allowed**
+1. Superpowers on. Only skip: no-subagents-in-worktree. Max 5/tree.
+2. Small fix: no worktree. Large: plan + worktree + ≤5 agents + merge.
+3. android-cli + agent web. Not APK INTERNET.
+4. Memory: `.grok/NOW.md` + `.grok/memory/FACTS.md` + `LESSONS.md`
+5. Caveman everywhere.
 
 ## Phone check
 

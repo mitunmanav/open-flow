@@ -6,8 +6,8 @@ Also follow: `docs/PROCESS.md`, `SECURITY.md`, global `~/.grok/AGENTS.md` / `~/.
 
 **Grok Build gate (this repo only):** `.grok/rules/00-dev-gate.md` + `.grok/hooks/dev-gate.json`.  
 Superpowers + **android-cli** + **agent web** — same weight.  
-**Plan first** (`writing-plans`). Caveman on main **and** subagents.  
-Stop blocks fake PASS. PreToolUse blocks `app/` on main + spawn without caveman.  
+**Plan first** on large work. Small fix = no worktree.  
+Max **5** subagents per worktree. Caveman everywhere.  
 Agent web search ≠ APK INTERNET. No INTERNET in the APK.
 
 ---
@@ -75,9 +75,10 @@ Ship in ordered features (F0…Fn), not one mega dump.
 
 ### One Superpowers bypass (Mitun)
 
-**May spawn multiple sub-agents inside one worktree** (max 5, **never same file**).  
-Bypass any Superpowers/harness rule that forbids worktree sub-agents.  
-All other Superpowers rules stay **on**.
+**May spawn up to 5 sub-agents inside one worktree** (never same file).  
+This is the **only** Superpowers skip.  
+Small fix: no worktree. Large: worktree → 5 agents → test → merge main.  
+Fast must stay smart (TDD + android-cli + proof still on).
 
 ### Also
 
@@ -106,22 +107,22 @@ Write: `docs/process/plans/YYYY-MM-DD-<feature-id>-<slug>.md`
 
 Must include: goal, files, TDD steps, security notes, how Mitun tests on device.
 
-### 3) Worktree (required)
+### 3) Worktree (large only)
+
+**Small fix:** skip. Work on current tree. Still proof.
+
+**Large feature:**
 
 ```bash
-# From repo root (main clean)
-git check-ignore -q .worktrees || exit 1   # must be ignored
+git check-ignore -q .worktrees || exit 1
 git worktree add .worktrees/<feature-id>-<slug> -b feat/<feature-id>-<slug>
 cd .worktrees/<feature-id>-<slug>
 ```
 
-- **One feature = one worktree = one branch.**
-- Do not pile unrelated features in the same worktree.
-- Merge to `main` only when feature is green and committed.
-- **Hygiene:** after merge, `git worktree remove .worktrees/<name>` + `git branch -d` + `git worktree prune`.
-- **Do not** leave merged feature trees sitting forever (disk + confusion).
-- Live map: `.grok/WORKFLOW.md` · pickup: `.grok/NOW.md`.
-- Max **5** subagents/task; **never** same file in parallel.
+- One large feature = one worktree = one branch.
+- Spawn **up to 5** agents. Never same file.
+- Merge to `main` when green. Then remove worktree + delete branch.
+- Live map: `.grok/WORKFLOW.md` · memory: `.grok/NOW.md` + `.grok/memory/`.
 
 ### 4) TDD (required)
 

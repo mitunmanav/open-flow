@@ -1,7 +1,6 @@
 # NOW
 
-**main:** pipeline + modern brutal UI merged  
-**worktrees:** none (cleaned)  
-**dev:** Superpowers plan-first + android-cli + agent web. Caveman on subagents.
+**main:** pipeline + modern brutal UI  
+**dev:** Superpowers (spawn-5 OK) · small fix no worktree · tiny memory
 
-**NEXT:** device smoke or F17 (plan on disk) when Mitun says GO
+**NEXT:** F17 plan + GO, or device smoke

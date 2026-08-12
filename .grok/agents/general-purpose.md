@@ -30,4 +30,4 @@ Rules:
 
 Workspace: stay in the workspace unless told otherwise.
 Full capability: read, write, edit, execute.
-When spawning children: this project forbids nested spawn. Stay flat.
+Do not spawn children (depth 1). Parent may spawn max 5 per worktree.

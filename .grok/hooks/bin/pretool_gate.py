@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """open-flow only — PreToolUse gate.
 
-Deny app/ file writes on main (must use .worktrees/).
 Deny spawn_subagent if prompt lacks caveman card.
-Agent web search is OK. APK INTERNET is not this hook's job.
+Cap 5 spawns per worktree (or main cwd).
+Small app/ edits on main are allowed.
 Fail open on errors.
 """
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -20,6 +21,7 @@ SPAWN_TOOLS = {
 }
 
 CAVEMAN_MARK = re.compile(r"(?i)\b(caveman|DID:|PASS-FAIL:)\b")
+MAX_SPAWNS = 5
 
 
 def file_from_input(tool_input: object) -> str:
@@ -33,25 +35,13 @@ def file_from_input(tool_input: object) -> str:
     )
 
 
-def in_worktree(cwd: str, path: str) -> bool:
-    for raw in (cwd, path):
-        if not raw:
-            continue
-        if ".worktrees" in Path(raw).parts:
-            return True
-    return False
-
-
-def is_app_path(path: str) -> bool:
-    if not path:
-        return False
-    parts = Path(path).parts
-    return "app" in parts
+def is_spawn(data: dict) -> bool:
+    name = str(data.get("toolName") or data.get("tool_name") or "")
+    return name in SPAWN_TOOLS
 
 
 def spawn_lacks_caveman(data: dict, tool_input: object) -> bool:
-    name = str(data.get("toolName") or data.get("tool_name") or "")
-    if name not in SPAWN_TOOLS:
+    if not is_spawn(data):
         return False
     if not isinstance(tool_input, dict):
         return True
@@ -59,14 +49,37 @@ def spawn_lacks_caveman(data: dict, tool_input: object) -> bool:
     return not bool(CAVEMAN_MARK.search(prompt))
 
 
+def spawn_key(data: dict) -> str:
+    cwd = str(data.get("cwd") or data.get("workspaceRoot") or "main")
+    sess = str(data.get("sessionId") or data.get("session_id") or "nosess")
+    safe = re.sub(r"[^A-Za-z0-9._-]+", "_", f"{sess}:{cwd}")
+    return safe[:180]
+
+
+def spawn_count_dir() -> Path:
+    raw = os.environ.get("OPENFLOW_SPAWN_STATE")
+    if raw:
+        return Path(raw)
+    return Path("/tmp/open-flow-spawns")
+
+
+def bump_spawn_count(data: dict) -> int:
+    d = spawn_count_dir()
+    d.mkdir(parents=True, exist_ok=True)
+    f = d / f"{spawn_key(data)}.txt"
+    n = 0
+    if f.is_file():
+        try:
+            n = int(f.read_text(encoding="utf-8").strip() or "0")
+        except ValueError:
+            n = 0
+    n += 1
+    f.write_text(str(n), encoding="utf-8")
+    return n
+
+
 def decide(data: dict) -> dict | None:
     tool_input = data.get("toolInput") or data.get("tool_input") or {}
-    path = file_from_input(tool_input)
-    cwd = str(
-        data.get("cwd")
-        or data.get("workspaceRoot")
-        or ""
-    )
 
     if spawn_lacks_caveman(data, tool_input):
         return {
@@ -74,19 +87,21 @@ def decide(data: dict) -> dict | None:
             "reason": (
                 "open-flow PreToolUse: subagent prompt must be caveman. "
                 "Start with CAVEMAN + DID / PASS-FAIL / NEXT / ASK. "
-                "No essays. See .grok/rules/00-dev-gate.md"
-            ),
-        }
-
-    if is_app_path(path) and not in_worktree(cwd, path):
-        return {
-            "decision": "deny",
-            "reason": (
-                "open-flow PreToolUse: do not edit app/ on main. "
-                "Use .worktrees/<id>-<slug> + feat/<id>-<slug>. "
                 "See .grok/rules/00-dev-gate.md"
             ),
         }
+
+    if is_spawn(data):
+        n = bump_spawn_count(data)
+        if n > MAX_SPAWNS:
+            return {
+                "decision": "deny",
+                "reason": (
+                    f"open-flow PreToolUse: max {MAX_SPAWNS} subagents "
+                    "per worktree. Finish or merge first. "
+                    "Never same file. See .grok/rules/00-dev-gate.md"
+                ),
+            }
     return None
 
 

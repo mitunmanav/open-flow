@@ -52,11 +52,10 @@ def main() -> None:
             f"# refreshed: {stamp}",
             "",
             "GATE ON: Superpowers + android-cli + agent web. Same weight.",
-            "Plan first (writing-plans). No feature code before plan file.",
-            "Caveman everywhere — main + subagents. No essays.",
-            "Web search = agent only. Not APK INTERNET.",
-            "android docs/layout/screen/install/info. Worktree for app/.",
-            "Only bypass: multi-agent max 5, different files.",
+            "Small fix: no worktree. Large: worktree + plan + max 5 agents.",
+            "Fast must stay smart. No skip TDD/android-cli/proof on large.",
+            "Caveman everywhere. Memory: .grok/NOW.md + .grok/memory/.",
+            "Agent web only. Not APK INTERNET.",
             "See: `.grok/rules/00-dev-gate.md`",
             "",
         ]
@@ -68,22 +67,29 @@ def main() -> None:
 
     event = str(data.get("hookEventName") or data.get("hook_event_name") or "")
     if event.lower() in ("userpromptsubmit", "user_prompt_submit"):
+        now_bit = ""
+        now = root / ".grok" / "NOW.md"
+        try:
+            now_bit = now.read_text(encoding="utf-8", errors="replace")[:320].strip()
+        except Exception:
+            now_bit = ""
+        ctx = (
+            "open-flow GATE: Superpowers + android-cli + agent web. "
+            "Small fix: no worktree. Large feature: worktree + "
+            "writing-plans + max 5 agents (never same file) + test + merge. "
+            "Fast must stay smart — do not skip TDD/android-cli/proof. "
+            "Caveman everywhere including subagents. "
+            "Memory: .grok/NOW.md (live) + .grok/memory/FACTS.md + LESSONS.md. "
+            "Agent web search only — not APK INTERNET."
+        )
+        if now_bit:
+            ctx = ctx + "\nNOW:\n" + now_bit
         sys.stdout.write(
             json.dumps(
                 {
                     "hookSpecificOutput": {
                         "hookEventName": "UserPromptSubmit",
-                        "additionalContext": (
-                            "open-flow GATE: Superpowers + android-cli + agent web "
-                            "(same weight). "
-                            "Plan first (writing-plans) before feature code. "
-                            "Caveman everywhere including subagents. "
-                            "Spawn prompts must include CAVEMAN + DID/PASS-FAIL/NEXT. "
-                            "Agent web search only — not APK INTERNET. "
-                            "android docs/layout/screen/install/info. "
-                            "app/ edits only in a worktree. "
-                            "No PASS without gradlew/android/unittest proof."
-                        ),
+                        "additionalContext": ctx,
                     }
                 }
             )

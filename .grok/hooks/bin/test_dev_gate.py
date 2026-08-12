@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -123,7 +125,7 @@ class StopGateTest(unittest.TestCase):
 
 
 class PretoolGateTest(unittest.TestCase):
-    def test_app_write_on_main_denied(self) -> None:
+    def test_app_write_on_main_allowed_small_fix(self) -> None:
         self.assertTrue(PRETOOL.is_file(), "pretool_gate.py missing")
         code, out = run_hook(
             PRETOOL,
@@ -136,7 +138,7 @@ class PretoolGateTest(unittest.TestCase):
             },
         )
         self.assertEqual(code, 0)
-        self.assertEqual(decision(out), "deny")
+        self.assertEqual(decision(out), "allow")
 
     def test_app_write_in_worktree_allowed(self) -> None:
         self.assertTrue(PRETOOL.is_file(), "pretool_gate.py missing")
@@ -186,6 +188,43 @@ class PretoolGateTest(unittest.TestCase):
         )
         self.assertEqual(code, 0)
         self.assertEqual(decision(out), "deny")
+
+    def test_sixth_spawn_denied(self) -> None:
+        self.assertTrue(PRETOOL.is_file(), "pretool_gate.py missing")
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["OPENFLOW_SPAWN_STATE"] = tmp
+            payload = {
+                "hookEventName": "pre_tool_use",
+                "sessionId": "test-sess",
+                "cwd": "/home/mitun/open-flow/.worktrees/gate-smart-mem",
+                "workspaceRoot": "/home/mitun/open-flow/.worktrees/gate-smart-mem",
+                "toolName": "spawn_subagent",
+                "toolInput": {"prompt": "CAVEMAN. DID: x\nPASS-FAIL: n/a\nNEXT: y"},
+            }
+            last_out = ""
+            for _ in range(5):
+                proc = subprocess.run(
+                    [sys.executable, str(PRETOOL)],
+                    input=json.dumps(payload),
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                    env=env,
+                )
+                self.assertEqual(proc.returncode, 0)
+                self.assertEqual(decision(proc.stdout.strip()), "allow")
+            proc = subprocess.run(
+                [sys.executable, str(PRETOOL)],
+                input=json.dumps(payload),
+                text=True,
+                capture_output=True,
+                check=False,
+                env=env,
+            )
+            last_out = proc.stdout.strip()
+            self.assertEqual(proc.returncode, 0)
+            self.assertEqual(decision(last_out), "deny")
 
     def test_spawn_with_caveman_allowed(self) -> None:
         self.assertTrue(PRETOOL.is_file(), "pretool_gate.py missing")
@@ -248,6 +287,9 @@ class PromptGateTest(unittest.TestCase):
         self.assertIn("plan", ctx.lower())
         self.assertIn("caveman", ctx.lower())
         self.assertRegex(ctx.lower(), r"not apk|no apk")
+        self.assertRegex(ctx.lower(), r"small")
+        self.assertIn("memory", ctx.lower())
+        self.assertIn("5", ctx)
 
 
 if __name__ == "__main__":

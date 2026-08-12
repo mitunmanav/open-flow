@@ -602,14 +602,11 @@ private fun HistoryScreen(app: OpenFlowApp) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
-                /* title in TopAppBar */
-                Text(
+            Text(
                     "${dictations.size} recordings on device",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            }
             if (dictations.isNotEmpty()) {
                 OpenButton(
                     text = "Export",
@@ -797,14 +794,11 @@ private fun DictionaryTab(app: OpenFlowApp) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Column {
-            /* title in TopAppBar */
-            Text(
+        Text(
                 "Local replacement rules applied instantly during insertion.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
 
         OpenCard {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -861,9 +855,12 @@ private fun DictionaryTab(app: OpenFlowApp) {
                                 color = MaterialTheme.colorScheme.primary
                             )
                         }
-                        IconButton(onClick = {
-                            scope.launch { app.dictations.deleteWord(w.id) }
-                        }) {
+                        IconButton(
+                            onClick = {
+                                scope.launch { app.dictations.deleteWord(w.id) }
+                            },
+                            modifier = Modifier.testTag("dict_delete")
+                        ) {
                             Icon(
                                 Icons.Default.Delete,
                                 contentDescription = "Delete",
@@ -893,14 +890,11 @@ private fun SnippetsTab(app: OpenFlowApp) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Column {
-            /* title in TopAppBar */
-            Text(
+        Text(
                 "Speak the trigger phrase alone to automatically expand into full text.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
 
         OpenCard {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -990,14 +984,11 @@ private fun StyleTab(prefs: FlowPrefs) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Column {
-            /* title in TopAppBar */
-            Text(
+        Text(
                 "Choose the default tone for post-processing voice transcripts.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
 
         styles.forEach { st ->
             val on = selected == st
@@ -1066,14 +1057,11 @@ private fun SettingsHub(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Column {
-            /* title in TopAppBar */
-            Text(
+        Text(
                 "Preferences & local configuration",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
 
         SettingsRow("Flow Bubble & Gestures", "Shape, size, opacity, edge magnetic snap", onBubble)
         SettingsRow("Cleanup Pipeline", "Filler words, course corrections, lists", onCleanup)
@@ -1108,7 +1096,6 @@ private fun CustomizeHub(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        /* title in TopAppBar */
         SettingsRow("Home layout", "Modules on Home", onHomeLayout)
         SettingsRow("Menu visibility", "Show or hide optional menu entries", onNavLayout)
     }
@@ -1124,14 +1111,11 @@ private fun CleanupSettings(prefs: FlowPrefs) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Column {
-            /* title in TopAppBar */
-            Text(
+        Text(
                 "Real-time local text cleanup applied before inserting into fields.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
 
         listOf(
             "none" to ("Raw STT" to "Exact words without any filtering or post-processing."),
@@ -1184,14 +1168,11 @@ private fun PrivacySettings(prefs: FlowPrefs) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Column {
-            /* title in TopAppBar */
-            Text(
+        Text(
                 "All transcripts and settings remain strictly on your device.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
 
         listOf(
             "keep" to ("Keep forever" to "Store history in on-device SQLite (not encrypted). Never uploaded by Open Flow."),
@@ -1205,7 +1186,8 @@ private fun PrivacySettings(prefs: FlowPrefs) {
                 onClick = {
                     ret = v
                     prefs.retentionPolicy = v
-                }
+                },
+                modifier = Modifier.testTag("privacy_" + v)
             ) {
                 Row(
                     Modifier
@@ -1245,10 +1227,7 @@ private fun SoundsSettings(prefs: FlowPrefs) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Column {
-            /* title in TopAppBar */
-            Text("Haptic and audio cues during dictation.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        Text("Haptic and audio cues during dictation.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         OpenCard {
             Row(
@@ -1316,7 +1295,6 @@ private fun ModuleEditor(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        /* title in TopAppBar */
         Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         local.forEach { m ->
             val locked = m.id in lockVisible
@@ -1402,10 +1380,7 @@ private fun AppearanceSettings(prefs: FlowPrefs) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Column {
-            /* title in TopAppBar */
-            Text("Customize theme colors and component styling.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        Text("Customize theme colors and component styling.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         OpenCard {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1463,14 +1438,11 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Column {
-            /* title in TopAppBar */
-            Text(
+        Text(
                 "Morph the shape, size, and interaction physics of your floating bubble.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        }
 
         // Shape Picker
         OpenCard {

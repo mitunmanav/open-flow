@@ -52,3 +52,11 @@ Thumbs.db
 # Old brainstorming / session artifacts (now canonicalised under docs/sessions/ + docs/mockups/)
 .superpowers-stale/
 .serena/
+
+# Python
+**/__pycache__/
+*.py[cod]
+*.pyo
+
+# Local agent notes (optional machine state)
+.grok/NOW.local.md

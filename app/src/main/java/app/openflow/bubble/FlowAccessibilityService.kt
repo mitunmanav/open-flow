@@ -281,8 +281,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.BOTTOM or Gravity.END
-            x = 32
-            y = 220
+            x = p.bubbleX
+            y = p.bubbleY
             alpha = opacity
         }
         bubbleParams = params
@@ -332,6 +332,10 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                     }
                     params.x = (startX - dx).coerceAtLeast(0)
                     params.y = (startY - dy).coerceAtLeast(0)
+                    prefs?.let {
+                        it.bubbleX = params.x
+                        it.bubbleY = params.y
+                    }
                     // snooze zone: drag near bottom
                     if (params.y < 40 && dragged) {
                         bubbleLabel?.text = getString(R.string.flow_bubble_snooze_hint)

@@ -58,6 +58,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -112,6 +113,20 @@ class MainActivity : ComponentActivity() {
             val skin by app.prefs.visualSkin.collectAsState()
             OpenFlowTheme(darkMode = darkMode, skin = skin) {
                 var route by remember { mutableStateOf(AppRoute.Home) }
+                androidx.compose.runtime.LaunchedEffect(intent) {
+                    if (intent?.getBooleanExtra("open_history", false) == true) {
+                        route = AppRoute.History
+                    }
+                }
+                DisposableEffect(Unit) {
+                    val listener = androidx.core.util.Consumer<Intent> { newIntent ->
+                        if (newIntent.getBooleanExtra("open_history", false)) {
+                            route = AppRoute.History
+                        }
+                    }
+                    addOnNewIntentListener(listener)
+                    onDispose { removeOnNewIntentListener(listener) }
+                }
                 var bubbleOn by remember { mutableStateOf(FlowAccessibilityService.isRunning()) }
                 var micOn by remember { _micGranted }
                 _micGranted.value = ContextCompat.checkSelfPermission(
@@ -253,7 +268,7 @@ private fun HomeHub(
     val scope = rememberCoroutineScope()
     val ctx = LocalContext.current
     var statsText by remember { mutableStateOf("…") }
-    var localNote by remember { mutableStateOf("") }
+    var localNote by rememberSaveable { mutableStateOf("") }
     var cleanup by remember { mutableStateOf(app.prefs.cleanupLevel) }
     var lastClean by remember { mutableStateOf(app.prefs.lastCleanText) }
     var lastRaw by remember { mutableStateOf(app.prefs.lastRawText) }
@@ -275,6 +290,8 @@ private fun HomeHub(
 
     val ready = bubbleOn && micOn
 
+    val homeModules = app.prefs.homeModules()
+
     Column(
         Modifier
             .fillMaxSize()
@@ -282,7 +299,10 @@ private fun HomeHub(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Hero Brand Status Card
+        homeModules.filter { it.visible }.forEach { module ->
+            when (module.id) {
+                "setup" -> {
+                    // Hero Brand Status Card
         OpenCard {
             Column(
                 Modifier.padding(20.dp),
@@ -366,10 +386,10 @@ private fun HomeHub(
                     )
                 }
             }
-        }
-
-        // Practice Field
-        OpenCard {
+                }
+                "test" -> {
+                    // Practice Field
+                    OpenCard {
             Column(
                 Modifier.padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -404,10 +424,10 @@ private fun HomeHub(
                     minLines = 3
                 )
             }
-        }
-
-        // Quick Tuning Bar
-        OpenCard {
+                }
+                "keys" -> {
+                    // Quick Tuning Bar
+                    OpenCard {
             Column(
                 Modifier.padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -458,10 +478,10 @@ private fun HomeHub(
                     TextButton(onClick = onOpenAppearance) { Text("Theme") }
                 }
             }
-        }
-
-        // Last Result Card
-        if (lastClean.isNotBlank()) {
+                }
+                "stats" -> {
+                    // Last Result Card + Recent Activity header
+                    if (lastClean.isNotBlank()) {
             OpenCard {
                 Column(
                     Modifier.padding(20.dp),
@@ -496,14 +516,14 @@ private fun HomeHub(
                     }
                 }
             }
-        }
+                    }
 
-        // Recent Dictations
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+                    // Recent Dictations
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
             Column {
                 Text(
                     "Recent Activity",
@@ -519,7 +539,11 @@ private fun HomeHub(
             TextButton(onClick = onOpenHistory) { Text("View all (${dictations.size})") }
         }
 
-        if (dictations.isEmpty()) {
+                        )
+                    }
+                }
+                "recent" -> {
+                    if (dictations.isEmpty()) {
             EmptyState(
                 icon = Icons.Default.MicNone,
                 title = "No dictations yet",
@@ -547,6 +571,11 @@ private fun HomeHub(
             }
         }
 
+                    }
+                }
+            }
+        }
+
         Text(
             "Speech recognition runs locally via Android SpeechRecognizer. Open Flow never sends your audio to the cloud.",
             style = MaterialTheme.typography.labelSmall,
@@ -559,7 +588,7 @@ private fun HomeHub(
 @Composable
 private fun HistoryScreen(app: OpenFlowApp) {
     val dictations by app.dictations.observeDictations().collectAsState(initial = emptyList())
-    var searchQuery by remember { mutableStateOf("") }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val ctx = LocalContext.current
 

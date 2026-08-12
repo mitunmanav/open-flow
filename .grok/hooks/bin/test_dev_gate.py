@@ -231,9 +231,10 @@ class PretoolGateTest(unittest.TestCase):
 
     def test_spawn_with_caveman_allowed(self) -> None:
         self.assertTrue(PRETOOL.is_file(), "pretool_gate.py missing")
-        code, out = run_hook(
-            PRETOOL,
-            {
+        with tempfile.TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            env["OPENFLOW_SPAWN_STATE"] = tmp
+            payload = {
                 "hookEventName": "pre_tool_use",
                 "cwd": "/home/mitun/open-flow/.worktrees/gate-plan-caveman",
                 "workspaceRoot": "/home/mitun/open-flow/.worktrees/gate-plan-caveman",
@@ -245,10 +246,17 @@ class PretoolGateTest(unittest.TestCase):
                     ),
                     "cwd": "/home/mitun/open-flow/.worktrees/gate-plan-caveman",
                 },
-            },
-        )
-        self.assertEqual(code, 0)
-        self.assertEqual(decision(out), "allow")
+            }
+            proc = subprocess.run(
+                [sys.executable, str(PRETOOL)],
+                input=json.dumps(payload),
+                text=True,
+                capture_output=True,
+                check=False,
+                env=env,
+            )
+            self.assertEqual(proc.returncode, 0)
+            self.assertEqual(decision(proc.stdout.strip()), "allow")
 
     def test_tree_a_cannot_write_tree_b(self) -> None:
         code, out = run_hook(

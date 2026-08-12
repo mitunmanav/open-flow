@@ -29,9 +29,9 @@ Before real work, load and follow applicable Superpowers skills:
 Bypass any Superpowers / harness rule that says *not* to run sub-agents in a worktree.  
 Everything else Superpowers remains **on**.
 
-## android-cli (required for Android work)
+## android-cli (same weight as Superpowers)
 
-Use `android` CLI for:
+Use `android` CLI every Android turn. Not optional. Commands:
 
 - `android info` — SDK / device
 - `android docs search|fetch` — API truth (not guesses)
@@ -53,7 +53,7 @@ Prefer `android` over raw inventing device flows. `adb` still OK for deep inject
 8. **Commit** on feature branch (author **Mitun only**)  
 9. **Merge main** when green → **remove worktree**
 
-Hooks enforce: no `app/` edits on `main`; no fake PASS; no INTERNET perm.
+Hooks enforce: no `app/` edits on `main`; no fake PASS. INTERNET perm not hook-blocked (still no perm in base app).
 
 ```bash
 git check-ignore -q .worktrees || exit 1

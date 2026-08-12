@@ -6,11 +6,12 @@ Hard. Every turn. No skip.
 - Caveman ultra. Short lines. YES/NO. DID / PASS-FAIL / NEXT / ASK.
 - No essays. No generic agent advice.
 
-## Before tools
-1. Read Superpowers skill that applies (`using-superpowers` first).
-2. Code ship → TDD + worktree + plan + verify skills.
-3. Android / API unknown → `android` CLI + web search (real docs).
-4. Only Superpowers bypass: multi-agent (max 5, never same file), worktrees OK.
+## Required stack (same weight)
+1. **Superpowers** — read `using-superpowers` first. All applicable skills.
+2. **android-cli** — same as Superpowers. Read the skill. Use `android docs` / `layout` / `screen` / `install` / `run` / `info`. Do **not** guess Android APIs.
+3. **Internet / web search** — required before feature work (current Android + security docs).
+4. Code ship → TDD + worktree + plan + verify.
+5. Only Superpowers bypass: multi-agent (max 5, never same file), worktrees OK.
 
 ## App code
 - Feature work in `.worktrees/<id>-<slug>` on `feat/<id>-<slug>`.
@@ -19,17 +20,18 @@ Hard. Every turn. No skip.
 
 ## Loop (feature work)
 ```
-web search → plan file → worktree → TDD → security → commit → report
+web search + android docs → plan file → worktree → TDD → security → commit → report
 ```
 
 ## Claim gate
 - Never claim PASS / fixed / done without **tool proof in the same message**.
-- Proof = real output: `gradlew`, `BUILD SUCCESSFUL`, `Ran N tests`, `adb install`.
+- Proof = `gradlew` / `BUILD SUCCESSFUL` / `Ran N tests` / `adb install` / `android docs|layout|install|info|screen`.
 - Writing `PASS-FAIL: PASS` or `NEXT:` is **not** proof.
 - Author: Mitun only. No Co-Authored-By. No agent footers.
 
 ## Security
-- No `INTERNET` in base manifest. Hook denies adding it.
+- Base app still has **no INTERNET perm** until a feature plan adds it.
+- Hook does **not** block adding INTERNET in a worktree.
 - No new perm without that feature’s plan.
 
 ## Boss files

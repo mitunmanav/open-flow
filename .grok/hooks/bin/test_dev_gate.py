@@ -170,6 +170,43 @@ class PretoolGateTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(decision(out), "allow")
 
+    def test_spawn_without_caveman_denied(self) -> None:
+        self.assertTrue(PRETOOL.is_file(), "pretool_gate.py missing")
+        code, out = run_hook(
+            PRETOOL,
+            {
+                "hookEventName": "pre_tool_use",
+                "cwd": "/home/mitun/open-flow/.worktrees/gate-plan-caveman",
+                "workspaceRoot": "/home/mitun/open-flow/.worktrees/gate-plan-caveman",
+                "toolName": "spawn_subagent",
+                "toolInput": {
+                    "prompt": "Explore the bubble chrome and write a detailed report."
+                },
+            },
+        )
+        self.assertEqual(code, 0)
+        self.assertEqual(decision(out), "deny")
+
+    def test_spawn_with_caveman_allowed(self) -> None:
+        self.assertTrue(PRETOOL.is_file(), "pretool_gate.py missing")
+        code, out = run_hook(
+            PRETOOL,
+            {
+                "hookEventName": "pre_tool_use",
+                "cwd": "/home/mitun/open-flow/.worktrees/gate-plan-caveman",
+                "workspaceRoot": "/home/mitun/open-flow/.worktrees/gate-plan-caveman",
+                "toolName": "spawn_subagent",
+                "toolInput": {
+                    "prompt": (
+                        "CAVEMAN. Short lines. DID / PASS-FAIL / NEXT / ASK.\n"
+                        "Explore bubble chrome. No essays."
+                    )
+                },
+            },
+        )
+        self.assertEqual(code, 0)
+        self.assertEqual(decision(out), "allow")
+
     def test_internet_perm_allowed_in_worktree(self) -> None:
         self.assertTrue(PRETOOL.is_file(), "pretool_gate.py missing")
         code, out = run_hook(
@@ -208,6 +245,9 @@ class PromptGateTest(unittest.TestCase):
         self.assertIn("worktree", ctx.lower())
         self.assertIn("android-cli", ctx.lower())
         self.assertIn("web", ctx.lower())
+        self.assertIn("plan", ctx.lower())
+        self.assertIn("caveman", ctx.lower())
+        self.assertRegex(ctx.lower(), r"not apk|no apk")
 
 
 if __name__ == "__main__":

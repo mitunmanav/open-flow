@@ -51,9 +51,11 @@ def main() -> None:
             "# Session stamp (auto — open-flow gate)",
             f"# refreshed: {stamp}",
             "",
-            "GATE ON: Superpowers + android-cli + web. Same weight. Every turn.",
-            "android docs/layout/screen/install/info — do not guess APIs.",
-            "Claim PASS only with test/build/android proof. Worktree for app/.",
+            "GATE ON: Superpowers + android-cli + agent web. Same weight.",
+            "Plan first (writing-plans). No feature code before plan file.",
+            "Caveman everywhere — main + subagents. No essays.",
+            "Web search = agent only. Not APK INTERNET.",
+            "android docs/layout/screen/install/info. Worktree for app/.",
             "Only bypass: multi-agent max 5, different files.",
             "See: `.grok/rules/00-dev-gate.md`",
             "",
@@ -72,12 +74,15 @@ def main() -> None:
                     "hookSpecificOutput": {
                         "hookEventName": "UserPromptSubmit",
                         "additionalContext": (
-                            "open-flow GATE: Superpowers + android-cli + web "
-                            "(same weight, every turn). "
-                            "Use android docs/layout/screen/install/info. "
+                            "open-flow GATE: Superpowers + android-cli + agent web "
+                            "(same weight). "
+                            "Plan first (writing-plans) before feature code. "
+                            "Caveman everywhere including subagents. "
+                            "Spawn prompts must include CAVEMAN + DID/PASS-FAIL/NEXT. "
+                            "Agent web search only — not APK INTERNET. "
+                            "android docs/layout/screen/install/info. "
                             "app/ edits only in a worktree. "
-                            "No PASS without gradlew/android/unittest proof. "
-                            "Caveman DID/PASS-FAIL/NEXT."
+                            "No PASS without gradlew/android/unittest proof."
                         ),
                     }
                 }

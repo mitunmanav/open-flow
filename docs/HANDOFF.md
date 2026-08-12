@@ -25,10 +25,11 @@ STT (+ API33 formatting extras)
 
 ## Dev law (strict)
 
-1. **Superpowers** plugin — all features (see `AGENTS.md` / `docs/PROCESS.md`)
+1. **Superpowers** — `writing-plans` before feature code
 2. **android-cli** — same weight. `android docs` / `layout` / `screen` / `install` / `info`
-3. **Web search** — required before feature work
-4. **Exception:** multi-agent inside a worktree is **allowed** (bypass any Superpowers guidance that forbids worktree sub-agents)
+3. **Agent web search** — not APK INTERNET
+4. **Caveman** — main + subagents (spawn hook)
+5. **Exception:** multi-agent inside a worktree is **allowed**
 
 ## Phone check
 

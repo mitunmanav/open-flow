@@ -5,8 +5,10 @@ Read this first. Do not ask Mitun to re-state these rules.
 Also follow: `docs/PROCESS.md`, `SECURITY.md`, global `~/.grok/AGENTS.md` / `~/.grok/rules/00-voice.md`.
 
 **Grok Build gate (this repo only):** `.grok/rules/00-dev-gate.md` + `.grok/hooks/dev-gate.json`.  
-Superpowers + **android-cli** + **web** — same weight, every turn.  
-Stop blocks fake PASS. PreToolUse blocks `app/` edits on main (not INTERNET perm).
+Superpowers + **android-cli** + **agent web** — same weight.  
+**Plan first** (`writing-plans`). Caveman on main **and** subagents.  
+Stop blocks fake PASS. PreToolUse blocks `app/` on main + spawn without caveman.  
+Agent web search ≠ APK INTERNET. No INTERNET in the APK.
 
 ---
 
@@ -48,8 +50,9 @@ Ship in ordered features (F0…Fn), not one mega dump.
 
 ## Voice with Mitun
 
-- **Caveman ultra:** short lines, easy words, YES/NO, no essays.
+- **Caveman ultra everywhere** (main + subagents + NOW): short lines, YES/NO, no essays.
 - Work report: **DID / PASS-FAIL / NEXT / SUGGEST / ASK**
+- Spawn prompt **must** include CAVEMAN + DID/PASS-FAIL/NEXT (hook denies if not).
 - Author: **Mitun only.** No Co-Authored-By. No agent footers.
 - Wait for **GO** only if scope is unclear or destructive. Explicit “build / proceed / do it” = GO for that work.
 
@@ -61,13 +64,14 @@ Ship in ordered features (F0…Fn), not one mega dump.
 
 1. **Superpowers plugin** — use **all** applicable skills (not optional):
    - `using-superpowers` first every task
+   - `writing-plans` **before** any feature code (plan file on disk first)
    - `brainstorming` (only if product shape re-opens — default: locked)
-   - `writing-plans` · `using-git-worktrees` · `test-driven-development`
+   - `using-git-worktrees` · `test-driven-development`
    - `systematic-debugging` · `verification-before-completion`
    - `dispatching-parallel-agents` · `subagent-driven-development`
    - review / finishing-branch skills when merging
 2. **android-cli** — **same weight as Superpowers.** Read the skill every Android turn. Use `android docs` / `layout` / `screen` / `install` / `run` / `info` / SDK. **Do not guess APIs.**
-3. **Internet / web search** — required before feature work (current docs + security).
+3. **Agent web search** — required before feature work. **Not** APK INTERNET.
 
 ### One Superpowers bypass (Mitun)
 

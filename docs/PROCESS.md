@@ -10,7 +10,7 @@ Before real work, load and follow applicable Superpowers skills:
 |-------|------|
 | `using-superpowers` | Session start / any task |
 | `brainstorming` | New creative / feature shape (product already locked — don't re-open "what is the app?") |
-| `writing-plans` | Multi-step feature before code |
+| `writing-plans` | **Required before feature code** |
 | `using-git-worktrees` | Feature isolation |
 | `test-driven-development` | Logic / pipeline / pure Kotlin |
 | `systematic-debugging` | Bugs before random fixes |
@@ -53,7 +53,8 @@ Prefer `android` over raw inventing device flows. `adb` still OK for deep inject
 8. **Commit** on feature branch (author **Mitun only**)  
 9. **Merge main** when green → **remove worktree**
 
-Hooks enforce: no `app/` edits on `main`; no fake PASS. INTERNET perm not hook-blocked (still no perm in base app).
+Hooks enforce: no `app/` on `main`; no fake PASS; spawn must be caveman.  
+Agent web search ≠ APK INTERNET. No INTERNET in the APK.
 
 ```bash
 git check-ignore -q .worktrees || exit 1

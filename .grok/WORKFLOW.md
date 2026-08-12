@@ -5,19 +5,18 @@
 - Rules: `.grok/rules/00-dev-gate.md`
 - Hooks: `.grok/hooks/dev-gate.json`
   - SessionStart / UserPromptSubmit: stamp + short inject
-  - PreToolUse: deny `app/` writes on main (INTERNET perm not hook-blocked)
+  - PreToolUse: deny `app/` on main; deny spawn without caveman
   - Stop / SubagentStop: block fake PASS (need real command / android-cli proof)
 - Trust once: `/hooks-trust` in this folder (or trust path in `~/.grok/trusted_folders.toml`)
 - Global Grok rules stay global; **this gate does not touch other projects.**
 
 ## Law
 
-1. **Superpowers** — all skills when they apply (plans, TDD, worktrees, debug, verify, review).
-2. **android-cli** — same weight. `android docs` / `layout` / `screen` / `install` / `info`. No API guesses.
-3. **Web / internet** — search before feature work.
-4. **Bypass (only one):** multi-agent **inside** a worktree is allowed (max 5, different files).  
-   Do **not** treat Superpowers as forbidding worktree sub-agents.
-5. **Caveman** — DID / PASS-FAIL / NEXT / ASK. No essays.
+1. **Superpowers** — all skills. **writing-plans before feature code.**
+2. **android-cli** — same weight. `android docs` / `layout` / `screen` / `install` / `info`.
+3. **Agent web** — search before feature work. Not APK INTERNET.
+4. **Caveman** — main + subagents. DID / PASS-FAIL / NEXT / ASK. Spawn must include the card.
+5. **Bypass (only one):** multi-agent **inside** a worktree is allowed (max 5, different files).
 6. **Proof** — no PASS without test/build/android-cli output.
 
 ## Active trees
@@ -31,7 +30,7 @@ Keep lean. After merge → remove worktree + delete branch.
 ## Loop
 
 ```
-superpowers + android-cli + web → plan → worktree → TDD → android verify → commit → merge → remove wt
+writing-plans → web + android docs → worktree → TDD → android verify → commit → merge → remove wt
 ```
 
 ## Product

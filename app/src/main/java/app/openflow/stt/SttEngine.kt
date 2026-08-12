@@ -118,7 +118,9 @@ class SttEngine(
             destroyInternal()
             restoreVolume()
             starting.set(false)
-            listener?.onListeningChanged(false)
+            val l = listener
+            listener = null
+            l?.onListeningChanged(false)
         }
     }
 

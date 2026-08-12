@@ -15,6 +15,7 @@ class OpenFlowApp : Application() {
     val database by lazy { OpenFlowDatabase.get(this) }
     val dictations by lazy {
         DictationRepository(
+            database,
             database.dictationDao(),
             database.dictionaryDao(),
             database.snippetDao(),

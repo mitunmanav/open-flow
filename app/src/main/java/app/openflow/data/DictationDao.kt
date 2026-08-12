@@ -17,6 +17,9 @@ interface DictationDao {
     @Query("DELETE FROM dictations WHERE id = :id")
     suspend fun delete(id: String)
 
+    @Query("DELETE FROM dictations WHERE createdAtEpochMs < :beforeEpochMs")
+    suspend fun deleteOlderThan(beforeEpochMs: Long)
+
     @Query("SELECT * FROM dictations ORDER BY createdAtEpochMs DESC LIMIT 1")
     suspend fun latest(): DictationEntity?
 }

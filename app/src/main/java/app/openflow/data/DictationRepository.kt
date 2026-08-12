@@ -1,10 +1,12 @@
 package app.openflow.data
 
+import androidx.room.withTransaction
 import kotlinx.coroutines.flow.Flow
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 class DictationRepository(
+    private val db: OpenFlowDatabase,
     private val dictationDao: DictationDao,
     private val dictionaryDao: DictionaryDao,
     private val snippetDao: SnippetDao,
@@ -22,14 +24,21 @@ class DictationRepository(
 
     /**
      * Persist a dictation with raw STT + clean text.
-     * [text] on the entity stays clean (UI-compatible). [wordCount] from clean only.
+     * [retentionPolicy]: keep | wipe_24h | never_store
+     * Returns null when never_store (history skipped).
      */
     suspend fun saveDictation(
         rawText: String,
         cleanText: String,
         durationMs: Long,
-        languageTag: String
-    ): DictationEntity {
+        languageTag: String,
+        retentionPolicy: String = "keep"
+    ): DictationEntity? {
+        if (retentionPolicy == "never_store") return null
+        if (retentionPolicy == "wipe_24h") {
+            val cutoff = System.currentTimeMillis() - TimeUnit.HOURS.toMillis(24)
+            dictationDao.deleteOlderThan(cutoff)
+        }
         val words = cleanText.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }.size
         val e = DictationEntity(
             id = UUID.randomUUID().toString(),
@@ -46,7 +55,7 @@ class DictationRepository(
     }
 
     /** Compat: single string → both raw and clean (pre-pipeline callers). */
-    suspend fun saveDictation(text: String, durationMs: Long, languageTag: String): DictationEntity =
+    suspend fun saveDictation(text: String, durationMs: Long, languageTag: String): DictationEntity? =
         saveDictation(rawText = text, cleanText = text, durationMs = durationMs, languageTag = languageTag)
 
     suspend fun deleteDictation(id: String) = dictationDao.delete(id)
@@ -84,21 +93,23 @@ class DictationRepository(
     suspend fun stats(): AppStatsEntity = statsDao.get() ?: AppStatsEntity()
 
     private suspend fun bumpStats(words: Int) {
-        val cur = statsDao.get() ?: AppStatsEntity()
-        val day = TimeUnit.MILLISECONDS.toDays(System.currentTimeMillis())
-        val streak = when {
-            cur.lastDayEpoch == 0L -> 1
-            day == cur.lastDayEpoch -> cur.streakDays
-            day == cur.lastDayEpoch + 1 -> cur.streakDays + 1
-            else -> 1
-        }
-        statsDao.upsert(
-            cur.copy(
-                totalWords = cur.totalWords + words,
-                totalSessions = cur.totalSessions + 1,
-                lastDayEpoch = day,
-                streakDays = streak
+        db.withTransaction {
+            val cur = statsDao.get() ?: AppStatsEntity()
+            val day = TimeUnit.MILLISECONDS.toDays(System.currentTimeMillis())
+            val streak = when {
+                cur.lastDayEpoch == 0L -> 1
+                day == cur.lastDayEpoch -> cur.streakDays
+                day == cur.lastDayEpoch + 1 -> cur.streakDays + 1
+                else -> 1
+            }
+            statsDao.upsert(
+                cur.copy(
+                    totalWords = cur.totalWords + words,
+                    totalSessions = cur.totalSessions + 1,
+                    lastDayEpoch = day,
+                    streakDays = streak
+                )
             )
-        )
+        }
     }
 }

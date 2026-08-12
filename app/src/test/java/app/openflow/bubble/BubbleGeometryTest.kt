@@ -51,4 +51,36 @@ class BubbleGeometryTest {
         assertThat(BubbleGeometry.cornerRadiusDp("square", 2f)).isEqualTo(4f)
         assertThat(BubbleGeometry.cornerRadiusDp("circle", 2f)).isEqualTo(1998f)
     }
+
+    @Test
+    fun parkYAboveIme_lifts_below_keyboard() {
+        assertThat(BubbleGeometry.parkYAboveIme(325, imeHeightPx = 800, gapPx = 24))
+            .isEqualTo(824)
+    }
+
+    @Test
+    fun parkYAboveIme_keeps_already_above() {
+        assertThat(BubbleGeometry.parkYAboveIme(900, imeHeightPx = 800, gapPx = 24))
+            .isEqualTo(900)
+    }
+
+    @Test
+    fun parkYAboveIme_ime_zero_keeps_y() {
+        assertThat(BubbleGeometry.parkYAboveIme(325, imeHeightPx = 0, gapPx = 24))
+            .isEqualTo(325)
+    }
+
+    @Test
+    fun imeHeightFromBounds_uses_rect() {
+        assertThat(
+            BubbleGeometry.imeHeightFromBounds(top = 1592, bottom = 2392, screenHeightPx = 2392)
+        ).isEqualTo(800)
+    }
+
+    @Test
+    fun imeHeightFromBounds_bad_rect_is_zero() {
+        assertThat(
+            BubbleGeometry.imeHeightFromBounds(top = 2000, bottom = 1000, screenHeightPx = 2392)
+        ).isEqualTo(0)
+    }
 }

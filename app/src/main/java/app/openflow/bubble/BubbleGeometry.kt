@@ -51,4 +51,19 @@ object BubbleGeometry {
     /** Dynamic corner radius (px). Square = minimal hard 2dp. */
     fun cornerRadiusDp(shape: String, density: Float): Float =
         BubbleChrome.cornerPx(shape, density)
+
+    /**
+     * Gravity.BOTTOM y: lift so the bubble sits above the IME.
+     * If IME is down ([imeHeightPx] ≤ 0) keep [y].
+     */
+    fun parkYAboveIme(y: Int, imeHeightPx: Int, gapPx: Int = 24): Int {
+        if (imeHeightPx <= 0) return y
+        return maxOf(y, imeHeightPx + gapPx)
+    }
+
+    /** IME window height from screen bounds. Bad rect → 0. Clamped to screen. */
+    fun imeHeightFromBounds(top: Int, bottom: Int, screenHeightPx: Int): Int {
+        if (bottom <= top) return 0
+        return (bottom - top).coerceIn(0, screenHeightPx.coerceAtLeast(0))
+    }
 }

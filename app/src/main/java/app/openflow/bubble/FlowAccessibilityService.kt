@@ -10,6 +10,7 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.animation.ValueAnimator
 import android.graphics.PixelFormat
+import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -106,6 +107,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     private var injectReceiverRegistered = false
     /** Soft keyboard present (Wispr: bubble lives with field + keyboard). */
     private var imeVisible: Boolean = false
+    /** TYPE_INPUT_METHOD height in px. 0 = IME down / unknown. Not written to prefs. */
+    private var imeHeightPx: Int = 0
 
     /** Debug-only: adb inject without mic (see companion ACTION_INJECT). */
     private val injectReceiver = object : BroadcastReceiver() {
@@ -332,6 +335,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         val p = prefs!!
         val scale = effectiveScale()
         val opacity = p.bubbleOpacity
+        refreshImeHeight()
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -342,7 +346,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         ).apply {
             gravity = Gravity.BOTTOM or Gravity.END
             x = p.bubbleX
-            y = p.bubbleY
+            y = parkedY(p.bubbleY)
             alpha = opacity
         }
         bubbleParams = params
@@ -382,7 +386,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                     downRawX = event.rawX
                     downRawY = event.rawY
                     startX = params.x
-                    startY = params.y
+                    startY = prefs?.bubbleY ?: params.y
                     dragged = false
                     longPressFired = false
                     // Smooth press-in (Wispr-like).
@@ -400,12 +404,13 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                     val dm = resources.displayMetrics
                     val h = v.height.takeIf { it > 0 } ?: v.measuredHeight.takeIf { it > 0 } ?: 120
                     params.x = (startX - dx).coerceAtLeast(0)
-                    params.y = BubbleGeometry.clampVerticalOffset(
+                    val dragY = BubbleGeometry.clampVerticalOffset(
                         y = startY - dy,
                         screenHeightPx = dm.heightPixels,
                         bubbleHeightPx = h
                     )
-                    if (params.y < 40 && dragged) {
+                    params.y = BubbleGeometry.parkYAboveIme(dragY, imeHeightPx)
+                    if (dragY < 40 && dragged) {
                         bubbleLabel?.visibility = View.VISIBLE
                         bubbleLabel?.text = getString(R.string.flow_bubble_snooze_hint)
                     }
@@ -418,7 +423,15 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     mainHandler.removeCallbacks(longPress)
                     animatePress(v, pressed = false)
-                    if (dragged && params.y < 40) {
+                    val dm = resources.displayMetrics
+                    val h = v.height.takeIf { it > 0 } ?: v.measuredHeight.takeIf { it > 0 } ?: 120
+                    val upDy = (event.rawY - downRawY).toInt()
+                    val savedY = BubbleGeometry.clampVerticalOffset(
+                        y = startY - upDy,
+                        screenHeightPx = dm.heightPixels,
+                        bubbleHeightPx = h
+                    )
+                    if (dragged && savedY < 40) {
                         prefs?.snoozeMinutes(10)
                         Toast.makeText(this, R.string.flow_bubble_snoozed, Toast.LENGTH_SHORT).show()
                         refreshBubbleVisibility()
@@ -430,7 +443,12 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                     if (dragged) {
                         prefs?.let {
                             it.bubbleX = params.x
-                            it.bubbleY = params.y
+                            it.bubbleY = savedY
+                        }
+                        params.y = BubbleGeometry.parkYAboveIme(savedY, imeHeightPx)
+                        try {
+                            windowManager?.updateViewLayout(v, params)
+                        } catch (_: Exception) {
                         }
                     }
                     if (longPressFired || pushToTalk) {
@@ -520,8 +538,54 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
     }
 
+    private fun detectImeHeight(): Int {
+        return try {
+            val screenH = resources.displayMetrics.heightPixels
+            val rect = Rect()
+            var h = 0
+            windows?.forEach { w ->
+                if (w.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD) {
+                    w.getBoundsInScreen(rect)
+                    h = maxOf(h, BubbleGeometry.imeHeightFromBounds(rect.top, rect.bottom, screenH))
+                }
+            }
+            h
+        } catch (_: Exception) {
+            0
+        }
+    }
+
+    private fun refreshImeHeight() {
+        imeHeightPx = detectImeHeight()
+        imeVisible = imeHeightPx > 0 || detectImeVisible()
+    }
+
+    /** Display y from saved y. Parked value is never written back to prefs. */
+    private fun parkedY(savedY: Int): Int {
+        val dm = resources.displayMetrics
+        val h = bubbleView?.let { v ->
+            v.height.takeIf { it > 0 } ?: v.measuredHeight.takeIf { it > 0 }
+        } ?: 120
+        val clamped = BubbleGeometry.clampVerticalOffset(
+            y = savedY,
+            screenHeightPx = dm.heightPixels,
+            bubbleHeightPx = h
+        )
+        return BubbleGeometry.parkYAboveIme(clamped, imeHeightPx)
+    }
+
+    private fun applyParkedOverlayY() {
+        val params = bubbleParams ?: return
+        val view = bubbleView ?: return
+        params.y = parkedY(prefs?.bubbleY ?: params.y)
+        try {
+            windowManager?.updateViewLayout(view, params)
+        } catch (_: Exception) {
+        }
+    }
+
     private fun refreshBubbleVisibility() {
-        imeVisible = detectImeVisible()
+        refreshImeHeight()
         val snoozed = prefs?.isSnoozed() == true
         val bankHide = PackagePolicy.shouldHideBubble(lastPackage)
         val hasField = focusedEditable != null
@@ -537,7 +601,10 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         )
         bubbleView?.visibility = if (show) View.VISIBLE else View.GONE
         if (snoozed) registerShake() else unregisterShake()
-        if (show) updateBubbleVisuals()
+        if (show) {
+            applyParkedOverlayY()
+            updateBubbleVisuals()
+        }
     }
 
     private fun registerShake() {
@@ -1111,14 +1178,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         bubbleView?.scaleX = s
         bubbleView?.scaleY = s
         bubbleParams?.alpha = p.bubbleOpacity
-        bubbleView?.let { v ->
-            bubbleParams?.let { params ->
-                try {
-                    windowManager?.updateViewLayout(v, params)
-                } catch (_: Exception) {
-                }
-            }
-        }
+        refreshImeHeight()
+        applyParkedOverlayY()
         updateBubbleVisuals()
         refreshBubbleVisibility()
     }

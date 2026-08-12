@@ -51,6 +51,8 @@ object FieldPolicy {
         val piece = sessionText.trim()
         if (piece.isEmpty()) return base
         if (base.isEmpty()) return piece
+        val head = base.trim()
+        if (head.isNotEmpty() && piece.startsWith(head, ignoreCase = true)) return piece
         val needsSpace = !base.last().isWhitespace() &&
             !piece.first().isWhitespace() &&
             piece.first() !in ".,!?;:\n"

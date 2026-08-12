@@ -3,7 +3,19 @@
 
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- INTERNET intentionally omitted by default (privacy). -->
+    <!-- INTERNET intentionally omitted by default (privacy).
+         System SpeechRecognizer runs in another process and may use network
+         without this app declaring INTERNET. -->
+
+    <!-- Android 11+ package visibility: find speech recognition services -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+        <intent>
+            <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
+    </queries>
 
     <application
         android:name=".OpenFlowApp"

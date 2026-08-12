@@ -65,6 +65,7 @@ import app.openflow.privacy.PrivacyDefaults
 import app.openflow.export.HistoryExport
 import app.openflow.stt.SttTuning
 import app.openflow.text.TextPostProcessor
+import app.openflow.ui.components.ButtonVariant
 import app.openflow.ui.components.EmptyState
 import app.openflow.ui.components.OpenButton
 import app.openflow.ui.components.OpenCard
@@ -120,18 +121,8 @@ class MainActivity : ComponentActivity() {
                 var layoutTick by remember { mutableStateOf(0) }
                 AppShell(
                     route = route,
-                    onNavigate = { dest ->
-                        val id = dest.navId
-                        // Bottom tabs always allowed; drawer extras respect visibility
-                        val bottomOk = id in listOf("home", "dictionary", "snippets", "style")
-                        val drawerOk = id == null || id == "settings" ||
-                            app.prefs.isDrawerItemVisible(id)
-                        route = if (bottomOk || drawerOk) dest else AppRoute.Home
-                    },
-                    isDrawerExtraVisible = { r ->
-                        val id = r.navId
-                        id == null || id == "settings" || app.prefs.isDrawerItemVisible(id)
-                    }
+                    onNavigate = { dest -> route = dest },
+                    isDrawerExtraVisible = { true }
                 ) { padding ->
                     AnimatedContent(
                         targetState = route to layoutTick,
@@ -161,6 +152,9 @@ class MainActivity : ComponentActivity() {
                             AppRoute.Snippets -> SnippetsTab(app)
                             AppRoute.Style -> StyleTab(app.prefs)
                             AppRoute.Settings -> SettingsHub(
+                                onDictionary = { route = AppRoute.Dictionary },
+                                onSnippets = { route = AppRoute.Snippets },
+                                onStyle = { route = AppRoute.Style },
                                 onAppearance = { route = AppRoute.Appearance },
                                 onBubble = { route = AppRoute.BubbleSettings },
                                 onCleanup = { route = AppRoute.Cleanup },
@@ -239,156 +233,211 @@ private fun HomeHub(
     var statsText by remember { mutableStateOf("…") }
     var localNote by remember { mutableStateOf("") }
     var cleanup by remember { mutableStateOf(app.prefs.cleanupLevel) }
-    DisposableEffect(Unit) {
+    var lastClean by remember { mutableStateOf(app.prefs.lastCleanText) }
+    var lastRaw by remember { mutableStateOf(app.prefs.lastRawText) }
+    val owner = LocalLifecycleOwner.current
+    DisposableEffect(owner) {
+        val obs = LifecycleEventObserver { _, e ->
+            if (e == Lifecycle.Event.ON_RESUME) {
+                lastClean = app.prefs.lastCleanText
+                lastRaw = app.prefs.lastRawText
+            }
+        }
+        owner.lifecycle.addObserver(obs)
         scope.launch {
             val s = app.dictations.stats()
-            statsText = "Words ${s.totalWords} · Sessions ${s.totalSessions} · Streak ${s.streakDays}d"
+            statsText = "${s.totalWords} words · ${s.totalSessions} sessions · ${s.streakDays}d streak"
         }
-        onDispose { }
+        onDispose { owner.lifecycle.removeObserver(obs) }
     }
-    val modules = remember(app.prefs.homeLayout) { app.prefs.homeModules() }
+
+    val ready = bubbleOn && micOn
+
     Column(
         Modifier
             .fillMaxSize()
-            .padding(20.dp)
+            .padding(horizontal = 20.dp, vertical = 8.dp)
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Text(
-            "Speak anywhere. Stay private.",
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Text(
-            "Bubble · on-device STT · polish once on stop · no account",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        // Hero
+        OpenCard {
+            Column(
+                Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    if (ready) "Ready to dictate" else "Finish setup",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    if (ready) {
+                        "Open any app → tap the floating bubble → speak → tap again. Clean text lands in the field."
+                    } else {
+                        "Turn on the bubble + mic. Keep your normal keyboard."
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OpenChip(
+                        label = if (bubbleOn) "Bubble on" else "Bubble off",
+                        isOn = bubbleOn
+                    )
+                    OpenChip(
+                        label = if (micOn) "Mic on" else "Mic off",
+                        isOn = micOn
+                    )
+                }
+                if (!bubbleOn) {
+                    OpenButton(text = "Enable floating bubble", onClick = onEnableBubble)
+                }
+                if (!micOn) {
+                    OpenButton(text = "Allow microphone", onClick = onMic)
+                }
+                if (ready) {
+                    OpenButton(
+                        text = "Bubble & accessibility",
+                        onClick = onEnableBubble,
+                        variant = ButtonVariant.Outlined
+                    )
+                }
+            }
+        }
 
-        modules.filter { it.visible }.forEach { mod ->
-            when (mod.id) {
-                "setup" -> OpenCard {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("Setup", style = MaterialTheme.typography.titleMedium)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OpenChip(label = if (bubbleOn) "Bubble ON" else "Bubble OFF", isOn = bubbleOn)
-                            OpenChip(label = if (micOn) "Mic ON" else "Mic OFF", isOn = micOn)
-                        }
-                        OpenButton(
-                            text = if (bubbleOn) "Accessibility settings" else "Enable Flow Bubble",
-                            onClick = onEnableBubble
-                        )
-                        OpenButton(
-                            text = if (micOn) "Microphone granted" else "Grant microphone",
-                            onClick = onMic,
-                            enabled = !micOn
-                        )
-                    }
-                }
-                "stats" -> OpenCard {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Your pace", style = MaterialTheme.typography.titleSmall)
-                        Text(statsText, style = MaterialTheme.typography.bodyLarge)
-                    }
-                }
-                "keys" -> OpenCard {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("Key actions", style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            "On Home only — not in the drawer",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text("Cleanup", style = MaterialTheme.typography.titleSmall)
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            listOf("none", "light", "medium", "high").forEach { level ->
-                                OpenChip(
-                                    label = level.replaceFirstChar { it.uppercase() },
-                                    isOn = cleanup == level,
-                                    onClick = {
-                                        cleanup = level
-                                        app.prefs.cleanupLevel = level
-                                    }
-                                )
+        // Quick controls
+        OpenCard {
+            Column(
+                Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text("Quick controls", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Language: English (en-US) only",
+                    style = MaterialTheme.typography.titleSmall
+                )
+                Text(
+                    "STT locked to en-US — no other languages",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text("Cleanup", style = MaterialTheme.typography.labelLarge)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(
+                        "none" to "Raw",
+                        "light" to "Light",
+                        "medium" to "Normal",
+                        "high" to "High"
+                    ).forEach { (level, label) ->
+                        OpenChip(
+                            label = label,
+                            isOn = cleanup == level,
+                            onClick = {
+                                cleanup = level
+                                app.prefs.cleanupLevel = level
                             }
-                        }
-                        Text(
-                            "Language: English (en-US) only",
-                            style = MaterialTheme.typography.titleSmall
                         )
-                        Text(
-                            "STT locked to en-US — no other languages",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OpenButton(
-                                text = "Copy last",
-                                onClick = {
-                                    val last = dictations.firstOrNull()?.text.orEmpty()
-                                    if (last.isNotBlank()) {
-                                        val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                        cm.setPrimaryClip(
-                                            android.content.ClipData.newPlainText("dictation", last)
-                                        )
-                                    }
-                                }
-                            )
-                            TextButton(onClick = onOpenCleanup) { Text("Cleanup…") }
-                            TextButton(onClick = onOpenBubbleSettings) { Text("Bubble…") }
-                        }
                     }
                 }
-                "test" -> OpenTextField(
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = onOpenBubbleSettings) { Text("Bubble size") }
+                    TextButton(onClick = onOpenCleanup) { Text("Cleanup detail") }
+                    TextButton(onClick = onOpenStyle) { Text("Style") }
+                    TextButton(onClick = onOpenAppearance) { Text("Theme") }
+                }
+            }
+        }
+
+        // Practice field
+        OpenCard {
+            Column(
+                Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text("Practice here", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Focus this box, then use the floating bubble.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                OpenTextField(
                     value = localNote,
                     onValueChange = { localNote = it },
-                    label = "Test field — try the bubble here",
-                    minLines = 3
+                    label = "Tap bubble · speak · stop",
+                    minLines = 4
                 )
-                "recent" -> {
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Recent", style = MaterialTheme.typography.titleMedium)
-                        TextButton(onClick = onOpenHistory) { Text("See all") }
-                    }
-                    if (dictations.isEmpty()) {
-                        EmptyState(
-                            icon = Icons.Default.MicNone,
-                            title = "No dictations yet",
-                            subtitle = "Use the bubble, then stop to save."
-                        )
-                    } else {
-                        dictations.take(8).forEach { d: DictationEntity ->
-                            DictationCard(
-                                d = d,
-                                onDelete = {
-                                    scope.launch { app.dictations.deleteDictation(d.id) }
-                                },
-                                onShare = {
-                                    val rows = listOf(HistoryExport.Row(d.createdAtEpochMs, d.text, d.languageTag, d.wordCount))
-                                    val shareText = HistoryExport.shareText(rows)
-                                    val send = Intent(Intent.ACTION_SEND).apply {
-                                        type = "text/plain"
-                                        putExtra(Intent.EXTRA_TEXT, shareText)
-                                    }
-                                    ctx.startActivity(Intent.createChooser(send, "Share dictation"))
-                                }
-                            )
+            }
+        }
+
+        // Last result
+        if (lastClean.isNotBlank()) {
+            OpenCard {
+                Column(
+                    Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("Last result", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        lastClean.take(600),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        CopyButton(text = lastClean, label = "Copy")
+                        if (lastRaw.isNotBlank() && lastRaw != lastClean) {
+                            CopyButton(text = lastRaw, label = "Copy raw")
                         }
                     }
                 }
             }
         }
 
+        // Recent
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Recent", style = MaterialTheme.typography.titleMedium)
+            TextButton(onClick = onOpenHistory) { Text("All history") }
+        }
         Text(
-            PrivacyDefaults.reportText(),
+            statsText,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        if (dictations.isEmpty()) {
+            EmptyState(
+                icon = Icons.Default.MicNone,
+                title = "Nothing yet",
+                subtitle = "Dictate with the bubble, then stop to save."
+            )
+        } else {
+            dictations.take(5).forEach { d: DictationEntity ->
+                DictationCard(
+                    d = d,
+                    onDelete = {
+                        scope.launch { app.dictations.deleteDictation(d.id) }
+                    },
+                    onShare = {
+                        val rows = listOf(HistoryExport.Row(d.createdAtEpochMs, d.text, d.languageTag, d.wordCount))
+                        val shareText = HistoryExport.shareText(rows)
+                        val send = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, shareText)
+                        }
+                        ctx.startActivity(Intent.createChooser(send, "Share dictation"))
+                    }
+                )
+            }
+        }
+
+        Text(
+            "Speech uses Android system STT — may leave the device. Open Flow never uploads.",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(24.dp))
     }
 }
 
@@ -455,6 +504,8 @@ private fun HistoryScreen(app: OpenFlowApp) {
 
 @Composable
 private fun DictationCard(d: DictationEntity, onDelete: () -> Unit, onShare: () -> Unit) {
+    var showRaw by remember { mutableStateOf(false) }
+    val hasRaw = d.rawText.isNotBlank() && d.rawText != d.text
     OpenCard {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
@@ -463,8 +514,23 @@ private fun DictationCard(d: DictationEntity, onDelete: () -> Unit, onShare: () 
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(d.text.take(400), style = MaterialTheme.typography.bodyMedium)
+            if (hasRaw) {
+                TextButton(onClick = { showRaw = !showRaw }) {
+                    Text(if (showRaw) "Hide raw" else "Show raw")
+                }
+                if (showRaw) {
+                    Text(
+                        d.rawText.take(400),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                CopyButton(text = d.text)
+                CopyButton(text = d.text, label = "Copy cleaned")
+                if (hasRaw) {
+                    CopyButton(text = d.rawText, label = "Copy raw")
+                }
                 OutlinedButton(onClick = onShare) { Text("Share") }
                 OutlinedButton(onClick = onDelete) { Text("Delete") }
             }
@@ -473,14 +539,14 @@ private fun DictationCard(d: DictationEntity, onDelete: () -> Unit, onShare: () 
 }
 
 @Composable
-private fun CopyButton(text: String) {
+private fun CopyButton(text: String, label: String = "Copy") {
     val ctx = LocalContext.current
     OutlinedButton(
         onClick = {
             val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             cm.setPrimaryClip(android.content.ClipData.newPlainText("dictation", text))
         }
-    ) { Text("Copy") }
+    ) { Text(label) }
 }
 
 @Composable
@@ -599,6 +665,9 @@ private fun StyleTab(prefs: FlowPrefs) {
 
 @Composable
 private fun SettingsHub(
+    onDictionary: () -> Unit,
+    onSnippets: () -> Unit,
+    onStyle: () -> Unit,
     onAppearance: () -> Unit,
     onBubble: () -> Unit,
     onCleanup: () -> Unit,
@@ -616,19 +685,22 @@ private fun SettingsHub(
     ) {
         Text("Settings", style = MaterialTheme.typography.titleMedium)
         Text(
-            "Drawer hub — not duplicated on bottom bar",
+            "Tools & preferences",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        SettingsRow("Appearance", "Skin M3 / brutal · light / dark", onAppearance)
-        SettingsRow("Bubble", "Shape · no text · size · snap · haptics", onBubble)
-        SettingsRow("Cleanup level", "None · Light · Medium · High", onCleanup)
-        SettingsRow("History & privacy", "Retention · export path", onPrivacy)
-        SettingsRow("Sounds & haptics", "Start/stop sounds · haptics", onSounds)
-        SettingsRow("Home layout", "Show, hide, reorder Home cards", onHomeLayout)
-        SettingsRow("Drawer extras", "History · Customize visibility", onNavLayout)
+        SettingsRow("Dictionary", "Custom words (local)", onDictionary)
+        SettingsRow("Snippets", "Voice triggers → paste", onSnippets)
+        SettingsRow("Style", "Casual · formal · excited", onStyle)
+        SettingsRow("Appearance", "Light / dark · skin", onAppearance)
+        SettingsRow("Bubble", "Size · opacity · shape", onBubble)
+        SettingsRow("Cleanup", "Raw · light · normal · high", onCleanup)
+        SettingsRow("Privacy", "STT disclaimer · retention", onPrivacy)
+        SettingsRow("Sounds", "Haptics · cues", onSounds)
+        SettingsRow("Home layout", "Show / hide cards", onHomeLayout)
+        SettingsRow("Menu extras", "Optional items", onNavLayout)
         Text(
-            "Local-first. MIT FOSS. No account.",
+            "Local-first. No Open Flow account. System STT may leave device.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

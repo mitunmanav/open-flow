@@ -51,3 +51,4 @@ Thumbs.db
 
 # Old brainstorming / session artifacts (now canonicalised under docs/sessions/ + docs/mockups/)
 .superpowers-stale/
+.serena/

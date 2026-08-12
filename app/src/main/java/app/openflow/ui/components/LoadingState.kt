@@ -18,8 +18,8 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun LoadingState(
-    label: String = "Loading…",
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    label: String = "Loading…"
 ) {
     Column(
         modifier = modifier.fillMaxWidth().padding(32.dp)

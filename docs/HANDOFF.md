@@ -10,7 +10,6 @@
 | Local no-AI pipeline | **on main** |
 | F17–F21 | **on main** |
 | F22 setup wizard + banners + day groups + search shrink | **on main** |
-| F23 | **deleted** (never merged) |
 | Worktrees | `minimax` only |
 
 ## Pipeline (no AI model)
@@ -50,4 +49,4 @@ APK: `app/build/outputs/apk/debug/app-debug.apk` · Desktop `Open-Flow/apk/open-
 
 ## ASK
 
-None. F22 on main. F23 deleted.
+None. F22 on main.

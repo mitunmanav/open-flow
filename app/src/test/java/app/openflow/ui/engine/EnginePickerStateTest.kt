@@ -120,4 +120,62 @@ class EnginePickerStateTest {
         assertThat(brains).doesNotContain("groq")
         assertThat(ears).doesNotContain("groq")
     }
+
+    @Test
+    fun default_chips_high_command_grey_live_on() {
+        val s = EnginePickerState.of(earId = "system", brainId = "none")
+        assertThat(s.livePartials).isTrue()
+        assertThat(s.chips.map { it.id }).containsExactly(
+            "high_ai", "command", "live_partials", "sarvam"
+        ).inOrder()
+        assertThat(chip(s, "high_ai").lit).isFalse()
+        assertThat(chip(s, "command").lit).isFalse()
+        assertThat(chip(s, "live_partials").lit).isTrue()
+        assertThat(chip(s, "sarvam").lit).isFalse()
+        assertThat(chip(s, "high_ai").label).isEqualTo("High (rules)")
+    }
+
+    @Test
+    fun rewrite_brain_lights_high_and_command() {
+        val s = EnginePickerState.of(earId = "system", brainId = "openai")
+        assertThat(chip(s, "high_ai").lit).isTrue()
+        assertThat(chip(s, "command").lit).isTrue()
+        assertThat(chip(s, "high_ai").label).isEqualTo("High AI")
+        assertThat(chip(s, "sarvam").lit).isFalse()
+    }
+
+    @Test
+    fun cloud_ear_lights_live_partials() {
+        for (ear in listOf("openai", "deepgram", "assemblyai", "sarvam")) {
+            val s = EnginePickerState.of(earId = ear, brainId = "none")
+            assertThat(s.livePartials).isTrue()
+            assertThat(chip(s, "live_partials").lit).isTrue()
+        }
+    }
+
+    @Test
+    fun sarvam_ear_lights_sarvam_chip() {
+        val s = EnginePickerState.of(earId = "sarvam", brainId = "none")
+        assertThat(chip(s, "sarvam").lit).isTrue()
+        assertThat(chip(s, "sarvam").label).isEqualTo("Sarvam modes")
+    }
+
+    @Test
+    fun on_phone_brain_does_not_light_rewrite() {
+        val s = EnginePickerState.of(earId = "system", brainId = "on_phone")
+        assertThat(s.rewrite).isFalse()
+        assertThat(s.commandMode).isFalse()
+        assertThat(chip(s, "high_ai").lit).isFalse()
+        assertThat(chip(s, "command").lit).isFalse()
+    }
+
+    @Test
+    fun chips_are_indicators_not_toggles() {
+        val ids = EnginePickerState.of("system", "none").chips.map { it.id }
+        assertThat(ids).doesNotContain("cleanup")
+        assertThat(ids).hasSize(4)
+    }
+
+    private fun chip(s: EnginePickerState, id: String): FeatureChip =
+        s.chips.first { it.id == id }
 }

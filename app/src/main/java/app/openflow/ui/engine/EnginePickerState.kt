@@ -2,21 +2,26 @@ package app.openflow.ui.engine
 
 /**
  * Pure picker view-model. String ids only — no engine/ import (f31 owns types).
- * Honesty lives here until ProviderNotice is on this branch.
+ * Feature lights duplicate FeatureGate (ids only). Do not wait for FeatureAuto.
  */
 data class EnginePreset(val id: String, val label: String)
+
+/** Indicator chip. Lit = this pick turns it on. Not a toggle. */
+data class FeatureChip(val id: String, val label: String, val lit: Boolean)
 
 data class EnginePickerState(
     val earId: String,
     val brainId: String,
     val rewrite: Boolean,
     val commandMode: Boolean,
+    val livePartials: Boolean,
     val needsKey: Boolean,
     val needsUrl: Boolean,
     val showSarvamMode: Boolean,
     val honesty: String,
     val highLabel: String,
     val commandWhy: String?,
+    val chips: List<FeatureChip>,
 ) {
     companion object {
         val ears: List<EnginePreset> = listOf(
@@ -71,17 +76,26 @@ data class EnginePickerState(
             val ear = if (earId in knownEars) earId else "system"
             val brain = if (brainId in knownBrains) brainId else "none"
             val rewrite = brain in rewriteBrains
+            val livePartials = ear in knownEars
+            val showSarvam = ear == "sarvam"
             return EnginePickerState(
                 earId = ear,
                 brainId = brain,
                 rewrite = rewrite,
                 commandMode = rewrite,
+                livePartials = livePartials,
                 needsKey = ear in keyEars || brain in keyBrains,
                 needsUrl = ear in urlEars || brain in urlBrains,
-                showSarvamMode = ear == "sarvam",
+                showSarvamMode = showSarvam,
                 honesty = honestyLine(ear, brain),
                 highLabel = if (rewrite) "High (AI)" else "High (rules)",
                 commandWhy = if (rewrite) null else "Command Mode — needs a brain",
+                chips = listOf(
+                    FeatureChip("high_ai", if (rewrite) "High AI" else "High (rules)", rewrite),
+                    FeatureChip("command", "Command", rewrite),
+                    FeatureChip("live_partials", "live partials", livePartials),
+                    FeatureChip("sarvam", "Sarvam modes", showSarvam),
+                ),
             )
         }
 

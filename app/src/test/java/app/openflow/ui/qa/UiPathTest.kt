@@ -66,6 +66,17 @@ class UiPathTest {
         assertThat(manifest).contains("android.permission.INTERNET")
     }
 
+    @Test
+    fun privacy_no_internet_says_declared_not_absent() {
+        val values = File(UiSourceScan.projectRoot(), "app/src/main/res/values")
+        val xml = values.listFiles().orEmpty()
+            .filter { it.extension == "xml" }
+            .joinToString("\n") { it.readText() }
+        assertThat(xml.lowercase()).doesNotContain("declares no internet")
+        assertThat(xml.lowercase()).doesNotContain("no internet permission")
+        assertThat(xml).contains("INTERNET is declared")
+    }
+
     companion object {
         val REQUIRED_TAGS = listOf(
             "home_hub",
@@ -86,6 +97,10 @@ class UiPathTest {
             "nav_back",
             "history_export",
             "history_edit",
+            "engine_settings",
+            "engine_feature_chips",
+            "engine_honesty",
+            "home_link_speech_ai",
         )
     }
 }

@@ -1,7 +1,9 @@
 # NOW
 
-**main:** F20 `68c313c` — Wispr local gaps (shrink, copy, session, RMS, app style, battery)
-**dev:** this-repo gate · tree jail · spawn-5 · tiny memory · MiniMax lab
-**lab:** `.worktrees/minimax` / `sandbox/minimax` — exclusive. `scripts/open-minimax-lab.sh`
+**main:** F20 `68c313c` — Wispr local gaps
+**dev:** `feat/21-ship-day` F21 ship-day polish · 0.1.1
+**lab:** `.worktrees/minimax` / `sandbox/minimax` — exclusive
 
-**NEXT:** F19 STT bias + unmask. Tiny model still later.
+**DID:** tap-again policy + Cancel/Done hit-test + wipe-24h purge on launch + Home chips + version 0.1.1
+
+**NEXT:** Mitun device check. Then merge main. F19 after.

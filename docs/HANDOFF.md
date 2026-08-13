@@ -1,16 +1,17 @@
 # Open Flow — handoff (live)
 
 **main tip:** `68c313c` F20 Wispr gaps  
+**dev:** `feat/21-ship-day` F21 ship-day polish · 0.1.1  
 **Product:** Bubble + AccessibilityService · **not** IME · en-US · local FOSS · minimal brutal UI
 
-## WHERE (2026-08-12)
+## WHERE (2026-08-13)
 
 | Layer | Status |
 |-------|--------|
 | Local no-AI pipeline | **on main** |
 | F17 chrome + F18 IME park + F20 gaps | **on main** |
-| Mic insert + theme + nav + STT Hz | **on main** |
-| Worktrees | none |
+| F21 tap-again + launch purge + Home chips | **this branch** |
+| Worktrees | `.worktrees/21-ship-day` |
 
 ## Pipeline (no AI model)
 
@@ -40,14 +41,14 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 # Enable a11y → bubble → speak or debug inject
 ```
 
-APK: `app/build/outputs/apk/debug/app-debug.apk` (17M, built after merge)
+APK: `app/build/outputs/apk/debug/app-debug.apk` · Desktop `Open-Flow/apk/open-flow-0.1.1-debug.apk`
 
 ## NEXT
 
-1. F19 STT `BIASING_STRINGS` + `MASK_OFFENSIVE_WORDS=false`
-2. Then leftover Wispr gaps (per-app style, copy chip)
+1. Merge F21 to main after Mitun check
+2. F19 STT `BIASING_STRINGS` + `MASK_OFFENSIVE_WORDS=false`
 3. Tiny cleanup model = later opt-in only
 
 ## ASK
 
-None — F19 next unless Mitun says else.
+None — F21 on this branch. Do not merge until Mitun GO.

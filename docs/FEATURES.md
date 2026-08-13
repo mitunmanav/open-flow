@@ -34,13 +34,13 @@ Account · billing · cloud retry · Command Mode / Transforms · Notetaker · S
 | B5 | Battery setup | **have** | F20 Home Battery chip |
 | C1 | Cancel | **have** | |
 | C2 | Continuous | **have** | Restart loop |
-| C3 | Copy last | **partial** | History + home. No bubble chip / notif action |
+| C3 | Copy last + tap-again | **have** | F20 copy chip. F21 tap-again insert |
 | D1–D2 | Dictionary | **have** | Room + UI. No import file |
 | D3 | Overlay | **have** | TYPE_ACCESSIBILITY_OVERLAY |
 | F1–F2 | Filler / lists | **have** | Rules |
 | H1–H2 | History | **have** | + share exists |
 | H3 | Hold-to-talk | **have** | |
-| H4 | Setup cards | **partial** | a11y + mic. No battery |
+| H4 | Setup cards | **have** | a11y + mic + Battery settings chip |
 | L1 | en-US | **have** | Locked. Ignore other langs |
 | M1 | Mic flow | **have** | |
 | N1 | Notifications | **have** | F20 saved + Copy last + service-stopped |
@@ -54,7 +54,7 @@ Account · billing · cloud retry · Command Mode / Transforms · Notetaker · S
 | S5b | Style per app | **have** | F20 AppStylePolicy personal/work/email |
 | C0 | Cleanup levels | **have** | High ≠ Wispr AI High |
 | C0b | Spoken cmds | **have** | |
-| T1 | Tap bubble | **have** | |
+| T1 | Tap bubble | **have** | F21 tap-again save / Cancel discard |
 | W1 | Waveform | **have** | F20 RMS 4-bar |
 | W2 | Any field | **have** | |
 | F18 | IME park + small listen | **have** | Device 2026-08-12 |
@@ -74,5 +74,12 @@ Account · billing · cloud retry · Command Mode / Transforms · Notetaker · S
 6. Battery setup chip
 7. Per-app style (personal/work/email → local style)
 8. Service-stopped notification
+
+## F21 ship (this slice)
+
+1. Tap again while listening inserts
+2. Cancel/Done hit-test on overlay
+3. wipe-24h purge on launch
+4. Home: Battery settings + Speech on bubble
 
 Then **F19** STT bias. Model still later.

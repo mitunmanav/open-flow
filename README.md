@@ -19,13 +19,13 @@ We win on **habit + private history + trust**:
 | Your archive | History, search, copy, share — on this phone. |
 | Your words | Dictionary (one word) and snippets (a whole block). |
 | Your rules | Keep / wipe 24h / never save. No account. |
-| Inspectable | MIT. No ads. No INTERNET permission in the APK. |
+| Inspectable | MIT. No ads. INTERNET declared; unused until you opt in. |
 
 That is a product shell people can live in. It is **not** a better recognizer.
 
 ## Honest
 
-Speech still uses the **system recognizer**. On many phones that is Google. Audio **can leave the device**. No INTERNET in our APK does **not** mean voice never leaves.
+Speech still uses the **system recognizer**. On many phones that is Google. Audio **can leave the device** — independent of our unused-by-default INTERNET permission.
 
 Need that? Use FUTO / Sayboard / Whisper IME.
 
@@ -38,7 +38,7 @@ Full write-up + sources: [docs/COMPARISON.md](docs/COMPARISON.md).
 | Keep your keyboard | **Yes** (bubble) | **Yes** (overlay) | No (IME / its keyboard) | No (voice keyboard) | No (IME) | No | Yes (bubble) |
 | Speech engine | System SpeechRecognizer | Local model **or** OpenAI | Local Whisper | Local Vosk | Local Whisper | Kaldi **server** | Cloud AI |
 | Audio can leave | **Yes, often** | Only if you pick cloud | No* | No* | No* | **Yes** on default server | **Yes** |
-| INTERNET in app | **Not declared** | Models / optional API | Model download | Model download | Model download | Yes | Yes |
+| INTERNET in app | **Declared; off until opt-in** | Models / optional API | Model download | Model download | Model download | Yes | Yes |
 | Cleanup | Rule lists | Optional OpenAI | In-model | Weak | Weak | Server | Cloud LLM |
 | Languages | **en-US only** | Several | Many | 20+ | Many | Depends | Many |
 | License | MIT | Personal / permissive | **Not OSI** | GPL-3.0 | FOSS | Apache-2.0 | Closed |

@@ -1,0 +1,12 @@
+name: Idea
+description: A change or new feature
+title: "[idea] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What do you want
+      description: Plain words. No personal information.
+    validations:
+      required: true

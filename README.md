@@ -1,5 +1,8 @@
 # Open Flow
 
+[![Release](https://img.shields.io/github/v/release/mitunmanav/open-flow)](https://github.com/mitunmanav/open-flow/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 FOSS Android dictation. A **floating bubble** types what you say into any app.
 
 **Not a keyboard.** Keep Gboard (or whatever you use).

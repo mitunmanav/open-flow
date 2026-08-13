@@ -1,9 +1,8 @@
 # NOW
 
-**main:** F22 `1d1c6d9` — 0.1.2 Wispr-feel (setup, banners, day groups, search shrink)
-**F23:** `.worktrees/23-launch` / `feat/23-launch` — launch docs/tests. Not merged.
+**main:** F22 `c2df3be` — 0.1.2 Wispr-feel on phone
 **lab:** `.worktrees/minimax` / `sandbox/minimax` — exclusive
 
-**DID:** Merged F22. 223 tests. F22 worktree gone.
+**DID:** Deleted F23 worktree + `feat/23-launch`. Not merged.
 
-**NEXT:** Mitun walk Setup on phone. F23 merge only if you say.
+**NEXT:** Mitun walk Setup on 0.1.2. No F23.

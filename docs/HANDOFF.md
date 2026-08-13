@@ -10,8 +10,8 @@
 | Local no-AI pipeline | **on main** |
 | F17–F21 | **on main** |
 | F22 setup wizard + banners + day groups + search shrink | **on main** |
-| F23 launch docs/tests | `feat/23-launch` only |
-| Worktrees | `23-launch` + `minimax` |
+| F23 | **deleted** (never merged) |
+| Worktrees | `minimax` only |
 
 ## Pipeline (no AI model)
 
@@ -46,9 +46,8 @@ APK: `app/build/outputs/apk/debug/app-debug.apk` · Desktop `Open-Flow/apk/open-
 ## NEXT
 
 1. Mitun phone: Setup a11y → mic → skip battery → tap → speak → tap again
-2. F23 merge only if Mitun says
-3. Tiny cleanup model = later opt-in only
+2. Tiny cleanup model = later opt-in only
 
 ## ASK
 
-None. F22 merged. F23 not merged.
+None. F22 on main. F23 deleted.

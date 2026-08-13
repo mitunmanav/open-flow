@@ -14,6 +14,8 @@ import android.speech.RecognitionPart
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import androidx.core.content.ContextCompat
+import app.openflow.prefs.FlowPrefs
+import java.util.ArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -32,7 +34,7 @@ class SttEngine(
     private val policy: ContinuousPolicy = ContinuousPolicy(),
     private val mainHandler: Handler = Handler(Looper.getMainLooper()),
     private val softMuteBeeps: Boolean = false,
-    private val tuning: SttTuning = SttTuning(),
+    private var tuning: SttTuning = SttTuning(),
 ) {
     interface Listener {
         fun onPartial(text: String)
@@ -65,6 +67,13 @@ class SttEngine(
     private val flushDone = AtomicBoolean(false)
     private val flushTimeout = Runnable { completeFlush() }
 
+    /** API 33+ SpeechRecognizer bias strings (dict + focused field). */
+    private var biasing: List<String> = emptyList()
+
+    fun setBiasing(words: List<String>) {
+        biasing = words
+    }
+
     val isAvailable: Boolean
         get() = SpeechRecognizer.isRecognitionAvailable(context)
 
@@ -74,6 +83,11 @@ class SttEngine(
 
     fun setListener(l: Listener?) {
         listener = l
+    }
+
+    /** Push Fast/Balanced/Accurate without toggling a11y. Next start uses this. */
+    fun applyTuning(next: SttTuning) {
+        tuning = next
     }
 
     fun startContinuous(languageTag: String = LanguagePolicy.LOCKED) {
@@ -255,7 +269,7 @@ class SttEngine(
             r.setRecognitionListener(buildListener())
             softMute()
             try {
-                r.startListening(buildIntent(languageTag))
+                r.startListening(buildIntent(languageTag, refreshTuning()))
             } catch (e: Exception) {
                 listener?.onError(e.message ?: "start failed", fatal = false)
                 // Factory failed — try default recognizer next
@@ -456,7 +470,18 @@ class SttEngine(
         }
     }
 
-    private fun buildIntent(languageTag: String): Intent {
+    /**
+     * Live Fast/Balanced/Accurate from prefs on every listen.
+     * Constructor / [applyTuning] is fallback if prefs read fails.
+     * No a11y toggle needed — extras rebuild on this start.
+     */
+    private fun refreshTuning(): SttTuning {
+        val live = runCatching { FlowPrefs(context).sttTuning() }.getOrNull()
+        if (live != null) tuning = live
+        return tuning
+    }
+
+    private fun buildIntent(languageTag: String, t: SttTuning = tuning): Intent {
         val lang = LanguagePolicy.force(languageTag)
         return Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(
@@ -466,7 +491,7 @@ class SttEngine(
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, lang)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, lang)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, tuning.maxResults)
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, t.maxResults)
             putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName)
 
             // Only prefer offline when we still believe packs exist.
@@ -477,28 +502,34 @@ class SttEngine(
 
             putExtra(
                 RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS,
-                tuning.minSpeechMs
+                t.minSpeechMs
             )
             putExtra(
                 RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS,
-                tuning.completeSilenceMs
+                t.completeSilenceMs
             )
             putExtra(
                 RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS,
-                tuning.possiblyCompleteSilenceMs
+                t.possiblyCompleteSilenceMs
             )
 
             // API 33+: auto punct / capitalization.
             // Quality = better punct, more latency; latency = snappier, weaker punct.
             // Default quality (see SttTuning.preferFormattingQuality).
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                val mode = if (tuning.preferFormattingQuality) {
+                val mode = if (t.preferFormattingQuality) {
                     RecognizerIntent.FORMATTING_OPTIMIZE_QUALITY
                 } else {
                     RecognizerIntent.FORMATTING_OPTIMIZE_LATENCY
                 }
                 putExtra(RecognizerIntent.EXTRA_ENABLE_FORMATTING, mode)
                 putExtra(RecognizerIntent.EXTRA_HIDE_PARTIAL_TRAILING_PUNCTUATION, true)
+                putStringArrayListExtra(
+                    RecognizerIntent.EXTRA_BIASING_STRINGS,
+                    ArrayList(biasing)
+                )
+                putExtra(RecognizerIntent.EXTRA_ENABLE_BIASING_DEVICE_CONTEXT, true)
+                putExtra(RecognizerIntent.EXTRA_MASK_OFFENSIVE_WORDS, false)
             }
         }
     }

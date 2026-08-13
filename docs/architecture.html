@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Architecture — Open Flow</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="site.css">
+  <style>
+    .flow { display: flex; flex-direction: column; gap: 0; margin: 1rem 0 1.5rem; }
+    .flow .box {
+      border: 2px solid var(--line);
+      background: var(--card);
+      padding: 0.75rem 0.9rem;
+    }
+    .flow .box strong { display: block; margin-bottom: 0.15rem; }
+    .flow .box span { color: var(--muted); font-size: 0.92rem; }
+    .flow .box.fill { background: var(--ink); color: var(--cream); }
+    .flow .box.fill span { color: #c4bdb0; }
+    .arrow {
+      text-align: center;
+      font-size: 1.1rem;
+      line-height: 1.4;
+      color: var(--ink);
+    }
+    .pipe {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.5rem;
+    }
+    @media (min-width: 640px) {
+      .pipe { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="index.html"><img src="icon.svg" width="36" height="36" alt="">Open Flow</a>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="install.html">Install</a>
+      <a href="guide.html">Guide</a>
+      <a href="architecture.html" aria-current="page">Architecture</a>
+      <a href="roadmap.html">Roadmap</a>
+      <a href="compare.html">Compare</a>
+    </nav>
+  </div>
+</header>
+<main class="wrap">
+  <h1>Architecture</h1>
+  <p class="lede">Keep the user’s keyboard. A bubble owned by Accessibility listens, polishes words on the phone, and inserts them. Not an IME.</p>
+
+  <h2 class="rule">1. Where it sits</h2>
+  <p class="muted">The speech engine is outside our process. That is why “no INTERNET permission” is not the same as “audio never leaves.”</p>
+  <div class="flow">
+    <div class="box fill"><strong>You</strong><span>Tap the bubble. Speak.</span></div>
+    <div class="arrow">↓</div>
+    <div class="box"><strong>Other app</strong><span>Notes, chat, browser — your keyboard stays.</span></div>
+    <div class="arrow">↓</div>
+    <div class="box"><strong>Open Flow</strong><span>Bubble + app. Accessibility overlay. Insert only.</span></div>
+    <div class="arrow">↓</div>
+    <div class="box"><strong>System SpeechRecognizer</strong><span>On-device if the phone has it. Often still Google. May leave the device.</span></div>
+  </div>
+
+  <h2 class="rule">2. One dictation</h2>
+  <div class="pipe">
+    <div class="box fill"><strong>1 · Tap</strong><span>Start listening</span></div>
+    <div class="box"><strong>2 · Speak</strong><span>System STT</span></div>
+    <div class="box"><strong>3 · Tap again</strong><span>Or hold-to-talk, then release</span></div>
+    <div class="box"><strong>4 · Polish</strong><span>Dictionary → snippet → cleanup → style</span></div>
+    <div class="box"><strong>5 · Insert</strong><span>Into the focused field</span></div>
+    <div class="box"><strong>6 · History</strong><span>Saved on this phone, unless you chose never</span></div>
+  </div>
+  <p class="muted">X while listening throws the words away. Drag down hides the bubble for 10 minutes.</p>
+
+  <h2 class="rule">3. Polish pipeline</h2>
+  <p>All on the phone. No language model. Style runs last.</p>
+  <table>
+    <tr><th>Step</th><th>What it does</th></tr>
+    <tr><td>Raw STT</td><td>Whatever the phone recognizer returned</td></tr>
+    <tr><td>Dictionary</td><td>One word → another word</td></tr>
+    <tr><td>Snippet</td><td>Exact trigger → a whole block</td></tr>
+    <tr><td>Cleanup</td><td>None / Light / Medium / High (rules)</td></tr>
+    <tr><td>Style</td><td>Formal / Casual / Very casual / Excited / Custom</td></tr>
+  </table>
+
+  <h2 class="rule">4. Main modules</h2>
+  <table>
+    <tr><th>Module</th><th>Job</th></tr>
+    <tr><td>App UI</td><td>Walkthrough, setup, Home, History, Dictionary, Settings</td></tr>
+    <tr><td>Accessibility service</td><td>Bubble, field detect, listen, insert</td></tr>
+    <tr><td>STT engine</td><td>System SpeechRecognizer. Fast / Balanced / Accurate</td></tr>
+    <tr><td>Room database</td><td>History, dictionary, snippets — on this phone</td></tr>
+    <tr><td>Policies</td><td>Hide on banks. Skip passwords.</td></tr>
+  </table>
+  <p><a href="ARCHITECTURE.md">Longer technical notes</a></p>
+</main>
+<footer>
+  <div class="wrap">
+    <span><img src="icon.svg" alt=""> Open Flow · MIT</span>
+  </div>
+</footer>
+</body>
+</html>

@@ -19,9 +19,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.openflow.ui.a11y.Dimen
 
@@ -36,6 +38,7 @@ fun ErrorState(
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .graphicsLayer { clip = false }
             .padding(horizontal = Dimen.PAGE_PAD, vertical = Dimen.PAGE_PAD + Dimen.GAP)
             .semantics(mergeDescendants = true) {
                 contentDescription = "Error: $message"
@@ -57,6 +60,8 @@ fun ErrorState(
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
             color = scheme.onSurface,
+            overflow = TextOverflow.Visible,
+            softWrap = true,
             modifier = Modifier.widthIn(max = 320.dp)
         )
         Spacer(Modifier.height(Dimen.GAP))
@@ -65,6 +70,8 @@ fun ErrorState(
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             color = scheme.error,
+            overflow = TextOverflow.Visible,
+            softWrap = true,
             modifier = Modifier.widthIn(max = 320.dp)
         )
         if (onRetry != null) {

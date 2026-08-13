@@ -51,4 +51,98 @@ class BubbleGeometryTest {
         assertThat(BubbleGeometry.cornerRadiusDp("square", 2f)).isEqualTo(4f)
         assertThat(BubbleGeometry.cornerRadiusDp("circle", 2f)).isEqualTo(1998f)
     }
+
+    @Test
+    fun parkYAboveIme_lifts_below_keyboard() {
+        assertThat(BubbleGeometry.parkYAboveIme(325, imeHeightPx = 800, gapPx = 24))
+            .isEqualTo(824)
+    }
+
+    @Test
+    fun parkYAboveIme_keeps_already_above() {
+        assertThat(BubbleGeometry.parkYAboveIme(900, imeHeightPx = 800, gapPx = 24))
+            .isEqualTo(900)
+    }
+
+    @Test
+    fun parkYAboveIme_ime_zero_keeps_y() {
+        assertThat(BubbleGeometry.parkYAboveIme(325, imeHeightPx = 0, gapPx = 24))
+            .isEqualTo(325)
+    }
+
+    @Test
+    fun imeHeightFromBounds_uses_rect() {
+        assertThat(
+            BubbleGeometry.imeHeightFromBounds(top = 1592, bottom = 2392, screenHeightPx = 2392)
+        ).isEqualTo(800)
+    }
+
+    @Test
+    fun imeHeightFromBounds_bad_rect_is_zero() {
+        assertThat(
+            BubbleGeometry.imeHeightFromBounds(top = 2000, bottom = 1000, screenHeightPx = 2392)
+        ).isEqualTo(0)
+    }
+
+    @Test
+    fun overlaySizePx_idle_is_52dp_square() {
+        val (w, h) = BubbleGeometry.overlaySizePx(listening = false, density = 2.625f)
+        // 52dp * 2.625 = 136.5 → 136px
+        assertThat(w).isEqualTo(136)
+        assertThat(h).isEqualTo(136)
+    }
+
+    @Test
+    fun overlaySizePx_listen_is_small_bar_not_screen() {
+        val (w, h) = BubbleGeometry.overlaySizePx(listening = true, density = 2.625f)
+        assertThat(w).isAtMost((280 * 2.625f).toInt())
+        assertThat(h).isAtMost((64 * 2.625f).toInt())
+        assertThat(w).isGreaterThan(0)
+        assertThat(h).isGreaterThan(0)
+    }
+
+    @Test
+    fun idle_pill_is_wide_not_square() {
+        val (w, h) = BubbleGeometry.overlaySizePx(listening = false, density = 2f, shape = "pill")
+        assertThat(w).isEqualTo(224) // 112dp
+        assertThat(h).isEqualTo(104) // 52dp
+        assertThat(w).isGreaterThan(h)
+    }
+
+    @Test
+    fun idle_circle_is_52dp_square() {
+        val (w, h) = BubbleGeometry.overlaySizePx(listening = false, density = 2f, shape = "circle")
+        assertThat(w).isEqualTo(104)
+        assertThat(h).isEqualTo(104)
+    }
+
+    @Test
+    fun idle_dot_is_28dp_square() {
+        val (w, h) = BubbleGeometry.overlaySizePx(listening = false, density = 2f, shape = "dot")
+        assertThat(w).isEqualTo(56)
+        assertThat(h).isEqualTo(56)
+    }
+
+    @Test
+    fun listen_is_240x52_regardless_of_shape() {
+        for (shape in listOf("pill", "circle", "dot", "square")) {
+            val (w, h) = BubbleGeometry.overlaySizePx(listening = true, density = 2f, shape = shape)
+            assertThat(w).isEqualTo(480)
+            assertThat(h).isEqualTo(104)
+        }
+    }
+
+    @Test
+    fun idle_circle_is_square() {
+        val (w, h) = BubbleGeometry.overlaySizePx(listening = false, density = 2f, shape = "circle")
+        assertThat(w).isEqualTo(h)
+    }
+
+    @Test
+    fun idle_dot_smaller_than_circle() {
+        val c = BubbleGeometry.overlaySizePx(false, 2f, "circle")
+        val d = BubbleGeometry.overlaySizePx(false, 2f, "dot")
+        assertThat(d.first).isLessThan(c.first)
+        assertThat(d.first).isEqualTo(d.second)
+    }
 }

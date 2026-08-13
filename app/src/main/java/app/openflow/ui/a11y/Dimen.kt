@@ -38,9 +38,9 @@ object Dimen {
     val BORDER: Dp = 2.dp
 
     val CARD_ELEVATION: Dp = 0.dp
-    /** Hard-edge default (was soft 20). */
-    val CARD_ROUNDING: Dp = 4.dp
-    val BUTTON_ROUNDING: Dp = 2.dp
-    val CHIP_ROUNDING: Dp = 2.dp
-    val FIELD_ROUNDING: Dp = 2.dp
+    /** 0 = rectangle. Card/Surface clip to shape; no round cut. */
+    val CARD_ROUNDING: Dp = 0.dp
+    val BUTTON_ROUNDING: Dp = 0.dp
+    val CHIP_ROUNDING: Dp = 0.dp
+    val FIELD_ROUNDING: Dp = 0.dp
 }

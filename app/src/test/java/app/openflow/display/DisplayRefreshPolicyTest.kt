@@ -6,6 +6,11 @@ import org.junit.Test
 class DisplayRefreshPolicyTest {
 
     @Test
+    fun allowed_set_includes_120() {
+        assertThat(DisplayRefreshPolicy.TARGETS_HZ).contains(120)
+    }
+
+    @Test
     fun normalize_snaps_to_known() {
         assertThat(DisplayRefreshPolicy.normalizePreference(60)).isEqualTo(60)
         assertThat(DisplayRefreshPolicy.normalizePreference(90)).isEqualTo(90)

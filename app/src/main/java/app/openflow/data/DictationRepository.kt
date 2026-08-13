@@ -1,6 +1,9 @@
 package app.openflow.data
 
 import androidx.room.withTransaction
+import app.openflow.privacy.RetentionPolicy
+import app.openflow.text.LearnPair
+import app.openflow.text.LearnEngine
 import kotlinx.coroutines.flow.Flow
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -34,10 +37,9 @@ class DictationRepository(
         languageTag: String,
         retentionPolicy: String = "keep"
     ): DictationEntity? {
-        if (retentionPolicy == "never_store") return null
-        if (retentionPolicy == "wipe_24h") {
-            val cutoff = System.currentTimeMillis() - TimeUnit.HOURS.toMillis(24)
-            dictationDao.deleteOlderThan(cutoff)
+        if (!RetentionPolicy.shouldPersist(retentionPolicy)) return null
+        RetentionPolicy.cutoffEpochMs(System.currentTimeMillis(), retentionPolicy)?.let {
+            dictationDao.deleteOlderThan(it)
         }
         val words = cleanText.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }.size
         val e = DictationEntity(
@@ -54,6 +56,11 @@ class DictationRepository(
         return e
     }
 
+    suspend fun purgeOnLaunch(retentionPolicy: String, nowEpochMs: Long = System.currentTimeMillis()) {
+        val cut = RetentionPolicy.cutoffEpochMs(nowEpochMs, retentionPolicy) ?: return
+        dictationDao.deleteOlderThan(cut)
+    }
+
     /** Compat: single string → both raw and clean (pre-pipeline callers). */
     suspend fun saveDictation(text: String, durationMs: Long, languageTag: String): DictationEntity? =
         saveDictation(rawText = text, cleanText = text, durationMs = durationMs, languageTag = languageTag)
@@ -61,6 +68,19 @@ class DictationRepository(
     suspend fun deleteDictation(id: String) = dictationDao.delete(id)
 
     suspend fun latestText(): String? = dictationDao.latest()?.text
+
+    suspend fun learnFromEdit(inserted: String, edited: String): List<LearnPair> {
+        val pairs = LearnEngine.pairsFromEdit(inserted, edited)
+        if (pairs.isEmpty()) return emptyList()
+        for (p in pairs) addWord(p.from, p.to)
+        return pairs
+    }
+
+    suspend fun updateDictationText(id: String, newText: String) {
+        val e = dictationDao.get(id) ?: return
+        val words = newText.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }.size
+        dictationDao.upsert(e.copy(text = newText, wordCount = words))
+    }
 
     suspend fun addWord(word: String, replacement: String = word) {
         val w = word.trim()

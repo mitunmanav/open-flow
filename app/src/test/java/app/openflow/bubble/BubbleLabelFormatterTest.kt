@@ -14,13 +14,25 @@ class BubbleLabelFormatterTest {
     @Test
     fun partial_blank_falls_back_to_listening() {
         assertThat(BubbleLabelFormatter.partial("  ", elapsedSec = 3))
-            .isEqualTo("Listening 3s")
+            .isEqualTo("Hearing 3s")
     }
 
     @Test
-    fun final_shows_check_and_text() {
+    fun final_shows_text_no_checkmark() {
         assertThat(BubbleLabelFormatter.finalChunk("done here"))
-            .isEqualTo("✓ done here")
+            .isEqualTo("done here")
+        assertThat(BubbleLabelFormatter.finalChunk("done here")).doesNotContain("✓")
+    }
+
+    @Test
+    fun listening_own_words() {
+        assertThat(BubbleLabelFormatter.listening(0)).isEqualTo("Hearing…")
+        assertThat(BubbleLabelFormatter.listening(3)).isEqualTo("Hearing 3s")
+    }
+
+    @Test
+    fun need_mic_own_words() {
+        assertThat(BubbleLabelFormatter.needMic()).isEqualTo("Mic off")
     }
 
     @Test
@@ -33,6 +45,6 @@ class BubbleLabelFormatterTest {
 
     @Test
     fun idle_default() {
-        assertThat(BubbleLabelFormatter.idle()).isEqualTo("🎙 Tap to talk")
+        assertThat(BubbleLabelFormatter.idle()).isEqualTo("Tap")
     }
 }

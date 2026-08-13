@@ -16,7 +16,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.openflow.ui.a11y.Dimen
 
@@ -30,6 +32,7 @@ fun LoadingState(
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .graphicsLayer { clip = false }
             .padding(horizontal = Dimen.PAGE_PAD, vertical = Dimen.PAGE_PAD + Dimen.GAP)
             .semantics(mergeDescendants = true) {
                 contentDescription = label
@@ -48,7 +51,9 @@ fun LoadingState(
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
-            color = scheme.onSurface
+            color = scheme.onSurface,
+            overflow = TextOverflow.Visible,
+            softWrap = true
         )
     }
 }

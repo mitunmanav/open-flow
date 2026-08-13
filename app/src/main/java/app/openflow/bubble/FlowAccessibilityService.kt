@@ -10,6 +10,7 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.animation.ValueAnimator
 import android.graphics.PixelFormat
+import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -42,12 +43,16 @@ import app.openflow.OpenFlowApp
 import app.openflow.R
 import app.openflow.notify.DictationNotifier
 import app.openflow.prefs.FlowPrefs
+import app.openflow.ui.HapticFeel
+import app.openflow.ui.theme.BubbleTint
 import app.openflow.stt.LanguagePolicy
+import app.openflow.stt.SttBias
 import app.openflow.stt.SttEngine
 import app.openflow.stt.SttTuning
 import app.openflow.text.CleanupLevel
 import app.openflow.text.CleanupResult
 import app.openflow.text.CustomStyleConfig
+import app.openflow.text.LearnEngine
 import app.openflow.text.TextPostProcessor
 import app.openflow.text.WritingStyle
 import kotlinx.coroutines.CoroutineScope
@@ -84,6 +89,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     /** True while stopAndFlush waits for last final — blocks re-entrant stop/start. */
     private var stopInProgress = false
     private var focusedEditable: AccessibilityNodeInfo? = null
+    private var searchFieldFocused = false
     private var listenStartedAt = 0L
     private val serviceJob = SupervisorJob()
     private val scope = CoroutineScope(serviceJob + Dispatchers.Main.immediate)
@@ -104,8 +110,20 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     private val shakeDetector = ShakeDetector()
     private var shakeRegistered = false
     private var injectReceiverRegistered = false
+    private var copyReceiverRegistered = false
+    private var draggingNow = false
+    private var compactVisual = false
+    private var lastInteractionAt = 0L
+    private var lastRms = 0f
     /** Soft keyboard present (Wispr: bubble lives with field + keyboard). */
     private var imeVisible: Boolean = false
+    /** TYPE_INPUT_METHOD height in px. 0 = IME down / unknown. Not written to prefs. */
+    private var imeHeightPx: Int = 0
+
+    /** Last successful field write — watch for user fix (auto-learn). */
+    private var lastInserted: String = ""
+    private var lastInsertAt: Long = 0L
+    private var lastInsertPkg: String? = null
 
     /** Debug-only: adb inject without mic (see companion ACTION_INJECT). */
     private val injectReceiver = object : BroadcastReceiver() {
@@ -115,6 +133,20 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             val raw = intent.getStringExtra(EXTRA_TEXT).orEmpty()
             android.util.Log.i("OpenFlow.Inject", "recv rawLen=${raw.length}")
             injectDictation(raw)
+        }
+    }
+
+    private val copyReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != ACTION_COPY_LAST) return
+            copyLastToClipboard()
+        }
+    }
+
+    private val pulseTick = object : Runnable {
+        override fun run() {
+            onPulseTick()
+            mainHandler.postDelayed(this, 500L)
         }
     }
 
@@ -130,7 +162,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             eventTypes = AccessibilityEvent.TYPE_VIEW_FOCUSED or
                 AccessibilityEvent.TYPE_VIEW_CLICKED or
                 AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or
-                AccessibilityEvent.TYPE_WINDOWS_CHANGED
+                AccessibilityEvent.TYPE_WINDOWS_CHANGED or
+                AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED
             feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
             flags = flags or
                 AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or
@@ -153,7 +186,11 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         )
         showBubble()
         instance = this
+        lastInteractionAt = SystemClock.elapsedRealtime()
         registerInjectReceiver()
+        registerCopyReceiver()
+        mainHandler.removeCallbacks(pulseTick)
+        mainHandler.post(pulseTick)
         android.util.Log.i("OpenFlow.Bubble", "onServiceConnected overlay=ready debugInject=${BuildConfig.DEBUG}")
         refreshBubbleVisibility()
     }
@@ -180,6 +217,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                     source.recycle()
                 }
             }
+            AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED -> maybeLearnFromTextChanged(event)
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
             AccessibilityEvent.TYPE_WINDOWS_CHANGED -> {
                 rootInActiveWindow?.let { root ->
@@ -197,6 +235,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                                 it.recycle()
                             }
                             focusedEditable = null
+                            searchFieldFocused = false
                             refreshBubbleVisibility()
                         }
                     } finally {
@@ -208,14 +247,60 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
     }
 
+    private fun maybeLearnFromTextChanged(event: AccessibilityEvent) {
+        val p = prefs ?: return
+        if (!p.autoLearn) return
+        if (listening || stopInProgress) return
+        if (!LearnEngine.shouldWatch(SystemClock.elapsedRealtime(), lastInsertAt)) return
+        val pkg = event.packageName?.toString()
+        if (lastInsertPkg != null && pkg != null && pkg != lastInsertPkg) return
+        val source = event.source
+        try {
+            if (source != null) {
+                if (source.isPassword) return
+                if (FieldPolicy.isSensitive(
+                        isPassword = source.isPassword,
+                        inputType = source.inputType,
+                        className = source.className?.toString(),
+                        hintOrDesc = listOfNotNull(
+                            source.hintText?.toString(),
+                            source.contentDescription?.toString()
+                        ).joinToString(" ")
+                    )
+                ) {
+                    return
+                }
+            }
+            val newText = source?.text?.toString()
+                ?: event.text?.joinToString("").orEmpty()
+            if (LearnEngine.isOwnSet(newText, lastInserted)) return
+            val from = lastInserted
+            lastInserted = newText
+            scope.launch(Dispatchers.IO) {
+                runCatching { app.dictations.learnFromEdit(from, newText) }
+            }
+        } finally {
+            if (source != null) {
+                try {
+                    @Suppress("DEPRECATION")
+                    source.recycle()
+                } catch (_: Exception) {
+                }
+            }
+        }
+    }
+
     override fun onInterrupt() {
         stopListening(save = false)
         hideBubble()
     }
 
     override fun onDestroy() {
+        mainHandler.removeCallbacks(pulseTick)
         unregisterShake()
         unregisterInjectReceiver()
+        unregisterCopyReceiver()
+        DictationNotifier.notifyServiceStopped(this)
         stopListening(save = false)
         hideBubble()
         stt?.destroy()
@@ -225,6 +310,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             it.recycle()
         }
         focusedEditable = null
+        searchFieldFocused = false
         instance = null
         serviceJob.cancel()
         super.onDestroy()
@@ -261,6 +347,15 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             it.recycle()
         }
         focusedEditable = target
+        searchFieldFocused = target != null && FieldPolicy.isSearch(
+            inputType = target.inputType,
+            className = target.className?.toString(),
+            hintOrDesc = listOfNotNull(
+                target.hintText?.toString(),
+                target.text?.toString(),
+                target.contentDescription?.toString()
+            ).joinToString(" ")
+        )
         setBubbleEmphasis(target != null)
         refreshBubbleVisibility()
     }
@@ -332,6 +427,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         val p = prefs!!
         val scale = effectiveScale()
         val opacity = p.bubbleOpacity
+        refreshImeHeight()
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -342,10 +438,11 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         ).apply {
             gravity = Gravity.BOTTOM or Gravity.END
             x = p.bubbleX
-            y = p.bubbleY
+            y = parkedY(p.bubbleY)
             alpha = opacity
         }
         bubbleParams = params
+        applyOverlayWindowSize()
         view.scaleX = scale
         view.scaleY = scale
         setupTouch(view, params)
@@ -360,6 +457,15 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
     }
 
+    private fun hitVisible(target: android.view.View?, rawX: Float, rawY: Float): Boolean {
+        if (target == null || target.visibility != android.view.View.VISIBLE) return false
+        val loc = IntArray(2)
+        target.getLocationOnScreen(loc)
+        val l = loc[0]
+        val t = loc[1]
+        return rawX >= l && rawX < l + target.width && rawY >= t && rawY < t + target.height
+    }
+
     private fun setupTouch(view: View, params: WindowManager.LayoutParams) {
         var downRawX = 0f
         var downRawY = 0f
@@ -371,18 +477,16 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             longPressFired = true
             pushToTalk = true
             if (!listening && !stopInProgress) startListening()
-            if (prefs?.bubbleHaptics != false) {
-                view.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-            }
+            hapticEvent(HapticFeel.Event.TAP)
         }
         view.setOnTouchListener { v, event ->
-            // Cancel / Done handle their own clicks when listening.
+            // Parent OnTouch returns true — Cancel/Done clicks never fire. Hit-test in ACTION_UP.
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     downRawX = event.rawX
                     downRawY = event.rawY
                     startX = params.x
-                    startY = params.y
+                    startY = prefs?.bubbleY ?: params.y
                     dragged = false
                     longPressFired = false
                     // Smooth press-in (Wispr-like).
@@ -395,17 +499,24 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                     val dy = (event.rawY - downRawY).toInt()
                     if (abs(dx) + abs(dy) > 14) {
                         dragged = true
+                        draggingNow = true
+                        lastInteractionAt = SystemClock.elapsedRealtime()
+                        if (compactVisual) {
+                            compactVisual = false
+                            applyVisualScale()
+                        }
                         mainHandler.removeCallbacks(longPress)
                     }
                     val dm = resources.displayMetrics
                     val h = v.height.takeIf { it > 0 } ?: v.measuredHeight.takeIf { it > 0 } ?: 120
                     params.x = (startX - dx).coerceAtLeast(0)
-                    params.y = BubbleGeometry.clampVerticalOffset(
+                    val dragY = BubbleGeometry.clampVerticalOffset(
                         y = startY - dy,
                         screenHeightPx = dm.heightPixels,
                         bubbleHeightPx = h
                     )
-                    if (params.y < 40 && dragged) {
+                    params.y = BubbleGeometry.parkYAboveIme(dragY, imeHeightPx)
+                    if (dragY < 40 && dragged) {
                         bubbleLabel?.visibility = View.VISIBLE
                         bubbleLabel?.text = getString(R.string.flow_bubble_snooze_hint)
                     }
@@ -417,8 +528,18 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     mainHandler.removeCallbacks(longPress)
+                    draggingNow = false
+                    lastInteractionAt = SystemClock.elapsedRealtime()
                     animatePress(v, pressed = false)
-                    if (dragged && params.y < 40) {
+                    val dm = resources.displayMetrics
+                    val h = v.height.takeIf { it > 0 } ?: v.measuredHeight.takeIf { it > 0 } ?: 120
+                    val upDy = (event.rawY - downRawY).toInt()
+                    val savedY = BubbleGeometry.clampVerticalOffset(
+                        y = startY - upDy,
+                        screenHeightPx = dm.heightPixels,
+                        bubbleHeightPx = h
+                    )
+                    if (dragged && savedY < 40) {
                         prefs?.snoozeMinutes(10)
                         Toast.makeText(this, R.string.flow_bubble_snoozed, Toast.LENGTH_SHORT).show()
                         refreshBubbleVisibility()
@@ -430,17 +551,30 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                     if (dragged) {
                         prefs?.let {
                             it.bubbleX = params.x
-                            it.bubbleY = params.y
+                            it.bubbleY = savedY
+                        }
+                        params.y = BubbleGeometry.parkYAboveIme(savedY, imeHeightPx)
+                        try {
+                            windowManager?.updateViewLayout(v, params)
+                        } catch (_: Exception) {
                         }
                     }
-                    if (longPressFired || pushToTalk) {
-                        // Hold-to-talk release = Done (insert).
-                        if (listening) stopListening(save = true)
-                        pushToTalk = false
-                    } else if (!dragged) {
-                        // Wispr: idle tap starts; while listening use Done/Cancel (not toggle).
-                        if (!listening && !stopInProgress) startListening()
+                    when (
+                        BubbleTapPolicy.action(
+                            listening = listening,
+                            stopInProgress = stopInProgress,
+                            dragged = dragged,
+                            longPressFired = longPressFired,
+                            hitCancel = hitVisible(bubbleCancel, event.rawX, event.rawY),
+                            hitDone = hitVisible(bubbleDone, event.rawX, event.rawY)
+                        )
+                    ) {
+                        BubbleTapPolicy.Action.START -> startListening()
+                        BubbleTapPolicy.Action.STOP_SAVE -> stopListening(save = true)
+                        BubbleTapPolicy.Action.STOP_DISCARD -> stopListening(save = false)
+                        BubbleTapPolicy.Action.NONE -> { }
                     }
+                    pushToTalk = false
                     true
                 }
                 else -> false
@@ -470,9 +604,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         snapAnimator?.cancel()
         val startX = params.x
         if (startX == targetX) {
-            if (prefs?.bubbleHaptics != false) {
-                view.performHapticFeedback(android.view.HapticFeedbackConstants.CONTEXT_CLICK)
-            }
+            hapticEvent(HapticFeel.Event.TAP)
             return
         }
         snapAnimator = ValueAnimator.ofInt(startX, targetX).apply {
@@ -488,9 +620,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             start()
         }
         prefs?.bubbleX = targetX
-        if (prefs?.bubbleHaptics != false) {
-            view.performHapticFeedback(android.view.HapticFeedbackConstants.CONTEXT_CLICK)
-        }
+        hapticEvent(HapticFeel.Event.TAP)
     }
 
     private fun hideBubble() {
@@ -520,8 +650,54 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
     }
 
+    private fun detectImeHeight(): Int {
+        return try {
+            val screenH = resources.displayMetrics.heightPixels
+            val rect = Rect()
+            var h = 0
+            windows?.forEach { w ->
+                if (w.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD) {
+                    w.getBoundsInScreen(rect)
+                    h = maxOf(h, BubbleGeometry.imeHeightFromBounds(rect.top, rect.bottom, screenH))
+                }
+            }
+            h
+        } catch (_: Exception) {
+            0
+        }
+    }
+
+    private fun refreshImeHeight() {
+        imeHeightPx = detectImeHeight()
+        imeVisible = imeHeightPx > 0 || detectImeVisible()
+    }
+
+    /** Display y from saved y. Parked value is never written back to prefs. */
+    private fun parkedY(savedY: Int): Int {
+        val dm = resources.displayMetrics
+        val h = bubbleView?.let { v ->
+            v.height.takeIf { it > 0 } ?: v.measuredHeight.takeIf { it > 0 }
+        } ?: 120
+        val clamped = BubbleGeometry.clampVerticalOffset(
+            y = savedY,
+            screenHeightPx = dm.heightPixels,
+            bubbleHeightPx = h
+        )
+        return BubbleGeometry.parkYAboveIme(clamped, imeHeightPx)
+    }
+
+    private fun applyParkedOverlayY() {
+        val params = bubbleParams ?: return
+        val view = bubbleView ?: return
+        params.y = parkedY(prefs?.bubbleY ?: params.y)
+        try {
+            windowManager?.updateViewLayout(view, params)
+        } catch (_: Exception) {
+        }
+    }
+
     private fun refreshBubbleVisibility() {
-        imeVisible = detectImeVisible()
+        refreshImeHeight()
         val snoozed = prefs?.isSnoozed() == true
         val bankHide = PackagePolicy.shouldHideBubble(lastPackage)
         val hasField = focusedEditable != null
@@ -537,7 +713,10 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         )
         bubbleView?.visibility = if (show) View.VISIBLE else View.GONE
         if (snoozed) registerShake() else unregisterShake()
-        if (show) updateBubbleVisuals()
+        if (show) {
+            applyParkedOverlayY()
+            updateBubbleVisuals()
+        }
     }
 
     private fun registerShake() {
@@ -556,12 +735,70 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
     private fun effectiveScale(): Float {
         val p = prefs ?: return 0.9f
-        val modeMul = when (FlowPrefs.normalizeBubbleMode(p.bubbleMode)) {
+        val mode = if (compactVisual && !listening) {
+            "compact"
+        } else {
+            FlowPrefs.normalizeBubbleMode(p.bubbleMode)
+        }
+        val modeMul = when (mode) {
             "compact" -> 0.75f
             "dot" -> 0.55f
             else -> 1f
         }
-        return p.bubbleScale * modeMul
+        val searchMul = if (searchFieldFocused && !listening) 0.72f else 1f
+        return p.bubbleScale * modeMul * searchMul
+    }
+
+    private fun applyVisualScale() {
+        val s = effectiveScale()
+        bubbleView?.scaleX = s
+        bubbleView?.scaleY = s
+    }
+
+    private fun copyLastToClipboard() {
+        val text = prefs?.lastSessionClean.orEmpty()
+        if (text.isBlank()) {
+            Toast.makeText(this, R.string.flow_bubble_saved_in_app, Toast.LENGTH_SHORT).show()
+            return
+        }
+        try {
+            val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            cm.setPrimaryClip(android.content.ClipData.newPlainText("Open Flow", text))
+            Toast.makeText(this, R.string.flow_bubble_copied_clipboard, Toast.LENGTH_SHORT).show()
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun onPulseTick() {
+        val now = SystemClock.elapsedRealtime()
+        if (listening) {
+            bubbleView?.keepScreenOn = true
+            val elapsed = now - listenStartedAt
+            when (SessionGuard.phase(elapsed)) {
+                SessionPhase.STOP -> {
+                    if (!stopInProgress) stopListening(save = true)
+                    return
+                }
+                SessionPhase.WARN -> {
+                    val sec = elapsed / 1000
+                    if (prefs?.bubbleShowText == true) {
+                        bubbleLabel?.text = "Wrap up ${sec}s"
+                    } else {
+                        setListenChrome(sec)
+                    }
+                }
+                SessionPhase.NONE -> { }
+            }
+        }
+        val wantCompact = IdleShrink.shouldCompact(
+            idleMs = now - lastInteractionAt,
+            listening = listening,
+            dragging = draggingNow
+        )
+        if (wantCompact != compactVisual && !listening) {
+            compactVisual = wantCompact
+            applyVisualScale()
+        }
     }
 
     private fun setBubbleEmphasis(hasField: Boolean) {
@@ -593,10 +830,13 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             return
         }
         listening = true
+        compactVisual = false
         sessionBuffer = StringBuilder()
         lastPartial = ""
         fieldPrefix = captureFieldPrefix()
         listenStartedAt = SystemClock.elapsedRealtime()
+        lastInteractionAt = listenStartedAt
+        bubbleView?.keepScreenOn = true
         val gen = ++listenGeneration
 
         updateBubbleVisuals()
@@ -689,6 +929,11 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
             override fun onRmsChanged(rmsdB: Float) {
                 if (!live() || !listening) return
+                lastRms = rmsdB
+                if (prefs?.bubbleShowText != true) {
+                    val elapsed = (SystemClock.elapsedRealtime() - listenStartedAt) / 1000
+                    setListenChrome(elapsed)
+                }
                 if (prefs?.bubblePulse == false) return
                 val base = effectiveScale()
                 val pulse = BubbleGeometry.rmsScaleY(rmsdB)
@@ -704,8 +949,20 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 }
             }
         })
-        stt?.startContinuous(lang)
-        android.util.Log.i("OpenFlow.Bubble", "listen start gen=$gen")
+        val fieldForBias = fieldPrefix
+        scope.launch(Dispatchers.IO) {
+            val dict = runCatching { app.dictations.dictionaryMap() }.getOrDefault(emptyMap())
+            val bias = SttBias.strings(dict, SttBias.fieldTokens(fieldForBias))
+            mainHandler.post {
+                if (gen != listenGeneration || !listening || stopInProgress) return@post
+                stt?.setBiasing(bias)
+                stt?.startContinuous(lang)
+                android.util.Log.i(
+                    "OpenFlow.Bubble",
+                    "listen start gen=$gen bias=${bias.size}"
+                )
+            }
+        }
     }
 
     private fun stopListening(save: Boolean) {
@@ -717,6 +974,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
         stopInProgress = true
         pushToTalk = false
+        hapticSaveOrDiscard(save)
         // Keep listenGeneration stable so onFinal during flush is accepted.
         val gen = listenGeneration
         val prefix = fieldPrefix
@@ -736,6 +994,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             )
             listenGeneration++
             listening = false
+            bubbleView?.keepScreenOn = false
             sessionBuffer = StringBuilder()
             lastPartial = ""
             fieldPrefix = ""
@@ -753,6 +1012,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                     if (finalText.isNotBlank()) {
                         commitSessionToField(finalText, prefix)
                         prefs?.setLastSession(raw = result.raw, clean = finalText)
+                        lastInteractionAt = SystemClock.elapsedRealtime()
                         val wordCount = finalText.split(Regex("\\s+"))
                             .filter { it.isNotBlank() }.size
                         val retention = prefs?.retentionPolicy ?: "keep"
@@ -839,6 +1099,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             if (finalText.isNotBlank()) {
                 commitSessionToField(finalText, prefix)
                 prefs?.setLastSession(raw = result.raw, clean = finalText)
+                lastInteractionAt = SystemClock.elapsedRealtime()
                 val wordCount = finalText.split(Regex("\\s+")).filter { it.isNotBlank() }.size
                 val retention = prefs?.retentionPolicy ?: "keep"
                 val lang = LanguagePolicy.LOCKED
@@ -884,6 +1145,30 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         injectReceiverRegistered = false
     }
 
+    private fun registerCopyReceiver() {
+        if (copyReceiverRegistered) return
+        val filter = IntentFilter(ACTION_COPY_LAST)
+        try {
+            if (Build.VERSION.SDK_INT >= 33) {
+                registerReceiver(copyReceiver, filter, Context.RECEIVER_EXPORTED)
+            } else {
+                @Suppress("UnspecifiedRegisterReceiverFlag")
+                registerReceiver(copyReceiver, filter)
+            }
+            copyReceiverRegistered = true
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun unregisterCopyReceiver() {
+        if (!copyReceiverRegistered) return
+        try {
+            unregisterReceiver(copyReceiver)
+        } catch (_: Exception) {
+        }
+        copyReceiverRegistered = false
+    }
+
     /**
      * Same path for stopListening + debug inject:
      * dict → snippets → CleanupPipeline(level, style, custom) via [TextPostProcessor.polishSessionResult].
@@ -894,7 +1179,10 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             val snip = app.dictations.snippetMap()
             val prefLevel = prefs?.cleanupLevel ?: "medium"
             val level = CleanupLevel.fromPref(prefLevel)
-            val style = prefs?.style() ?: WritingStyle.CASUAL
+            val style = AppStylePolicy.styleFor(
+                lastPackage,
+                prefs?.style() ?: WritingStyle.CASUAL
+            )
             val custom = prefs?.customStyleConfig() ?: CustomStyleConfig()
             val result = TextPostProcessor.polishSessionResult(
                 raw = text,
@@ -951,6 +1239,11 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 "OpenFlow.Bubble",
                 "setText ok=$ok mergedLen=${merged.length} class=${node.className}"
             )
+            if (ok) {
+                lastInserted = merged
+                lastInsertAt = SystemClock.elapsedRealtime()
+                lastInsertPkg = node.packageName?.toString() ?: lastPackage
+            }
             if (!ok) {
                 // Wispr-style fallback: put on clipboard so user can paste.
                 try {
@@ -1020,13 +1313,15 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             else -> 52f
         }
         val stroke = BubbleChrome.strokePx(density)
+        val fill = BubbleTint.argb(p.bubbleTint)
+        val on = BubbleTint.onArgb(p.bubbleTint)
 
         if (listening) {
             val bg = GradientDrawable().apply {
                 this.shape = GradientDrawable.RECTANGLE
                 cornerRadius = BubbleChrome.cornerPx("listen", density)
-                setColor(BubbleChrome.LISTEN_FILL)
-                setStroke(stroke, BubbleChrome.LISTEN_STROKE)
+                setColor(fill)
+                setStroke(stroke, on)
             }
             root.background = bg
             root.layoutParams = FrameLayout.LayoutParams(
@@ -1039,31 +1334,23 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             root.setPadding(padH, padV, padH, padV)
 
             cancel?.visibility = View.VISIBLE
-            cancel?.setColorFilter(BubbleChrome.CANCEL)
+            cancel?.setColorFilter(on)
             done?.visibility = View.VISIBLE
-            done?.setColorFilter(BubbleChrome.DONE)
+            done?.setColorFilter(on)
             icon.visibility = View.VISIBLE
-            icon.setColorFilter(BubbleChrome.ICON)
+            icon.setColorFilter(on)
             icon.layoutParams = LinearLayout.LayoutParams(
                 (20f * density).toInt(),
                 (20f * density).toInt()
-            )
+            ).apply { gravity = Gravity.CENTER }
             label.visibility = View.VISIBLE
-            label.setTextColor(BubbleChrome.LABEL)
+            label.setTextColor(on)
             if (label.text.isNullOrBlank()) {
                 label.text = BubbleLabelFormatter.listening(0)
             }
 
-            if (p.bubblePulse) {
-                pulseRing.visibility = View.VISIBLE
-                pulseRing.background = GradientDrawable().apply {
-                    this.shape = GradientDrawable.RECTANGLE
-                    cornerRadius = BubbleChrome.cornerPx("listen", density) + density
-                    setColor(BubbleChrome.PULSE)
-                }
-            } else {
-                pulseRing.visibility = View.GONE
-            }
+            // Pulse WRAP_CONTENT was the grey veil. Idle-only; never on listen.
+            pulseRing.visibility = View.GONE
         } else {
             cancel?.visibility = View.GONE
             done?.visibility = View.GONE
@@ -1079,14 +1366,42 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 if (!useOval) {
                     cornerRadius = BubbleChrome.cornerPx(shape, density)
                 }
-                setColor(BubbleChrome.IDLE_FILL)
-                setStroke(stroke, BubbleChrome.IDLE_STROKE)
+                setColor(fill)
+                setStroke(stroke, on)
             }
             icon.visibility = View.VISIBLE
-            icon.setColorFilter(BubbleChrome.ICON)
+            icon.setColorFilter(on)
             val iconSz = (orbDp * 0.42f * density).toInt()
-            icon.layoutParams = LinearLayout.LayoutParams(iconSz, iconSz)
+            icon.layoutParams = LinearLayout.LayoutParams(iconSz, iconSz).apply {
+                gravity = Gravity.CENTER
+            }
         }
+        applyOverlayWindowSize()
+    }
+
+    /** Pin overlay window. WRAP_CONTENT measures against the screen. */
+    private fun applyOverlayWindowSize() {
+        val params = bubbleParams ?: return
+        val density = resources.displayMetrics.density
+        val shape = FlowPrefs.normalizeBubbleShape(prefs?.bubbleShape.orEmpty())
+        val wide = listening
+        val (w, h) = BubbleGeometry.overlaySizePx(wide, density, shape)
+        params.width = if (w > 0) w else WindowManager.LayoutParams.WRAP_CONTENT
+        params.height = if (h > 0) h else WindowManager.LayoutParams.WRAP_CONTENT
+        val view = bubbleView ?: return
+        try {
+            windowManager?.updateViewLayout(view, params)
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun hapticEvent(event: HapticFeel.Event) {
+        val constant = HapticFeel.constantFor(prefs?.hapticFeel ?: HapticFeel.FULL, event) ?: return
+        bubbleView?.performHapticFeedback(constant)
+    }
+
+    private fun hapticSaveOrDiscard(save: Boolean) {
+        hapticEvent(if (save) HapticFeel.Event.SAVE else HapticFeel.Event.CANCEL)
     }
 
     private fun setListenChrome(elapsedSec: Long) {
@@ -1095,13 +1410,10 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         if (p.bubbleShowText) {
             bubbleLabel?.text = BubbleLabelFormatter.listening(elapsedSec)
         } else {
-            // Simple waveform proxy — animated dots via time
-            val bars = when ((elapsedSec % 3).toInt()) {
-                0 -> "▮▯▯"
-                1 -> "▮▮▯"
-                else -> "▮▮▮"
-            }
-            bubbleLabel?.text = if (elapsedSec > 0) "$bars  ${elapsedSec}s" else bars
+            val bars = WaveformBars.fromRms(lastRms)
+            val warn = SessionGuard.phase(elapsedSec * 1000L) == SessionPhase.WARN
+            val suffix = if (warn) " wrap" else if (elapsedSec > 0) "  ${elapsedSec}s" else ""
+            bubbleLabel?.text = bars + suffix
         }
     }
 
@@ -1111,14 +1423,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         bubbleView?.scaleX = s
         bubbleView?.scaleY = s
         bubbleParams?.alpha = p.bubbleOpacity
-        bubbleView?.let { v ->
-            bubbleParams?.let { params ->
-                try {
-                    windowManager?.updateViewLayout(v, params)
-                } catch (_: Exception) {
-                }
-            }
-        }
+        refreshImeHeight()
+        applyParkedOverlayY()
         updateBubbleVisuals()
         refreshBubbleVisibility()
     }
@@ -1126,6 +1432,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     companion object {
         /** Debug broadcast action (any build id; handler no-ops if not DEBUG). */
         const val ACTION_INJECT = "app.openflow.INJECT_DICTATION"
+        const val ACTION_COPY_LAST = "app.openflow.COPY_LAST"
         const val EXTRA_TEXT = "text"
 
         @Volatile

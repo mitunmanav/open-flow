@@ -17,8 +17,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.openflow.ui.a11y.Dimen
 
@@ -35,6 +37,7 @@ fun EmptyState(
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .graphicsLayer { clip = false }
             .padding(horizontal = Dimen.PAGE_PAD, vertical = Dimen.PAGE_PAD + Dimen.GAP)
             .semantics(mergeDescendants = true) { contentDescription = a11y },
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -53,6 +56,8 @@ fun EmptyState(
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
             color = scheme.onSurface,
+            overflow = TextOverflow.Visible,
+            softWrap = true,
             modifier = Modifier.widthIn(max = 320.dp)
         )
         if (!subtitle.isNullOrBlank()) {
@@ -62,6 +67,8 @@ fun EmptyState(
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
                 color = scheme.onSurfaceVariant,
+                overflow = TextOverflow.Visible,
+                softWrap = true,
                 modifier = Modifier.widthIn(max = 320.dp)
             )
         }

@@ -8,9 +8,11 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import app.openflow.R
+import app.openflow.bubble.FlowAccessibilityService
 import app.openflow.ui.MainActivity
 
 /**
@@ -47,15 +49,45 @@ object DictationNotifier {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val text = if (wordCount > 0) "$wordCount words saved" else "Dictation saved"
+        val copyPi = PendingIntent.getBroadcast(
+            ctx, 1,
+            Intent(FlowAccessibilityService.ACTION_COPY_LAST).setPackage(ctx.packageName),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
         val n = NotificationCompat.Builder(ctx, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_mic)
             .setContentTitle("Open Flow")
             .setContentText(text)
             .setContentIntent(pending)
+            .addAction(0, "Copy last", copyPi)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
         val nm = ctx.getSystemService(NotificationManager::class.java)
         nm.notify(NOTIF_ID, n)
+    }
+
+    fun notifyServiceStopped(ctx: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED) {
+                return
+            }
+        }
+        val open = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+        val pending = PendingIntent.getActivity(
+            ctx, 2, open,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val n = NotificationCompat.Builder(ctx, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_mic)
+            .setContentTitle("Open Flow")
+            .setContentText("Flow Bubble stopped — tap to reopen Accessibility")
+            .setContentIntent(pending)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+        val nm = ctx.getSystemService(NotificationManager::class.java)
+        nm.notify(NOTIF_ID + 1, n)
     }
 }

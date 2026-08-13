@@ -1,70 +1,99 @@
 # Open Flow
 
-**v0.1.0+** — FOSS Android dictation + private history.
+[![Release](https://img.shields.io/github/v/release/mitunmanav/open-flow)](https://github.com/mitunmanav/open-flow/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-- **Not a keyboard.** Floating **Flow Bubble** + Accessibility (Wispr Android style)
-- Keep Gboard / your normal keyboard
-- Local-first, no account, no ads, **no INTERNET permission**
-- On-device STT preferred (`SpeechRecognizer`)
-- **en-US only** · local cleanup/styles (no cloud AI model)
-- UI: **modern brutal** default (`VisualSkin.BRUTAL`)
-- MIT license
+**Site:** [mitunmanav.github.io/open-flow](https://mitunmanav.github.io/open-flow/)
 
-## Install (GitHub release)
+Android app. A **floating bubble** types what you say. **Not a keyboard** — keep yours.
 
-1. Download **`OpenFlow-0.1.0.apk`** from [Releases](../../releases)
-2. Allow install from unknown sources for your browser/Files app
-3. Open the APK → Install
-4. Open **Open Flow**
-5. **Allow microphone**
-6. **Enable Flow Bubble** → Accessibility → turn on **Open Flow**
-7. Focus any text field → tap the floating bubble → speak → tap again
+## What we are good at (the moat)
 
-> **Note:** Release APK is **debug-signed** (FOSS sideload). Not for Play Store.  
-> System STT may still use network on some devices; Open Flow itself never uploads audio or transcripts.
+We do **not** win on speech accuracy. Others with Whisper/Vosk do.
 
-Optional: `OpenFlow-0.1.0-debug.apk` installs as `app.openflow.debug` (side-by-side with release).
+We win on **habit + private history + trust**:
 
-Checksums: `*.sha256` on the same release.
+| Moat | What that means |
+|------|------------------|
+| Always there | Bubble over *your* keyboard. You do not switch IME. |
+| Your archive | History, search, copy, share — on this phone. |
+| Your words | Dictionary (one word) and snippets (a whole block). |
+| Your rules | Keep / wipe 24h / never save. No account. |
+| Inspectable | MIT. No ads. No INTERNET permission in the APK. |
 
-## Features
+That is a product shell people can live in. It is **not** a better recognizer.
 
-| Area | What you get |
-|------|----------------|
-| Dictation | Bubble → polish once → insert into focused field |
-| Spoken cmds | period/comma/… → symbols · backspace · new line |
-| Cleanup | None / Light / Medium / High (local rules) |
-| Styles | Formal / Casual / Very casual / Excited / Custom |
-| History | Search, copy, share, Markdown export |
-| Dictionary | Personal replacements |
-| Snippets | Trigger → expansion |
-| Privacy | Keep / wipe 24h / never store history |
+## Honest
 
-## Development (agents)
+Speech still uses the **system recognizer**. On many phones that is Google. Audio **can leave the device**. No INTERNET in our APK does **not** mean voice never leaves.
 
-Strict process: **Superpowers** + **android-cli**. See `AGENTS.md` and `docs/PROCESS.md`.  
-Exception: multi-agent inside a worktree is allowed (max 5, different files).
+Need that? Use FUTO / Sayboard / Whisper IME.
 
-## Build from source
+## Vs others (no sugar)
+
+Full write-up + sources: [docs/COMPARISON.md](docs/COMPARISON.md).
+
+| | Open Flow | Phone Whisper | FUTO Voice | Sayboard | Whisper IME | Kõnele | Wispr Flow |
+|---|---|---|---|---|---|---|---|
+| Keep your keyboard | **Yes** (bubble) | **Yes** (overlay) | No (IME / its keyboard) | No (voice keyboard) | No (IME) | No | Yes (bubble) |
+| Speech engine | System SpeechRecognizer | Local model **or** OpenAI | Local Whisper | Local Vosk | Local Whisper | Kaldi **server** | Cloud AI |
+| Audio can leave | **Yes, often** | Only if you pick cloud | No* | No* | No* | **Yes** on default server | **Yes** |
+| INTERNET in app | **Not declared** | Models / optional API | Model download | Model download | Model download | Yes | Yes |
+| Cleanup | Rule lists | Optional OpenAI | In-model | Weak | Weak | Server | Cloud LLM |
+| Languages | **en-US only** | Several | Many | 20+ | Many | Depends | Many |
+| License | MIT | Personal / permissive | **Not OSI** | GPL-3.0 | FOSS | Apache-2.0 | Closed |
+| On F-Droid | **No** | No | Their repo | **Yes** | **Yes** | **Yes** | No |
+| History + dict/snippets | **Yes** | Limited | Weak | No | No | No | Yes (their cloud) |
+| Maturity | Early 0.1.x, debug-signed | Small project | Polished | Stable | Active | Older | Commercial |
+
+\*After you download a local model.
+
+**If you want…**
+
+| Goal | Winner | Us |
+|------|--------|-----|
+| Voice never leaves the phone | FUTO, Sayboard, Whisper IME | We lose |
+| Keep Gboard, bubble like Wispr | Phone Whisper or us | They transcribe better |
+| Best wording | Wispr (closed) or Whisper apps | Rules, not AI |
+| F-Droid today | Sayboard, Whisper IME, Kõnele | Not listed |
+| MIT + history + dict/snippets + keep keyboard | Small club | **This is our niche** |
+
+Wispr is closed. Kõnele’s **default** server can send audio unencrypted. FUTO is polished but not OSI FOSS.
+
+## Install
+
+1. APK from **[Releases](https://github.com/mitunmanav/open-flow/releases/latest)**.
+2. Open in Files. Play Protect “unknown” is normal.
+3. App → five screens → Accessibility → mic.
+4. Grey switch: App info → **⋮ → Allow restricted settings**.
+5. Text field → tap bubble → speak → **tap again**.
+
+[Install](docs/INSTALL.md) · [Guide](docs/GUIDE.md)
+
+Copy from **History**. No copy chip on the bubble.
+
+## Talk (Discussions) vs report (Issues)
+
+| Use | Where |
+|-----|--------|
+| Install help, “how do I…”, ideas | **[Discussions](https://github.com/mitunmanav/open-flow/discussions)** |
+| Something is broken | **[Issues → Bug](https://github.com/mitunmanav/open-flow/issues/new/choose)** |
+| Security hole | Repo **Security** tab — not public |
+
+Start here: [Discussion #9](https://github.com/mitunmanav/open-flow/discussions/9).
+
+Do not post names, emails, bank screens, or private dictation.
+
+## Docs
+
+[Website](https://mitunmanav.github.io/open-flow/) · [Architecture](https://mitunmanav.github.io/open-flow/architecture.html) · [Roadmap](https://mitunmanav.github.io/open-flow/roadmap.html) · [Privacy](docs/PRIVACY.md)
+
+## Build
 
 ```bash
-export JAVA_HOME=${JAVA_HOME:-$HOME/.local/jdk}
-export ANDROID_HOME=${ANDROID_HOME:-$HOME/Android/Sdk}
-export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
-
-./gradlew :app:testDebugUnitTest :app:assembleRelease :app:assembleDebug
-# optional: android install --apks app/build/outputs/apk/debug/app-debug.apk
+./gradlew :app:testDebugUnitTest :app:assembleDebug
 ```
 
-Outputs:
+Debug-signed sideload. Not Play / F-Droid.
 
-- `app/build/outputs/apk/release/app-release.apk`
-- `app/build/outputs/apk/debug/app-debug.apk`
-
-## License
-
-MIT — see `LICENSE`.
-
-## Security
-
-See `SECURITY.md`. Hard defaults: no INTERNET, no cleartext, backup off.
+MIT — [LICENSE](LICENSE) · [SECURITY.md](SECURITY.md)

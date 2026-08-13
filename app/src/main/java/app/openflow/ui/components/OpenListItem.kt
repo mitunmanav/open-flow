@@ -12,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -43,6 +44,7 @@ fun OpenListItem(
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .graphicsLayer { clip = false }
             .then(clickMod)
             .semantics {
                 this.contentDescription = a11y
@@ -60,8 +62,8 @@ fun OpenListItem(
                 text = title,
                 style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.weight(1f),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
+                overflow = TextOverflow.Visible,
+                softWrap = true,
                 color = MaterialTheme.colorScheme.onSurface
             )
             actions?.invoke()
@@ -70,8 +72,8 @@ fun OpenListItem(
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
+                overflow = TextOverflow.Visible,
+                softWrap = true,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }

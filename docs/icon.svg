@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" role="img" aria-label="Open Flow">
+  <rect width="108" height="108" fill="#1A1A18"/>
+  <path d="M28 54 C28 40 38 30 54 30 C70 30 80 40 80 54 C80 68 70 78 54 78" fill="none" stroke="#F4EFE6" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M35 54 C35 44 43 36 54 36 C65 36 73 44 73 54 C73 64 65 72 54 72" fill="none" stroke="#C4BDB0" stroke-width="4" stroke-linecap="round"/>
+  <path d="M54 42 C51.24 42 49 44.24 49 47 V56 C49 58.76 51.24 61 54 61 C56.76 61 59 58.76 59 56 V47 C59 44.24 56.76 42 54 42 Z" fill="#F4EFE6"/>
+  <path d="M44 53 C44 58.52 48.48 63 54 63 C59.52 63 64 58.52 64 53" fill="none" stroke="#F4EFE6" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M54 63 V69" fill="none" stroke="#F4EFE6" stroke-width="2.5" stroke-linecap="round"/>
+</svg>

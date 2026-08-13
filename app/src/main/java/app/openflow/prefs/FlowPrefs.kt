@@ -8,6 +8,8 @@ import app.openflow.text.CapsMode
 import app.openflow.text.CustomStyleConfig
 import app.openflow.text.EndPunct
 import app.openflow.text.WritingStyle
+import app.openflow.ui.HapticFeel
+import app.openflow.ui.theme.BubbleTint
 import app.openflow.ui.theme.VisualSkin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -77,6 +79,16 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         get() = store.getLong("snooze_until", 0L)
         set(v) = store.putLong("snooze_until", v)
 
+    /** First-run battery step shown or skipped (F22). */
+    var setupBatterySeen: Boolean
+        get() = store.getString("setup_battery_seen", "false") == "true"
+        set(v) = store.putString("setup_battery_seen", if (v) "true" else "false")
+
+    /** Home “How Open Flow works” card dismissed. */
+    var seenHowTo: Boolean
+        get() = store.getString("seen_how_to", "false") == "true"
+        set(v) = store.putString("seen_how_to", if (v) "true" else "false")
+
     fun style(): WritingStyle = WritingStyle.fromPref(styleName)
 
     fun customStyleConfig(): CustomStyleConfig = CustomStyleConfig(
@@ -144,6 +156,27 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         get() = store.getString("bubble_haptics", "true") == "true"
         set(v) = store.putString("bubble_haptics", if (v) "true" else "false")
 
+    /** charcoal | cream | ink | stone */
+    var bubbleTint: String
+        get() = BubbleTint.normalize(store.getString("bubble_tint", BubbleTint.CHARCOAL))
+        set(v) = store.putString("bubble_tint", BubbleTint.normalize(v))
+
+    /** off | light | full — off maps [bubbleHaptics] false */
+    var hapticFeel: String
+        get() {
+            val raw = store.getString("haptic_feel", "")
+            return if (raw.isEmpty()) {
+                if (bubbleHaptics) HapticFeel.FULL else HapticFeel.OFF
+            } else {
+                HapticFeel.normalize(raw)
+            }
+        }
+        set(v) {
+            val n = HapticFeel.normalize(v)
+            store.putString("haptic_feel", n)
+            bubbleHaptics = n != HapticFeel.OFF
+        }
+
     var bubbleEdgeSnap: Boolean
         get() = store.getString("bubble_edge_snap", "true") == "true"
         set(v) = store.putString("bubble_edge_snap", if (v) "true" else "false")
@@ -161,6 +194,11 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
     var retentionPolicy: String
         get() = normalizeRetention(store.getString("retention", "keep"))
         set(v) = store.putString("retention", normalizeRetention(v))
+
+    /** Remember word fixes after dictation (on-device). */
+    var autoLearn: Boolean
+        get() = store.getString("auto_learn", "true") == "true"
+        set(v) = store.putString("auto_learn", if (v) "true" else "false")
 
     /** Last dictation session — raw STT (in-app copy; no auto-clipboard). */
     var lastSessionRaw: String

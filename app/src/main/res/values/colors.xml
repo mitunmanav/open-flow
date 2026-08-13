@@ -8,4 +8,7 @@
     <color name="openflow_border_dark">#27272A</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    <!-- Ship first-frame chrome. Matches BrutalColors cream / charcoal. -->
+    <color name="brutal_cream">#F4F1EA</color>
+    <color name="brutal_charcoal">#1A1A1A</color>
 </resources>

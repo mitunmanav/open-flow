@@ -60,4 +60,14 @@ class FieldPolicyTest {
         assertThat(FieldPolicy.mergeSession("does", "Does naren know"))
             .isEqualTo("Does naren know")
     }
+
+    @Test
+    fun search_hint_is_search() {
+        assertThat(FieldPolicy.isSearch(0x1, "android.widget.EditText", "Search chats")).isTrue()
+    }
+
+    @Test
+    fun message_field_not_search() {
+        assertThat(FieldPolicy.isSearch(0x1, "android.widget.EditText", "Message")).isFalse()
+    }
 }

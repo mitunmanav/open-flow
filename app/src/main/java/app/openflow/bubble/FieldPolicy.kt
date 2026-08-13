@@ -30,6 +30,14 @@ object FieldPolicy {
             c.contains("webView".lowercase()) // WebView may host inputs; still try insert
     }
 
+    fun isSearch(inputType: Int, className: String?, hintOrDesc: String?): Boolean {
+        val hay = listOfNotNull(className, hintOrDesc).joinToString(" ").lowercase()
+        if (hay.contains("search") || hay.contains("query") || hay.contains("url bar")) return true
+        // TYPE_TEXT_VARIATION_WEB_EDIT_TEXT = 0xa0 ; FILTER = 0xb0
+        val variation = inputType and 0x00000ff0
+        return variation == 0x000000a0 || variation == 0x000000b0
+    }
+
     /** Append spoken text to existing field content. */
     fun mergeInsert(existing: CharSequence?, spoken: String): String {
         val base = existing?.toString().orEmpty()

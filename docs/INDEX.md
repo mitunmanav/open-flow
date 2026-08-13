@@ -1,6 +1,6 @@
 # open-flow — Docs index
 
-**Repo:** `/home/mitun/open-flow` · **License:** MIT  
+**Repo:** this GitHub repository · **License:** MIT  
 **Dev stack:** Superpowers + android-cli (worktree multi-agent allowed — see PROCESS)
 
 ```

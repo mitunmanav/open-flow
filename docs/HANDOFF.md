@@ -44,7 +44,7 @@ APK: `app/build/outputs/apk/debug/app-debug.apk` · Desktop `Open-Flow/apk/open-
 
 ## NEXT
 
-1. Mitun phone: Setup a11y → mic → skip battery → tap → speak → tap again
+1. Phone: Setup a11y → mic → skip battery → tap → speak → tap again
 2. Tiny cleanup model = later opt-in only
 
 ## ASK

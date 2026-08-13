@@ -218,11 +218,11 @@ open-flow/                 # main git root
 └── app/                   # Android module
 ```
 
-Work in: `/home/mitun/open-flow` (or active worktree under `.worktrees/`).
+Work in: the repository root (or active worktree under `.worktrees/`).
 
 ---
 
-## Build & test (Mitun device)
+## Build & test (device)
 
 ```bash
 export JAVA_HOME=$HOME/.local/jdk

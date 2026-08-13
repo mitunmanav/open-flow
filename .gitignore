@@ -58,6 +58,11 @@ Thumbs.db
 *.py[cod]
 *.pyo
 
+# Local agent notes (not public)
+.grok/
+info/sessions/
+dist/DESKTOP-FOLDER.txt
+
 # Local agent notes (optional machine state)
 .grok/NOW.local.md
 

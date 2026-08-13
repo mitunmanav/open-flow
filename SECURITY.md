@@ -28,4 +28,8 @@
 
 ## Reporting
 
-Open an issue in the repo. No bounty program yet.
+Use **GitHub Security Advisories** on this repo (Security tab → Report a vulnerability).
+
+Do not put personal data, phone numbers, or device IDs in public issues.
+
+No bounty program yet.

@@ -76,6 +76,32 @@ class CleanupPipelineTest {
     }
 
     @Test
+    fun light_strips_uh_keeps_actually_number() {
+        val r = CleanupPipeline.run(
+            "I, uh, the amount is 430 actually 530",
+            CleanupLevel.LIGHT
+        )
+        val clean = r.clean.lowercase()
+        assertThat(clean).doesNotContain("uh")
+        assertThat(clean).contains("430")
+        assertThat(clean).contains("actually")
+        assertThat(clean).contains("530")
+    }
+
+    @Test
+    fun medium_is_light_plus_course_correct() {
+        val r = CleanupPipeline.run(
+            "I, uh, the amount is 430 actually 530",
+            CleanupLevel.NORMAL
+        )
+        val clean = r.clean.lowercase()
+        assertThat(clean).doesNotContain("uh")
+        assertThat(clean).contains("530")
+        assertThat(clean).doesNotContain("430")
+        assertThat(clean).doesNotContain("actually")
+    }
+
+    @Test
     fun blank_safe() {
         val r = CleanupPipeline.run("   ")
         assertThat(r.clean).isEmpty()

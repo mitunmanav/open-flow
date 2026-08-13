@@ -20,6 +20,8 @@ object HistoryExport {
         val languageTag: String = LanguagePolicy.LOCKED,
         val wordCount: Int = 0,
         val rawText: String = "",
+        val id: String = "",
+        val durationMs: Long = 0L,
     )
 
     fun toMarkdown(rows: List<Row>, includeRaw: Boolean = false): String {
@@ -28,7 +30,11 @@ object HistoryExport {
             val stamp = stampFmt.format(Date(row.createdAtEpochMs))
             val lang = LanguagePolicy.force(row.languageTag)
             buildString {
-                append("### $stamp ($lang, ${row.wordCount} words)\n\n")
+                append("### $stamp ($lang, ${row.wordCount} words")
+                if (row.durationMs > 0L) append(", ${row.durationMs}ms")
+                append(")")
+                if (row.id.isNotBlank()) append("\n\nid: ${row.id}")
+                append("\n\n")
                 append(row.text.trim())
                 if (includeRaw && row.rawText.isNotBlank() && row.rawText != row.text) {
                     append("\n\n> *Raw STT:* ${row.rawText.trim()}")
@@ -46,7 +52,17 @@ object HistoryExport {
                 append(stamp)
                 append(" [")
                 append(LanguagePolicy.force(row.languageTag))
-                append("]\n")
+                append("]")
+                if (row.id.isNotBlank()) {
+                    append(" id=")
+                    append(row.id)
+                }
+                if (row.durationMs > 0L) {
+                    append(" ")
+                    append(row.durationMs)
+                    append("ms")
+                }
+                append("\n")
                 append(row.text.trim())
             }
         }

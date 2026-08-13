@@ -8,11 +8,13 @@ import app.openflow.prefs.FlowPrefs
  * OpenFlow itself has no server, analytics, or uploads.
  */
 object PrivacyDefaults {
-    fun reportText(prefs: FlowPrefs? = null): String {
-        val retention = prefs?.retentionPolicy ?: "keep"
+    fun reportText(prefs: FlowPrefs? = null): String =
+        reportText(prefs?.retentionPolicy ?: RetentionPolicy.KEEP)
+
+    fun reportText(retention: String): String {
         val historyLocation = when (retention) {
-            "never_store" -> "not stored in Room history"
-            "wipe_24h" -> "on device, purged after 24h"
+            RetentionPolicy.NEVER_STORE -> "not stored in Room history"
+            RetentionPolicy.WIPE_24H -> "on device, purged after 24h"
             else -> "on device SQLite (not encrypted)"
         }
 

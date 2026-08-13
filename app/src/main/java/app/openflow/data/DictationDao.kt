@@ -11,6 +11,9 @@ interface DictationDao {
     @Query("SELECT * FROM dictations ORDER BY createdAtEpochMs DESC")
     fun observeAll(): Flow<List<DictationEntity>>
 
+    @Query("SELECT * FROM dictations ORDER BY createdAtEpochMs DESC LIMIT :limit")
+    fun observeRecent(limit: Int): Flow<List<DictationEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(d: DictationEntity)
 

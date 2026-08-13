@@ -15,6 +15,7 @@ enum class AppRoute(val title: String, val navId: String? = null) {
     Cleanup("Cleanup"),
     Privacy("Privacy"),
     Sounds("Sounds"),
+    Setup("Set up", "setup"),
 }
 
 /** Bottom bar primary destinations. */

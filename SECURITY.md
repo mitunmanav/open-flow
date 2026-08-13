@@ -4,8 +4,9 @@
 
 - No account
 - No analytics / ads / trackers
-- **No `INTERNET` permission** in base app
-- Cleartext HTTP **blocked** (`network_security_config`)
+- **`INTERNET` declared.** Unused until user picks a net ear/brain or downloads a model. Do not strip.
+- Public hosts: HTTPS only. Cleartext HTTP only for laptop/LAN (RFC1918 / localhost) via `network_security_config`
+- API keys: device Keystore + separate prefs file. Never FlowPrefs. Never logs. Never backup.
 - `allowBackup="false"`
 - Mic permission only at runtime, when user records / dictating
 - Foreground service type `microphone` for background record
@@ -19,7 +20,7 @@
 
 | Risk | Mitigation |
 |------|------------|
-| Voice leaves device | Default offline STT; no network perm |
+| Voice leaves device | Default system STT + rules. Cloud ear/brain only after user pick. Honesty line per vendor. |
 | Backup leak | allowBackup false; data extraction rules exclude |
 | Cleartext MITM | NSC cleartext false |
 | Over-broad perms | Request only when used |

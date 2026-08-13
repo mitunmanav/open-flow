@@ -6,6 +6,32 @@
   <title>Architecture — Open Flow</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="site.css">
+  <style>
+    .flow { display: flex; flex-direction: column; gap: 0; margin: 1rem 0 1.5rem; }
+    .flow .box {
+      border: 2px solid var(--line);
+      background: var(--card);
+      padding: 0.75rem 0.9rem;
+    }
+    .flow .box strong { display: block; margin-bottom: 0.15rem; }
+    .flow .box span { color: var(--muted); font-size: 0.92rem; }
+    .flow .box.fill { background: var(--ink); color: var(--cream); }
+    .flow .box.fill span { color: #c4bdb0; }
+    .arrow {
+      text-align: center;
+      font-size: 1.1rem;
+      line-height: 1.4;
+      color: var(--ink);
+    }
+    .pipe {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.5rem;
+    }
+    @media (min-width: 640px) {
+      .pipe { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
 </head>
 <body>
 <header>
@@ -23,75 +49,43 @@
 </header>
 <main class="wrap">
   <h1>Architecture</h1>
-  <p>One idea: keep the user’s keyboard. A bubble owned by an Accessibility service listens, polishes words on the phone, and inserts them.</p>
-  <p>Longer write-up: <a href="ARCHITECTURE.md">ARCHITECTURE.md</a></p>
+  <p class="lede">Keep the user’s keyboard. A bubble owned by Accessibility listens, polishes words on the phone, and inserts them. Not an IME.</p>
 
-  <h2>1. Where it sits</h2>
-  <p class="muted">The phone’s speech engine is outside our process. That is why “no INTERNET permission” is not the same as “audio never leaves.”</p>
-  <div class="diagram">
-    <svg viewBox="0 0 720 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Context diagram">
-      <rect x="1" y="1" width="718" height="218" fill="#fffdf8" stroke="#1a1a18" stroke-width="2"/>
-      <rect x="24" y="70" width="140" height="70" fill="#1a1a18"/>
-      <text x="94" y="110" fill="#f4efe6" text-anchor="middle" font-size="14">You</text>
-      <rect x="200" y="70" width="160" height="70" fill="none" stroke="#1a1a18" stroke-width="2"/>
-      <text x="280" y="100" text-anchor="middle" font-size="14">Other app</text>
-      <text x="280" y="120" text-anchor="middle" font-size="12" fill="#4a4a48">Notes, chat…</text>
-      <rect x="396" y="70" width="140" height="70" fill="none" stroke="#1a1a18" stroke-width="2"/>
-      <text x="466" y="100" text-anchor="middle" font-size="14">Open Flow</text>
-      <text x="466" y="120" text-anchor="middle" font-size="12" fill="#4a4a48">bubble + app</text>
-      <rect x="572" y="70" width="124" height="70" fill="none" stroke="#1a1a18" stroke-width="2"/>
-      <text x="634" y="100" text-anchor="middle" font-size="13">System STT</text>
-      <text x="634" y="120" text-anchor="middle" font-size="11" fill="#4a4a48">may be Google</text>
-      <path d="M164 105 H200" stroke="#1a1a18" stroke-width="2"/>
-      <path d="M360 105 H396" stroke="#1a1a18" stroke-width="2"/>
-      <path d="M536 105 H572" stroke="#1a1a18" stroke-width="2"/>
-    </svg>
+  <h2 class="rule">1. Where it sits</h2>
+  <p class="muted">The speech engine is outside our process. That is why “no INTERNET permission” is not the same as “audio never leaves.”</p>
+  <div class="flow">
+    <div class="box fill"><strong>You</strong><span>Tap the bubble. Speak.</span></div>
+    <div class="arrow">↓</div>
+    <div class="box"><strong>Other app</strong><span>Notes, chat, browser — your keyboard stays.</span></div>
+    <div class="arrow">↓</div>
+    <div class="box"><strong>Open Flow</strong><span>Bubble + app. Accessibility overlay. Insert only.</span></div>
+    <div class="arrow">↓</div>
+    <div class="box"><strong>System SpeechRecognizer</strong><span>On-device if the phone has it. Often still Google. May leave the device.</span></div>
   </div>
 
-  <h2>2. One dictation</h2>
-  <div class="diagram">
-    <svg viewBox="0 0 720 160" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dictation flow">
-      <rect x="1" y="1" width="718" height="158" fill="#fffdf8" stroke="#1a1a18" stroke-width="2"/>
-      <g font-size="13" text-anchor="middle">
-        <rect x="16" y="50" width="100" height="56" fill="#1a1a18"/>
-        <text x="66" y="82" fill="#f4efe6">Tap</text>
-        <rect x="132" y="50" width="100" height="56" fill="none" stroke="#1a1a18" stroke-width="2"/>
-        <text x="182" y="82">Listen</text>
-        <rect x="248" y="50" width="100" height="56" fill="none" stroke="#1a1a18" stroke-width="2"/>
-        <text x="298" y="82">Tap again</text>
-        <rect x="364" y="50" width="110" height="56" fill="none" stroke="#1a1a18" stroke-width="2"/>
-        <text x="419" y="82">Polish</text>
-        <rect x="490" y="50" width="100" height="56" fill="none" stroke="#1a1a18" stroke-width="2"/>
-        <text x="540" y="82">Insert</text>
-        <rect x="606" y="50" width="98" height="56" fill="none" stroke="#1a1a18" stroke-width="2"/>
-        <text x="655" y="82">History</text>
-      </g>
-    </svg>
+  <h2 class="rule">2. One dictation</h2>
+  <div class="pipe">
+    <div class="box fill"><strong>1 · Tap</strong><span>Start listening</span></div>
+    <div class="box"><strong>2 · Speak</strong><span>System STT</span></div>
+    <div class="box"><strong>3 · Tap again</strong><span>Or hold-to-talk, then release</span></div>
+    <div class="box"><strong>4 · Polish</strong><span>Dictionary → snippet → cleanup → style</span></div>
+    <div class="box"><strong>5 · Insert</strong><span>Into the focused field</span></div>
+    <div class="box"><strong>6 · History</strong><span>Saved on this phone, unless you chose never</span></div>
   </div>
+  <p class="muted">X while listening throws the words away. Drag down hides the bubble for 10 minutes.</p>
 
-  <h2>3. Polish pipeline</h2>
-  <p class="muted">All on the phone. No LLM. Style runs last.</p>
-  <div class="diagram">
-    <svg viewBox="0 0 720 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Text pipeline">
-      <rect x="1" y="1" width="718" height="198" fill="#fffdf8" stroke="#1a1a18" stroke-width="2"/>
-      <g font-size="12" text-anchor="middle">
-        <rect x="20" y="30" width="120" height="48" fill="none" stroke="#1a1a18" stroke-width="2"/>
-        <text x="80" y="58">Raw STT</text>
-        <rect x="160" y="30" width="120" height="48" fill="none" stroke="#1a1a18" stroke-width="2"/>
-        <text x="220" y="58">Dictionary</text>
-        <rect x="300" y="30" width="120" height="48" fill="none" stroke="#1a1a18" stroke-width="2"/>
-        <text x="360" y="58">Snippet</text>
-        <rect x="440" y="30" width="120" height="48" fill="none" stroke="#1a1a18" stroke-width="2"/>
-        <text x="500" y="58">Cleanup</text>
-        <rect x="580" y="30" width="120" height="48" fill="#1a1a18"/>
-        <text x="640" y="58" fill="#f4efe6">Style</text>
-        <text x="360" y="120" fill="#4a4a48">None → Light → Medium → High (rules)</text>
-        <text x="360" y="150" fill="#4a4a48">Then Formal / Casual / Very casual / Excited / Custom</text>
-      </g>
-    </svg>
-  </div>
+  <h2 class="rule">3. Polish pipeline</h2>
+  <p>All on the phone. No language model. Style runs last.</p>
+  <table>
+    <tr><th>Step</th><th>What it does</th></tr>
+    <tr><td>Raw STT</td><td>Whatever the phone recognizer returned</td></tr>
+    <tr><td>Dictionary</td><td>One word → another word</td></tr>
+    <tr><td>Snippet</td><td>Exact trigger → a whole block</td></tr>
+    <tr><td>Cleanup</td><td>None / Light / Medium / High (rules)</td></tr>
+    <tr><td>Style</td><td>Formal / Casual / Very casual / Excited / Custom</td></tr>
+  </table>
 
-  <h2>4. Main modules</h2>
+  <h2 class="rule">4. Main modules</h2>
   <table>
     <tr><th>Module</th><th>Job</th></tr>
     <tr><td>App UI</td><td>Walkthrough, setup, Home, History, Dictionary, Settings</td></tr>
@@ -100,7 +94,12 @@
     <tr><td>Room database</td><td>History, dictionary, snippets — on this phone</td></tr>
     <tr><td>Policies</td><td>Hide on banks. Skip passwords.</td></tr>
   </table>
+  <p><a href="ARCHITECTURE.md">Longer technical notes</a></p>
 </main>
-<footer><div class="wrap"><span><img src="icon.svg" alt=""> Open Flow · MIT</span><span>Diagrams are the real design</span></div></footer>
+<footer>
+  <div class="wrap">
+    <span><img src="icon.svg" alt=""> Open Flow · MIT</span>
+  </div>
+</footer>
 </body>
 </html>

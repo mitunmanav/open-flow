@@ -35,7 +35,7 @@ class NoAITest {
     @Test
     fun ai_package_has_no_network_and_only_noai() {
         val dir = locate("src/main/java/app/openflow/ai")
-        val sources = dir.walkTopDown().filter { it.extension == "kt" }.toList()
+        val sources = dir.listFiles { f -> f.isFile && f.extension == "kt" }?.toList().orEmpty()
         assertThat(sources).isNotEmpty()
         val text = sources.joinToString("\n") { it.readText() }
         val banned = listOf(

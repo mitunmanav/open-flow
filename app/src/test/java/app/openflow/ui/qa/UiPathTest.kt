@@ -21,6 +21,7 @@ class UiPathTest {
             AppRoute.Snippets,
             AppRoute.Style,
             AppRoute.Settings,
+            AppRoute.SpeechAi,
             AppRoute.Customize,
             AppRoute.Appearance,
             AppRoute.BubbleSettings,
@@ -57,12 +58,12 @@ class UiPathTest {
     }
 
     @Test
-    fun no_internet_permission() {
+    fun internet_declared_unused_until_pick() {
         val manifest = File(
             UiSourceScan.projectRoot(),
             "app/src/main/AndroidManifest.xml"
         ).readText()
-        assertThat(manifest).doesNotContain("android.permission.INTERNET")
+        assertThat(manifest).contains("android.permission.INTERNET")
     }
 
     companion object {

@@ -1,5 +1,9 @@
 package app.openflow.text
 
+import app.openflow.ai.NoAI
+import app.openflow.ai.TextAIProvider
+import kotlinx.coroutines.runBlocking
+
 /**
  * Facade over dictionary, snippets, and [CleanupPipeline].
  * Prefer [polishSessionResult] for production stop / debug inject path.
@@ -12,9 +16,9 @@ package app.openflow.text
  *    - Medium: + false starts → [CourseCorrector] → lists → lightClarity
  *    - High: + hedges
  *    - then [StyleApplicator] / [SentenceFormat] / [WritingStyle]
+ * 4. High + [brainRewrite] → injected [TextAIProvider.enhance] after rules. Default [NoAI].
  *
  * Empty in → empty out. Non-empty content must not vanish (except explicit clear).
- * Local rules only — no cloud AI rewrite.
  * [CleanupResult.raw] is always the original STT string (pre dict/snippet).
  */
 object TextPostProcessor {
@@ -42,7 +46,9 @@ object TextPostProcessor {
         level: CleanupLevel = CleanupLevel.NORMAL,
         custom: CustomStyleConfig = CustomStyleConfig(),
         dictionary: Map<String, String> = emptyMap(),
-        snippets: Map<String, String> = emptyMap()
+        snippets: Map<String, String> = emptyMap(),
+        brain: TextAIProvider = NoAI,
+        brainRewrite: Boolean = false,
     ): CleanupResult {
         val original = raw
         var t = raw
@@ -54,7 +60,12 @@ object TextPostProcessor {
         )
         t = expandSnippets(t, snippets)
         val result = CleanupPipeline.run(t, level, style, custom)
-        return result.copy(raw = original.trim().ifEmpty { original })
+        val cleaned = if (level == CleanupLevel.HIGH && brainRewrite) {
+            runBlocking { brain.enhance(result.clean, "cleanup") }
+        } else {
+            result.clean
+        }
+        return result.copy(raw = original.trim().ifEmpty { original }, clean = cleaned)
     }
 
     /** @deprecated Use [WritingStyle]. Kept for binary-safe renames in prefs UI. */

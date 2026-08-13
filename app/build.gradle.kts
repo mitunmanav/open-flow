@@ -93,5 +93,5 @@ dependencies {
     // Pure JVM unit tests only — no Robolectric (avoids big jar download).
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
-    testImplementation("com.google.truth:truth:1.4.4")
+    testImplementation("com.google.truth:truth:1.4.5")
 }

@@ -13,7 +13,31 @@ class PackagePolicyTest {
     @Test
     fun allows_normal_apps() {
         assertThat(PackagePolicy.shouldHideBubble("com.whatsapp")).isFalse()
+        assertThat(PackagePolicy.shouldHideBubble("com.google.android.gm")).isFalse()
         assertThat(PackagePolicy.shouldHideBubble("com.google.android.apps.docs")).isFalse()
+    }
+
+    @Test
+    fun hides_india_bank_and_wallet_packages() {
+        val india = listOf(
+            "com.phonepe.app",
+            "net.one97.paytm",
+            "com.google.android.apps.nbu.paisa.user",
+            "com.snapwork.hdfc",
+            "com.hdfcbank.android.now",
+            "com.sbi.lotusintouch",
+            "com.sbi.upi",
+            "com.yono.sbi",
+            "com.csam.icici.bank.imobile",
+            "com.olive.kotak.upi",
+            "com.axis.mobile",
+            "in.org.npci.upiapp",
+            "in.bhim.app",
+            "com.dreamplug.androidapp",
+        )
+        for (pkg in india) {
+            assertThat(PackagePolicy.shouldHideBubble(pkg)).isTrue()
+        }
     }
 
     @Test

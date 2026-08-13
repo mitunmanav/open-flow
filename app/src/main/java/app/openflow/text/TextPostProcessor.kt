@@ -46,7 +46,12 @@ object TextPostProcessor {
     ): CleanupResult {
         val original = raw
         var t = raw
-        t = applyDictionary(t, dictionary)
+        t = applyDictionary(
+            t,
+            dictionary,
+            sides = LearnEngine.sideBags(),
+            autoKeys = LearnEngine.autoKeys()
+        )
         t = expandSnippets(t, snippets)
         val result = CleanupPipeline.run(t, level, style, custom)
         return result.copy(raw = original.trim().ifEmpty { original })
@@ -68,16 +73,12 @@ object TextPostProcessor {
     fun process(raw: String, style: WritingStyle = WritingStyle.CASUAL): String =
         CleanupPipeline.run(raw, CleanupLevel.LIGHT, style).clean
 
-    fun applyDictionary(text: String, replacements: Map<String, String>): String {
-        if (replacements.isEmpty()) return text
-        var out = text
-        replacements.entries.sortedByDescending { it.key.length }.forEach { (from, to) ->
-            if (from.isBlank()) return@forEach
-            val regex = Regex("\\b${Regex.escape(from)}\\b", RegexOption.IGNORE_CASE)
-            out = regex.replace(out) { to }
-        }
-        return out
-    }
+    fun applyDictionary(
+        text: String,
+        replacements: Map<String, String>,
+        sides: Map<String, Set<String>> = emptyMap(),
+        autoKeys: Set<String> = emptySet()
+    ): String = LearnEngine.applyPairs(text, replacements, sides, autoKeys)
 
     fun expandSnippets(text: String, snippets: Map<String, String>): String {
         if (snippets.isEmpty()) return text

@@ -75,8 +75,26 @@ class DictationRepository(
     suspend fun learnFromEdit(inserted: String, edited: String): List<LearnPair> {
         val pairs = LearnEngine.pairsFromEdit(inserted, edited)
         if (pairs.isEmpty()) return emptyList()
-        for (p in pairs) addWord(p.from, p.to)
-        return pairs
+        val existing = dictionaryMap()
+        val kept = ArrayList<LearnPair>(pairs.size)
+        for (p in pairs) {
+            val reverse = LearnEngine.reverseKey(p.from, p.to, existing)
+            if (reverse != null || LearnEngine.wouldCycle(p.from, p.to, existing)) {
+                forget(reverse ?: p.to)
+                continue
+            }
+            addWord(p.from, p.to)
+            LearnEngine.putAuto(p.from, LearnEngine.sideBag(inserted, p.from))
+            kept.add(p)
+        }
+        return kept
+    }
+
+    suspend fun forget(from: String) {
+        val key = dictionaryMap().keys.find { it.equals(from, ignoreCase = true) }
+        if (key != null) dictionaryDao.delete(key)
+        LearnEngine.drop(from)
+        if (key != null && !key.equals(from, ignoreCase = true)) LearnEngine.drop(key)
     }
 
     /** @return false when [id] is missing (no silent no-op). */
@@ -97,9 +115,13 @@ class DictationRepository(
                 createdAtEpochMs = System.currentTimeMillis()
             )
         )
+        LearnEngine.putManual(w)
     }
 
-    suspend fun deleteWord(id: String) = dictionaryDao.delete(id)
+    suspend fun deleteWord(id: String) {
+        dictionaryDao.delete(id)
+        LearnEngine.drop(id)
+    }
 
     suspend fun addSnippet(trigger: String, body: String) {
         val t = trigger.trim()

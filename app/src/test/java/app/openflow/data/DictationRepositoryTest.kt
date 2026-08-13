@@ -1,14 +1,22 @@
 package app.openflow.data
 
+import app.openflow.text.LearnEngine
+import app.openflow.text.TextPostProcessor
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.test.runTest
+import org.junit.Before
 import org.junit.Test
 
 class DictationRepositoryTest {
+
+    @Before
+    fun resetLearn() {
+        LearnEngine.resetLearn()
+    }
 
     @Test
     fun destructive_fallback_forbidden_and_version_unbumped() {
@@ -132,6 +140,66 @@ class DictationRepositoryTest {
         assertThat(f.repo.dictionaryMap()).isEmpty()
         assertThat(f.repo.snippetMap()).isEmpty()
         assertThat(f.repo.observeDictations().first()).isEmpty()
+    }
+
+    @Test
+    fun reverse_mic_to_mike_forgets() = runTest {
+        val f = fakes()
+        f.repo.learnFromEdit("Mike", "Mic")
+        assertThat(f.repo.dictionaryMap()).containsEntry("Mike", "Mic")
+        val pairs = f.repo.learnFromEdit("Mic", "Mike")
+        assertThat(pairs).isEmpty()
+        assertThat(f.repo.dictionaryMap()).isEmpty()
+        assertThat(LearnEngine.autoKeys()).doesNotContain("mike")
+    }
+
+    @Test
+    fun no_cycle() = runTest {
+        val f = fakes()
+        f.repo.learnFromEdit("Mike", "Mic")
+        f.repo.learnFromEdit("Mic", "Mike")
+        val map = f.repo.dictionaryMap()
+        assertThat(map).doesNotContainKey("Mic")
+        assertThat(map).doesNotContainKey("Mike")
+    }
+
+    @Test
+    fun learnFromEdit_stores_side_bag() = runTest {
+        val f = fakes()
+        f.repo.learnFromEdit("turn on Mike", "turn on Mic")
+        assertThat(LearnEngine.sideBags()["mike"]).containsExactly("turn")
+        assertThat(LearnEngine.autoKeys()).contains("mike")
+        val out = TextPostProcessor.applyDictionary(
+            "turn on Mike",
+            f.repo.dictionaryMap(),
+            sides = LearnEngine.sideBags(),
+            autoKeys = LearnEngine.autoKeys()
+        )
+        assertThat(out).isEqualTo("turn on Mic")
+    }
+
+    @Test
+    fun addWord_manual_is_bold() = runTest {
+        val f = fakes()
+        f.repo.addWord("Mike", "Mic")
+        assertThat(LearnEngine.autoKeys()).doesNotContain("mike")
+        val out = TextPostProcessor.applyDictionary(
+            "ask Mike tomorrow",
+            f.repo.dictionaryMap(),
+            sides = LearnEngine.sideBags(),
+            autoKeys = LearnEngine.autoKeys()
+        )
+        assertThat(out).contains("Mic")
+    }
+
+    @Test
+    fun forget_drops_row_and_bag() = runTest {
+        val f = fakes()
+        f.repo.learnFromEdit("Mike", "Mic")
+        f.repo.forget("Mike")
+        assertThat(f.repo.dictionaryMap()).isEmpty()
+        assertThat(LearnEngine.autoKeys()).doesNotContain("mike")
+        assertThat(LearnEngine.sideBags()).doesNotContainKey("mike")
     }
 
     @Test

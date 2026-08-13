@@ -8,6 +8,7 @@ import app.openflow.text.CapsMode
 import app.openflow.text.CleanupLevel
 import app.openflow.text.CustomStyleConfig
 import app.openflow.text.EndPunct
+import app.openflow.text.LearnEngine
 import app.openflow.text.WritingStyle
 import app.openflow.ui.HapticFeel
 import app.openflow.ui.theme.BubbleTint
@@ -24,6 +25,12 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
     constructor(context: Context) : this(
         SharedPrefsStore(context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE))
     )
+
+    init {
+        val raw = store.getString("learn_sides", "")
+        if (raw.isNotEmpty()) LearnEngine.loadSides(raw)
+        LearnEngine.persistHook = { encoded -> store.putString("learn_sides", encoded) }
+    }
 
     var bubbleScale: Float
         get() = store.getFloat("bubble_scale", 0.85f)
@@ -203,6 +210,17 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
     var autoLearn: Boolean
         get() = store.getString("auto_learn", "true") == "true"
         set(v) = store.putString("auto_learn", if (v) "true" else "false")
+
+    /**
+     * Tiny learn map: `from=bag` auto, `from=*` manual.
+     * No Room column. Hydrates [app.openflow.text.LearnEngine] on set.
+     */
+    var learnSides: String
+        get() = store.getString("learn_sides", "")
+        set(v) {
+            store.putString("learn_sides", v)
+            if (v.isNotEmpty()) LearnEngine.loadSides(v)
+        }
 
     /** Last dictation session — raw STT (in-app copy; no auto-clipboard). */
     var lastSessionRaw: String

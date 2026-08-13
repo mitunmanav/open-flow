@@ -15,7 +15,7 @@ enum class Feature {
 
 /**
  * Wispr features light up from ear/brain booleans.
- * Do not import engine/ModelCapability.
+ * [FeatureAuto] maps ids → those booleans. Do not import engine/.
  */
 object FeatureGate {
 
@@ -37,8 +37,7 @@ object FeatureGate {
         Feature.COMMAND -> brainCommand
         Feature.LIVE_PARTIAL -> streamLive
         Feature.EAR_PUNCT -> earPunct
-        Feature.MULTILINGUAL ->
-            languages.size > 1 || (languages.isEmpty() && earNeedsNet)
+        Feature.MULTILINGUAL -> languages.size > 1 || earNeedsNet
         Feature.SARVAM_MODE -> earId.equals("sarvam", ignoreCase = true)
     }
 }

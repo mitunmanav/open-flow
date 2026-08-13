@@ -16,7 +16,8 @@ import kotlinx.coroutines.runBlocking
  *    - Medium: + false starts → [CourseCorrector] → lists → lightClarity
  *    - High: + hedges
  *    - then [StyleApplicator] / [SentenceFormat] / [WritingStyle]
- * 4. High + [brainRewrite] → injected [TextAIProvider.enhance] after rules. Default [NoAI].
+ * 4. High + [FeatureAuto] HIGH_AI (or [brainRewrite]) → injected [TextAIProvider.enhance]
+ *    after rules. Default [NoAI].
  *
  * Empty in → empty out. Non-empty content must not vanish (except explicit clear).
  * [CleanupResult.raw] is always the original STT string (pre dict/snippet).
@@ -49,6 +50,9 @@ object TextPostProcessor {
         snippets: Map<String, String> = emptyMap(),
         brain: TextAIProvider = NoAI,
         brainRewrite: Boolean = false,
+        earId: String = "system",
+        brainId: String = "none",
+        languages: Set<String> = emptySet(),
     ): CleanupResult {
         val original = raw
         var t = raw
@@ -60,7 +64,9 @@ object TextPostProcessor {
         )
         t = expandSnippets(t, snippets)
         val result = CleanupPipeline.run(t, level, style, custom)
-        val cleaned = if (level == CleanupLevel.HIGH && brainRewrite) {
+        val highAi = brainRewrite ||
+            Feature.HIGH_AI in FeatureAuto.of(earId, brainId, languages)
+        val cleaned = if (level == CleanupLevel.HIGH && highAi) {
             runBlocking { brain.enhance(result.clean, "cleanup") }
         } else {
             result.clean

@@ -59,5 +59,12 @@ class FeatureGateTest {
         assertThat(
             FeatureGate.can(Feature.MULTILINGUAL, languages = setOf("en-US"))
         ).isFalse()
+        assertThat(
+            FeatureGate.can(
+                Feature.MULTILINGUAL,
+                languages = setOf("en-US"),
+                earNeedsNet = true,
+            )
+        ).isTrue()
     }
 }

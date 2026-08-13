@@ -61,4 +61,40 @@ class BrainPolishTest {
         assertThat(out.clean).isNotEqualTo(out.clean.uppercase())
         assertThat(fake.calls).isEqualTo(0)
     }
+
+    @Test
+    fun high_plus_feature_auto_high_ai_calls_brain() = runTest {
+        val fake = FakeBrain()
+        TextPostProcessor.polishSessionResult(
+            raw = sample,
+            level = CleanupLevel.HIGH,
+            brain = fake,
+            brainId = "openai",
+        )
+        assertThat(fake.calls).isEqualTo(1)
+    }
+
+    @Test
+    fun high_rules_brain_skips_enhance() = runTest {
+        val fake = FakeBrain()
+        TextPostProcessor.polishSessionResult(
+            raw = sample,
+            level = CleanupLevel.HIGH,
+            brain = fake,
+            brainId = "none",
+        )
+        assertThat(fake.calls).isEqualTo(0)
+    }
+
+    @Test
+    fun high_on_phone_brain_skips_enhance() = runTest {
+        val fake = FakeBrain()
+        TextPostProcessor.polishSessionResult(
+            raw = sample,
+            level = CleanupLevel.HIGH,
+            brain = fake,
+            brainId = "on_phone",
+        )
+        assertThat(fake.calls).isEqualTo(0)
+    }
 }

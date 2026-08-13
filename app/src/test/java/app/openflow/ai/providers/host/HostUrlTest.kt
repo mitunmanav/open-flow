@@ -13,20 +13,31 @@ class HostUrlTest {
     }
 
     @Test
-    fun http_rfc1918_allowed() {
-        assertThat(HostUrl.allow("http://192.168.1.5:11434/v1")).isTrue()
+    fun http_nsc_literals_allowed() {
+        assertThat(HostUrl.allow("http://10.0.0.1/v1")).isTrue()
         assertThat(HostUrl.allow("http://10.0.0.2/v1")).isTrue()
+        assertThat(HostUrl.allow("http://10.0.2.2:11434/v1")).isTrue()
         assertThat(HostUrl.allow("http://172.16.0.1:8080")).isTrue()
-        assertThat(HostUrl.allow("http://172.31.255.255")).isTrue()
+        assertThat(HostUrl.allow("http://172.17.0.1")).isTrue()
+        assertThat(HostUrl.allow("http://192.168.0.1")).isTrue()
+        assertThat(HostUrl.allow("http://192.168.1.1")).isTrue()
+        assertThat(HostUrl.allow("http://192.168.1.10")).isTrue()
+        assertThat(HostUrl.allow("http://192.168.1.100")).isTrue()
+        assertThat(HostUrl.allow("http://127.0.0.1:11434/v1")).isTrue()
+        assertThat(HostUrl.allow("http://localhost:11434/v1")).isTrue()
+        assertThat(HostUrl.allow("http://ip6-localhost:11434/v1")).isTrue()
+        assertThat(HostUrl.allow("http://[::1]:11434/v1")).isTrue()
+        assertThat(HostUrl.allow("http://foo.localhost:11434/v1")).isTrue()
     }
 
     @Test
-    fun http_localhost_and_link_local_allowed() {
-        assertThat(HostUrl.allow("http://127.0.0.1:11434/v1")).isTrue()
-        assertThat(HostUrl.allow("http://localhost:11434/v1")).isTrue()
-        assertThat(HostUrl.allow("http://[::1]:11434/v1")).isTrue()
-        assertThat(HostUrl.allow("http://169.254.1.1:9000")).isTrue()
-        assertThat(HostUrl.allow("http://[fe80::1]:9000")).isTrue()
+    fun http_rfc1918_not_on_nsc_rejected() {
+        assertThat(HostUrl.allow("http://192.168.1.5:11434/v1")).isFalse()
+        assertThat(HostUrl.allow("http://172.31.255.255")).isFalse()
+        assertThat(HostUrl.allow("http://10.0.0.3/v1")).isFalse()
+        assertThat(HostUrl.allow("http://127.0.0.2")).isFalse()
+        assertThat(HostUrl.allow("http://169.254.1.1:9000")).isFalse()
+        assertThat(HostUrl.allow("http://[fe80::1]:9000")).isFalse()
     }
 
     @Test

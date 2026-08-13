@@ -5,7 +5,7 @@ import app.openflow.prefs.FlowPrefs
 /**
  * Static privacy report. Honest about Android system STT
  * (may stream audio remotely depending on device / OEM).
- * OpenFlow itself has no server, analytics, or uploads.
+ * OpenFlow itself has no server or analytics. Cloud brain POST is opt-in.
  */
 object PrivacyDefaults {
     fun reportText(prefs: FlowPrefs? = null): String =
@@ -24,7 +24,7 @@ object PrivacyDefaults {
             - OpenFlow server: none
             - Analytics: disabled
             - Audio uploaded by OpenFlow: only if cloud ear
-            - Transcript uploaded by OpenFlow: never
+            - Transcript uploaded by OpenFlow: only if cloud brain
             - Local history: $historyLocation ($retention)
             - prefer offline STT extras: ON (device may still use remote STT)
             - sync: OFF
@@ -39,5 +39,11 @@ object PrivacyDefaults {
     fun audioLeaves(earId: String): Boolean = when (earId.lowercase()) {
         "openai", "deepgram", "assemblyai", "sarvam", "laptop", "custom_stt" -> true
         else -> false
+    }
+
+    /** OpenFlow POSTs this utterance's text only for a net brain. History never. */
+    fun transcriptLeaves(brainId: String): Boolean = when (brainId.trim().lowercase()) {
+        "", "none", "on_phone" -> false
+        else -> true
     }
 }

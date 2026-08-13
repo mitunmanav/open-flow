@@ -1,6 +1,5 @@
 package app.openflow.data
 
-import androidx.room.withTransaction
 import app.openflow.privacy.RetentionPolicy
 import app.openflow.text.LearnPair
 import app.openflow.text.LearnEngine
@@ -9,13 +8,18 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 class DictationRepository(
-    private val db: OpenFlowDatabase,
+    private val db: OpenFlowDb,
     private val dictationDao: DictationDao,
+    private val ftsDao: DictationFtsDao,
     private val dictionaryDao: DictionaryDao,
     private val snippetDao: SnippetDao,
     private val statsDao: StatsDao
 ) {
     fun observeDictations(): Flow<List<DictationEntity>> = dictationDao.observeAll()
+
+    fun observeRecentDictations(limit: Int): Flow<List<DictationEntity>> =
+        dictationDao.observeRecent(limit.coerceAtLeast(1))
+
     fun observeDictionary(): Flow<List<DictionaryWordEntity>> = dictionaryDao.observeAll()
     fun observeSnippets(): Flow<List<SnippetEntity>> = snippetDao.observeAll()
 
@@ -24,6 +28,15 @@ class DictationRepository(
 
     suspend fun snippetMap(): Map<String, String> =
         snippetDao.all().associate { it.trigger to it.body }
+
+    /**
+     * FTS search over clean + raw text. Blank / noise query → full ordered list.
+     * Local only — no network.
+     */
+    suspend fun searchDictations(query: String): List<DictationEntity> {
+        val match = FtsQuery.sanitize(query) ?: return dictationDao.allOrdered()
+        return dictationDao.searchFts(match)
+    }
 
     /**
      * Persist a dictation with raw STT + clean text.
@@ -40,6 +53,7 @@ class DictationRepository(
         if (!RetentionPolicy.shouldPersist(retentionPolicy)) return null
         RetentionPolicy.cutoffEpochMs(System.currentTimeMillis(), retentionPolicy)?.let {
             dictationDao.deleteOlderThan(it)
+            ftsDao.deleteOrphans()
         }
         val words = cleanText.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }.size
         val e = DictationEntity(
@@ -52,6 +66,7 @@ class DictationRepository(
             wordCount = words
         )
         dictationDao.upsert(e)
+        indexFts(e)
         bumpStats(words)
         return e
     }
@@ -59,27 +74,53 @@ class DictationRepository(
     suspend fun purgeOnLaunch(retentionPolicy: String, nowEpochMs: Long = System.currentTimeMillis()) {
         val cut = RetentionPolicy.cutoffEpochMs(nowEpochMs, retentionPolicy) ?: return
         dictationDao.deleteOlderThan(cut)
+        ftsDao.deleteOrphans()
     }
 
     /** Compat: single string → both raw and clean (pre-pipeline callers). */
     suspend fun saveDictation(text: String, durationMs: Long, languageTag: String): DictationEntity? =
         saveDictation(rawText = text, cleanText = text, durationMs = durationMs, languageTag = languageTag)
 
-    suspend fun deleteDictation(id: String) = dictationDao.delete(id)
+    suspend fun deleteDictation(id: String) {
+        dictationDao.delete(id)
+        ftsDao.deleteBySessionId(id)
+    }
 
     suspend fun latestText(): String? = dictationDao.latest()?.text
 
     suspend fun learnFromEdit(inserted: String, edited: String): List<LearnPair> {
         val pairs = LearnEngine.pairsFromEdit(inserted, edited)
         if (pairs.isEmpty()) return emptyList()
-        for (p in pairs) addWord(p.from, p.to)
-        return pairs
+        val existing = dictionaryMap()
+        val kept = ArrayList<LearnPair>(pairs.size)
+        for (p in pairs) {
+            val reverse = LearnEngine.reverseKey(p.from, p.to, existing)
+            if (reverse != null || LearnEngine.wouldCycle(p.from, p.to, existing)) {
+                forget(reverse ?: p.to)
+                continue
+            }
+            addWord(p.from, p.to)
+            LearnEngine.putAuto(p.from, LearnEngine.sideBag(inserted, p.from))
+            kept.add(p)
+        }
+        return kept
     }
 
-    suspend fun updateDictationText(id: String, newText: String) {
-        val e = dictationDao.get(id) ?: return
+    suspend fun forget(from: String) {
+        val key = dictionaryMap().keys.find { it.equals(from, ignoreCase = true) }
+        if (key != null) dictionaryDao.delete(key)
+        LearnEngine.drop(from)
+        if (key != null && !key.equals(from, ignoreCase = true)) LearnEngine.drop(key)
+    }
+
+    /** @return false when [id] is missing (no silent no-op). */
+    suspend fun updateDictationText(id: String, newText: String): Boolean {
+        val e = dictationDao.get(id) ?: return false
         val words = newText.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }.size
-        dictationDao.upsert(e.copy(text = newText, wordCount = words))
+        val updated = e.copy(text = newText, wordCount = words)
+        dictationDao.upsert(updated)
+        indexFts(updated)
+        return true
     }
 
     suspend fun addWord(word: String, replacement: String = word) {
@@ -92,9 +133,13 @@ class DictationRepository(
                 createdAtEpochMs = System.currentTimeMillis()
             )
         )
+        LearnEngine.putManual(w)
     }
 
-    suspend fun deleteWord(id: String) = dictionaryDao.delete(id)
+    suspend fun deleteWord(id: String) {
+        dictionaryDao.delete(id)
+        LearnEngine.drop(id)
+    }
 
     suspend fun addSnippet(trigger: String, body: String) {
         val t = trigger.trim()
@@ -112,8 +157,19 @@ class DictationRepository(
 
     suspend fun stats(): AppStatsEntity = statsDao.get() ?: AppStatsEntity()
 
+    private suspend fun indexFts(e: DictationEntity) {
+        ftsDao.deleteBySessionId(e.id)
+        ftsDao.upsert(
+            DictationFtsEntity(
+                sessionId = e.id,
+                text = e.text,
+                rawText = e.rawText
+            )
+        )
+    }
+
     private suspend fun bumpStats(words: Int) {
-        db.withTransaction {
+        db.transact {
             val cur = statsDao.get() ?: AppStatsEntity()
             val day = TimeUnit.MILLISECONDS.toDays(System.currentTimeMillis())
             val streak = when {

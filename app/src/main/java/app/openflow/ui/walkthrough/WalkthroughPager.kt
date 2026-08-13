@@ -14,6 +14,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import app.openflow.ui.a11y.Dimen
 import app.openflow.ui.components.ButtonVariant
@@ -27,41 +29,40 @@ fun WalkthroughPager(
     onSkip: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val (title, body) = when (page) {
-        WalkthroughPolicy.Page.WHAT -> "What" to
-            "Open Flow types what you say. Not a keyboard. Keep yours. English only."
-        WalkthroughPolicy.Page.TALK -> "Talk" to
-            "Tap bubble → speak → tap again. X throws away. Hold = talk while holding."
-        WalkthroughPolicy.Page.DICT_VS_SNIP -> "Dict vs snippet" to
-            "Dictionary changes one word. Snippet pastes a whole block."
-        WalkthroughPolicy.Page.PRIVACY -> "Privacy" to
-            "We do not upload. Phone speech may still use Google. History stays on this phone. You can wipe or never save."
-        WalkthroughPolicy.Page.READY -> "Ready" to
-            "Focus a text field. Tap the bubble. You are ready."
-    }
-    val nextLabel = if (page == WalkthroughPolicy.Page.READY) "Done" else "Next"
+    val copy = WalkthroughPolicy.copy(page)
+    val nextLabel = WalkthroughPolicy.nextLabel(page)
 
     Column(
         modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.statusBars.union(WindowInsets.safeDrawing))
             .padding(horizontal = Dimen.PAGE_PAD, vertical = Dimen.GAP)
-            .testTag("walkthrough"),
+            .testTag("walkthrough")
+            .semantics { contentDescription = WalkthroughPolicy.a11yLabel(page) },
         verticalArrangement = Arrangement.Center,
     ) {
+        Text(
+            text = WalkthroughPolicy.progressLabel(page),
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .padding(bottom = Dimen.GAP)
+                .testTag("walkthrough_progress"),
+        )
         OpenCard {
             Column(
                 Modifier.padding(Dimen.MIN_PADDING),
                 verticalArrangement = Arrangement.spacedBy(Dimen.GAP)
             ) {
                 Text(
-                    title,
+                    copy.title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
-                    body,
+                    copy.body,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

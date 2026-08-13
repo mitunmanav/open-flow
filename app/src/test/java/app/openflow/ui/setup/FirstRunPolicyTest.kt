@@ -38,4 +38,52 @@ class FirstRunPolicyTest {
         assertThat(FirstRunPolicy.needsWizard(FirstRunPolicy.Step.A11Y)).isTrue()
         assertThat(FirstRunPolicy.needsWizard(FirstRunPolicy.Step.DONE)).isFalse()
     }
+
+    @Test
+    fun launch_flow_is_a11y_then_mic_then_battery() {
+        assertThat(FirstRunPolicy.totalSteps()).isEqualTo(3)
+        assertThat(FirstRunPolicy.stepNumber(FirstRunPolicy.Step.A11Y)).isEqualTo(1)
+        assertThat(FirstRunPolicy.stepNumber(FirstRunPolicy.Step.MIC)).isEqualTo(2)
+        assertThat(FirstRunPolicy.stepNumber(FirstRunPolicy.Step.BATTERY)).isEqualTo(3)
+        assertThat(FirstRunPolicy.progressLabel(FirstRunPolicy.Step.A11Y))
+            .isEqualTo("Step 1 of 3")
+        assertThat(FirstRunPolicy.progressLabel(FirstRunPolicy.Step.MIC))
+            .isEqualTo("Step 2 of 3")
+        assertThat(FirstRunPolicy.progressLabel(FirstRunPolicy.Step.BATTERY))
+            .isEqualTo("Step 3 of 3")
+        assertThat(FirstRunPolicy.progressLabel(FirstRunPolicy.Step.DONE))
+            .isEqualTo("Setup complete")
+    }
+
+    @Test
+    fun battery_step_copy_makes_skip_clear() {
+        val c = FirstRunPolicy.copy(FirstRunPolicy.Step.BATTERY)
+        assertThat(c.title).isEqualTo("Keep the bubble alive")
+        assertThat(c.body).contains("Optional")
+        assertThat(c.body).contains("Skip")
+        assertThat(c.primary).isEqualTo("Battery settings")
+        assertThat(c.secondary).isEqualTo("Skip")
+    }
+
+    @Test
+    fun a11y_and_mic_copy_keep_keyboard() {
+        val a11y = FirstRunPolicy.copy(FirstRunPolicy.Step.A11Y)
+        assertThat(a11y.body).contains("keyboard")
+        assertThat(a11y.primary).isEqualTo("Open Accessibility")
+        val mic = FirstRunPolicy.copy(FirstRunPolicy.Step.MIC)
+        assertThat(mic.body.lowercase()).contains("post")
+        assertThat(mic.body.lowercase()).doesNotContain("never uploads")
+        assertThat(mic.primary).isEqualTo("Allow microphone")
+        assertThat(mic.secondary).isNull()
+    }
+
+    @Test
+    fun a11y_label_includes_step_and_title() {
+        assertThat(FirstRunPolicy.a11yLabel(FirstRunPolicy.Step.A11Y))
+            .isEqualTo("Step 1 of 3. Turn on the Flow Bubble.")
+        assertThat(FirstRunPolicy.a11yLabel(FirstRunPolicy.Step.BATTERY))
+            .contains("Optional")
+        assertThat(FirstRunPolicy.a11yLabel(FirstRunPolicy.Step.BATTERY))
+            .contains("Skip")
+    }
 }

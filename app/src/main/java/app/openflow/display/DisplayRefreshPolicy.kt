@@ -36,4 +36,17 @@ object DisplayRefreshPolicy {
             modes.any { abs(it.refreshRateHz - target) <= 3f }
         }.ifEmpty { listOf(60) }
     }
+
+    /** Skip Window work when already on the preferred rate (within 2 Hz). */
+    fun needsApply(currentHz: Float?, preferredHz: Int): Boolean {
+        if (currentHz == null) return true
+        val pref = normalizePreference(preferredHz).toFloat()
+        return abs(currentHz - pref) > 2f
+    }
+
+    /** Skip Window work when no pick, or already on that mode. */
+    fun needsApply(currentModeId: Int, pick: ModeInfo?): Boolean {
+        if (pick == null) return false
+        return currentModeId != pick.modeId
+    }
 }

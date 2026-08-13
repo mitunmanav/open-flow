@@ -24,6 +24,17 @@ object DisplayRefreshController {
             DisplayRefreshPolicy.ModeInfo(it.modeId, it.refreshRate)
         }
         val pick = DisplayRefreshPolicy.pickMode(modes, hz) ?: return
+        val currentHz = display.refreshRate
+        val currentModeId = try {
+            display.mode.modeId
+        } catch (_: Exception) {
+            -1
+        }
+        if (!DisplayRefreshPolicy.needsApply(currentHz, hz) &&
+            !DisplayRefreshPolicy.needsApply(currentModeId, pick)
+        ) {
+            return
+        }
 
         try {
             val lp = activity.window.attributes

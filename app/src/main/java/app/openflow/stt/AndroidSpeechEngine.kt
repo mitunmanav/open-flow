@@ -79,6 +79,11 @@ class AndroidSpeechEngine(
         engine.stop()
     }
 
+    /** Drain last final. Not on [SpeechEngine] — other impls stay stop-only. */
+    fun stopAndFlush(timeoutMs: Long, onDone: () -> Unit) {
+        engine.stopAndFlush(timeoutMs, onDone)
+    }
+
     override fun destroy() {
         outer = null
         engine.destroy()

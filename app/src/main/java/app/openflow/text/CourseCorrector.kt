@@ -12,21 +12,26 @@ data class CourseCorrectResult(
  * Local Wispr-style course correction (no cloud).
  * Mid-sentence rethinks → final intent before field insert.
  *
- * Structural rules only (time / number / date / short content chunk):
+ * Structural rules only (time / number / date / weekday / short content chunk):
  *  - "meet at 4:30 actually 5:30" → "meet at 5:30"
  *  - "budget 50k, actually make that 75k" → "budget 75k"
  *  - "let's meet Tuesday wait no Friday" → "let's meet Friday"
  *  - "I want to... scratch that start with the budget" → "start with the budget"
  *  - "Send it to John. No, send it to James." → "send it to James."
+ *
+ * Bare "no" / "wait" in normal speech stay put ("I have no time").
+ * No structured fix → original words stay (never drop the marker).
  */
 object CourseCorrector {
 
+    private val ws = Regex("\\s+")
+
     /**
-     * Markers (longer first). Optional comma glue on either side so
-     * "430, actually 530" and "12th, no, 15th" match.
+     * Strong rethink phrases first. Bare no/wait only when comma/sentence punct
+     * marks a correction (", no," / ". No,").
      */
     private val markerRegex = Regex(
-        """(?i)(?:,\s*|\s+|^)(?:scratch\s+that|change\s+(?:that\s+)?to|make\s+that|wait\s+no|no\s+wait|i\s+mean|actually|instead|rather|sorry|wait|no)\s*,?\s+"""
+        """(?i)(?:(?:,\s*|\s+|^)(?:scratch\s+that|on\s+second\s+thought|change\s+(?:that\s+)?to|make\s+that|forget\s+that|forget\s+it|never\s+mind|wait\s+no|no\s+wait|or\s+wait|or\s+rather|i\s+meant|i\s+mean|hang\s+on|hold\s+on|actually|instead|rather|sorry|correction)\s*,?\s+|(?:,\s*|\.\s+|!\s+|\?\s+|^\s*)(?:no|wait)\s*,\s+)"""
     )
 
     private val timePattern = Regex(
@@ -41,8 +46,19 @@ object CourseCorrector {
         """(?i)\b(?:(?:january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)\.?\s+)?\d{1,2}(?:st|nd|rd|th)?\b"""
     )
 
+    private val weekdayPattern = Regex(
+        """(?i)\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun)\b"""
+    )
+
     private val makeThat = Regex("""(?i)^make\s+that\s+(.+)$""")
     private val changeTo = Regex("""(?i)^(?:change\s+(?:that\s+)?to\s+)(.+)$""")
+
+    private val functionHead = setOf(
+        "about", "of", "to", "for", "that", "this", "the", "a", "an",
+        "my", "your", "his", "her", "our", "their", "me", "him", "us", "them",
+        "it", "with", "from", "as", "if", "when", "because", "and", "or",
+        "so", "but", "on", "in", "at"
+    )
 
     /** Compatibility: cleaned string only. */
     fun apply(raw: String): String = analyze(raw).text
@@ -68,12 +84,20 @@ object CourseCorrector {
         val m = markerRegex.find(text) ?: return null
         val before = text.substring(0, m.range.first).trim().trimEnd(',', '.', ';', ':')
         var after = text.substring(m.range.last + 1).trim()
-        if (after.isEmpty()) {
-            return if (before.isBlank()) null else Step(before)
-        }
 
-        val markerRaw = m.value.trim().trim(',', ' ').lowercase().replace(Regex("\\s+"), " ")
+        val markerRaw = m.value.trim().trim(',', ' ').lowercase().replace(ws, " ")
         val marker = normalizeMarker(markerRaw)
+
+        if (after.isEmpty()) {
+            return if (isRestart(marker) && before.isNotBlank()) {
+                Step(
+                    before,
+                    Correction(originalText = text.trim(), replacementText = before, marker = marker)
+                )
+            } else {
+                null
+            }
+        }
 
         makeThat.find(after)?.groupValues?.getOrNull(1)?.let { after = it.trim() }
         changeTo.find(after)?.groupValues?.getOrNull(1)?.let { after = it.trim() }
@@ -89,8 +113,7 @@ object CourseCorrector {
             )
         }
 
-        // Explicit restart only — not every wait/no/rather
-        if (marker.contains("scratch")) {
+        if (isRestart(marker)) {
             return Step(
                 after,
                 Correction(
@@ -101,7 +124,6 @@ object CourseCorrector {
             )
         }
 
-        // Entity replace: if after leads with time/number/date, swap last same type in before
         leadingMatch(after, timePattern)?.let { afterTime ->
             val lastTime = timePattern.findAll(before).lastOrNull()
             if (lastTime != null) {
@@ -144,8 +166,21 @@ object CourseCorrector {
             }
         }
 
-        // Short after (≤ 6 words): replace last content word / full clause restart
-        val afterWords = after.split(Regex("\\s+")).filter { it.isNotBlank() }
+        leadingMatch(after, weekdayPattern)?.let { afterDay ->
+            val lastDay = weekdayPattern.findAll(before).lastOrNull()
+            if (lastDay != null) {
+                return Step(
+                    spliceEntity(before, lastDay.range, after, afterDay),
+                    Correction(
+                        originalText = lastDay.value.trim(),
+                        replacementText = afterDay.value.trim(),
+                        marker = marker
+                    )
+                )
+            }
+        }
+
+        val afterWords = after.split(ws).filter { it.isNotBlank() }
         if (afterWords.size in 1..6) {
             if (afterWords.size >= 3 && looksLikeFullRestart(before, after)) {
                 return Step(
@@ -157,79 +192,128 @@ object CourseCorrector {
                     )
                 )
             }
-            replaceLastContentChunk(before, after)?.let { replaced ->
-                return Step(
-                    replaced,
-                    Correction(
-                        originalText = before,
-                        replacementText = replaced,
-                        marker = marker
-                    )
-                )
-            }
-        }
-
-        // Longer after / full rethink: prefer final intent
-        if (afterWords.size >= 3 ||
-            marker.contains("actually") ||
-            marker.contains("i mean") ||
-            marker == "no" ||
-            marker == "instead" ||
-            marker.contains("wait no") ||
-            marker.contains("no wait") ||
-            marker == "rather" ||
-            marker == "wait"
-        ) {
-            if (afterWords.size >= 3 && before.split(Regex("\\s+")).size >= 2) {
-                if (afterWords.size <= 3) {
-                    replaceLastContentChunk(before, after)?.let { rep ->
-                        return Step(
-                            rep,
-                            Correction(
-                                originalText = before,
-                                replacementText = rep,
-                                marker = marker
-                            )
-                        )
-                    }
-                }
-                if (after.firstOrNull()?.isLowerCase() == true &&
-                    !after.startsWith("at ", true) &&
-                    afterWords.size >= 4
-                ) {
-                    val cap = after.replaceFirstChar { it.uppercase() }
+            if (allowsChunkReplace(marker, afterWords)) {
+                replaceLastContentChunk(before, after)?.let { replaced ->
                     return Step(
-                        cap,
+                        replaced,
                         Correction(
                             originalText = before,
-                            replacementText = cap,
+                            replacementText = replaced,
                             marker = marker
                         )
                     )
                 }
-                return Step(
-                    after,
-                    Correction(
-                        originalText = before,
-                        replacementText = after,
-                        marker = marker
-                    )
-                )
-            }
-            replaceLastContentChunk(before, after)?.let { rep ->
-                return Step(
-                    rep,
-                    Correction(
-                        originalText = before,
-                        replacementText = rep,
-                        marker = marker
-                    )
-                )
             }
         }
 
-        val joined = "$before $after".trim()
-        return if (joined == text.trim()) null else Step(joined)
+        if (afterWords.size >= 3 ||
+            marker.contains("i mean") ||
+            marker.contains("i meant") ||
+            marker == "instead" ||
+            marker.contains("wait no") ||
+            marker.contains("no wait") ||
+            marker.contains("or wait") ||
+            marker == "rather" ||
+            marker.contains("hang on") ||
+            marker.contains("hold on")
+        ) {
+            if (afterWords.size >= 3 && before.split(ws).size >= 2) {
+                if (afterWords.size <= 3) {
+                    if (allowsChunkReplace(marker, afterWords)) {
+                        replaceLastContentChunk(before, after)?.let { rep ->
+                            return Step(
+                                rep,
+                                Correction(
+                                    originalText = before,
+                                    replacementText = rep,
+                                    marker = marker
+                                )
+                            )
+                        }
+                    }
+                }
+                if (looksLikeFullRestart(before, after) || afterWords.size >= 4) {
+                    if (after.firstOrNull()?.isLowerCase() == true &&
+                        !after.startsWith("at ", true) &&
+                        afterWords.size >= 4
+                    ) {
+                        val cap = after.replaceFirstChar { it.uppercase() }
+                        return Step(
+                            cap,
+                            Correction(
+                                originalText = before,
+                                replacementText = cap,
+                                marker = marker
+                            )
+                        )
+                    }
+                    return Step(
+                        after,
+                        Correction(
+                            originalText = before,
+                            replacementText = after,
+                            marker = marker
+                        )
+                    )
+                }
+            }
+            if (allowsChunkReplace(marker, afterWords)) {
+                replaceLastContentChunk(before, after)?.let { rep ->
+                    return Step(
+                        rep,
+                        Correction(
+                            originalText = before,
+                            replacementText = rep,
+                            marker = marker
+                        )
+                    )
+                }
+            }
+        }
+
+        // No structured fix — keep original (do not drop the marker word).
+        return null
+    }
+
+    private fun isRestart(marker: String): Boolean =
+        marker.contains("scratch") ||
+            marker.contains("never mind") ||
+            marker.contains("forget") ||
+            marker.contains("second thought")
+
+    /**
+     * Last-chunk replace is a real swap (name / option / color), not discourse.
+     * "actually world" is not a swap. "sorry about that" is not a swap.
+     */
+    private fun allowsChunkReplace(marker: String, afterWords: List<String>): Boolean {
+        if (afterWords.isEmpty()) return false
+        val head = afterWords.first().trimEnd('.', ',', '!', '?').lowercase()
+        if (head in functionHead) return false
+        if (marker == "actually" || marker == "correction") {
+            return afterWords.size in 1..2 && looksLikeSlot(afterWords)
+        }
+        return marker == "instead" ||
+            marker == "rather" ||
+            marker.contains("i mean") ||
+            marker.contains("i meant") ||
+            marker == "sorry" ||
+            marker.contains("wait no") ||
+            marker.contains("no wait") ||
+            marker.contains("or wait") ||
+            marker.contains("hang on") ||
+            marker.contains("hold on") ||
+            marker == "no" ||
+            marker == "wait"
+    }
+
+    private fun looksLikeSlot(words: List<String>): Boolean {
+        val joined = words.joinToString(" ")
+        if (weekdayPattern.containsMatchIn(joined)) return true
+        if (timePattern.containsMatchIn(joined)) return true
+        if (moneyOrNumber.containsMatchIn(joined)) return true
+        val first = words.first().trimEnd('.', ',', '!', '?')
+        if (first.length == 1 && first[0].isLetter()) return true
+        return first.firstOrNull()?.isUpperCase() == true
     }
 
     /** Entity must lead the correction payload (optional leading punct only). */
@@ -260,18 +344,27 @@ object CourseCorrector {
     }
 
     private fun normalizeMarker(m: String): String {
-        val t = m.trim().lowercase().replace(Regex("\\s+"), " ")
+        val t = m.trim().lowercase().replace(ws, " ")
         return when {
             t.contains("scratch") -> "scratch that"
+            t.contains("second thought") -> "on second thought"
             t.contains("change") -> "change that to"
             t.contains("make that") -> "make that"
+            t.contains("forget") -> "forget that"
+            t.contains("never mind") -> "never mind"
             t.contains("wait no") -> "wait no"
             t.contains("no wait") -> "no wait"
+            t.contains("or wait") -> "or wait"
+            t.contains("or rather") -> "or rather"
+            t.contains("i meant") -> "i meant"
             t.contains("i mean") -> "i mean"
+            t.contains("hang on") -> "hang on"
+            t.contains("hold on") -> "hold on"
             t.contains("actually") -> "actually"
             t.contains("instead") -> "instead"
             t.contains("rather") -> "rather"
             t.contains("sorry") -> "sorry"
+            t.contains("correction") -> "correction"
             t == "wait" || t.startsWith("wait") -> "wait"
             t == "no" || t.startsWith("no") -> "no"
             else -> t
@@ -280,8 +373,8 @@ object CourseCorrector {
 
     /** After restarts same action (shared verb / "send it to X"). */
     private fun looksLikeFullRestart(before: String, after: String): Boolean {
-        val bw = before.lowercase().split(Regex("\\s+")).filter { it.isNotBlank() }
-        val aw = after.lowercase().split(Regex("\\s+")).filter {
+        val bw = before.lowercase().split(ws).filter { it.isNotBlank() }
+        val aw = after.lowercase().split(ws).filter {
             it.isNotBlank() && it.trimEnd('.', ',', '!', '?').isNotEmpty()
         }
         if (aw.size < 3) return false
@@ -301,16 +394,16 @@ object CourseCorrector {
      * "pick option A" + "option B" → "pick option B" (not "pick option option B").
      */
     private fun replaceLastContentChunk(before: String, after: String): String? {
-        val tokens = before.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+        val tokens = before.trim().split(ws).filter { it.isNotBlank() }
         if (tokens.isEmpty()) return after
         val cleanAfter = after.trim()
         if (cleanAfter.isEmpty()) return before
-        val afterWords = cleanAfter.split(Regex("\\s+")).filter { it.isNotBlank() }
+        val afterWords = cleanAfter.split(ws).filter { it.isNotBlank() }
         val n = afterWords.size.coerceAtLeast(1).coerceAtMost(tokens.size)
         val cut = tokens.size - n
         val head = tokens.subList(0, cut).joinToString(" ")
         return if (head.isBlank()) cleanAfter else "$head $cleanAfter".trim()
     }
 
-    private fun normalizeSpaces(t: String) = t.replace(Regex("\\s+"), " ").trim()
+    private fun normalizeSpaces(t: String) = t.replace(ws, " ").trim()
 }

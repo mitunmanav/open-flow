@@ -136,4 +136,83 @@ class CourseCorrectorTest {
         assertThat(out.lowercase()).contains("team")
         assertThat(out.lowercase()).contains("later")
     }
+
+    @Test
+    fun bare_no_in_normal_speech_is_not_a_correction() {
+        val out = CourseCorrector.apply("I have no time today")
+        assertThat(out.lowercase()).contains("no")
+        assertThat(out.lowercase()).contains("time")
+        assertThat(out.lowercase()).contains("have")
+    }
+
+    @Test
+    fun bare_wait_in_normal_speech_is_not_a_correction() {
+        val out = CourseCorrector.apply("please wait here")
+        assertThat(out.lowercase()).contains("wait")
+        assertThat(out.lowercase()).contains("please")
+        assertThat(out.lowercase()).contains("here")
+    }
+
+    @Test
+    fun or_wait_replaces_day_keeps_prefix() {
+        val out = CourseCorrector.apply("let's do Monday or wait Tuesday")
+        assertThat(out.lowercase()).contains("tuesday")
+        assertThat(out.lowercase()).doesNotContain("monday")
+        assertThat(out.lowercase()).contains("let's do")
+    }
+
+    @Test
+    fun no_wait_keeps_prefix() {
+        val out = CourseCorrector.apply("email Sarah no wait email Tom")
+        assertThat(out.lowercase()).contains("tom")
+        assertThat(out.lowercase()).doesNotContain("sarah")
+        assertThat(out.lowercase()).contains("email")
+    }
+
+    @Test
+    fun i_meant_replaces_name() {
+        val out = CourseCorrector.apply("call mom I meant dad")
+        assertThat(out.lowercase()).contains("dad")
+        assertThat(out.lowercase()).doesNotContain("mom")
+        assertThat(out.lowercase()).contains("call")
+    }
+
+    @Test
+    fun hang_on_swaps_time() {
+        val out = CourseCorrector.apply("meet at noon hang on 3pm")
+        assertThat(out.lowercase()).contains("3")
+        assertThat(out.lowercase()).doesNotContain("noon")
+        assertThat(out.lowercase()).contains("meet")
+    }
+
+    @Test
+    fun on_second_thought_restarts_short_intent() {
+        val out = CourseCorrector.apply("buy milk on second thought buy eggs")
+        assertThat(out.lowercase()).contains("eggs")
+        assertThat(out.lowercase()).doesNotContain("milk")
+    }
+
+    @Test
+    fun never_mind_restarts() {
+        val out = CourseCorrector.apply("I was going to call never mind start the budget")
+        assertThat(out.lowercase()).contains("budget")
+        assertThat(out.lowercase()).doesNotContain("call")
+    }
+
+    @Test
+    fun sorry_in_apology_is_not_a_correction() {
+        val out = CourseCorrector.apply("I am sorry about that")
+        assertThat(out.lowercase()).contains("sorry")
+        assertThat(out.lowercase()).contains("about")
+        assertThat(out.lowercase()).contains("that")
+    }
+
+    @Test
+    fun non_empty_without_structured_fix_keeps_all_words() {
+        val raw = "hello actually world"
+        val out = CourseCorrector.apply(raw)
+        assertThat(out.lowercase()).contains("hello")
+        assertThat(out.lowercase()).contains("actually")
+        assertThat(out.lowercase()).contains("world")
+    }
 }

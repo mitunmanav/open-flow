@@ -8,4 +8,12 @@ object RetentionProof {
         val cut = RetentionPolicy.cutoffEpochMs(now, policy) ?: return rows.map { it.id }
         return rows.filter { it.createdAt >= cut }.map { it.id }
     }
+
+    /** Audio is never stored. Always empty — fail tests if this ever returns ids. */
+    fun keptAudio(rows: List<Row>, policy: String, now: Long): List<String> {
+        if (RetentionPolicy.storesAudio(policy)) {
+            return kept(rows, policy, now)
+        }
+        return emptyList()
+    }
 }

@@ -21,11 +21,10 @@ class UiPathTest {
             AppRoute.Snippets,
             AppRoute.Style,
             AppRoute.Settings,
-            AppRoute.Customize,
+            AppRoute.SpeechAi,
             AppRoute.Appearance,
             AppRoute.BubbleSettings,
             AppRoute.HomeModules,
-            AppRoute.NavModules,
             AppRoute.Cleanup,
             AppRoute.Privacy,
             AppRoute.Sounds,
@@ -57,12 +56,23 @@ class UiPathTest {
     }
 
     @Test
-    fun no_internet_permission() {
+    fun internet_declared_unused_until_pick() {
         val manifest = File(
             UiSourceScan.projectRoot(),
             "app/src/main/AndroidManifest.xml"
         ).readText()
-        assertThat(manifest).doesNotContain("android.permission.INTERNET")
+        assertThat(manifest).contains("android.permission.INTERNET")
+    }
+
+    @Test
+    fun privacy_no_internet_says_declared_not_absent() {
+        val values = File(UiSourceScan.projectRoot(), "app/src/main/res/values")
+        val xml = values.listFiles().orEmpty()
+            .filter { it.extension == "xml" }
+            .joinToString("\n") { it.readText() }
+        assertThat(xml.lowercase()).doesNotContain("declares no internet")
+        assertThat(xml.lowercase()).doesNotContain("no internet permission")
+        assertThat(xml).contains("INTERNET is declared")
     }
 
     companion object {
@@ -85,6 +95,11 @@ class UiPathTest {
             "nav_back",
             "history_export",
             "history_edit",
+            "engine_settings",
+            "engine_feature_chips",
+            "engine_honesty",
+            "engine_ear_disabled",
+            "home_link_speech_ai",
         )
     }
 }

@@ -11,6 +11,9 @@ interface DictationDao {
     @Query("SELECT * FROM dictations ORDER BY createdAtEpochMs DESC")
     fun observeAll(): Flow<List<DictationEntity>>
 
+    @Query("SELECT * FROM dictations ORDER BY createdAtEpochMs DESC LIMIT :limit")
+    fun observeRecent(limit: Int): Flow<List<DictationEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(d: DictationEntity)
 
@@ -25,6 +28,39 @@ interface DictationDao {
 
     @Query("SELECT * FROM dictations WHERE id = :id")
     suspend fun get(id: String): DictationEntity?
+
+    @Query("SELECT * FROM dictations ORDER BY createdAtEpochMs DESC")
+    suspend fun allOrdered(): List<DictationEntity>
+
+    @Query(
+        """
+        SELECT d.* FROM dictations d
+        INNER JOIN dictations_fts ON (d.id = dictations_fts.sessionId)
+        WHERE dictations_fts MATCH :query
+        ORDER BY d.createdAtEpochMs DESC
+        """
+    )
+    suspend fun searchFts(query: String): List<DictationEntity>
+}
+
+@Dao
+interface DictationFtsDao {
+    @Insert
+    suspend fun upsert(row: DictationFtsEntity)
+
+    @Query("DELETE FROM dictations_fts WHERE sessionId = :sessionId")
+    suspend fun deleteBySessionId(sessionId: String)
+
+    @Query(
+        """
+        DELETE FROM dictations_fts
+        WHERE sessionId NOT IN (SELECT id FROM dictations)
+        """
+    )
+    suspend fun deleteOrphans()
+
+    @Query("DELETE FROM dictations_fts")
+    suspend fun clearAll()
 }
 
 @Dao

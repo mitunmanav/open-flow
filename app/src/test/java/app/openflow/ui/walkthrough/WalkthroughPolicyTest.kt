@@ -25,4 +25,29 @@ class WalkthroughPolicyTest {
     fun unseen_needs_walkthrough() {
         assertThat(WalkthroughPolicy.needsWalkthrough(seen = false)).isTrue()
     }
+
+    @Test
+    fun progress_labels_for_launch() {
+        assertThat(WalkthroughPolicy.totalPages()).isEqualTo(5)
+        assertThat(WalkthroughPolicy.pageNumber(WalkthroughPolicy.Page.WHAT)).isEqualTo(1)
+        assertThat(WalkthroughPolicy.pageNumber(WalkthroughPolicy.Page.READY)).isEqualTo(5)
+        assertThat(WalkthroughPolicy.progressLabel(WalkthroughPolicy.Page.TALK))
+            .isEqualTo("Page 2 of 5")
+        assertThat(WalkthroughPolicy.nextLabel(WalkthroughPolicy.Page.READY)).isEqualTo("Done")
+        assertThat(WalkthroughPolicy.nextLabel(WalkthroughPolicy.Page.WHAT)).isEqualTo("Next")
+    }
+
+    @Test
+    fun copy_not_ime_and_privacy_clear() {
+        val what = WalkthroughPolicy.copy(WalkthroughPolicy.Page.WHAT)
+        assertThat(what.title).isEqualTo("What")
+        assertThat(what.body).contains("Not a keyboard")
+        val privacy = WalkthroughPolicy.copy(WalkthroughPolicy.Page.PRIVACY)
+        assertThat(privacy.body.lowercase()).contains("post")
+        assertThat(privacy.body.lowercase()).doesNotContain("do not upload")
+        val ready = WalkthroughPolicy.copy(WalkthroughPolicy.Page.READY)
+        assertThat(ready.body).contains("bubble")
+        assertThat(WalkthroughPolicy.a11yLabel(WalkthroughPolicy.Page.WHAT))
+            .isEqualTo("Page 1 of 5. What.")
+    }
 }

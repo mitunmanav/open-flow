@@ -48,11 +48,45 @@ class HistoryExportTest {
     fun empty_list_markdown_minimal() {
         val md = HistoryExport.toMarkdown(emptyList())
         assertThat(md.trim()).isEqualTo("# Open Flow history")
+        assertThat(md).doesNotContain("###")
+        assertThat(md).doesNotContain("words")
     }
 
     @Test
     fun empty_list_plain_empty() {
         assertThat(HistoryExport.toPlainText(emptyList())).isEmpty()
+    }
+
+    @Test
+    fun empty_list_share_empty_no_fake_rows() {
+        val share = HistoryExport.shareText(emptyList())
+        assertThat(share).isEmpty()
+        assertThat(share).doesNotContain("Hello")
+        assertThat(HistoryExport.filterRows(emptyList(), "x")).isEmpty()
+    }
+
+    @Test
+    fun exports_all_today_fields() {
+        val row = HistoryExport.Row(
+            createdAtEpochMs = 1_700_000_000_000L,
+            text = "Hello world",
+            languageTag = "en-US",
+            wordCount = 2,
+            rawText = "hello world",
+            id = "abc-1",
+            durationMs = 1500L,
+        )
+        val md = HistoryExport.toMarkdown(listOf(row), includeRaw = true)
+        assertThat(md).contains("abc-1")
+        assertThat(md).contains("1500")
+        assertThat(md).contains("Hello world")
+        assertThat(md).contains("hello world")
+        assertThat(md).contains("en-US")
+        assertThat(md).contains("2 words")
+        val txt = HistoryExport.toPlainText(listOf(row))
+        assertThat(txt).contains("abc-1")
+        assertThat(txt).contains("1500")
+        assertThat(txt).contains("Hello world")
     }
 
     @Test

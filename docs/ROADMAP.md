@@ -25,7 +25,8 @@ Public product plan. Not a promise of dates.
 ## Not planned
 
 - Shipping as a keyboard.
-- Accounts, ads, analytics, INTERNET “just in case.”
+- Accounts, ads, analytics.
+- Stripping declared INTERNET (stays unused until opt-in).
 - Calling this a Wispr clone.
 
 Discuss: [GitHub Discussions](https://github.com/mitunmanav/open-flow/discussions).

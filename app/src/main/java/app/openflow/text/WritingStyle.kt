@@ -133,6 +133,10 @@ object StyleApplicator {
         "they'll" to "they will",
         "i'd" to "I would"
     )
+    private val informalRegexes: List<Pair<Regex, String>> =
+        informal.sortedByDescending { it.first.length }.map { (from, to) ->
+            Regex("\\b${Regex.escape(from)}\\b", RegexOption.IGNORE_CASE) to to
+        }
 
     fun apply(
         text: String,
@@ -160,11 +164,8 @@ object StyleApplicator {
             else -> false
         }
         if (expand) {
-            informal.sortedByDescending { it.first.length }.forEach { (from, to) ->
-                t = t.replace(
-                    Regex("\\b${Regex.escape(from)}\\b", RegexOption.IGNORE_CASE),
-                    to
-                )
+            informalRegexes.forEach { (re, to) ->
+                t = re.replace(t, to)
             }
         }
 
@@ -202,23 +203,7 @@ object StyleApplicator {
         return when (mode) {
             CapsMode.NONE -> t
             CapsMode.FIRST -> t.replaceFirstChar { it.uppercaseChar() }
-            CapsMode.SENTENCE -> {
-                val sb = StringBuilder(t)
-                sb[0] = sb[0].uppercaseChar()
-                var i = 1
-                while (i < sb.length) {
-                    val c = sb[i - 1]
-                    if (c == '.' || c == '!' || c == '?' || c == '\n') {
-                        var j = i
-                        while (j < sb.length && sb[j].isWhitespace()) j++
-                        if (j < sb.length && sb[j].isLowerCase()) {
-                            sb[j] = sb[j].uppercaseChar()
-                        }
-                    }
-                    i++
-                }
-                sb.toString()
-            }
+            CapsMode.SENTENCE -> SentenceFormat.capitalizeSentences(t)
         }
     }
 

@@ -64,6 +64,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -82,6 +83,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -90,6 +92,7 @@ import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import app.openflow.R
 import app.openflow.OpenFlowApp
 import app.openflow.bubble.FlowAccessibilityService
 import app.openflow.data.DictationEntity
@@ -109,8 +112,11 @@ import app.openflow.ui.components.OpenTextField
 import app.openflow.display.DisplayRefreshController
 import app.openflow.display.DisplayRefreshPolicy
 import app.openflow.stt.SttTuning
+import app.openflow.ui.engine.EngineSettingsScreen
 import app.openflow.ui.home.HistoryDays
+import app.openflow.ui.home.HistorySearchPolicy
 import app.openflow.ui.home.HomeBannerPolicy
+import app.openflow.ui.privacy.PrivacyHonesty
 import app.openflow.ui.setup.FirstRunPolicy
 import app.openflow.ui.setup.SetupWizard
 import app.openflow.ui.shell.AppRoute
@@ -333,6 +339,7 @@ class MainActivity : ComponentActivity() {
                                 onOpenAppearance = { goTo(AppRoute.Appearance) },
                                 onOpenCleanup = { goTo(AppRoute.Cleanup) },
                                 onOpenStyle = { goTo(AppRoute.Style) },
+                                onOpenSpeechAi = { goTo(AppRoute.SpeechAi) },
                                 onBattery = {
                                     try {
                                         startActivity(
@@ -351,6 +358,7 @@ class MainActivity : ComponentActivity() {
                             AppRoute.Snippets -> SnippetsTab(app)
                             AppRoute.Style -> StyleTab(app.prefs)
                             AppRoute.Settings -> SettingsHub(
+                                onSpeechAi = { goTo(AppRoute.SpeechAi) },
                                 onDictionary = { goTo(AppRoute.Dictionary) },
                                 onSnippets = { goTo(AppRoute.Snippets) },
                                 onStyle = { goTo(AppRoute.Style) },
@@ -359,13 +367,23 @@ class MainActivity : ComponentActivity() {
                                 onCleanup = { goTo(AppRoute.Cleanup) },
                                 onPrivacy = { goTo(AppRoute.Privacy) },
                                 onSounds = { goTo(AppRoute.Sounds) },
-                                onHomeLayout = { goTo(AppRoute.HomeModules) },
-                                onNavLayout = { goTo(AppRoute.NavModules) }
+                                onHomeLayout = { goTo(AppRoute.HomeModules) }
                             )
-                            AppRoute.Customize -> CustomizeHub(
-                                onHomeLayout = { goTo(AppRoute.HomeModules) },
-                                onNavLayout = { goTo(AppRoute.NavModules) }
-                            )
+                            AppRoute.SpeechAi -> {
+                                val session = app.engineSession
+                                EngineSettingsScreen(
+                                    initialEar = app.enginePrefs.earId,
+                                    initialBrain = app.enginePrefs.brainId,
+                                    initialUrl = app.enginePrefs.customBaseUrl,
+                                    initialSarvamMode = app.enginePrefs.sarvamMode,
+                                    initialKeyMask = session.keyMask(),
+                                    onPick = { e, b -> session.pick(e, b) },
+                                    onSaveKey = session::saveKey,
+                                    onSaveUrl = session::saveUrl,
+                                    onSarvamMode = session::saveSarvam,
+                                    onKeyMask = session::keyMask,
+                                )
+                            }
                             AppRoute.Appearance -> AppearanceSettings(app.prefs)
                             AppRoute.BubbleSettings -> BubbleSettings(
                                 prefs = app.prefs,
@@ -390,20 +408,6 @@ class MainActivity : ComponentActivity() {
                                 defaultEncode = LayoutPrefs.DEFAULT_HOME,
                                 onChange = {
                                     app.prefs.setHomeModules(it)
-                                    layoutTick++
-                                }
-                            )
-                            AppRoute.NavModules -> ModuleEditor(
-                                title = "Menu visibility",
-                                subtitle = "Settings always stays. Bottom tabs are not listed here.",
-                                modules = app.prefs.navModules(),
-                                labels = mapOf(
-                                    "history" to "History",
-                                    "customize" to "Customize"
-                                ),
-                                defaultEncode = LayoutPrefs.DEFAULT_NAV,
-                                onChange = {
-                                    app.prefs.setNavModules(it)
                                     layoutTick++
                                 }
                             )
@@ -465,6 +469,7 @@ private fun HomeHub(
     onOpenAppearance: () -> Unit,
     onOpenCleanup: () -> Unit,
     onOpenStyle: () -> Unit,
+    onOpenSpeechAi: () -> Unit,
     onBattery: () -> Unit
 ) {
     val dictations by app.dictations.observeDictations().collectAsState(initial = emptyList())
@@ -567,76 +572,85 @@ private fun HomeHub(
             )
         }
 
-        when (HomeBannerPolicy.banner(bubbleOn = bubbleOn, micOn = micOn, snoozed = snoozed)) {
+        when (val banner = HomeBannerPolicy.banner(bubbleOn = bubbleOn, micOn = micOn, snoozed = snoozed)) {
             HomeBannerPolicy.Banner.REPAIR_A11Y -> {
+                val copy = HomeBannerPolicy.copy(banner)
                 OpenCard(modifier = Modifier.testTag("home_banner_repair")) {
                     Column(
                         Modifier.padding(Dimen.MIN_PADDING),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Text(
-                            "Turn on the Flow Bubble",
+                            copy.title,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface,
                             softWrap = true
                         )
-                        Text(
-                            "Repair: Open Flow is not in Accessibility. Tap Enable bubble, turn it ON, then return here.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            softWrap = true
-                        )
+                        if (copy.body != null) {
+                            Text(
+                                copy.body,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                softWrap = true
+                            )
+                        }
                         OpenButton(
-                            text = "Open Accessibility",
+                            text = copy.cta ?: "Open Accessibility",
                             onClick = onEnableBubble,
+                            contentDescription = copy.a11yLabel,
                             modifier = Modifier.testTag("home_banner_a11y")
                         )
                     }
                 }
             }
             HomeBannerPolicy.Banner.ALLOW_MIC -> {
+                val copy = HomeBannerPolicy.copy(banner)
                 OpenCard(modifier = Modifier.testTag("home_banner_mic")) {
                     Column(
                         Modifier.padding(Dimen.MIN_PADDING),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Text(
-                            "Allow the microphone",
+                            copy.title,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface,
                             softWrap = true
                         )
-                        Text(
-                            "Allow the microphone, then focus a field and tap the bubble.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            softWrap = true
-                        )
+                        if (copy.body != null) {
+                            Text(
+                                copy.body,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                softWrap = true
+                            )
+                        }
                         OpenButton(
-                            text = "Allow microphone",
+                            text = copy.cta ?: "Allow microphone",
                             onClick = onMic,
+                            contentDescription = copy.a11yLabel,
                             modifier = Modifier.testTag("home_banner_mic_btn")
                         )
                     }
                 }
             }
             HomeBannerPolicy.Banner.END_SNOOZE -> {
+                val copy = HomeBannerPolicy.copy(banner)
                 OpenCard(modifier = Modifier.testTag("home_banner_snooze")) {
                     Column(
                         Modifier.padding(Dimen.MIN_PADDING),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Text(
-                            "Bubble is snoozed",
+                            copy.title,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface,
                             softWrap = true
                         )
                         OpenButton(
-                            text = "End snooze",
+                            text = copy.cta ?: "End snooze",
                             onClick = {
                                 app.prefs.clearSnooze()
                                 snoozed = false
@@ -646,6 +660,7 @@ private fun HomeHub(
                                     android.widget.Toast.LENGTH_SHORT
                                 ).show()
                             },
+                            contentDescription = copy.a11yLabel,
                             modifier = Modifier.testTag("home_banner_end_snooze")
                         )
                     }
@@ -881,6 +896,12 @@ private fun HomeHub(
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 OpenButton(
+                                    text = "Speech + AI",
+                                    onClick = onOpenSpeechAi,
+                                    variant = ButtonVariant.Text,
+                                    modifier = Modifier.testTag("home_link_speech_ai")
+                                )
+                                OpenButton(
                                     text = "Rules",
                                     onClick = onOpenCleanup,
                                     variant = ButtonVariant.Text,
@@ -1012,7 +1033,7 @@ private fun HomeHub(
         }
 
         Text(
-            "System SpeechRecognizer may use network depending on your device. Open Flow itself never uploads audio or transcripts.",
+            PrivacyHonesty.HOME_FOOTER,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
             softWrap = true
@@ -1028,12 +1049,12 @@ private fun HistoryScreen(app: OpenFlowApp) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val ctx = LocalContext.current
-
-    val filtered = remember(dictations, searchQuery) {
-        if (searchQuery.isBlank()) dictations
-        else dictations.filter {
-            it.text.contains(searchQuery, ignoreCase = true) ||
-                it.rawText.contains(searchQuery, ignoreCase = true)
+    val match = HistorySearchPolicy.ftsMatch(searchQuery)
+    val filtered by produceState(dictations, match, dictations) {
+        value = if (match == null) {
+            dictations
+        } else {
+            app.dictations.searchDictations(match)
         }
     }
     val nowMs = System.currentTimeMillis()
@@ -1805,6 +1826,7 @@ private fun StyleTab(prefs: FlowPrefs) {
 
 @Composable
 private fun SettingsHub(
+    onSpeechAi: () -> Unit,
     onDictionary: () -> Unit,
     onSnippets: () -> Unit,
     onStyle: () -> Unit,
@@ -1813,8 +1835,7 @@ private fun SettingsHub(
     onCleanup: () -> Unit,
     onPrivacy: () -> Unit,
     onSounds: () -> Unit,
-    onHomeLayout: () -> Unit,
-    onNavLayout: () -> Unit
+    onHomeLayout: () -> Unit
 ) {
     Column(
         Modifier
@@ -1831,6 +1852,7 @@ private fun SettingsHub(
             softWrap = true
         )
 
+        SettingsRow("Speech + AI", "Ear, brain, key, URL. Where audio and text go.", onSpeechAi)
         SettingsRow("Flow Bubble & Gestures", "Shape, size, opacity, edge magnetic snap", onBubble)
         SettingsRow("Cleanup Pipeline", "Filler words, course corrections, lists", onCleanup)
         SettingsRow("Writing Style", "Casual, formal, concise persona", onStyle)
@@ -1840,7 +1862,6 @@ private fun SettingsHub(
         SettingsRow("Privacy & Retention", "Zero-cloud audit, auto-wipe policies", onPrivacy)
         SettingsRow("Haptics & Feedback", "Tactile clicks and audio feedback", onSounds)
         SettingsRow("Home layout", "Reorder and toggle Home cards", onHomeLayout)
-        SettingsRow("Menu visibility", "Show or hide optional menu entries", onNavLayout)
 
         Text(
             "Open Flow is free and open source (MIT). No trackers. No analytics.",
@@ -1849,24 +1870,6 @@ private fun SettingsHub(
             modifier = Modifier.padding(top = Dimen.GAP_SM)
         )
         Spacer(Modifier.height(Dimen.GAP_LG))
-    }
-}
-
-@Composable
-private fun CustomizeHub(
-    onHomeLayout: () -> Unit,
-    onNavLayout: () -> Unit
-) {
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(SecUi.cream)
-            .padding(horizontal = Dimen.PAGE_PAD, vertical = Dimen.GAP)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
-    ) {
-        SettingsRow("Home layout", "Modules on Home", onHomeLayout)
-        SettingsRow("Menu visibility", "Show or hide optional menu entries", onNavLayout)
     }
 }
 
@@ -1952,7 +1955,14 @@ private fun PrivacySettings(prefs: FlowPrefs) {
         verticalArrangement = Arrangement.spacedBy(Dimen.GAP)
     ) {
         Text(
-            "All transcripts and settings remain strictly on your device.",
+            stringResource(R.string.privacy_no_internet),
+            style = MaterialTheme.typography.bodySmall,
+            color = SecUi.muted,
+            softWrap = true,
+            modifier = Modifier.testTag("privacy_internet_honesty")
+        )
+        Text(
+            PrivacyHonesty.SETTINGS_BODY,
             style = MaterialTheme.typography.bodySmall,
             color = SecUi.muted,
             softWrap = true
@@ -2001,7 +2011,7 @@ private fun PrivacySettings(prefs: FlowPrefs) {
         }
 
         listOf(
-            "keep" to ("Keep forever" to "Store history in on-device SQLite (not encrypted). Never uploaded by Open Flow."),
+            "keep" to ("Keep forever" to PrivacyHonesty.KEEP_FOREVER),
             "wipe_24h" to ("Wipe after 24h" to "Delete dictations older than 24 hours on each new save."),
             "never_store" to ("Never store" to "Do not write history. Last-session copy still available until you clear it.")
         ).forEach { (v, pair) ->

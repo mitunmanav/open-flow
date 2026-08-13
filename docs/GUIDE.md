@@ -12,14 +12,14 @@ A small **floating bubble** sits over other apps when you are in a text field. Y
 
 ## First time
 
-1. Install the APK from [Releases](https://github.com/mitunmanav/open-flow/releases/latest).
+1. Install the APK ([Releases](https://github.com/mitunmanav/open-flow/releases/latest) or Desktop `open-flow.apk`).
 2. Open the app. Five short screens explain the product.
 3. Turn on **Accessibility** (this is how the bubble can type into other apps).
 4. If that switch is grey: App info → menu → **Allow restricted settings**, then try again.
 5. Allow the **microphone**.
-6. Battery settings are optional.
+6. Battery **Unrestricted** if the bubble keeps dying (OEM).
 
-Full install steps: [INSTALL.md](INSTALL.md).
+Full install: [INSTALL.md](INSTALL.md) · Phone GO list: [LAUNCH_CHECKLIST.md](LAUNCH_CHECKLIST.md#0-mitun-phone-go-do-this).
 
 ## Everyday use
 
@@ -76,7 +76,7 @@ Applied **after** cleanup.
 - History lives on this phone.
 - You can search, copy, and share from History.
 - Settings: keep / wipe after 24 hours / never save.
-- The app has **no INTERNET permission**.
+- **INTERNET** is declared for future opt-in (model download / cloud ear); unused by default.
 - The **phone’s** speech engine may still use Google. That is not an Open Flow server.
 
 More: [PRIVACY.md](PRIVACY.md).

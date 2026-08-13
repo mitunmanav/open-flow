@@ -1,11 +1,16 @@
 package app.openflow.stt
 
+import app.openflow.engine.ModelCapability
+
 /**
  * Provider abstraction for speech-to-text.
  * MVP: [AndroidSpeechEngine] wraps [SttEngine] (on-device prefer).
  * Future: cloud or alternate engines can implement this without touching a11y/bubble.
  */
 interface SpeechEngine {
+
+    val capability: ModelCapability
+        get() = ModelCapability.systemEar()
 
     /** Callbacks for partials, finals, errors, readiness, and listening state. */
     interface Listener {

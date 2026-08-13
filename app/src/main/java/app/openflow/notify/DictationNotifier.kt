@@ -23,71 +23,84 @@ object DictationNotifier {
     private const val CHANNEL_ID = "dictation_done"
     private const val NOTIF_ID = 1
 
-    fun createChannel(ctx: Context) {
-        val desc = "Dictation saved"
-        val ch = NotificationChannel(CHANNEL_ID, "Dictations", NotificationManager.IMPORTANCE_LOW).apply {
-            this.description = desc
-            setShowBadge(false)
+    fun createChannel(ctx: Context): Boolean {
+        return try {
+            val desc = "Dictation saved"
+            val ch = NotificationChannel(CHANNEL_ID, "Dictations", NotificationManager.IMPORTANCE_LOW).apply {
+                this.description = desc
+                setShowBadge(false)
+            }
+            val nm = ctx.getSystemService(NotificationManager::class.java) ?: return false
+            nm.createNotificationChannel(ch)
+            true
+        } catch (_: Exception) {
+            false
         }
-        val nm = ctx.getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(ch)
     }
 
-    fun notifyIfPermitted(ctx: Context, wordCount: Int) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS)
-                != PackageManager.PERMISSION_GRANTED) {
-                return
+    /** true only if the notification was posted. false = no perm / fail. Never crash. */
+    fun notifyIfPermitted(ctx: Context, wordCount: Int): Boolean {
+        if (!canPost(ctx)) return false
+        return try {
+            val nm = ctx.getSystemService(NotificationManager::class.java) ?: return false
+            val openIntent = Intent(ctx, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra("open_history", true)
             }
+            val pending = PendingIntent.getActivity(
+                ctx, 0, openIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val text = if (wordCount > 0) "$wordCount words saved" else "Dictation saved"
+            val copyPi = PendingIntent.getBroadcast(
+                ctx, 1,
+                Intent(FlowAccessibilityService.ACTION_COPY_LAST).setPackage(ctx.packageName),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val n = NotificationCompat.Builder(ctx, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_mic)
+                .setContentTitle("Open Flow")
+                .setContentText(text)
+                .setContentIntent(pending)
+                .addAction(0, "Copy last", copyPi)
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .build()
+            nm.notify(NOTIF_ID, n)
+            true
+        } catch (_: Exception) {
+            false
         }
-        val openIntent = Intent(ctx, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra("open_history", true)
-        }
-        val pending = PendingIntent.getActivity(
-            ctx, 0, openIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val text = if (wordCount > 0) "$wordCount words saved" else "Dictation saved"
-        val copyPi = PendingIntent.getBroadcast(
-            ctx, 1,
-            Intent(FlowAccessibilityService.ACTION_COPY_LAST).setPackage(ctx.packageName),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val n = NotificationCompat.Builder(ctx, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_mic)
-            .setContentTitle("Open Flow")
-            .setContentText(text)
-            .setContentIntent(pending)
-            .addAction(0, "Copy last", copyPi)
-            .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .build()
-        val nm = ctx.getSystemService(NotificationManager::class.java)
-        nm.notify(NOTIF_ID, n)
     }
 
-    fun notifyServiceStopped(ctx: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS)
-                != PackageManager.PERMISSION_GRANTED) {
-                return
-            }
+    /** true only if posted. false = no perm / fail. Never crash. */
+    fun notifyServiceStopped(ctx: Context): Boolean {
+        if (!canPost(ctx)) return false
+        return try {
+            val nm = ctx.getSystemService(NotificationManager::class.java) ?: return false
+            val open = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+            val pending = PendingIntent.getActivity(
+                ctx, 2, open,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val n = NotificationCompat.Builder(ctx, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_mic)
+                .setContentTitle("Open Flow")
+                .setContentText("Flow Bubble stopped — tap to reopen Accessibility")
+                .setContentIntent(pending)
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .build()
+            nm.notify(NOTIF_ID + 1, n)
+            true
+        } catch (_: Exception) {
+            false
         }
-        val open = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-        val pending = PendingIntent.getActivity(
-            ctx, 2, open,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val n = NotificationCompat.Builder(ctx, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_mic)
-            .setContentTitle("Open Flow")
-            .setContentText("Flow Bubble stopped — tap to reopen Accessibility")
-            .setContentIntent(pending)
-            .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .build()
-        val nm = ctx.getSystemService(NotificationManager::class.java)
-        nm.notify(NOTIF_ID + 1, n)
+    }
+
+    private fun canPost(ctx: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
+        return ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
     }
 }

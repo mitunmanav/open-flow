@@ -1,15 +1,25 @@
 package app.openflow.text
 
+import app.openflow.ai.NoAI
+import app.openflow.ai.TextAIProvider
+import kotlinx.coroutines.runBlocking
+
 /**
  * Facade over dictionary, snippets, and [CleanupPipeline].
  * Prefer [polishSessionResult] for production stop / debug inject path.
  *
- * **Pipeline order** (Wispr-like: expand shortcuts, then format):
+ * **Pipeline order** (nothing falls through):
  * 1. [applyDictionary] — user vocabulary (whole-word, case-insensitive)
- * 2. [expandSnippets] — exact-trigger expand
- * 3. [CleanupPipeline.run] — cleanup level + spoken cmds + [WritingStyle]/[CustomStyleConfig]
+ * 2. [expandSnippets] — exact-trigger expand ([PhraseMap] is spoken cmds, not snippets)
+ * 3. [CleanupPipeline.run]:
+ *    - Light: normalize → fillers → reps → [VoiceCommands] → lightGrammar
+ *    - Medium: + false starts → [CourseCorrector] → lists → lightClarity
+ *    - High: + hedges
+ *    - then [StyleApplicator] / [SentenceFormat] / [WritingStyle]
+ * 4. High + [FeatureAuto] HIGH_AI (or [brainRewrite]) → injected [TextAIProvider.enhance]
+ *    after rules. Default [NoAI].
  *
- * Local rules only — no cloud AI rewrite.
+ * Empty in → empty out. Non-empty content must not vanish (except explicit clear).
  * [CleanupResult.raw] is always the original STT string (pre dict/snippet).
  */
 object TextPostProcessor {
@@ -37,14 +47,31 @@ object TextPostProcessor {
         level: CleanupLevel = CleanupLevel.NORMAL,
         custom: CustomStyleConfig = CustomStyleConfig(),
         dictionary: Map<String, String> = emptyMap(),
-        snippets: Map<String, String> = emptyMap()
+        snippets: Map<String, String> = emptyMap(),
+        brain: TextAIProvider = NoAI,
+        brainRewrite: Boolean = false,
+        earId: String = "system",
+        brainId: String = "none",
+        languages: Set<String> = emptySet(),
     ): CleanupResult {
         val original = raw
         var t = raw
-        t = applyDictionary(t, dictionary)
+        t = applyDictionary(
+            t,
+            dictionary,
+            sides = LearnEngine.sideBags(),
+            autoKeys = LearnEngine.autoKeys()
+        )
         t = expandSnippets(t, snippets)
         val result = CleanupPipeline.run(t, level, style, custom)
-        return result.copy(raw = original.trim().ifEmpty { original })
+        val highAi = brainRewrite ||
+            Feature.HIGH_AI in FeatureAuto.of(earId, brainId, languages)
+        val cleaned = if (level == CleanupLevel.HIGH && highAi) {
+            runBlocking { brain.enhance(result.clean, "cleanup") }
+        } else {
+            result.clean
+        }
+        return result.copy(raw = original.trim().ifEmpty { original }, clean = cleaned)
     }
 
     /** @deprecated Use [WritingStyle]. Kept for binary-safe renames in prefs UI. */
@@ -63,16 +90,12 @@ object TextPostProcessor {
     fun process(raw: String, style: WritingStyle = WritingStyle.CASUAL): String =
         CleanupPipeline.run(raw, CleanupLevel.LIGHT, style).clean
 
-    fun applyDictionary(text: String, replacements: Map<String, String>): String {
-        if (replacements.isEmpty()) return text
-        var out = text
-        replacements.entries.sortedByDescending { it.key.length }.forEach { (from, to) ->
-            if (from.isBlank()) return@forEach
-            val regex = Regex("\\b${Regex.escape(from)}\\b", RegexOption.IGNORE_CASE)
-            out = regex.replace(out) { to }
-        }
-        return out
-    }
+    fun applyDictionary(
+        text: String,
+        replacements: Map<String, String>,
+        sides: Map<String, Set<String>> = emptyMap(),
+        autoKeys: Set<String> = emptySet()
+    ): String = LearnEngine.applyPairs(text, replacements, sides, autoKeys)
 
     fun expandSnippets(text: String, snippets: Map<String, String>): String {
         if (snippets.isEmpty()) return text

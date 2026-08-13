@@ -7,11 +7,10 @@ enum class AppRoute(val title: String, val navId: String? = null) {
     Snippets("Snippets", "snippets"),
     Style("Style", "style"),
     Settings("Settings", "settings"),
-    Customize("Customize", "customize"),
+    SpeechAi("Speech + AI"),
     Appearance("Appearance"),
     BubbleSettings("Bubble"),
     HomeModules("Home layout"),
-    NavModules("Menu items"),
     Cleanup("Cleanup"),
     Privacy("Privacy"),
     Sounds("Sounds"),
@@ -32,6 +31,7 @@ val BottomBarRoutes = listOf(
  */
 val SettingsSubtreeRoutes = setOf(
     AppRoute.Settings,
+    AppRoute.SpeechAi,
     AppRoute.Appearance,
     AppRoute.BubbleSettings,
     AppRoute.Cleanup,
@@ -39,9 +39,7 @@ val SettingsSubtreeRoutes = setOf(
     AppRoute.Sounds,
     AppRoute.Snippets,
     AppRoute.Style,
-    AppRoute.Customize,
     AppRoute.HomeModules,
-    AppRoute.NavModules,
 )
 
 fun AppRoute.isBottomBar(): Boolean = this in BottomBarRoutes

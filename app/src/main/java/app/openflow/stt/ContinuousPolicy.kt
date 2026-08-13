@@ -22,7 +22,9 @@ data class ContinuousPolicy(
             ERROR_NETWORK_TIMEOUT,
             ERROR_NETWORK,
             ERROR_SERVER,
-            ERROR_AUDIO -> true
+            ERROR_AUDIO,
+            ERROR_TOO_MANY_REQUESTS,
+            ERROR_SERVER_DISCONNECTED -> true
             ERROR_INSUFFICIENT_PERMISSIONS -> false
             null -> false
             else -> true // unknown: try again while user wants continuous
@@ -37,6 +39,13 @@ data class ContinuousPolicy(
     fun shouldRecreateRecognizer(sessionCount: Int): Boolean =
         sessionCount > 0 && sessionCount % recreateEveryNSessions == 0
 
+    /** Busy / dropped service — new recognizer. Do not die quiet. */
+    fun shouldRecreateOnError(errorCode: Int?): Boolean = when (errorCode) {
+        ERROR_RECOGNIZER_BUSY,
+        ERROR_SERVER_DISCONNECTED -> true
+        else -> false
+    }
+
     companion object {
         const val ERROR_NETWORK_TIMEOUT = 1
         const val ERROR_NETWORK = 2
@@ -47,5 +56,7 @@ data class ContinuousPolicy(
         const val ERROR_NO_MATCH = 7
         const val ERROR_RECOGNIZER_BUSY = 8
         const val ERROR_INSUFFICIENT_PERMISSIONS = 9
+        const val ERROR_TOO_MANY_REQUESTS = 10
+        const val ERROR_SERVER_DISCONNECTED = 11
     }
 }

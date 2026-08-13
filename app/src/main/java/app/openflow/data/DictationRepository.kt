@@ -1,6 +1,5 @@
 package app.openflow.data
 
-import androidx.room.withTransaction
 import app.openflow.privacy.RetentionPolicy
 import app.openflow.text.LearnPair
 import app.openflow.text.LearnEngine
@@ -9,13 +8,17 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 class DictationRepository(
-    private val db: OpenFlowDatabase,
+    private val db: OpenFlowDb,
     private val dictationDao: DictationDao,
     private val dictionaryDao: DictionaryDao,
     private val snippetDao: SnippetDao,
     private val statsDao: StatsDao
 ) {
     fun observeDictations(): Flow<List<DictationEntity>> = dictationDao.observeAll()
+
+    fun observeRecentDictations(limit: Int): Flow<List<DictationEntity>> =
+        dictationDao.observeRecent(limit.coerceAtLeast(1))
+
     fun observeDictionary(): Flow<List<DictionaryWordEntity>> = dictionaryDao.observeAll()
     fun observeSnippets(): Flow<List<SnippetEntity>> = snippetDao.observeAll()
 
@@ -76,10 +79,12 @@ class DictationRepository(
         return pairs
     }
 
-    suspend fun updateDictationText(id: String, newText: String) {
-        val e = dictationDao.get(id) ?: return
+    /** @return false when [id] is missing (no silent no-op). */
+    suspend fun updateDictationText(id: String, newText: String): Boolean {
+        val e = dictationDao.get(id) ?: return false
         val words = newText.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }.size
         dictationDao.upsert(e.copy(text = newText, wordCount = words))
+        return true
     }
 
     suspend fun addWord(word: String, replacement: String = word) {
@@ -113,7 +118,7 @@ class DictationRepository(
     suspend fun stats(): AppStatsEntity = statsDao.get() ?: AppStatsEntity()
 
     private suspend fun bumpStats(words: Int) {
-        db.withTransaction {
+        db.transact {
             val cur = statsDao.get() ?: AppStatsEntity()
             val day = TimeUnit.MILLISECONDS.toDays(System.currentTimeMillis())
             val streak = when {

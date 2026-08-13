@@ -212,4 +212,62 @@ class CleanupPipelineTest {
         assertThat(medium).doesNotContain("well")
         assertThat(medium).contains("we should go")
     }
+
+    @Test
+    fun empty_in_empty_out() {
+        assertThat(CleanupPipeline.run("").clean).isEmpty()
+        assertThat(CleanupPipeline.run("   ").clean).isEmpty()
+    }
+
+    @Test
+    fun non_empty_content_does_not_vanish_any_level() {
+        val raw = "please send the report to finance today"
+        for (level in CleanupLevel.entries) {
+            val clean = CleanupPipeline.run(raw, level).clean.lowercase()
+            assertThat(clean).contains("send")
+            assertThat(clean).contains("report")
+            assertThat(clean).contains("finance")
+            assertThat(clean).contains("today")
+        }
+    }
+
+    @Test
+    fun bare_no_and_wait_keep_content_at_medium() {
+        val noTime = CleanupPipeline.run("I have no time today", CleanupLevel.NORMAL).clean.lowercase()
+        assertThat(noTime).contains("no")
+        assertThat(noTime).contains("time")
+
+        val wait = CleanupPipeline.run("please wait here", CleanupLevel.NORMAL).clean.lowercase()
+        assertThat(wait).contains("wait")
+        assertThat(wait).contains("here")
+    }
+
+    @Test
+    fun millimeter_unit_not_stripped_as_filler() {
+        val r = CleanupPipeline.run("need 5 mm screws", CleanupLevel.LIGHT)
+        assertThat(r.clean.lowercase()).contains("mm")
+        assertThat(r.clean.lowercase()).contains("5")
+        assertThat(r.clean.lowercase()).contains("screws")
+    }
+
+    @Test
+    fun fillers_only_may_empty_clear_all_may_empty() {
+        assertThat(CleanupPipeline.run("um uh", CleanupLevel.LIGHT).clean.trim()).isEmpty()
+        assertThat(CleanupPipeline.run("lots of words clear all", CleanupLevel.LIGHT).clean.trim()).isEmpty()
+    }
+
+    @Test
+    fun spoken_punct_then_no_wait_keeps_final_intent() {
+        val r = CleanupPipeline.run(
+            "meet Tuesday period no wait Friday period",
+            CleanupLevel.NORMAL
+        )
+        val clean = r.clean.lowercase()
+        assertThat(clean).contains("friday")
+        assertThat(clean).doesNotContain("tuesday")
+        assertThat(clean).contains("meet")
+        assertThat(clean).contains(".")
+        assertThat(clean).doesNotContain("period")
+        assertThat(clean).doesNotContain("wait")
+    }
 }

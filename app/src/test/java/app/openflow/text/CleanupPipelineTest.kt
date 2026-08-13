@@ -133,6 +133,15 @@ class CleanupPipelineTest {
     }
 
     @Test
+    fun high_formal_still_applies_style_after_hedges() {
+        val raw = "hey um i think we should ship it"
+        val r = CleanupPipeline.run(raw, CleanupLevel.HIGH, WritingStyle.FORMAL)
+        assertThat(r.clean.lowercase()).doesNotContain("um")
+        assertThat(r.clean.trimEnd().last()).isEqualTo('.')
+        assertThat(r.clean.first().isUpperCase()).isTrue()
+    }
+
+    @Test
     fun course_correct_leading_time_any_tail() {
         val a = CleanupPipeline.run(
             "meet at 4:30 actually 5:30",

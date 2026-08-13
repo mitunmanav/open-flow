@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.1 — 2026-08-13
+
+Ship-day polish. No INTERNET. No F19.
+
+- Tap again while listening inserts (Cancel discards, Done saves)
+- Overlay hit-test for Cancel/Done (parent OnTouch ate clicks)
+- Retention wipe-24h purges on app launch, not only on next save
+- Home: ready copy stays tap-again; battery chip = "Battery settings"; Keys chip "Speech on bubble"
+- versionCode 2 · versionName 0.1.1
+
 ## 0.1.0 — 2026-08-12
 
 First public GitHub release.

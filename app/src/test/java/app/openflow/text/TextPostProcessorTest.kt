@@ -1,9 +1,15 @@
 package app.openflow.text
 
 import com.google.common.truth.Truth.assertThat
+import org.junit.Before
 import org.junit.Test
 
 class TextPostProcessorTest {
+
+    @Before
+    fun resetLearn() {
+        LearnEngine.resetLearn()
+    }
 
     @Test
     fun strips_fillers() {
@@ -155,5 +161,112 @@ class TextPostProcessorTest {
             custom = custom
         )
         assertThat(result.clean).endsWith("!")
+    }
+
+    @Test
+    fun polish_empty_in_empty_out() {
+        val r = TextPostProcessor.polishSessionResult("")
+        assertThat(r.clean).isEmpty()
+        assertThat(r.raw).isEmpty()
+    }
+
+    @Test
+    fun polish_non_empty_does_not_vanish() {
+        val r = TextPostProcessor.polishSessionResult(
+            raw = "please send the report to finance today",
+            level = CleanupLevel.HIGH,
+            style = WritingStyle.CASUAL
+        )
+        assertThat(r.clean).isNotEmpty()
+        assertThat(r.clean.lowercase()).contains("send")
+        assertThat(r.clean.lowercase()).contains("report")
+        assertThat(r.clean.lowercase()).contains("finance")
+        assertThat(r.raw).contains("please send")
+    }
+
+    @Test
+    fun polish_wires_dict_snippet_voice_correct_style() {
+        val r = TextPostProcessor.polishSessionResult(
+            raw = "um openflow meet at 4:30 actually 5:30 period",
+            level = CleanupLevel.NORMAL,
+            style = WritingStyle.FORMAL,
+            dictionary = mapOf("openflow" to "Open Flow")
+        )
+        val clean = r.clean
+        assertThat(r.raw).contains("openflow")
+        assertThat(clean).contains("Open Flow")
+        assertThat(clean.lowercase()).contains("5:30")
+        assertThat(clean.lowercase()).doesNotContain("4:30")
+        assertThat(clean).contains(".")
+        assertThat(clean.lowercase()).doesNotContain("um")
+        assertThat(clean.lowercase()).doesNotContain("actually")
+        assertThat(clean.lowercase()).doesNotContain("period")
+        assertThat(clean.first().isUpperCase()).isTrue()
+    }
+
+    @Test
+    fun dictionary_bare_auto_ambiguous_rewrites() {
+        LearnEngine.putAuto("Mike", emptySet())
+        val out = TextPostProcessor.applyDictionary(
+            "Mike",
+            mapOf("Mike" to "Mic"),
+            sides = LearnEngine.sideBags(),
+            autoKeys = LearnEngine.autoKeys()
+        )
+        assertThat(out).isEqualTo("Mic")
+    }
+
+    @Test
+    fun dictionary_extra_content_keeps_auto_ambiguous() {
+        LearnEngine.putAuto("Mike", emptySet())
+        val out = TextPostProcessor.applyDictionary(
+            "ask Mike tomorrow",
+            mapOf("Mike" to "Mic"),
+            sides = mapOf("mike" to emptySet()),
+            autoKeys = setOf("mike")
+        )
+        assertThat(out).contains("Mike")
+        assertThat(out).doesNotContain("Mic")
+    }
+
+    @Test
+    fun dictionary_titlecase_next_keeps_hit() {
+        val out = TextPostProcessor.applyDictionary(
+            "Mike Smith",
+            mapOf("Mike" to "Mic")
+        )
+        assertThat(out).isEqualTo("Mike Smith")
+    }
+
+    @Test
+    fun dictionary_manual_rewrites_in_sentence() {
+        val out = TextPostProcessor.applyDictionary(
+            "ask Mike tomorrow",
+            mapOf("Mike" to "Mic")
+        )
+        assertThat(out).contains("Mic")
+        assertThat(out).doesNotContain("Mike")
+    }
+
+    @Test
+    fun dictionary_longest_key_first() {
+        val out = TextPostProcessor.applyDictionary(
+            "openflow app",
+            mapOf("open" to "X", "openflow" to "Open Flow")
+        )
+        assertThat(out).contains("Open Flow")
+        assertThat(out).doesNotContain("Xflow")
+    }
+
+    @Test
+    fun polish_uses_live_auto_hints() {
+        LearnEngine.putAuto("Mike", emptySet())
+        val r = TextPostProcessor.polishSessionResult(
+            raw = "ask Mike tomorrow",
+            level = CleanupLevel.RAW,
+            dictionary = mapOf("Mike" to "Mic")
+        )
+        assertThat(r.clean).contains("Mike")
+        assertThat(r.clean).doesNotContain("Mic")
     }
 }

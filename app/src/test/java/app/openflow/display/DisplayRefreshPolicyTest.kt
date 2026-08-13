@@ -48,4 +48,33 @@ class DisplayRefreshPolicyTest {
         assertThat(DisplayRefreshPolicy.availableTargets(modes))
             .containsExactly(60, 120).inOrder()
     }
+
+    @Test
+    fun needs_apply_false_when_already_on_target() {
+        assertThat(DisplayRefreshPolicy.needsApply(currentHz = 120f, preferredHz = 120)).isFalse()
+        assertThat(DisplayRefreshPolicy.needsApply(currentHz = 119.5f, preferredHz = 120)).isFalse()
+    }
+
+    @Test
+    fun needs_apply_true_when_far() {
+        assertThat(DisplayRefreshPolicy.needsApply(currentHz = 60f, preferredHz = 120)).isTrue()
+        assertThat(DisplayRefreshPolicy.needsApply(currentHz = null, preferredHz = 120)).isTrue()
+    }
+
+    @Test
+    fun needs_apply_false_when_no_pick() {
+        assertThat(DisplayRefreshPolicy.needsApply(currentModeId = 1, pick = null)).isFalse()
+    }
+
+    @Test
+    fun needs_apply_false_when_already_that_mode() {
+        val pick = DisplayRefreshPolicy.ModeInfo(3, 120f)
+        assertThat(DisplayRefreshPolicy.needsApply(currentModeId = 3, pick = pick)).isFalse()
+        assertThat(DisplayRefreshPolicy.needsApply(currentModeId = 1, pick = pick)).isTrue()
+    }
+
+    @Test
+    fun pick_empty_modes_null() {
+        assertThat(DisplayRefreshPolicy.pickMode(emptyList(), 120)).isNull()
+    }
 }

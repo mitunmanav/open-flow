@@ -96,21 +96,16 @@ private val BrutalDark = darkColorScheme(
     onError = BrutalColors.OnError
 )
 
-private val M3Shapes = Shapes(
-    extraSmall = RoundedCornerShape(8.dp),
-    small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(16.dp),
-    large = RoundedCornerShape(20.dp),
-    extraLarge = RoundedCornerShape(28.dp)
-)
+// 0.dp = hard rect. M3 Shapes slots require CornerBasedShape (not RectangleShape).
+private fun cornerShape(skin: VisualSkin, slot: SkinShapes.Slot) =
+    RoundedCornerShape(SkinShapes.cornerDp(skin, slot).dp)
 
-/** Hard edges — product default skin. */
-private val BrutalShapes = Shapes(
-    extraSmall = RoundedCornerShape(2.dp),
-    small = RoundedCornerShape(2.dp),
-    medium = RoundedCornerShape(2.dp),
-    large = RoundedCornerShape(2.dp),
-    extraLarge = RoundedCornerShape(4.dp)
+private fun shapesFor(skin: VisualSkin) = Shapes(
+    extraSmall = cornerShape(skin, SkinShapes.Slot.EXTRA_SMALL),
+    small = cornerShape(skin, SkinShapes.Slot.SMALL),
+    medium = cornerShape(skin, SkinShapes.Slot.MEDIUM),
+    large = cornerShape(skin, SkinShapes.Slot.LARGE),
+    extraLarge = cornerShape(skin, SkinShapes.Slot.EXTRA_LARGE)
 )
 
 /**
@@ -136,10 +131,7 @@ fun OpenFlowTheme(
         VisualSkin.BRUTAL -> if (isDark) BrutalDark else BrutalLight
         VisualSkin.M3 -> if (isDark) M3Dark else M3Light
     }
-    val shapes = when (skin) {
-        VisualSkin.BRUTAL -> BrutalShapes
-        VisualSkin.M3 -> M3Shapes
-    }
+    val shapes = shapesFor(skin)
 
     MaterialTheme(
         colorScheme = colors,

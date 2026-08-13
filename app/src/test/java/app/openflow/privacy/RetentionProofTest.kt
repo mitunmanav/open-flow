@@ -32,4 +32,20 @@ class RetentionProofTest {
             .containsExactly("edge", "new")
             .inOrder()
     }
+
+    @Test
+    fun wipe_24h_off_by_one_ms_is_dropped() {
+        val cut = now - RetentionPolicy.WIPE_WINDOW_MS
+        val justOld = listOf(RetentionProof.Row("just_old", cut - 1L))
+        val onEdge = listOf(RetentionProof.Row("on_edge", cut))
+        assertThat(RetentionProof.kept(justOld, "wipe_24h", now)).isEmpty()
+        assertThat(RetentionProof.kept(onEdge, "wipe_24h", now)).containsExactly("on_edge")
+    }
+
+    @Test
+    fun never_keeps_audio() {
+        assertThat(RetentionProof.keptAudio(rows, "keep", now)).isEmpty()
+        assertThat(RetentionProof.keptAudio(rows, "wipe_24h", now)).isEmpty()
+        assertThat(RetentionProof.keptAudio(rows, "never_store", now)).isEmpty()
+    }
 }

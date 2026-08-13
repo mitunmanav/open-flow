@@ -7,6 +7,7 @@ enum class AppRoute(val title: String, val navId: String? = null) {
     Snippets("Snippets", "snippets"),
     Style("Style", "style"),
     Settings("Settings", "settings"),
+    SpeechAi("Speech + AI"),
     Customize("Customize", "customize"),
     Appearance("Appearance"),
     BubbleSettings("Bubble"),
@@ -32,6 +33,7 @@ val BottomBarRoutes = listOf(
  */
 val SettingsSubtreeRoutes = setOf(
     AppRoute.Settings,
+    AppRoute.SpeechAi,
     AppRoute.Appearance,
     AppRoute.BubbleSettings,
     AppRoute.Cleanup,

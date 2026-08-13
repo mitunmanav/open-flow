@@ -27,7 +27,6 @@
     <string name="enable_bubble_hint">Enable Open Flow in Accessibility for the floating bubble. Keep your normal keyboard.</string>
     <string name="permission_mic">Microphone is required to dictate and record.</string>
     <string name="offline_prefer">Prefer on-device speech recognition</string>
-    <string name="privacy_no_internet">OpenFlow declares no INTERNET permission and uploads nothing. Android system STT may still send audio to remote servers depending on device.</string>
     <string name="privacy_stt_disclaimer">Speech recognition uses Android system STT. Audio may leave the device depending on OEM and network. OpenFlow never uploads audio or transcripts.</string>
     <string name="last_result_title">Last session</string>
     <string name="copy_cleaned">Copy cleaned</string>
@@ -41,7 +40,7 @@
     <string name="grant_mic">2. Grant microphone</string>
     <string name="how_it_works">Speak as long as you want. OS STT pauses every few seconds of silence — we auto-restart so dictation continues until you tap the bubble again.</string>
     <string name="home_tab">Home</string>
-    <string name="dictionary_tab">Dictionary</string>
+    <string name="dictionary_tab">Dict</string>
     <string name="snippets_tab">Snippets</string>
     <string name="style_tab">Style</string>
     <string name="settings_tab">Settings</string>
@@ -57,8 +56,8 @@
     <string name="no_dictations">No dictations yet. Use the bubble, then stop to save.</string>
     <string name="words_format">%d words</string>
     <string name="delete">Delete</string>
-    <string name="dictionary_title">Teach Open Flow your words (local)</string>
-    <string name="word_phrase">Word / phrase</string>
+    <string name="dictionary_title">Dict — teach one word (local)</string>
+    <string name="word_phrase">Heard word</string>
     <string name="replace_with">Replace with (optional)</string>
     <string name="add">Add</string>
     <string name="snippets_title">Voice trigger → paste block (local)</string>

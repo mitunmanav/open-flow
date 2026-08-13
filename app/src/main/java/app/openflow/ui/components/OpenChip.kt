@@ -3,8 +3,11 @@ package app.openflow.ui.components
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
@@ -15,7 +18,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
@@ -24,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -32,8 +35,10 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.openflow.ui.a11y.Dimen
+import app.openflow.ui.a11y.OpenShapes
 
 /** Modern brutal chip (`VisualSkin.BRUTAL`): hard border, solid selected block. */
 @Composable
@@ -60,14 +65,15 @@ fun OpenChip(
     )
 
     val borderColor = scheme.outline
-    val borderWidth = 2.dp
-
     val stateLabel = if (isOn) "$label, selected" else label
 
-    Surface(
+    Box(
         modifier = modifier
             .defaultMinSize(minHeight = Dimen.TOUCH_TARGET)
-            .alpha(if (enabled) 1f else 0.38f)
+            .graphicsLayer { clip = false }
+            .alpha(if (enabled || isOn) 1f else 0.38f)
+            .background(color = bgColor, shape = OpenShapes.Chip)
+            .border(BorderStroke(Dimen.BORDER, borderColor), OpenShapes.Chip)
             .semantics {
                 contentDescription = stateLabel
                 role = Role.Checkbox
@@ -84,12 +90,7 @@ fun OpenChip(
                     )
                 } else Modifier
             ),
-        color = bgColor,
-        contentColor = textColor,
-        shape = MaterialTheme.shapes.small,
-        border = BorderStroke(borderWidth, borderColor),
-        shadowElevation = 0.dp,
-        tonalElevation = 0.dp
+        contentAlignment = Alignment.CenterStart
     ) {
         Row(
             modifier = Modifier.padding(horizontal = Dimen.MIN_PADDING, vertical = Dimen.GAP),
@@ -116,7 +117,9 @@ fun OpenChip(
                 text = label,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = if (isOn) FontWeight.Bold else FontWeight.Medium,
-                color = textColor
+                color = textColor,
+                overflow = TextOverflow.Visible,
+                softWrap = true
             )
         }
     }

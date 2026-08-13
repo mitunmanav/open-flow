@@ -20,6 +20,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +28,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -34,6 +36,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -73,19 +76,22 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import app.openflow.R
 import app.openflow.OpenFlowApp
 import app.openflow.bubble.FlowAccessibilityService
 import app.openflow.data.DictationEntity
@@ -105,6 +111,7 @@ import app.openflow.ui.components.OpenTextField
 import app.openflow.display.DisplayRefreshController
 import app.openflow.display.DisplayRefreshPolicy
 import app.openflow.stt.SttTuning
+import app.openflow.ui.engine.EngineSettingsScreen
 import app.openflow.ui.home.HistoryDays
 import app.openflow.ui.home.HomeBannerPolicy
 import app.openflow.ui.setup.FirstRunPolicy
@@ -329,6 +336,7 @@ class MainActivity : ComponentActivity() {
                                 onOpenAppearance = { goTo(AppRoute.Appearance) },
                                 onOpenCleanup = { goTo(AppRoute.Cleanup) },
                                 onOpenStyle = { goTo(AppRoute.Style) },
+                                onOpenSpeechAi = { goTo(AppRoute.SpeechAi) },
                                 onBattery = {
                                     try {
                                         startActivity(
@@ -347,6 +355,7 @@ class MainActivity : ComponentActivity() {
                             AppRoute.Snippets -> SnippetsTab(app)
                             AppRoute.Style -> StyleTab(app.prefs)
                             AppRoute.Settings -> SettingsHub(
+                                onSpeechAi = { goTo(AppRoute.SpeechAi) },
                                 onDictionary = { goTo(AppRoute.Dictionary) },
                                 onSnippets = { goTo(AppRoute.Snippets) },
                                 onStyle = { goTo(AppRoute.Style) },
@@ -358,6 +367,21 @@ class MainActivity : ComponentActivity() {
                                 onHomeLayout = { goTo(AppRoute.HomeModules) },
                                 onNavLayout = { goTo(AppRoute.NavModules) }
                             )
+                            AppRoute.SpeechAi -> {
+                                val session = app.engineSession
+                                EngineSettingsScreen(
+                                    initialEar = app.enginePrefs.earId,
+                                    initialBrain = app.enginePrefs.brainId,
+                                    initialUrl = app.enginePrefs.customBaseUrl,
+                                    initialSarvamMode = app.enginePrefs.sarvamMode,
+                                    initialKeyMask = session.keyMask(),
+                                    onPick = { e, b -> session.pick(e, b) },
+                                    onSaveKey = session::saveKey,
+                                    onSaveUrl = session::saveUrl,
+                                    onSarvamMode = session::saveSarvam,
+                                    onKeyMask = session::keyMask,
+                                )
+                            }
                             AppRoute.Customize -> CustomizeHub(
                                 onHomeLayout = { goTo(AppRoute.HomeModules) },
                                 onNavLayout = { goTo(AppRoute.NavModules) }
@@ -461,6 +485,7 @@ private fun HomeHub(
     onOpenAppearance: () -> Unit,
     onOpenCleanup: () -> Unit,
     onOpenStyle: () -> Unit,
+    onOpenSpeechAi: () -> Unit,
     onBattery: () -> Unit
 ) {
     val dictations by app.dictations.observeDictations().collectAsState(initial = emptyList())
@@ -506,34 +531,41 @@ private fun HomeHub(
         if (!seenHowTo) {
             OpenCard(modifier = Modifier.testTag("home_howto")) {
                 Column(
-                    Modifier.padding(Dimen.MIN_PADDING),
+                    Modifier
+                        .padding(Dimen.MIN_PADDING)
+                        .wrapContentHeight(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
                         "How Open Flow works",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = SecUi.charcoal
+                        color = SecUi.charcoal,
+                        softWrap = true
                     )
                     Text(
                         "Not a keyboard. Keep yours.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = SecUi.charcoal
+                        color = SecUi.charcoal,
+                        softWrap = true
                     )
                     Text(
                         "Tap the bubble, then tap again to insert.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = SecUi.charcoal
+                        color = SecUi.charcoal,
+                        softWrap = true
                     )
                     Text(
                         "X cancel.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = SecUi.charcoal
+                        color = SecUi.charcoal,
+                        softWrap = true
                     )
                     Text(
-                        "Dictionary = one word. Snippet = whole block.",
+                        "Dict = one word. Snippet = whole block.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = SecUi.charcoal
+                        color = SecUi.charcoal,
+                        softWrap = true
                     )
                     OpenButton(
                         text = "Got it",
@@ -567,12 +599,14 @@ private fun HomeHub(
                             "Turn on the Flow Bubble",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface,
+                            softWrap = true
                         )
                         Text(
                             "Repair: Open Flow is not in Accessibility. Tap Enable bubble, turn it ON, then return here.",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            softWrap = true
                         )
                         OpenButton(
                             text = "Open Accessibility",
@@ -592,12 +626,14 @@ private fun HomeHub(
                             "Allow the microphone",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface,
+                            softWrap = true
                         )
                         Text(
                             "Allow the microphone, then focus a field and tap the bubble.",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            softWrap = true
                         )
                         OpenButton(
                             text = "Allow microphone",
@@ -617,7 +653,8 @@ private fun HomeHub(
                             "Bubble is snoozed",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface,
+                            softWrap = true
                         )
                         OpenButton(
                             text = "End snooze",
@@ -658,12 +695,14 @@ private fun HomeHub(
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.SemiBold,
                                         color = MaterialTheme.colorScheme.onSurface,
+                                        softWrap = true,
                                         modifier = Modifier.testTag("home_setup_title")
                                     )
                                     Text(
                                         "Floating bubble · local polish · any app",
                                         style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        softWrap = true
                                     )
                                 }
                                 // Hard badge: charcoal block when ON, cream + hard border when SETUP.
@@ -705,6 +744,7 @@ private fun HomeHub(
                                 },
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                softWrap = true,
                                 modifier = Modifier.testTag("home_setup_copy")
                             )
                             FlowRow(
@@ -793,19 +833,23 @@ private fun HomeHub(
                 "keys" -> {
                     OpenCard(modifier = Modifier.testTag("home_keys")) {
                         Column(
-                            Modifier.padding(Dimen.MIN_PADDING),
+                            Modifier
+                                .padding(Dimen.MIN_PADDING)
+                                .wrapContentHeight(),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Text(
                                 "Cleanup level",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onSurface,
+                                softWrap = true
                             )
                             // FlowRow: no overflow on narrow screens (weight Row clips).
                             FlowRow(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .wrapContentHeight()
                                     .testTag("home_cleanup_chips"),
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                                 verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -819,7 +863,9 @@ private fun HomeHub(
                                     OpenChip(
                                         label = label,
                                         isOn = cleanup == level,
-                                        modifier = Modifier.testTag("cleanup_$level"),
+                                        modifier = Modifier
+                                            .wrapContentHeight()
+                                            .testTag("cleanup_$level"),
                                         onClick = {
                                             cleanup = level
                                             app.prefs.cleanupLevel = level
@@ -830,6 +876,7 @@ private fun HomeHub(
                             FlowRow(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .wrapContentHeight()
                                     .testTag("home_keys_chips"),
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                                 verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -837,7 +884,9 @@ private fun HomeHub(
                                 OpenChip(
                                     label = "Speech on bubble",
                                     isOn = showText,
-                                    modifier = Modifier.testTag("keys_speech_on_bubble"),
+                                    modifier = Modifier
+                                        .wrapContentHeight()
+                                        .testTag("keys_speech_on_bubble"),
                                     onClick = {
                                         showText = !showText
                                         app.prefs.bubbleShowText = showText
@@ -846,9 +895,18 @@ private fun HomeHub(
                                 )
                             }
                             FlowRow(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .wrapContentHeight(),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
+                                OpenButton(
+                                    text = "Speech + AI",
+                                    onClick = onOpenSpeechAi,
+                                    variant = ButtonVariant.Text,
+                                    modifier = Modifier.testTag("home_link_speech_ai")
+                                )
                                 OpenButton(
                                     text = "Rules",
                                     onClick = onOpenCleanup,
@@ -885,9 +943,14 @@ private fun HomeHub(
                                 )
                                 Text(
                                     lastClean.take(600),
-                                    style = MaterialTheme.typography.bodyLarge
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    softWrap = true,
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                                 FlowRow(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .wrapContentHeight(),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
@@ -910,12 +973,14 @@ private fun HomeHub(
                             Text(
                                 "Recent",
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
+                                softWrap = true
                             )
                             Text(
                                 statsText,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                softWrap = true
                             )
                         }
                         OpenButton(
@@ -959,6 +1024,12 @@ private fun HomeHub(
                                         ctx.startActivity(Intent.createChooser(send, "Share dictation"))
                                     } catch (_: Exception) {
                                     }
+                                },
+                                onSave = { old, new ->
+                                    scope.launch {
+                                        app.dictations.learnFromEdit(old, new)
+                                        app.dictations.updateDictationText(d.id, new)
+                                    }
                                 }
                             )
                         }
@@ -970,12 +1041,14 @@ private fun HomeHub(
         Text(
             "System SpeechRecognizer may use network depending on your device. Open Flow itself never uploads audio or transcripts.",
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+            softWrap = true
         )
         Spacer(Modifier.height(Dimen.GAP))
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun HistoryScreen(app: OpenFlowApp) {
     val dictations by app.dictations.observeDictations().collectAsState(initial = emptyList())
@@ -1008,15 +1081,19 @@ private fun HistoryScreen(app: OpenFlowApp) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(Dimen.GAP)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
+        FlowRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
         ) {
             Text(
                 "${dictations.size} recordings on device",
                 style = MaterialTheme.typography.bodySmall,
-                color = SecUi.muted
+                color = SecUi.muted,
+                softWrap = true,
+                modifier = Modifier.align(Alignment.CenterVertically)
             )
             if (dictations.isNotEmpty()) {
                 OutlinedButton(
@@ -1034,7 +1111,9 @@ private fun HistoryScreen(app: OpenFlowApp) {
                         } catch (_: Exception) {
                         }
                     },
-                    modifier = Modifier.testTag("history_export"),
+                    modifier = Modifier
+                        .defaultMinSize(minHeight = Dimen.MIN_TOUCH)
+                        .testTag("history_export"),
                     shape = MaterialTheme.shapes.small,
                     border = SecUi.hardBorder,
                     colors = ButtonDefaults.outlinedButtonColors(
@@ -1068,7 +1147,8 @@ private fun HistoryScreen(app: OpenFlowApp) {
                     "Dictate using the floating bubble to record transcripts."
                 } else {
                     "Try a different search keyword."
-                }
+                },
+                modifier = Modifier.testTag("history_empty")
             )
         } else {
             days.forEach { day ->
@@ -1103,6 +1183,12 @@ private fun HistoryScreen(app: OpenFlowApp) {
                                 ctx.startActivity(Intent.createChooser(send, "Share dictation"))
                             } catch (_: Exception) {
                             }
+                        },
+                        onSave = { old, new ->
+                            scope.launch {
+                                app.dictations.learnFromEdit(old, new)
+                                app.dictations.updateDictationText(d.id, new)
+                            }
                         }
                     )
                 }
@@ -1112,9 +1198,17 @@ private fun HistoryScreen(app: OpenFlowApp) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun DictationCard(d: DictationEntity, onDelete: () -> Unit, onShare: () -> Unit) {
+private fun DictationCard(
+    d: DictationEntity,
+    onDelete: () -> Unit,
+    onShare: () -> Unit,
+    onSave: (oldText: String, newText: String) -> Unit
+) {
     var showRaw by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf(false) }
+    var draft by remember(d.id, d.text) { mutableStateOf(d.text) }
     val hasRaw = d.rawText.isNotBlank() && d.rawText != d.text
     val timeStr = remember(d.createdAtEpochMs) {
         val sdf = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
@@ -1135,33 +1229,70 @@ private fun DictationCard(d: DictationEntity, onDelete: () -> Unit, onShare: () 
                     "$timeStr · ${d.wordCount}w",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = SecUi.muted
+                    color = SecUi.muted,
+                    softWrap = true,
+                    modifier = Modifier.weight(1f)
                 )
                 Row {
-                    IconButton(onClick = onShare, modifier = Modifier.size(28.dp)) {
+                    IconButton(
+                        onClick = onShare,
+                        modifier = Modifier.size(Dimen.MIN_TOUCH)
+                    ) {
                         Icon(
                             Icons.Default.Share,
                             contentDescription = "Share",
                             tint = SecUi.charcoal,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
-                    IconButton(onClick = onDelete, modifier = Modifier.size(28.dp)) {
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(Dimen.MIN_TOUCH)
+                    ) {
                         Icon(
                             Icons.Default.Delete,
                             contentDescription = "Delete",
                             tint = SecUi.error,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
             }
 
-            Text(
-                d.text.take(500),
-                style = MaterialTheme.typography.bodyMedium,
-                color = SecUi.charcoal
-            )
+            if (editing) {
+                OpenTextField(
+                    value = draft,
+                    onValueChange = { draft = it },
+                    singleLine = false,
+                    minLines = 2,
+                    showClearButton = false,
+                    modifier = Modifier.testTag("history_edit")
+                )
+                OpenButton(
+                    text = "Save",
+                    onClick = {
+                        val new = draft.trim()
+                        if (new.isNotEmpty() && new != d.text) {
+                            onSave(d.text, new)
+                        }
+                        editing = false
+                    }
+                )
+            } else {
+                Text(
+                    d.text.take(500),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = SecUi.charcoal,
+                    softWrap = true,
+                    overflow = TextOverflow.Visible,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            draft = d.text
+                            editing = true
+                        }
+                )
+            }
 
             if (hasRaw) {
                 OpenChip(
@@ -1180,13 +1311,20 @@ private fun DictationCard(d: DictationEntity, onDelete: () -> Unit, onShare: () 
                             d.rawText.take(400),
                             modifier = Modifier.padding(Dimen.GAP_SM),
                             style = MaterialTheme.typography.bodySmall,
-                            color = SecUi.charcoal
+                            color = SecUi.charcoal,
+                            softWrap = true
                         )
                     }
                 }
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)) {
+            FlowRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight(),
+                horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM),
+                verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+            ) {
                 CopyButton(text = d.text, label = "Copy")
                 if (hasRaw) {
                     CopyButton(text = d.rawText, label = "Copy Raw")
@@ -1207,6 +1345,9 @@ private fun CopyButton(text: String, label: String = "Copy") {
             cm?.setPrimaryClip(android.content.ClipData.newPlainText("dictation", text))
             copied = true
         },
+        modifier = Modifier
+            .defaultMinSize(minWidth = Dimen.MIN_TOUCH, minHeight = Dimen.MIN_TOUCH)
+            .heightIn(min = Dimen.MIN_TOUCH),
         shape = MaterialTheme.shapes.small,
         border = SecUi.hardBorder,
         colors = ButtonDefaults.outlinedButtonColors(
@@ -1244,31 +1385,44 @@ private fun DictionaryTab(app: OpenFlowApp) {
         verticalArrangement = Arrangement.spacedBy(Dimen.GAP)
     ) {
         Text(
-            "Change one word (say API, insert the long name).",
+            "Dict",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = SecUi.charcoal,
+            softWrap = true
+        )
+        Text(
+            "One word. Local. Say it, insert the spelling you want.",
             style = MaterialTheme.typography.bodySmall,
-            color = SecUi.muted
+            color = SecUi.muted,
+            softWrap = true
         )
 
         OpenCard {
             Column(
-                Modifier.padding(Dimen.MIN_PADDING),
+                Modifier
+                    .padding(Dimen.MIN_PADDING)
+                    .wrapContentHeight(),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    "Add Replacement Rule",
+                    "Add to Dict",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color = SecUi.charcoal
+                    color = SecUi.charcoal,
+                    softWrap = true
                 )
                 OpenTextField(
                     value = word,
                     onValueChange = { word = it },
+                    label = "Heard word",
                     placeholder = "Heard word / mistake (e.g. Wisper)",
                     modifier = Modifier.testTag("dict_word")
                 )
                 OpenTextField(
                     value = repl,
                     onValueChange = { repl = it },
+                    label = "Replace with",
                     placeholder = "Replace with (e.g. Wispr)",
                     modifier = Modifier.testTag("dict_repl")
                 )
@@ -1291,8 +1445,9 @@ private fun DictionaryTab(app: OpenFlowApp) {
         if (words.isEmpty()) {
             EmptyState(
                 icon = Icons.Default.Tune,
-                title = "No vocabulary rules",
-                subtitle = "Add unusual names, acronyms, or tech jargon to ensure correct spelling."
+                title = "No Dict words",
+                subtitle = "Add a heard word and what to insert.",
+                modifier = Modifier.testTag("dict_empty")
             )
         } else {
             words.forEach { w: DictionaryWordEntity ->
@@ -1300,34 +1455,39 @@ private fun DictionaryTab(app: OpenFlowApp) {
                     Row(
                         Modifier
                             .padding(Dimen.MIN_PADDING)
-                            .fillMaxWidth(),
+                            .fillMaxWidth()
+                            .heightIn(min = Dimen.MIN_TOUCH),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
+                        Column(Modifier.weight(1f)) {
                             Text(
                                 w.word,
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = SecUi.charcoal
+                                color = SecUi.charcoal,
+                                softWrap = true
                             )
                             Text(
                                 "→ ${w.replacement}",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = SecUi.ink
+                                color = SecUi.ink,
+                                softWrap = true
                             )
                         }
                         IconButton(
                             onClick = {
                                 scope.launch { app.dictations.deleteWord(w.id) }
                             },
-                            modifier = Modifier.testTag("dict_delete")
+                            modifier = Modifier
+                                .size(Dimen.MIN_TOUCH)
+                                .testTag("dict_delete")
                         ) {
                             Icon(
                                 Icons.Default.Delete,
                                 contentDescription = "Delete",
                                 tint = SecUi.error,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
@@ -1356,28 +1516,34 @@ private fun SnippetsTab(app: OpenFlowApp) {
         Text(
             "Say a short trigger. Paste a whole block.",
             style = MaterialTheme.typography.bodySmall,
-            color = SecUi.muted
+            color = SecUi.muted,
+            softWrap = true
         )
 
         OpenCard {
             Column(
-                Modifier.padding(Dimen.MIN_PADDING),
+                Modifier
+                    .padding(Dimen.MIN_PADDING)
+                    .wrapContentHeight(),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    "New Voice Snippet",
+                    "New snippet",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color = SecUi.charcoal
+                    color = SecUi.charcoal,
+                    softWrap = true
                 )
                 OpenTextField(
                     value = trigger,
                     onValueChange = { trigger = it },
+                    label = "Trigger",
                     placeholder = "Trigger (e.g. my address, email sig)"
                 )
                 OpenTextField(
                     value = body,
                     onValueChange = { body = it },
+                    label = "Paste block",
                     placeholder = "Expansion text…",
                     singleLine = false,
                     minLines = 3
@@ -1412,7 +1578,9 @@ private fun SnippetsTab(app: OpenFlowApp) {
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Row(
-                            Modifier.fillMaxWidth(),
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = Dimen.MIN_TOUCH),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -1420,24 +1588,27 @@ private fun SnippetsTab(app: OpenFlowApp) {
                                 "Trigger: \"${s.trigger}\"",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = SecUi.charcoal
+                                color = SecUi.charcoal,
+                                softWrap = true,
+                                modifier = Modifier.weight(1f)
                             )
                             IconButton(
                                 onClick = { scope.launch { app.dictations.deleteSnippet(s.id) } },
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(Dimen.MIN_TOUCH)
                             ) {
                                 Icon(
                                     Icons.Default.Delete,
                                     contentDescription = "Delete",
                                     tint = SecUi.error,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
                         Text(
                             s.body.take(200),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = SecUi.muted
+                            color = SecUi.muted,
+                            softWrap = true
                         )
                     }
                 }
@@ -1447,6 +1618,7 @@ private fun SnippetsTab(app: OpenFlowApp) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun StyleTab(prefs: FlowPrefs) {
     var selected by remember { mutableStateOf(prefs.style()) }
@@ -1485,9 +1657,10 @@ private fun StyleTab(prefs: FlowPrefs) {
         verticalArrangement = Arrangement.spacedBy(Dimen.GAP)
     ) {
         Text(
-            "Pipeline: dictionary → snippets → cleanup → style. Local rules only — no AI tone model.",
+            "Pipeline: Dict → snippets → cleanup → style. Local rules only — no AI tone model.",
             style = MaterialTheme.typography.bodySmall,
-            color = SecUi.muted
+            color = SecUi.muted,
+            softWrap = true
         )
 
         WritingStyle.entries.forEach { st ->
@@ -1511,12 +1684,14 @@ private fun StyleTab(prefs: FlowPrefs) {
                             label(st),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
-                            color = SecUi.charcoal
+                            color = SecUi.charcoal,
+                            softWrap = true
                         )
                         Text(
                             desc(st),
                             style = MaterialTheme.typography.bodySmall,
-                            color = SecUi.muted
+                            color = SecUi.muted,
+                            softWrap = true
                         )
                     }
                     if (on) {
@@ -1546,11 +1721,15 @@ private fun StyleTab(prefs: FlowPrefs) {
                     Text(
                         "End punctuation",
                         style = MaterialTheme.typography.labelMedium,
-                        color = SecUi.charcoal
+                        color = SecUi.charcoal,
+                        softWrap = true
                     )
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+                    FlowRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .wrapContentHeight(),
+                        horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM),
+                        verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
                     ) {
                         listOf(
                             "auto" to "Auto",
@@ -1561,7 +1740,7 @@ private fun StyleTab(prefs: FlowPrefs) {
                             OpenChip(
                                 label = lab,
                                 isOn = customEnd == v,
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.wrapContentHeight(),
                                 onClick = {
                                     customEnd = v
                                     prefs.customEndPunct = v
@@ -1572,11 +1751,15 @@ private fun StyleTab(prefs: FlowPrefs) {
                     Text(
                         "Capitalization",
                         style = MaterialTheme.typography.labelMedium,
-                        color = SecUi.charcoal
+                        color = SecUi.charcoal,
+                        softWrap = true
                     )
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+                    FlowRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .wrapContentHeight(),
+                        horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM),
+                        verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
                     ) {
                         listOf(
                             "sentence" to "Sentence",
@@ -1586,7 +1769,7 @@ private fun StyleTab(prefs: FlowPrefs) {
                             OpenChip(
                                 label = lab,
                                 isOn = customCaps == v,
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.wrapContentHeight(),
                                 onClick = {
                                     customCaps = v
                                     prefs.customCaps = v
@@ -1603,12 +1786,14 @@ private fun StyleTab(prefs: FlowPrefs) {
                             Text(
                                 "Expand informal",
                                 style = MaterialTheme.typography.titleSmall,
-                                color = SecUi.charcoal
+                                color = SecUi.charcoal,
+                                softWrap = true
                             )
                             Text(
                                 "gonna → going to, don't → do not, …",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = SecUi.muted
+                                color = SecUi.muted,
+                                softWrap = true
                             )
                         }
                         OpenChip(
@@ -1647,6 +1832,7 @@ private fun StyleTab(prefs: FlowPrefs) {
 
 @Composable
 private fun SettingsHub(
+    onSpeechAi: () -> Unit,
     onDictionary: () -> Unit,
     onSnippets: () -> Unit,
     onStyle: () -> Unit,
@@ -1669,13 +1855,15 @@ private fun SettingsHub(
         Text(
             "Preferences & local configuration",
             style = MaterialTheme.typography.bodySmall,
-            color = SecUi.muted
+            color = SecUi.muted,
+            softWrap = true
         )
 
+        SettingsRow("Speech + AI", "Ear, brain, key, URL. Where audio and text go.", onSpeechAi)
         SettingsRow("Flow Bubble & Gestures", "Shape, size, opacity, edge magnetic snap", onBubble)
         SettingsRow("Cleanup Pipeline", "Filler words, course corrections, lists", onCleanup)
         SettingsRow("Writing Style", "Casual, formal, concise persona", onStyle)
-        SettingsRow("Custom Vocabulary", "Personalized spelling & acronyms", onDictionary)
+        SettingsRow("Dict", "One word. Local spelling, acronyms, auto-learn from fixes", onDictionary)
         SettingsRow("Voice Snippets", "Trigger phrases → text expansion", onSnippets)
         SettingsRow("Appearance", "Dark / light theme, visual skins", onAppearance)
         SettingsRow("Privacy & Retention", "Zero-cloud audit, auto-wipe policies", onPrivacy)
@@ -1701,9 +1889,10 @@ private fun CustomizeHub(
     Column(
         Modifier
             .fillMaxSize()
-            .padding(20.dp)
+            .background(SecUi.cream)
+            .padding(horizontal = Dimen.PAGE_PAD, vertical = Dimen.GAP)
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
     ) {
         SettingsRow("Home layout", "Modules on Home", onHomeLayout)
         SettingsRow("Menu visibility", "Show or hide optional menu entries", onNavLayout)
@@ -1716,14 +1905,16 @@ private fun CleanupSettings(prefs: FlowPrefs) {
     Column(
         Modifier
             .fillMaxSize()
-            .padding(horizontal = 20.dp, vertical = 12.dp)
+            .background(SecUi.cream)
+            .padding(horizontal = Dimen.PAGE_PAD, vertical = Dimen.GAP)
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(Dimen.GAP)
     ) {
         Text(
                 "Real-time local text cleanup applied before inserting into fields.",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                softWrap = true
             )
 
         // Match Wispr Auto Cleanup copy; rules are local FOSS (no cloud AI).
@@ -1750,8 +1941,18 @@ private fun CleanupSettings(prefs: FlowPrefs) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                        Text(desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            title,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            softWrap = true
+                        )
+                        Text(
+                            desc,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            softWrap = true
+                        )
                     }
                     if (on) {
                         Icon(
@@ -1780,10 +1981,60 @@ private fun PrivacySettings(prefs: FlowPrefs) {
         verticalArrangement = Arrangement.spacedBy(Dimen.GAP)
     ) {
         Text(
-            "All transcripts and settings remain strictly on your device.",
+            stringResource(R.string.privacy_no_internet),
             style = MaterialTheme.typography.bodySmall,
-            color = SecUi.muted
+            color = SecUi.muted,
+            softWrap = true,
+            modifier = Modifier.testTag("privacy_internet_honesty")
         )
+        Text(
+            "History and settings stay on this phone. Cloud ear/brain only if you pick them.",
+            style = MaterialTheme.typography.bodySmall,
+            color = SecUi.muted,
+            softWrap = true
+        )
+
+        var autoLearn by remember { mutableStateOf(prefs.autoLearn) }
+        OpenCard(
+            selected = autoLearn,
+            onClick = {
+                autoLearn = !autoLearn
+                prefs.autoLearn = autoLearn
+            },
+            modifier = Modifier.testTag("privacy_auto_learn")
+        ) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(Dimen.MIN_PADDING),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "Auto-learn from fixes",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = SecUi.charcoal,
+                        softWrap = true
+                    )
+                    Text(
+                        "When you correct a word after dictation, remember it. Off = no new pairs.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = SecUi.muted,
+                        softWrap = true
+                    )
+                }
+                if (autoLearn) {
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = "On",
+                        tint = SecUi.charcoal,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
 
         listOf(
             "keep" to ("Keep forever" to "Store history in on-device SQLite (not encrypted). Never uploaded by Open Flow."),
@@ -1812,12 +2063,14 @@ private fun PrivacySettings(prefs: FlowPrefs) {
                             title,
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
-                            color = SecUi.charcoal
+                            color = SecUi.charcoal,
+                            softWrap = true
                         )
                         Text(
                             desc,
                             style = MaterialTheme.typography.bodySmall,
-                            color = SecUi.muted
+                            color = SecUi.muted,
+                            softWrap = true
                         )
                     }
                     if (on) {
@@ -1835,6 +2088,7 @@ private fun PrivacySettings(prefs: FlowPrefs) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SoundsSettings(prefs: FlowPrefs) {
     var sounds by remember { mutableStateOf(prefs.bubbleSounds) }
@@ -1843,23 +2097,39 @@ private fun SoundsSettings(prefs: FlowPrefs) {
     Column(
         Modifier
             .fillMaxSize()
-            .padding(horizontal = 20.dp, vertical = 12.dp)
+            .background(SecUi.cream)
+            .padding(horizontal = Dimen.PAGE_PAD, vertical = Dimen.GAP)
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(Dimen.GAP)
     ) {
-        Text("Haptic and audio cues during dictation.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            "Haptic and audio cues during dictation.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            softWrap = true
+        )
 
         OpenCard {
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(Dimen.MIN_PADDING)
+                    .heightIn(min = Dimen.MIN_TOUCH),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text("Start / Stop Audio Cue", style = MaterialTheme.typography.titleSmall)
-                    Text("Play subtle tone when starting dictation", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "Start / Stop Audio Cue",
+                        style = MaterialTheme.typography.titleSmall,
+                        softWrap = true
+                    )
+                    Text(
+                        "Play subtle tone when starting dictation",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        softWrap = true
+                    )
                 }
                 OpenChip(
                     label = if (sounds) "ON" else "OFF",
@@ -1873,14 +2143,26 @@ private fun SoundsSettings(prefs: FlowPrefs) {
         }
 
         OpenCard {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Tactile Haptics", style = MaterialTheme.typography.titleSmall)
+            Column(
+                Modifier
+                    .padding(Dimen.MIN_PADDING)
+                    .wrapContentHeight(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text("Tactile Haptics", style = MaterialTheme.typography.titleSmall, softWrap = true)
                 Text(
                     "Off / Light (tick) / Full (confirm, reject, click).",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    softWrap = true
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     listOf(
                         HapticFeel.OFF to "Off",
                         HapticFeel.LIGHT to "Light",
@@ -1889,7 +2171,7 @@ private fun SoundsSettings(prefs: FlowPrefs) {
                         OpenChip(
                             label = label,
                             isOn = feel == id,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.wrapContentHeight(),
                             onClick = {
                                 feel = id
                                 prefs.hapticFeel = id
@@ -1903,6 +2185,7 @@ private fun SoundsSettings(prefs: FlowPrefs) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ModuleEditor(
     title: String,
@@ -1923,12 +2206,24 @@ private fun ModuleEditor(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = SecUi.charcoal)
-        Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = SecUi.charcoal,
+            softWrap = true
+        )
+        Text(
+            subtitle,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            softWrap = true
+        )
         Text(
             "Order = top to bottom on Home. Hide blocks you never use. Bottom tabs stay fixed.",
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            softWrap = true
         )
         local.forEachIndexed { index, m ->
             val locked = m.id in lockVisible
@@ -1946,7 +2241,9 @@ private fun ModuleEditor(
                             "${index + 1}. ${labels[m.id] ?: m.id}",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
-                            color = SecUi.charcoal
+                            color = SecUi.charcoal,
+                            softWrap = true,
+                            modifier = Modifier.weight(1f)
                         )
                         Text(
                             if (m.visible) "ON" else "OFF",
@@ -1955,13 +2252,17 @@ private fun ModuleEditor(
                             color = if (m.visible) SecUi.ink else SecUi.muted
                         )
                     }
-                    Row(
+                    FlowRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .wrapContentHeight(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         OpenChip(
                             label = if (m.visible) "Show" else "Hide",
                             isOn = m.visible,
+                            modifier = Modifier.wrapContentHeight(),
                             onClick = {
                                 focusedId = m.id
                                 if (!locked) {
@@ -1973,6 +2274,7 @@ private fun ModuleEditor(
                         OpenChip(
                             label = "↑ Up",
                             isOn = false,
+                            modifier = Modifier.wrapContentHeight(),
                             onClick = {
                                 focusedId = m.id
                                 local = LayoutPrefs.move(local, m.id, -1)
@@ -1982,6 +2284,7 @@ private fun ModuleEditor(
                         OpenChip(
                             label = "↓ Down",
                             isOn = false,
+                            modifier = Modifier.wrapContentHeight(),
                             onClick = {
                                 focusedId = m.id
                                 local = LayoutPrefs.move(local, m.id, 1)
@@ -2031,6 +2334,7 @@ private fun SettingsRow(title: String, subtitle: String, onClick: () -> Unit) {
         Row(
             Modifier
                 .fillMaxWidth()
+                .heightIn(min = Dimen.MIN_TOUCH)
                 .padding(Dimen.MIN_PADDING),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
@@ -2040,23 +2344,26 @@ private fun SettingsRow(title: String, subtitle: String, onClick: () -> Unit) {
                     title,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color = SecUi.charcoal
+                    color = SecUi.charcoal,
+                    softWrap = true
                 )
                 Text(
                     subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = SecUi.muted
+                    color = SecUi.muted,
+                    softWrap = true
                 )
             }
             Icon(
                 Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
+                contentDescription = "Open $title",
                 tint = SecUi.muted
             )
         }
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun AppearanceSettings(prefs: FlowPrefs) {
     val dark by prefs.darkMode.collectAsState()
@@ -2095,23 +2402,36 @@ private fun AppearanceSettings(prefs: FlowPrefs) {
         Text(
             "Theme, motion smoothness, and STT speed. Changes apply now.",
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            softWrap = true
         )
 
         OpenCard {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Color theme", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Column(
+                Modifier
+                    .padding(Dimen.MIN_PADDING)
+                    .wrapContentHeight(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text("Color theme", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, softWrap = true)
                 Text(
                     "Light / Dark / System — all screens + bubble chrome follow this.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    softWrap = true
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     listOf("system" to "System", "light" to "Light", "dark" to "Dark").forEach { (v, label) ->
                         OpenChip(
                             label = label,
                             isOn = dark == v,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.wrapContentHeight(),
                             onClick = { prefs.setDarkMode(v) }
                         )
                     }
@@ -2120,19 +2440,31 @@ private fun AppearanceSettings(prefs: FlowPrefs) {
         }
 
         OpenCard {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Screen refresh", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Column(
+                Modifier
+                    .padding(Dimen.MIN_PADDING)
+                    .wrapContentHeight(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text("Screen refresh", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, softWrap = true)
                 Text(
                     "Prefer 60 / 90 / 120 / 144 Hz when the phone supports it. Device may clamp.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    softWrap = true
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     hzChoices.forEach { hz ->
                         OpenChip(
                             label = "${hz}Hz",
                             isOn = refreshHz == hz,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.wrapContentHeight(),
                             onClick = {
                                 refreshHz = hz
                                 prefs.refreshHz = hz
@@ -2147,14 +2479,26 @@ private fun AppearanceSettings(prefs: FlowPrefs) {
         }
 
         OpenCard {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Dictation speed (STT)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            Column(
+                Modifier
+                    .padding(Dimen.MIN_PADDING)
+                    .wrapContentHeight(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text("Dictation speed (STT)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, softWrap = true)
                 Text(
                     "Fast = shorter silence wait. Accurate = longer listen + engine punctuation. Local cleanup still runs.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    softWrap = true
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     listOf(
                         SttTuning.PROFILE_FAST to "Fast",
                         SttTuning.PROFILE_BALANCED to "Balanced",
@@ -2163,7 +2507,7 @@ private fun AppearanceSettings(prefs: FlowPrefs) {
                         OpenChip(
                             label = label,
                             isOn = sttProfile == id,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.wrapContentHeight(),
                             onClick = {
                                 sttProfile = id
                                 prefs.sttProfile = id
@@ -2183,6 +2527,7 @@ private fun AppearanceSettings(prefs: FlowPrefs) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
     var scale by remember { mutableFloatStateOf(prefs.bubbleScale) }
@@ -2205,13 +2550,22 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
         Text(
             "Morph the shape, size, and interaction physics of your floating bubble.",
             style = MaterialTheme.typography.bodySmall,
-            color = SecUi.muted
+            color = SecUi.muted,
+            softWrap = true
+        )
+        Text(
+            "Live preview",
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = SecUi.charcoal,
+            softWrap = true
         )
 
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(72.dp)
+                .heightIn(min = 120.dp)
+                .padding(vertical = Dimen.GAP_SM)
                 .border(SecUi.hardBorder)
                 .background(SecUi.cream)
                 .testTag("bubble_preview"),
@@ -2222,19 +2576,31 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                 "pill" -> RoundedCornerShape(50)
                 else -> RoundedCornerShape(2.dp)
             }
-            val base = when (shape) {
-                "dot" -> 18.dp
-                "circle" -> 36.dp
-                "square" -> 36.dp
-                else -> 56.dp
+            val baseW = when (shape) {
+                "dot" -> 22.dp
+                "circle" -> 44.dp
+                "square" -> 44.dp
+                else -> 76.dp
             }
-            val previewH = if (shape == "pill") 28.dp else base
+            val baseH = if (shape == "pill") 34.dp else baseW
             Box(
-                Modifier
-                    .size((base.value * scale).dp, (previewH.value * scale).dp)
-                    .alpha(opacity)
-                    .background(Color(BubbleTint.argb(tint)), previewShape)
-            )
+                modifier = Modifier
+                    .size(baseW * scale, baseH * scale)
+                    .graphicsLayer { alpha = opacity }
+                    .background(Color(BubbleTint.argb(tint)), previewShape),
+                contentAlignment = Alignment.Center
+            ) {
+                if (showText && shape != "dot") {
+                    Text(
+                        "Hi",
+                        color = Color(BubbleTint.onArgb(tint)),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
+            }
         }
 
         OpenCard {
@@ -2248,9 +2614,12 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                     fontWeight = FontWeight.Bold,
                     color = SecUi.charcoal
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight(),
+                    horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM),
+                    verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
                 ) {
                     listOf(
                         "pill" to "Pill",
@@ -2261,7 +2630,7 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                         OpenChip(
                             label = label,
                             isOn = shape == v,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.wrapContentHeight(),
                             onClick = {
                                 shape = v
                                 prefs.bubbleShape = v
@@ -2284,9 +2653,12 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                     fontWeight = FontWeight.Bold,
                     color = SecUi.charcoal
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight(),
+                    horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM),
+                    verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
                 ) {
                     listOf(
                         BubbleTint.CHARCOAL to "Charcoal",
@@ -2297,7 +2669,7 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                         OpenChip(
                             label = label,
                             isOn = tint == id,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.wrapContentHeight(),
                             onClick = {
                                 tint = id
                                 prefs.bubbleTint = id
@@ -2334,9 +2706,9 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                 }
                 Slider(
                     value = scale,
-                    onValueChange = {
-                        scale = it
-                        prefs.bubbleScale = it
+                    onValueChange = { scale = it },
+                    onValueChangeFinished = {
+                        prefs.bubbleScale = scale
                         onApplyBubble()
                     },
                     valueRange = 0.7f..1.2f,
@@ -2361,9 +2733,9 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                 }
                 Slider(
                     value = opacity,
-                    onValueChange = {
-                        opacity = it
-                        prefs.bubbleOpacity = it
+                    onValueChange = { opacity = it },
+                    onValueChangeFinished = {
+                        prefs.bubbleOpacity = opacity
                         onApplyBubble()
                     },
                     valueRange = 0.3f..1f,
@@ -2397,12 +2769,14 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                         Text(
                             "Live Speech Caption",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = SecUi.charcoal
+                            color = SecUi.charcoal,
+                            softWrap = true
                         )
                         Text(
                             "Display transcribed words directly on the bubble",
                             style = MaterialTheme.typography.bodySmall,
-                            color = SecUi.muted
+                            color = SecUi.muted,
+                            softWrap = true
                         )
                     }
                     OpenChip(
@@ -2425,12 +2799,14 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                         Text(
                             "Magnetic Edge Snapping",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = SecUi.charcoal
+                            color = SecUi.charcoal,
+                            softWrap = true
                         )
                         Text(
                             "Snap bubble seamlessly to nearest screen edge on release",
                             style = MaterialTheme.typography.bodySmall,
-                            color = SecUi.muted
+                            color = SecUi.muted,
+                            softWrap = true
                         )
                     }
                     OpenChip(
@@ -2453,12 +2829,14 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                         Text(
                             "Active Recording Pulse",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = SecUi.charcoal
+                            color = SecUi.charcoal,
+                            softWrap = true
                         )
                         Text(
                             "Pulse glowing outer ring and scale dynamically to voice RMS volume",
                             style = MaterialTheme.typography.bodySmall,
-                            color = SecUi.muted
+                            color = SecUi.muted,
+                            softWrap = true
                         )
                     }
                     OpenChip(
@@ -2483,9 +2861,12 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                         style = MaterialTheme.typography.bodySmall,
                         color = SecUi.muted
                     )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+                    FlowRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .wrapContentHeight(),
+                        horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM),
+                        verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
                     ) {
                         listOf(
                             HapticFeel.OFF to "Off",
@@ -2495,7 +2876,7 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                             OpenChip(
                                 label = label,
                                 isOn = feel == id,
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.wrapContentHeight(),
                                 onClick = {
                                     feel = id
                                     prefs.hapticFeel = id

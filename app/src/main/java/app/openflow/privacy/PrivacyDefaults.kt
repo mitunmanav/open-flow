@@ -8,11 +8,13 @@ import app.openflow.prefs.FlowPrefs
  * OpenFlow itself has no server, analytics, or uploads.
  */
 object PrivacyDefaults {
-    fun reportText(prefs: FlowPrefs? = null): String {
-        val retention = prefs?.retentionPolicy ?: "keep"
+    fun reportText(prefs: FlowPrefs? = null): String =
+        reportText(prefs?.retentionPolicy ?: RetentionPolicy.KEEP)
+
+    fun reportText(retention: String): String {
         val historyLocation = when (retention) {
-            "never_store" -> "not stored in Room history"
-            "wipe_24h" -> "on device, purged after 24h"
+            RetentionPolicy.NEVER_STORE -> "not stored in Room history"
+            RetentionPolicy.WIPE_24H -> "on device, purged after 24h"
             else -> "on device SQLite (not encrypted)"
         }
 
@@ -21,14 +23,21 @@ object PrivacyDefaults {
             - Speech recognition: Android system STT (may leave device)
             - OpenFlow server: none
             - Analytics: disabled
-            - Audio uploaded by OpenFlow: never
+            - Audio uploaded by OpenFlow: only if cloud ear
             - Transcript uploaded by OpenFlow: never
             - Local history: $historyLocation ($retention)
             - prefer offline STT extras: ON (device may still use remote STT)
             - sync: OFF
             - crash reports: OFF
-            - INTERNET permission: not declared by OpenFlow
+            - INTERNET permission: declared; unused until user pick
+            - Grok: xAI (not Groq)
             - account required: no
         """.trimIndent() + "\n"
+    }
+
+    /** OpenFlow sends audio only for a cloud / laptop ear. System STT is OEM. */
+    fun audioLeaves(earId: String): Boolean = when (earId.lowercase()) {
+        "openai", "deepgram", "assemblyai", "sarvam", "laptop", "custom_stt" -> true
+        else -> false
     }
 }

@@ -1,4 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.OpenFlow" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- First paint = cream. Light status icons (dark glyphs) on cream. -->
+    <style name="Theme.OpenFlow" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/brutal_cream</item>
+        <item name="android:colorBackground">@color/brutal_cream</item>
+        <item name="android:statusBarColor">@color/brutal_cream</item>
+        <item name="android:navigationBarColor">@color/brutal_cream</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:windowSplashScreenBackground">@color/brutal_cream</item>
+        <item name="android:colorPrimary">@color/brutal_charcoal</item>
+        <item name="android:colorPrimaryDark">@color/brutal_charcoal</item>
+        <item name="android:textColorPrimary">@color/brutal_charcoal</item>
+        <item name="android:navigationBarDividerColor">@color/brutal_charcoal</item>
+    </style>
 </resources>

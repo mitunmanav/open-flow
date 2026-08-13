@@ -2,25 +2,31 @@ package app.openflow.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.openflow.ui.a11y.Dimen
+import app.openflow.ui.a11y.OpenShapes
 
 /**
  * Minimal brutal card — cream face, hard 2dp border, 2dp offset block (no blur).
+ * No Material Card/Surface: those clip children to [shape] and cut chips/text.
  * Colors follow [MaterialTheme.colorScheme] so light/dark work.
  */
 @Composable
@@ -33,13 +39,16 @@ fun OpenCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val scheme = MaterialTheme.colorScheme
-    val borderWidth = 2.dp
     val borderColor = when {
         disabled -> scheme.outline.copy(alpha = 0.4f)
-        selected -> scheme.outline
         else -> scheme.outline
     }
     val shadowColor = scheme.outline
+    val faceColor = when {
+        disabled -> scheme.surfaceVariant.copy(alpha = 0.7f)
+        selected -> scheme.surfaceVariant
+        else -> scheme.surface
+    }
 
     val faceMod = Modifier
         .fillMaxWidth()
@@ -47,34 +56,25 @@ fun OpenCard(
             if (onClick != null && !disabled) Modifier.defaultMinSize(minHeight = Dimen.TOUCH_TARGET)
             else Modifier
         )
+        .graphicsLayer { clip = false }
+        .background(color = faceColor, shape = OpenShapes.Card)
+        .border(BorderStroke(Dimen.BORDER, borderColor), OpenShapes.Card)
         .semantics {
             if (contentDescription != null) this.contentDescription = contentDescription
             if (disabled) this.disabled()
+            if (onClick != null) role = Role.Button
         }
+        .then(
+            if (onClick != null && !disabled) {
+                Modifier.clickable(role = Role.Button, onClick = onClick)
+            } else Modifier
+        )
 
-    val colors = CardDefaults.cardColors(
-        containerColor = when {
-            disabled -> scheme.surfaceVariant.copy(alpha = 0.7f)
-            selected -> scheme.surfaceVariant
-            else -> scheme.surface
-        },
-        contentColor = scheme.onSurface,
-        disabledContainerColor = scheme.surfaceVariant.copy(alpha = 0.7f),
-        disabledContentColor = scheme.onSurface.copy(alpha = 0.38f)
-    )
-
-    val elevation = CardDefaults.cardElevation(
-        defaultElevation = 0.dp,
-        disabledElevation = 0.dp,
-        pressedElevation = 0.dp,
-        focusedElevation = 0.dp,
-        hoveredElevation = 0.dp
-    )
-
-    // Minimal offset room (2dp) — not chunky 4dp
+    // Minimal offset room (2dp) — not chunky 4dp. clip off so chips/text not cut.
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .graphicsLayer { clip = false }
             .padding(end = 2.dp, bottom = 2.dp)
     ) {
         Box(
@@ -83,26 +83,9 @@ fun OpenCard(
                 .offset(2.dp, 2.dp)
                 .background(shadowColor)
         )
-        if (onClick != null) {
-            Card(
-                onClick = onClick,
-                modifier = faceMod,
-                enabled = !disabled,
-                shape = MaterialTheme.shapes.medium,
-                colors = colors,
-                border = BorderStroke(borderWidth, borderColor),
-                elevation = elevation,
-                content = content
-            )
-        } else {
-            Card(
-                modifier = faceMod,
-                shape = MaterialTheme.shapes.medium,
-                colors = colors,
-                border = BorderStroke(borderWidth, borderColor),
-                elevation = elevation,
-                content = content
-            )
-        }
+        Column(
+            modifier = faceMod,
+            content = content
+        )
     }
 }

@@ -18,28 +18,38 @@ object NavStack {
         if (dest.isBottomBar()) return listOf(dest)
         val cur = current(stack)
         if (cur == dest) return stack.ifEmpty { listOf(AppRoute.Home) }
-        val base = stack.ifEmpty { listOf(AppRoute.Home) }
+        var base = stack.ifEmpty { listOf(AppRoute.Home) }
         // Avoid duplicate consecutive destinations
         if (base.last() == dest) return base
+        // Settings children sit on Settings so Back always lands there.
+        if (dest.isSettingsSubtree() && AppRoute.Settings !in base) {
+            base = listOf(AppRoute.Settings)
+        }
         return base + dest
     }
 
     fun canGoBack(stack: List<AppRoute>): Boolean {
         if (stack.size > 1) return true
         val cur = stack.singleOrNull() ?: return false
+        if (cur.isSettingsSubtree() && cur != AppRoute.Settings) return true
         return cur.isBottomBar() && cur != AppRoute.Home
     }
 
     fun goBack(stack: List<AppRoute>): List<AppRoute> {
         if (stack.size > 1) return stack.dropLast(1)
         val cur = stack.singleOrNull()
+        if (cur != null && cur.isSettingsSubtree() && cur != AppRoute.Settings) {
+            return listOf(AppRoute.Settings)
+        }
         if (cur != null && cur.isBottomBar() && cur != AppRoute.Home) {
             return listOf(AppRoute.Home)
         }
         return stack.ifEmpty { listOf(AppRoute.Home) }
     }
 
-    fun openDeepLink(dest: AppRoute): List<AppRoute> =
-        if (dest.isBottomBar()) listOf(dest)
-        else listOf(AppRoute.Home, dest)
+    fun openDeepLink(dest: AppRoute): List<AppRoute> = when {
+        dest.isBottomBar() -> listOf(dest)
+        dest.isSettingsSubtree() -> listOf(AppRoute.Settings, dest)
+        else -> listOf(AppRoute.Home, dest)
+    }
 }

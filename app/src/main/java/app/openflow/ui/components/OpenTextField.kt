@@ -20,6 +20,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import app.openflow.ui.a11y.Dimen
+import app.openflow.ui.a11y.OpenShapes
 
 /** Theme-aware brutal field: surface fill, outline border. */
 @Composable
@@ -84,7 +85,7 @@ fun OpenTextField(
         singleLine = effectiveSingleLine,
         minLines = if (effectiveSingleLine) 1 else minLines,
         maxLines = effectiveMaxLines,
-        shape = MaterialTheme.shapes.small,
+        shape = OpenShapes.Field,
         leadingIcon = leadingIcon,
         trailingIcon = if (showClearButton && value.isNotEmpty() && enabled) {
             {

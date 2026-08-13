@@ -31,9 +31,9 @@ Copy from **History** in the app. No copy chip on the bubble.
 
 | | |
 |---|---|
-| [Website](https://mitunmanav.github.io/open-flow/) | Simple home |
-| [Architecture + diagrams](docs/ARCHITECTURE.md) | How it is built |
-| [Roadmap](docs/ROADMAP.md) | Now / next / not planned |
+| [Website](https://mitunmanav.github.io/open-flow/) | Home |
+| [Architecture](https://mitunmanav.github.io/open-flow/architecture.html) | Diagrams |
+| [Roadmap](https://mitunmanav.github.io/open-flow/roadmap.html) | Now / next / not planned |
 | [Privacy](docs/PRIVACY.md) | What we touch |
 | [How to report](docs/REPORT.md) | Bug or idea |
 

@@ -1,5 +1,6 @@
 package app.openflow.ai
 
+import app.openflow.engine.ModelCapability
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import kotlinx.coroutines.test.runTest
@@ -18,12 +19,17 @@ class NoAITest {
         assertThat(NoAI.enhance("hello world")).isEqualTo("hello world")
         assertThat(NoAI.enhance("", mode = "cleanup")).isEqualTo("")
         assertThat(NoAI.enhance("  spaced  ", mode = "formal")).isEqualTo("  spaced  ")
+        assertThat(NoAI.enhance("keep", mode = "command")).isEqualTo("keep")
     }
 
     @Test
-    fun no_internet_permission_in_manifest() {
-        val manifest = locate("src/main/AndroidManifest.xml").readText()
-        assertThat(manifest).doesNotContain("android.permission.INTERNET")
+    fun capability_is_none_brain() {
+        val c = NoAI.capability
+        assertThat(c).isEqualTo(ModelCapability.noneBrain())
+        assertThat(c.rewrite).isFalse()
+        assertThat(c.commandMode).isFalse()
+        assertThat(c.needsNet).isFalse()
+        assertThat(c.audioLeavesDevice).isFalse()
     }
 
     @Test

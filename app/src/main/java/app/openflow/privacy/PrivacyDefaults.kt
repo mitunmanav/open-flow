@@ -29,7 +29,7 @@ object PrivacyDefaults {
             - prefer offline STT extras: ON (device may still use remote STT)
             - sync: OFF
             - crash reports: OFF
-            - INTERNET permission: not declared by OpenFlow
+            - INTERNET permission: declared; unused until user pick
             - account required: no
         """.trimIndent() + "\n"
     }

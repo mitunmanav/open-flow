@@ -1,8 +1,10 @@
 # NOW
 
-**main:** F22 `c2df3be` — 0.1.2 Wispr-feel on phone
-**lab:** `.worktrees/minimax` / `sandbox/minimax` — exclusive
+**main:** `b0e0a41` on GitHub — 0.1.5 sideload
+**live:** https://github.com/mitunmanav/open-flow
+**release:** https://github.com/mitunmanav/open-flow/releases/tag/v0.1.5
+**lab:** `.worktrees/minimax` — exclusive
 
-**DID:** F24+F25 combined on `feat/24-feel-fix` only. Fresh 0.1.3 install. Walkthrough on screen. Not main.
+**DID:** Public repo + docs + release APK. Bubble copy gone.
 
-**NEXT:** Mitun walk the 5 pages. Then say merge or not.
+**NEXT:** Friends install from Releases. Release keystore later. Not Play yet.

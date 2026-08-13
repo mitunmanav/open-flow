@@ -112,7 +112,6 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     private var draggingNow = false
     private var compactVisual = false
     private var lastInteractionAt = 0L
-    private var lastCommitAt = -1L
     private var lastRms = 0f
     /** Soft keyboard present (Wispr: bubble lives with field + keyboard). */
     private var imeVisible: Boolean = false
@@ -369,11 +368,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             if (listening || stopInProgress) stopListening(save = false)
         }
         bubbleDone?.setOnClickListener {
-            if (listening || stopInProgress) {
-                stopListening(save = true)
-            } else if (copyChipVisible()) {
-                copyLastToClipboard()
-            }
+            if (listening || stopInProgress) stopListening(save = true)
         }
 
         if (prefs == null) prefs = FlowPrefs(this)
@@ -708,39 +703,6 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         bubbleView?.scaleY = s
     }
 
-    private fun copyChipAgeMs(): Long {
-        if (lastCommitAt < 0L) return -1L
-        return SystemClock.elapsedRealtime() - lastCommitAt
-    }
-
-    private fun copyChipVisible(): Boolean =
-        CopyChip.shouldShow(
-            copyChipAgeMs(),
-            listening,
-            CopyChip.visibleMs((prefs?.copyChipSec ?: 6).toString()),
-        )
-
-    private fun refreshCopyChip() {
-        if (listening) return
-        val show = copyChipVisible()
-        bubbleDone?.visibility = if (show) View.VISIBLE else View.GONE
-        if (show) {
-            bubbleDone?.setColorFilter(BubbleChrome.DONE)
-            bubbleLabel?.visibility = View.VISIBLE
-            bubbleLabel?.text = "Copy"
-            val density = resources.displayMetrics.density
-            val padH = (10f * density).toInt()
-            val padV = (8f * density).toInt()
-            bubbleRoot?.layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.CENTER
-            )
-            bubbleRoot?.setPadding(padH, padV, padH, padV)
-        }
-        applyOverlayWindowSize()
-    }
-
     private fun copyLastToClipboard() {
         val text = prefs?.lastSessionClean.orEmpty()
         if (text.isBlank()) {
@@ -785,7 +747,6 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             compactVisual = wantCompact
             applyVisualScale()
         }
-        if (!listening) refreshCopyChip()
     }
 
     private fun setBubbleEmphasis(hasField: Boolean) {
@@ -987,9 +948,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                     if (finalText.isNotBlank()) {
                         commitSessionToField(finalText, prefix)
                         prefs?.setLastSession(raw = result.raw, clean = finalText)
-                        lastCommitAt = SystemClock.elapsedRealtime()
-                        lastInteractionAt = lastCommitAt
-                        refreshCopyChip()
+                        lastInteractionAt = SystemClock.elapsedRealtime()
                         val wordCount = finalText.split(Regex("\\s+"))
                             .filter { it.isNotBlank() }.size
                         val retention = prefs?.retentionPolicy ?: "keep"
@@ -1076,9 +1035,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             if (finalText.isNotBlank()) {
                 commitSessionToField(finalText, prefix)
                 prefs?.setLastSession(raw = result.raw, clean = finalText)
-                lastCommitAt = SystemClock.elapsedRealtime()
-                lastInteractionAt = lastCommitAt
-                refreshCopyChip()
+                lastInteractionAt = SystemClock.elapsedRealtime()
                 val wordCount = finalText.split(Regex("\\s+")).filter { it.isNotBlank() }.size
                 val retention = prefs?.retentionPolicy ?: "keep"
                 val lang = LanguagePolicy.LOCKED
@@ -1358,7 +1315,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         val params = bubbleParams ?: return
         val density = resources.displayMetrics.density
         val shape = FlowPrefs.normalizeBubbleShape(prefs?.bubbleShape.orEmpty())
-        val wide = listening || copyChipVisible()
+        val wide = listening
         val (w, h) = BubbleGeometry.overlaySizePx(wide, density, shape)
         params.width = if (w > 0) w else WindowManager.LayoutParams.WRAP_CONTENT
         params.height = if (h > 0) h else WindowManager.LayoutParams.WRAP_CONTENT

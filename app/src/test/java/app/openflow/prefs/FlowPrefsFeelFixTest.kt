@@ -34,16 +34,4 @@ class FlowPrefsFeelFixTest {
         assertThat(prefs.hapticFeel).isEqualTo(HapticFeel.LIGHT)
         assertThat(prefs.bubbleHaptics).isTrue()
     }
-
-    @Test
-    fun copyChipSec_3_6_10() {
-        val prefs = FlowPrefs(MemoryPrefsStore())
-        assertThat(prefs.copyChipSec).isEqualTo(6)
-        prefs.copyChipSec = 3
-        assertThat(prefs.copyChipSec).isEqualTo(3)
-        prefs.copyChipSec = 10
-        assertThat(prefs.copyChipSec).isEqualTo(10)
-        prefs.copyChipSec = 9
-        assertThat(prefs.copyChipSec).isEqualTo(6)
-    }
 }

@@ -89,7 +89,7 @@ private val BrutalDark = darkColorScheme(
     onBackground = Color(0xFFF5F2EB),
     surfaceVariant = BrutalColors.StoneDark,
     // Was Stone (cream-ish) — too low contrast on dark; use muted light gray
-    onSurfaceVariant = Color(0xFFC8C3B8),
+    onSurfaceVariant = Color(0xFFD8D3C8),
     outline = Color(0xFFB8B2A6),
     outlineVariant = BrutalColors.StoneDark,
     error = BrutalColors.Error,

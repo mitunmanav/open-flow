@@ -8,6 +8,8 @@ import app.openflow.text.CapsMode
 import app.openflow.text.CustomStyleConfig
 import app.openflow.text.EndPunct
 import app.openflow.text.WritingStyle
+import app.openflow.ui.HapticFeel
+import app.openflow.ui.theme.BubbleTint
 import app.openflow.ui.theme.VisualSkin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -154,6 +156,32 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         get() = store.getString("bubble_haptics", "true") == "true"
         set(v) = store.putString("bubble_haptics", if (v) "true" else "false")
 
+    /** charcoal | cream | ink | stone */
+    var bubbleTint: String
+        get() = BubbleTint.normalize(store.getString("bubble_tint", BubbleTint.CHARCOAL))
+        set(v) = store.putString("bubble_tint", BubbleTint.normalize(v))
+
+    /** off | light | full — off maps [bubbleHaptics] false */
+    var hapticFeel: String
+        get() {
+            val raw = store.getString("haptic_feel", "")
+            return if (raw.isEmpty()) {
+                if (bubbleHaptics) HapticFeel.FULL else HapticFeel.OFF
+            } else {
+                HapticFeel.normalize(raw)
+            }
+        }
+        set(v) {
+            val n = HapticFeel.normalize(v)
+            store.putString("haptic_feel", n)
+            bubbleHaptics = n != HapticFeel.OFF
+        }
+
+    /** Copy chip seconds: 3 | 6 | 10 */
+    var copyChipSec: Int
+        get() = normalizeCopyChipSec(store.getString("copy_chip_sec", "6").toIntOrNull() ?: 6)
+        set(v) = store.putString("copy_chip_sec", normalizeCopyChipSec(v).toString())
+
     var bubbleEdgeSnap: Boolean
         get() = store.getString("bubble_edge_snap", "true") == "true"
         set(v) = store.putString("bubble_edge_snap", if (v) "true" else "false")
@@ -276,6 +304,11 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
                 "keep", "wipe_24h", "never_store" -> value.lowercase()
                 else -> "keep"
             }
+
+        fun normalizeCopyChipSec(sec: Int): Int = when (sec) {
+            3, 10 -> sec
+            else -> 6
+        }
     }
 }
 

@@ -2,8 +2,13 @@ package app.openflow.ui.walkthrough
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,9 +44,10 @@ fun WalkthroughPager(
     Column(
         modifier
             .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.statusBars.union(WindowInsets.safeDrawing))
             .padding(horizontal = Dimen.PAGE_PAD, vertical = Dimen.GAP)
             .testTag("walkthrough"),
-        verticalArrangement = Arrangement.spacedBy(Dimen.GAP)
+        verticalArrangement = Arrangement.Center,
     ) {
         OpenCard {
             Column(

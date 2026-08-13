@@ -718,7 +718,11 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     }
 
     private fun copyChipVisible(): Boolean =
-        CopyChip.shouldShow(copyChipAgeMs(), listening)
+        CopyChip.shouldShow(
+            copyChipAgeMs(),
+            listening,
+            CopyChip.visibleMs("6"),
+        )
 
     private fun refreshCopyChip() {
         if (listening) return

@@ -71,7 +71,7 @@ fun OpenChip(
         modifier = modifier
             .defaultMinSize(minHeight = Dimen.TOUCH_TARGET)
             .graphicsLayer { clip = false }
-            .alpha(if (enabled) 1f else 0.38f)
+            .alpha(if (enabled || isOn) 1f else 0.38f)
             .background(color = bgColor, shape = OpenShapes.Chip)
             .border(BorderStroke(Dimen.BORDER, borderColor), OpenShapes.Chip)
             .semantics {

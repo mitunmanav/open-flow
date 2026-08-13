@@ -66,6 +66,12 @@ fun EngineSettingsScreen(
             modifier = Modifier.testTag("engine_honesty")
         )
         Text(
+            text = stringResource(R.string.privacy_no_internet),
+            style = MaterialTheme.typography.bodySmall,
+            color = scheme.onSurfaceVariant,
+            modifier = Modifier.testTag("engine_internet_honesty")
+        )
+        Text(
             text = stringResource(R.string.speech_ai_honesty_hint),
             style = MaterialTheme.typography.bodySmall,
             color = scheme.onSurfaceVariant
@@ -111,6 +117,26 @@ fun EngineSettingsScreen(
                         brain = preset.id
                         onPick(ear, preset.id)
                     }
+                )
+            }
+        }
+
+        Text(
+            text = stringResource(R.string.speech_ai_features),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold
+        )
+        FlowRow(
+            modifier = Modifier.testTag("engine_feature_chips"),
+            horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM),
+            verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+        ) {
+            state.chips.forEach { chip ->
+                OpenChip(
+                    label = chip.label,
+                    isOn = chip.lit,
+                    enabled = false,
+                    modifier = Modifier.testTag("engine_chip_" + chip.id)
                 )
             }
         }
@@ -187,18 +213,6 @@ fun EngineSettingsScreen(
             )
         }
 
-        Text(
-            text = state.highLabel,
-            style = MaterialTheme.typography.bodySmall,
-            color = scheme.onSurfaceVariant,
-            modifier = Modifier.testTag("engine_high_label")
-        )
-        Text(
-            text = state.commandWhy ?: stringResource(R.string.speech_ai_command_on),
-            style = MaterialTheme.typography.bodySmall,
-            color = if (state.commandMode) scheme.onSurfaceVariant else scheme.onSurface.copy(alpha = 0.55f),
-            modifier = Modifier.testTag("engine_command_why")
-        )
         Spacer(Modifier.height(Dimen.GAP_LG))
     }
 }

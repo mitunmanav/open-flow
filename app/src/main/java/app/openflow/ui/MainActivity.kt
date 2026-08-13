@@ -82,6 +82,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -90,6 +91,7 @@ import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import app.openflow.R
 import app.openflow.OpenFlowApp
 import app.openflow.bubble.FlowAccessibilityService
 import app.openflow.data.DictationEntity
@@ -334,6 +336,7 @@ class MainActivity : ComponentActivity() {
                                 onOpenAppearance = { goTo(AppRoute.Appearance) },
                                 onOpenCleanup = { goTo(AppRoute.Cleanup) },
                                 onOpenStyle = { goTo(AppRoute.Style) },
+                                onOpenSpeechAi = { goTo(AppRoute.SpeechAi) },
                                 onBattery = {
                                     try {
                                         startActivity(
@@ -468,6 +471,7 @@ private fun HomeHub(
     onOpenAppearance: () -> Unit,
     onOpenCleanup: () -> Unit,
     onOpenStyle: () -> Unit,
+    onOpenSpeechAi: () -> Unit,
     onBattery: () -> Unit
 ) {
     val dictations by app.dictations.observeDictations().collectAsState(initial = emptyList())
@@ -883,6 +887,12 @@ private fun HomeHub(
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
+                                OpenButton(
+                                    text = "Speech + AI",
+                                    onClick = onOpenSpeechAi,
+                                    variant = ButtonVariant.Text,
+                                    modifier = Modifier.testTag("home_link_speech_ai")
+                                )
                                 OpenButton(
                                     text = "Rules",
                                     onClick = onOpenCleanup,
@@ -1957,7 +1967,14 @@ private fun PrivacySettings(prefs: FlowPrefs) {
         verticalArrangement = Arrangement.spacedBy(Dimen.GAP)
     ) {
         Text(
-            "All transcripts and settings remain strictly on your device.",
+            stringResource(R.string.privacy_no_internet),
+            style = MaterialTheme.typography.bodySmall,
+            color = SecUi.muted,
+            softWrap = true,
+            modifier = Modifier.testTag("privacy_internet_honesty")
+        )
+        Text(
+            "History and settings stay on this phone. Cloud ear/brain only if you pick them.",
             style = MaterialTheme.typography.bodySmall,
             color = SecUi.muted,
             softWrap = true

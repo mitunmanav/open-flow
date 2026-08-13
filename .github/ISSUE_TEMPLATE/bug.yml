@@ -14,7 +14,7 @@ body:
     id: phone
     attributes:
       label: Phone
-      placeholder: e.g. Nothing A059, Android 15
+      placeholder: e.g. Pixel, Android 15
   - type: input
     id: ver
     attributes:

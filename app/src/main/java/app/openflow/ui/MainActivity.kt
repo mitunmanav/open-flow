@@ -364,6 +364,7 @@ private fun HomeHub(
     var statsText by remember { mutableStateOf("…") }
     var localNote by rememberSaveable { mutableStateOf("") }
     var cleanup by remember { mutableStateOf(app.prefs.cleanupLevel) }
+    var showText by remember { mutableStateOf(app.prefs.bubbleShowText) }
     var lastClean by remember { mutableStateOf(app.prefs.lastCleanText) }
     var lastRaw by remember { mutableStateOf(app.prefs.lastRawText) }
     val owner = LocalLifecycleOwner.current
@@ -494,7 +495,7 @@ private fun HomeHub(
                                     onClick = onMic
                                 )
                                 OpenChip(
-                                    label = "Battery",
+                                    label = "Battery settings",
                                     isOn = false,
                                     showCheckWhenOn = false,
                                     modifier = Modifier.testTag("setup_chip_battery"),
@@ -591,6 +592,24 @@ private fun HomeHub(
                                         }
                                     )
                                 }
+                            }
+                            FlowRow(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .testTag("home_keys_chips"),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                OpenChip(
+                                    label = "Speech on bubble",
+                                    isOn = showText,
+                                    modifier = Modifier.testTag("keys_speech_on_bubble"),
+                                    onClick = {
+                                        showText = !showText
+                                        app.prefs.bubbleShowText = showText
+                                        FlowAccessibilityService.instance?.applyPrefsVisual()
+                                    }
+                                )
                             }
                             FlowRow(
                                 modifier = Modifier.fillMaxWidth(),

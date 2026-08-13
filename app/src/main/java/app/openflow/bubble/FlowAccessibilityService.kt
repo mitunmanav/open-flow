@@ -396,6 +396,15 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
     }
 
+    private fun hitVisible(target: android.view.View?, rawX: Float, rawY: Float): Boolean {
+        if (target == null || target.visibility != android.view.View.VISIBLE) return false
+        val loc = IntArray(2)
+        target.getLocationOnScreen(loc)
+        val l = loc[0]
+        val t = loc[1]
+        return rawX >= l && rawX < l + target.width && rawY >= t && rawY < t + target.height
+    }
+
     private fun setupTouch(view: View, params: WindowManager.LayoutParams) {
         var downRawX = 0f
         var downRawY = 0f
@@ -412,7 +421,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             }
         }
         view.setOnTouchListener { v, event ->
-            // Cancel / Done handle their own clicks when listening.
+            // Parent OnTouch returns true — Cancel/Done clicks never fire. Hit-test in ACTION_UP.
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
                     downRawX = event.rawX
@@ -491,14 +500,22 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                         } catch (_: Exception) {
                         }
                     }
-                    if (longPressFired || pushToTalk) {
-                        // Hold-to-talk release = Done (insert).
-                        if (listening) stopListening(save = true)
-                        pushToTalk = false
-                    } else if (!dragged) {
-                        // Wispr: idle tap starts; while listening use Done/Cancel (not toggle).
-                        if (!listening && !stopInProgress) startListening()
+                    when (
+                        BubbleTapPolicy.action(
+                            listening = listening,
+                            stopInProgress = stopInProgress,
+                            dragged = dragged,
+                            longPressFired = longPressFired,
+                            hitCancel = hitVisible(bubbleCancel, event.rawX, event.rawY),
+                            hitDone = hitVisible(bubbleDone, event.rawX, event.rawY)
+                        )
+                    ) {
+                        BubbleTapPolicy.Action.START -> startListening()
+                        BubbleTapPolicy.Action.STOP_SAVE -> stopListening(save = true)
+                        BubbleTapPolicy.Action.STOP_DISCARD -> stopListening(save = false)
+                        BubbleTapPolicy.Action.NONE -> { }
                     }
+                    pushToTalk = false
                     true
                 }
                 else -> false

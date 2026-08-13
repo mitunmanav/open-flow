@@ -68,9 +68,17 @@ object BubbleGeometry {
     }
 
     /** Overlay window px. WRAP_CONTENT measures against the screen — pin a bar. */
-    fun overlaySizePx(listening: Boolean, density: Float): Pair<Int, Int> {
+    fun overlaySizePx(
+        listening: Boolean,
+        density: Float,
+        shape: String = "square"
+    ): Pair<Int, Int> {
         val barH = (52f * density).toInt()
-        val w = if (listening) (240f * density).toInt() else barH
-        return w to barH
+        if (listening) {
+            return (240f * density).toInt() to barH
+        }
+        val idleDp = if (shape == "dot") 28f else 52f
+        val side = (idleDp * density).toInt()
+        return side to side
     }
 }

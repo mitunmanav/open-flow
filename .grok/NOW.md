@@ -1,10 +1,9 @@
 # NOW
 
-**main:** F21 `191c722` — 0.1.1 on phone + F23 launch docs
-**F22:** `.worktrees/22-wispr-feel` / `feat/22-wispr-feel` — setup wizard, banners, day groups, search shrink (prove/install in flight)
-**F23:** `.worktrees/23-launch` / `feat/23-launch` — launch status lock, no new features
+**main:** F22 `1d1c6d9` — 0.1.2 Wispr-feel (setup, banners, day groups, search shrink)
+**F23:** `.worktrees/23-launch` / `feat/23-launch` — launch docs/tests. Not merged.
 **lab:** `.worktrees/minimax` / `sandbox/minimax` — exclusive
 
-**DID:** F22 `0.1.2` on phone. F23 launch locks + `docs/LAUNCH-PLAIN.md` (easy words). Extra agent done.
+**DID:** Merged F22. 223 tests. F22 worktree gone.
 
-**NEXT:** Mitun walk Setup. Read `docs/LAUNCH-PLAIN.md`. No merge until you say.
+**NEXT:** Mitun walk Setup on phone. F23 merge only if you say.

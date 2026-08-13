@@ -1,6 +1,8 @@
 package app.openflow.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Fts4
 import androidx.room.PrimaryKey
 
 @Entity(tableName = "dictations")
@@ -14,6 +16,21 @@ data class DictationEntity(
     val durationMs: Long,
     val languageTag: String,
     val wordCount: Int
+)
+
+/**
+ * Standalone FTS4 index (UUID PK on [DictationEntity] blocks contentEntity mode).
+ * Synced by [DictationRepository] on save / delete / purge.
+ */
+@Fts4
+@Entity(tableName = "dictations_fts")
+data class DictationFtsEntity(
+    @PrimaryKey
+    @ColumnInfo(name = "rowid")
+    val rowid: Int = 0,
+    val sessionId: String,
+    val text: String,
+    val rawText: String = ""
 )
 
 @Entity(tableName = "dictionary_words")

@@ -1,10 +1,16 @@
 # Install Open Flow
 
-Android 8+ (API 26). English only.
+Android 8+ (API 26). English only. **Debug-signed sideload is OK** for early launch.
+
+**Maintainers:** pre-flight + device matrix → [LAUNCH_CHECKLIST.md](LAUNCH_CHECKLIST.md).
 
 ## 1. Get the APK
 
-Download `open-flow-0.1.5-debug.apk` from the GitHub **Releases** page.
+| Source | Where |
+|--------|--------|
+| GitHub Releases | `open-flow-0.1.5-debug.apk` → [Releases](https://github.com/mitunmanav/open-flow/releases/latest) |
+| Desktop (dev) | `/home/mitun/Desktop/open-flow.apk` — copy to phone |
+| Fresh build | `app/build/outputs/apk/debug/app-debug.apk` |
 
 ## 2. Allow this one installer
 
@@ -35,7 +41,11 @@ Xiaomi / Oppo / Vivo: allow autostart and set battery to **Unrestricted** if the
 
 Allow when asked. Open Flow only listens when you tap the bubble.
 
-## 7. Try it
+## 7. Battery (OEM — if bubble dies)
+
+App info → Battery → **Unrestricted**. Then reopen a text field.
+
+## 8. Try it
 
 Open Notes (or the practice field in the app). Tap the bubble. Speak. Tap again. Text should appear.
 

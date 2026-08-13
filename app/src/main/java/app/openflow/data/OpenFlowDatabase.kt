@@ -14,6 +14,7 @@ interface OpenFlowDb {
 @Database(
     entities = [
         DictationEntity::class,
+        DictationFtsEntity::class,
         DictionaryWordEntity::class,
         SnippetEntity::class,
         AppStatsEntity::class
@@ -23,6 +24,7 @@ interface OpenFlowDb {
 )
 abstract class OpenFlowDatabase : RoomDatabase(), OpenFlowDb {
     abstract fun dictationDao(): DictationDao
+    abstract fun dictationFtsDao(): DictationFtsDao
     abstract fun dictionaryDao(): DictionaryDao
     abstract fun snippetDao(): SnippetDao
     abstract fun statsDao(): StatsDao

@@ -21,7 +21,7 @@ class DictationRepositoryTest {
     @Test
     fun destructive_fallback_forbidden_and_version_unbumped() {
         assertThat(RoomOpenPolicy.ALLOW_DESTRUCTIVE_FALLBACK).isFalse()
-        assertThat(RoomOpenPolicy.VERSION).isEqualTo(4)
+        assertThat(RoomOpenPolicy.VERSION).isEqualTo(5)
     }
 
     @Test
@@ -211,6 +211,50 @@ class DictationRepositoryTest {
         assertThat(s.totalWords).isEqualTo(2)
     }
 
+    @Test
+    fun search_blank_returns_all_ordered() = runTest {
+        val f = fakes()
+        f.dict.upsert(row("a", "alpha note", 10L))
+        f.dict.upsert(row("b", "beta note", 20L))
+        val hits = f.repo.searchDictations("")
+        assertThat(hits.map { it.id }).containsExactly("b", "a").inOrder()
+    }
+
+    @Test
+    fun search_matches_clean_and_raw_via_fts() = runTest {
+        val f = fakes()
+        f.repo.saveDictation("raw zebra sound", "clean tiger", 1L, "en-US", "keep")
+        f.repo.saveDictation("other", "nope", 1L, "en-US", "keep")
+        val byClean = f.repo.searchDictations("tiger")
+        assertThat(byClean).hasSize(1)
+        assertThat(byClean.first().text).isEqualTo("clean tiger")
+        val byRaw = f.repo.searchDictations("zebra")
+        assertThat(byRaw).hasSize(1)
+        assertThat(byRaw.first().rawText).contains("zebra")
+    }
+
+    @Test
+    fun search_strips_dangerous_fts_ops() = runTest {
+        val f = fakes()
+        f.repo.saveDictation("x", "safe token here", 1L, "en-US", "keep")
+        // Must not throw; operators stripped → still finds token.
+        val hits = f.repo.searchDictations("safe* AND \"token\"")
+        assertThat(hits).hasSize(1)
+    }
+
+    @Test
+    fun wipe_purges_fts_with_rows() = runTest {
+        val f = fakes()
+        val now = 1_000_000L
+        val day = 24L * 60L * 60L * 1000L
+        f.dict.upsert(row("old", "old clean", now - day - 5_000L).copy(rawText = "old raw"))
+        f.fts.upsert(DictationFtsEntity(sessionId = "old", text = "old clean", rawText = "old raw"))
+        f.repo.purgeOnLaunch("wipe_24h", now)
+        assertThat(f.repo.observeDictations().first()).isEmpty()
+        assertThat(f.fts.sessionIds()).isEmpty()
+        assertThat(f.repo.searchDictations("old")).isEmpty()
+    }
+
     private fun row(id: String, text: String, createdAt: Long) = DictationEntity(
         id = id,
         text = text,
@@ -223,20 +267,26 @@ class DictationRepositoryTest {
 
     private fun fakes(): Harness {
         val dict = FakeDictationDao()
+        val fts = FakeDictationFtsDao { dict.ids() }
         val words = FakeDictionaryDao()
         val snips = FakeSnippetDao()
         val stats = FakeStatsDao()
         val repo = DictationRepository(
             db = PassthroughDb,
             dictationDao = dict,
+            ftsDao = fts,
             dictionaryDao = words,
             snippetDao = snips,
             statsDao = stats
         )
-        return Harness(repo, dict)
+        return Harness(repo, dict, fts)
     }
 
-    private data class Harness(val repo: DictationRepository, val dict: FakeDictationDao)
+    private data class Harness(
+        val repo: DictationRepository,
+        val dict: FakeDictationDao,
+        val fts: FakeDictationFtsDao,
+    )
 }
 
 private object PassthroughDb : OpenFlowDb {
@@ -274,6 +324,45 @@ private class FakeDictationDao : DictationDao {
     override suspend fun latest(): DictationEntity? = flow.value.firstOrNull()
 
     override suspend fun get(id: String): DictationEntity? = items[id]
+
+    fun ids(): Set<String> = items.keys.toSet()
+
+    override suspend fun searchFts(query: String): List<DictationEntity> {
+        val tokens = query.replace("*", "").lowercase()
+            .split(Regex("\\s+"))
+            .filter { it.isNotEmpty() }
+        if (tokens.isEmpty()) return flow.value
+        return flow.value.filter { row ->
+            val hay = (row.text + " " + row.rawText).lowercase()
+            tokens.all { hay.contains(it) }
+        }
+    }
+
+    override suspend fun allOrdered(): List<DictationEntity> = flow.value
+}
+
+private class FakeDictationFtsDao(
+    private val liveSessionIds: () -> Set<String>,
+) : DictationFtsDao {
+    private val bySession = LinkedHashMap<String, DictationFtsEntity>()
+
+    override suspend fun upsert(row: DictationFtsEntity) {
+        bySession[row.sessionId] = row
+    }
+
+    override suspend fun deleteBySessionId(sessionId: String) {
+        bySession.remove(sessionId)
+    }
+
+    override suspend fun deleteOrphans() {
+        bySession.keys.filter { it !in liveSessionIds() }.forEach { bySession.remove(it) }
+    }
+
+    override suspend fun clearAll() {
+        bySession.clear()
+    }
+
+    fun sessionIds(): Set<String> = bySession.keys.toSet()
 }
 
 private class FakeDictionaryDao : DictionaryDao {

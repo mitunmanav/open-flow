@@ -52,6 +52,8 @@ import app.openflow.stt.SttTuning
 import app.openflow.text.CleanupLevel
 import app.openflow.text.CleanupResult
 import app.openflow.text.CustomStyleConfig
+import app.openflow.text.Feature
+import app.openflow.text.FeatureGate
 import app.openflow.text.LearnEngine
 import app.openflow.text.TextPostProcessor
 import app.openflow.text.WritingStyle
@@ -772,7 +774,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     private fun onPulseTick() {
         val now = SystemClock.elapsedRealtime()
         if (listening) {
-            bubbleView?.keepScreenOn = true
+            setListeningAwake(true)
             val elapsed = now - listenStartedAt
             when (SessionGuard.phase(elapsed)) {
                 SessionPhase.STOP -> {
@@ -836,7 +838,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         fieldPrefix = captureFieldPrefix()
         listenStartedAt = SystemClock.elapsedRealtime()
         lastInteractionAt = listenStartedAt
-        bubbleView?.keepScreenOn = true
+        setListeningAwake(true)
         val gen = ++listenGeneration
 
         updateBubbleVisuals()
@@ -994,7 +996,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             )
             listenGeneration++
             listening = false
-            bubbleView?.keepScreenOn = false
+            setListeningAwake(false)
             sessionBuffer = StringBuilder()
             lastPartial = ""
             fieldPrefix = ""
@@ -1003,7 +1005,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
             if (save && raw.isNotBlank()) {
                 val lang = LanguagePolicy.LOCKED
-                polishSession(raw) { result ->
+                polishSession(raw, prefix) { result ->
                     val finalText = result.clean
                     android.util.Log.i(
                         "OpenFlow.Bubble",
@@ -1089,7 +1091,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
         val prefix = captureFieldPrefix()
         val dur = 0L
-        polishSession(text) { result ->
+        polishSession(text, prefix) { result ->
             val finalText = result.clean
             android.util.Log.i(
                 "OpenFlow.Inject",
@@ -1172,13 +1174,28 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     /**
      * Same path for stopListening + debug inject:
      * dict → snippets → CleanupPipeline(level, style, custom) via [TextPostProcessor.polishSessionResult].
+     * Picked brain + [brainRewrite] when not none/on_phone. Field text only if Feature would be on.
      */
-    private fun polishSession(text: String, onDone: (CleanupResult) -> Unit) {
+    private fun polishSession(
+        text: String,
+        surroundingField: String,
+        onDone: (CleanupResult) -> Unit,
+    ) {
         scope.launch(Dispatchers.Default) {
             val dict = app.dictations.dictionaryMap()
             val snip = app.dictations.snippetMap()
             val prefLevel = prefs?.cleanupLevel ?: "medium"
-            val level = CleanupLevel.fromPref(prefLevel)
+            val brainId = app.enginePrefs.brainId
+            val picked = app.registry.brain(brainId)
+            val brainRewrite = BrainPick.rewrite(brainId)
+            val fieldOn = FieldContext.on(brainRewrite)
+            val surrounding = FieldContext.surrounding(fieldOn, surroundingField)
+            val brain = FieldContext.wrapBrain(picked, surrounding)
+            val level = if (FeatureGate.can(Feature.HIGH_AI, brainRewrite = brainRewrite)) {
+                CleanupLevel.HIGH
+            } else {
+                CleanupLevel.fromPref(prefLevel)
+            }
             val style = AppStylePolicy.styleFor(
                 lastPackage,
                 prefs?.style() ?: WritingStyle.CASUAL
@@ -1190,11 +1207,14 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 level = level,
                 custom = custom,
                 dictionary = dict,
-                snippets = snip
+                snippets = snip,
+                brain = brain,
+                brainRewrite = brainRewrite,
             )
             android.util.Log.i(
                 "OpenFlow.Cleanup",
                 "level=$level pref=$prefLevel style=$style lang=${LanguagePolicy.LOCKED} " +
+                    "brain=$brainId rewrite=$brainRewrite field=${surrounding.isNotEmpty()} " +
                     "rawLen=${text.length} cleanLen=${result.clean.length} " +
                     "corr=${result.corrections.size} " +
                     "changed=${text.trim() != result.clean.trim()}"
@@ -1404,16 +1424,33 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         hapticEvent(if (save) HapticFeel.Event.SAVE else HapticFeel.Event.CANCEL)
     }
 
+    private fun brainCanCommand(): Boolean =
+        CommandChrome.visible(BrainPick.command(app.enginePrefs.brainId))
+
+    /** Keep the screen on while the bubble is listening. */
+    private fun setListeningAwake(on: Boolean) {
+        bubbleView?.keepScreenOn = on
+        val params = bubbleParams ?: return
+        val view = bubbleView ?: return
+        val flag = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+        params.flags = if (on) params.flags or flag else params.flags and flag.inv()
+        try {
+            windowManager?.updateViewLayout(view, params)
+        } catch (_: Exception) {
+        }
+    }
+
     private fun setListenChrome(elapsedSec: Long) {
         val p = prefs ?: return
         bubbleLabel?.visibility = View.VISIBLE
+        val cmd = CommandChrome.suffix(brainCanCommand())
         if (p.bubbleShowText) {
-            bubbleLabel?.text = BubbleLabelFormatter.listening(elapsedSec)
+            bubbleLabel?.text = BubbleLabelFormatter.listening(elapsedSec) + cmd
         } else {
             val bars = WaveformBars.fromRms(lastRms)
             val warn = SessionGuard.phase(elapsedSec * 1000L) == SessionPhase.WARN
             val suffix = if (warn) " wrap" else if (elapsedSec > 0) "  ${elapsedSec}s" else ""
-            bubbleLabel?.text = bars + suffix
+            bubbleLabel?.text = bars + suffix + cmd
         }
     }
 

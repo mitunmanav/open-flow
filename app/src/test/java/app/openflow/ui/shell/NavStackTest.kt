@@ -35,4 +35,10 @@ class NavStackTest {
         val s = NavStack.navigate(listOf(AppRoute.Settings, AppRoute.Appearance), AppRoute.Appearance)
         assertThat(s).containsExactly(AppRoute.Settings, AppRoute.Appearance).inOrder()
     }
+
+    @Test
+    fun initial_setup_when_not_ready() {
+        assertThat(NavStack.initial(ready = false)).containsExactly(AppRoute.Setup)
+        assertThat(NavStack.initial(ready = true)).containsExactly(AppRoute.Home)
+    }
 }

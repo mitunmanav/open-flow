@@ -1,6 +1,8 @@
 package app.openflow.ai.providers.cloud
 
 import app.openflow.ai.providers.host.HostUrl
+import app.openflow.engine.RateLimit
+import app.openflow.engine.RateLimitResult
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
@@ -12,6 +14,20 @@ object CloudHttpSafe {
 
     fun allowUrl(url: String): Boolean = HostUrl.allow(url)
 
+    fun hostOf(url: String): String = try {
+        URL(url).host.orEmpty()
+    } catch (_: Exception) {
+        ""
+    }
+
+    /** Denied → [IOException] "rate limited". Bucket key is the URL host. */
+    fun rateGate(url: String, rateLimit: RateLimit) {
+        when (rateLimit.tryAcquire(hostOf(url))) {
+            is RateLimitResult.Denied -> throw IOException("rate limited")
+            RateLimitResult.Allowed -> Unit
+        }
+    }
+
     fun isSecretHeader(name: String): Boolean {
         val n = name.lowercase()
         return n == "authorization" || n == "x-api-key" || n == "api-key" || n.endsWith("api-key")
@@ -22,9 +38,12 @@ object CloudHttpSafe {
 }
 
 /** CloudHttp via HttpURLConnection. HTTPS (LAN HTTP via [HostUrl]). Timeouts. No key logs. */
-class AndroidCloudHttp : CloudHttp {
+class AndroidCloudHttp(
+    private val rateLimit: RateLimit = RateLimit(),
+) : CloudHttp {
     override fun post(url: String, headers: Map<String, String>, json: String): String {
         if (!CloudHttpSafe.allowUrl(url)) throw IOException("blocked url")
+        CloudHttpSafe.rateGate(url, rateLimit)
         val conn = (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             doInput = true

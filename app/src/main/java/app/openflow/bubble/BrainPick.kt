@@ -1,16 +1,14 @@
 package app.openflow.bubble
 
-import app.openflow.engine.BrainId
-import app.openflow.engine.ProviderId
+import app.openflow.text.Feature
+import app.openflow.text.FeatureAuto
 
-/** Lights from the picked brain id. none / on_phone stay rules-only. */
+/** Lights from FeatureAuto. system ear — brain only. */
 object BrainPick {
 
-    fun rewrite(brainId: String): Boolean = when (ProviderId.parseBrain(brainId)) {
-        BrainId.NONE, BrainId.ON_PHONE -> false
-        else -> true
-    }
+    fun rewrite(brainId: String): Boolean =
+        Feature.HIGH_AI in FeatureAuto.of("system", brainId)
 
-    /** Same rule as rewrite. */
-    fun command(brainId: String): Boolean = rewrite(brainId)
+    fun command(brainId: String): Boolean =
+        Feature.COMMAND in FeatureAuto.of("system", brainId)
 }

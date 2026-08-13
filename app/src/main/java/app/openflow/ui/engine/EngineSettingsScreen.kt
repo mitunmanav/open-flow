@@ -36,18 +36,21 @@ fun EngineSettingsScreen(
     initialBrain: String = "none",
     initialUrl: String = "",
     initialSarvamMode: String = "transcribe",
+    initialKeyMask: String = "",
     onPick: (ear: String, brain: String) -> Unit = { _, _ -> },
     onSaveKey: (String) -> Unit = {},
     onSaveUrl: (String) -> Unit = {},
     onSarvamMode: (String) -> Unit = {},
+    onKeyMask: () -> String = { "" },
 ) {
     var ear by remember { mutableStateOf(initialEar) }
     var brain by remember { mutableStateOf(initialBrain) }
     var url by remember { mutableStateOf(initialUrl) }
     var sarvamMode by remember { mutableStateOf(initialSarvamMode) }
     var keyDraft by remember { mutableStateOf("") }
-    var savedMask by remember { mutableStateOf("") }
+    var savedMask by remember { mutableStateOf(initialKeyMask) }
     val state = EnginePickerState.of(ear, brain)
+    val keyWarn = EnginePickerState.missingKeyLine(state.needsKey, savedMask)
     val scheme = MaterialTheme.colorScheme
 
     Column(
@@ -94,6 +97,7 @@ fun EngineSettingsScreen(
                     onClick = {
                         ear = preset.id
                         onPick(preset.id, brain)
+                        savedMask = onKeyMask()
                     }
                 )
             }
@@ -116,6 +120,7 @@ fun EngineSettingsScreen(
                     onClick = {
                         brain = preset.id
                         onPick(ear, preset.id)
+                        savedMask = onKeyMask()
                     }
                 )
             }
@@ -166,6 +171,14 @@ fun EngineSettingsScreen(
         }
 
         if (state.needsKey) {
+            if (keyWarn != null) {
+                Text(
+                    text = keyWarn,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = scheme.error,
+                    modifier = Modifier.testTag("engine_key_needed")
+                )
+            }
             OpenTextField(
                 value = keyDraft,
                 onValueChange = { keyDraft = it },
@@ -188,8 +201,8 @@ fun EngineSettingsScreen(
                 onClick = {
                     val typed = keyDraft.trim()
                     if (typed.isNotEmpty()) {
-                        savedMask = EnginePickerState.maskKey(typed)
                         onSaveKey(typed)
+                        savedMask = onKeyMask().ifEmpty { EnginePickerState.maskKey(typed) }
                         keyDraft = ""
                     }
                 },

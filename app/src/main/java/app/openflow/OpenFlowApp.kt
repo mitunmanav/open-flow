@@ -15,6 +15,7 @@ import app.openflow.data.OpenFlowDatabase
 import app.openflow.engine.BrainId
 import app.openflow.engine.EarId
 import app.openflow.engine.EnginePrefs
+import app.openflow.engine.EngineSession
 import app.openflow.engine.ProviderId
 import app.openflow.engine.ProviderRegistry
 import app.openflow.notify.DictationNotifier
@@ -25,6 +26,7 @@ import app.openflow.secrets.SecretStore
 import app.openflow.stt.AndroidSpeechEngine
 import app.openflow.stt.SpeechEngine
 import app.openflow.stt.providers.cloud.CloudSocket
+import app.openflow.stt.providers.cloud.FailSoftSocket
 import app.openflow.stt.providers.host.LaptopEar
 import app.openflow.stt.providers.ondevice.OnDeviceEar
 import kotlinx.coroutines.launch
@@ -75,6 +77,7 @@ class OpenFlowApp : Application(), ComponentCallbacks2 {
     val prefs by lazy { FlowPrefs(this) }
     val enginePrefs by lazy { EnginePrefs(this) }
     val secrets by lazy { AndroidSecretStore(this) }
+    val engineSession by lazy { EngineSession(enginePrefs, secrets) }
     val systemEar by lazy { AndroidSpeechEngine(this) }
     val cloudHttp by lazy { AndroidCloudHttp() }
     val registry by lazy {
@@ -89,10 +92,8 @@ class OpenFlowApp : Application(), ComponentCallbacks2 {
     fun currentBrain(): TextAIProvider = AppEngineWire.currentBrain(registry, enginePrefs)
 }
 
-/** Cloud WS not in this slice — factory exists; start fails honest. */
-private val pendingSocket = CloudSocket { _, _, _ ->
-    error("cloud socket not wired")
-}
+/** Cloud WS not wired. Connect returns a dead session. Never throws. */
+private val pendingSocket = FailSoftSocket()
 
 /** Pure wire helper. Factories exist without keys. */
 object AppEngineWire {

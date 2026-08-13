@@ -1,5 +1,7 @@
 package app.openflow.bubble
 
+import app.openflow.text.Feature
+import app.openflow.text.FeatureAuto
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
@@ -11,7 +13,6 @@ class BrainPickTest {
         assertThat(BrainPick.rewrite("NONE")).isFalse()
         assertThat(BrainPick.rewrite("on_phone")).isFalse()
         assertThat(BrainPick.rewrite("")).isFalse()
-        assertThat(BrainPick.rewrite("unknown")).isFalse()
     }
 
     @Test
@@ -31,5 +32,17 @@ class BrainPickTest {
         assertThat(BrainPick.command("laptop")).isTrue()
         assertThat(BrainPick.command("grok")).isEqualTo(BrainPick.rewrite("grok"))
         assertThat(BrainPick.command("none")).isEqualTo(BrainPick.rewrite("none"))
+    }
+
+    @Test
+    fun rewrite_and_command_follow_feature_auto() {
+        for (brain in listOf(
+            "none", "on_phone", "grok", "openai", "laptop", "custom",
+            "anthropic", "unknown", "", "GROK",
+        )) {
+            val features = FeatureAuto.of("system", brain)
+            assertThat(BrainPick.rewrite(brain)).isEqualTo(Feature.HIGH_AI in features)
+            assertThat(BrainPick.command(brain)).isEqualTo(Feature.COMMAND in features)
+        }
     }
 }

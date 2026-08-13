@@ -67,6 +67,7 @@ data class EnginePickerState(
         private val keyBrains = setOf(
             "openai", "grok", "minimax", "deepseek", "gemini", "mistral",
             "together", "fireworks", "openrouter", "sarvam", "anthropic", "custom",
+            "laptop",
         )
         private val urlEars = setOf("laptop", "custom_stt")
         private val urlBrains = setOf("laptop", "custom")
@@ -105,6 +106,13 @@ data class EnginePickerState(
             if (t.length < 4) return "••••"
             return "••••" + t.takeLast(4)
         }
+
+        fun missingKeyLine(needsKey: Boolean, keyMask: String): String? =
+            if (needsKey && keyMask.isBlank()) {
+                "Paste a key or this pick cannot call the net."
+            } else {
+                null
+            }
 
         private fun honestyLine(ear: String, brain: String): String {
             when (ear) {

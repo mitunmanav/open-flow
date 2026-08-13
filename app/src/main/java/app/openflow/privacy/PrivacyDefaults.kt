@@ -23,14 +23,21 @@ object PrivacyDefaults {
             - Speech recognition: Android system STT (may leave device)
             - OpenFlow server: none
             - Analytics: disabled
-            - Audio uploaded by OpenFlow: never
+            - Audio uploaded by OpenFlow: only if cloud ear
             - Transcript uploaded by OpenFlow: never
             - Local history: $historyLocation ($retention)
             - prefer offline STT extras: ON (device may still use remote STT)
             - sync: OFF
             - crash reports: OFF
             - INTERNET permission: declared; unused until user pick
+            - Grok: xAI (not Groq)
             - account required: no
         """.trimIndent() + "\n"
+    }
+
+    /** OpenFlow sends audio only for a cloud / laptop ear. System STT is OEM. */
+    fun audioLeaves(earId: String): Boolean = when (earId.lowercase()) {
+        "openai", "deepgram", "assemblyai", "sarvam", "laptop", "custom_stt" -> true
+        else -> false
     }
 }

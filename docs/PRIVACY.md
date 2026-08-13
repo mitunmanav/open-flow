@@ -1,8 +1,7 @@
 # Privacy — Open Flow
 
 Last updated: 2026-08-13  
-Developer: Mitun  
-Contact: open an issue on GitHub: https://github.com/mitunmanav/open-flow/issues
+Contact: GitHub Issues on this repository only. Do not send personal data.
 
 ## Short
 

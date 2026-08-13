@@ -1,9 +1,10 @@
 # NOW
 
-**main:** F21 `a709c6a` — ship-day 0.1.1 (tap-again, purge, Home chips)
-**dev:** this-repo gate · tree jail · spawn-5 · MiniMax lab
+**main:** F21 `191c722` — 0.1.1 on phone + F23 launch docs
+**F22:** `.worktrees/22-wispr-feel` / `feat/22-wispr-feel` — setup wizard, banners, day groups, search shrink (prove/install in flight)
+**F23:** `.worktrees/23-launch` / `feat/23-launch` — launch status lock, no new features
 **lab:** `.worktrees/minimax` / `sandbox/minimax` — exclusive
 
-**DID:** F21 merged. Tap-again insert + Cancel/Done hit-test + wipe-24h on launch.
+**DID:** 0.1.1 installed. F22 team code landed. F23 tree + 5 agents started. Chat does not wait/block on agents.
 
-**NEXT:** Mitun phone: install `Open-Flow/apk/open-flow-0.1.1-debug.apk`. Tap start → tap again inserts. F19 after.
+**NEXT:** F22 APK 0.1.2 on phone when prove agent finishes. Then Mitun walk Setup. F23 stays docs+tests.

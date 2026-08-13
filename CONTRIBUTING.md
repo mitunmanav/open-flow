@@ -8,4 +8,3 @@ Open Flow is MIT. Issues and small patches welcome.
 - Tests: `./gradlew :app:testDebugUnitTest`
 - Do not commit keystores, `local.properties`, or `.worktrees/`.
 
-Process for maintainers: `AGENTS.md` and `docs/PROCESS.md`.

@@ -70,3 +70,18 @@ dist/DESKTOP-FOLDER.txt
 
 # Grok session auto stamp (hooks)
 .grok/rules/01-session-stamp.md
+
+# Development / agent files (local only — not GitHub)
+AGENTS.md
+docs/AUDIT-*.md
+docs/BASELINE.md
+docs/FEATURES.md
+docs/HANDOFF.md
+docs/INDEX.md
+docs/MASTER-PLAN.md
+docs/PROCESS.md
+docs/SHIP.md
+docs/WISPR-SMALL-FEATURES-MAP.md
+docs/process/
+docs/research/
+info/

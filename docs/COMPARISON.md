@@ -11,12 +11,12 @@
 - Floating **bubble**. You keep your keyboard.
 - Uses Android **Accessibility** to type into the focused field.
 - Speech comes from the system **`SpeechRecognizer`**.
-- The APK has **no INTERNET permission**.
+- The APK **declares INTERNET**; unused until you pick a net ear/brain or download a model.
 - Cleanup is **hand-written rules**, not a language model.
 - English only. MIT. No account.
 
 **The hard truth about speech:**  
-Android’s own docs say the default recognizer is likely to stream audio to a remote service. `createOnDeviceSpeechRecognizer()` exists, and Open Flow prefers it, but many phones still fall back to Google’s engine. **No INTERNET in our manifest does not mean your voice never leaves the device.**
+Android’s own docs say the default recognizer is likely to stream audio to a remote service. `createOnDeviceSpeechRecognizer()` exists, and Open Flow prefers it, but many phones still fall back to Google’s engine. **Declared-but-unused INTERNET does not mean your voice never leaves the device.**
 
 If that sentence bothers you, use a Whisper/Vosk app below.
 
@@ -33,7 +33,7 @@ If that sentence bothers you, use a Whisper/Vosk app below.
 | Keep your keyboard | **Yes** (bubble) | **Yes** (overlay) | No (voice IME / its keyboard) | No (it *is* a voice keyboard) | No (IME) | No (IME / provider) | Yes (bubble) |
 | Speech engine | System SpeechRecognizer | Local sherpa-onnx **or** OpenAI | Local Whisper (whisper.cpp) | Local Vosk | Local Whisper TFLite | Kaldi **server** (public default) | Cloud AI |
 | Audio can leave phone | **Yes, often** (Google STT) | Only if you turn on cloud | No (after model download) | No (after model download) | No (after model download) | **Yes** on default server (even unencrypted) | **Yes** (that is the product) |
-| INTERNET in the app | **Not declared** | For models / optional API | For model download | For model download (can revoke) | For model download | Yes (server) | Yes |
+| INTERNET in the app | **Declared; unused until opt-in** | For models / optional API | For model download | For model download (can revoke) | For model download | Yes (server) | Yes |
 | Cleanup | Rule lists | Optional OpenAI | In-model / app | Weak / none | Weak / none | Server-side | Cloud LLM |
 | Languages | **en-US only** | Several (model-dependent) | Many | 20+ Vosk models | Many | Depends on server | Many |
 | License | MIT | “Do whatever” personal project | **Not OSI** (FUTO Source First) | GPL-3.0 | FOSS (F-Droid) | Apache-2.0 | Closed |
@@ -109,6 +109,6 @@ Until those exist, do not market this as “the private Wispr.” It is a **FOSS
 - [FUTO Voice Input](https://gitlab.futo.org/keyboard/voiceinput) / Play listing (Source First license, offline Whisper)
 - [Phone Whisper](https://github.com/kafkasl/phone-whisper) (overlay + sherpa-onnx / optional OpenAI)
 - Fluence-Android public README (overlay + SenseVoice / Groq) — small, newer project
-- This repo: `docs/ARCHITECTURE.md`, `AndroidManifest.xml` (no INTERNET)
+- This repo: `docs/ARCHITECTURE.md`, `AndroidManifest.xml` (INTERNET declared; unused until opt-in)
 
 We did not run timed accuracy tests on one phone against all of these. Accuracy ranks above are **engine class**, not a lab bake-off.

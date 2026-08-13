@@ -5,10 +5,10 @@ package app.openflow.bubble
  */
 object BubbleLabelFormatter {
 
-    fun idle(): String = "🎙 Tap to talk"
+    fun idle(): String = "Tap"
 
     fun listening(elapsedSec: Long): String =
-        if (elapsedSec > 0) "Listening ${elapsedSec}s" else "Listening…"
+        if (elapsedSec > 0) "Hearing ${elapsedSec}s" else "Hearing…"
 
     fun partial(text: String, elapsedSec: Long = 0L, maxChars: Int = 80): String {
         val t = text.trim()
@@ -19,10 +19,10 @@ object BubbleLabelFormatter {
     fun finalChunk(text: String, maxChars: Int = 80): String {
         val t = text.trim()
         if (t.isEmpty()) return "…"
-        return "✓ ${softCap(t, maxChars - 2)}"
+        return softCap(t, maxChars)
     }
 
-    fun needMic(): String = "Allow mic in app"
+    fun needMic(): String = "Mic off"
 
     private fun softCap(text: String, maxChars: Int): String {
         if (maxChars < 4 || text.length <= maxChars) return text

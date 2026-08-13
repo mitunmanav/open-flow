@@ -74,6 +74,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -111,6 +112,7 @@ import app.openflow.ui.setup.SetupWizard
 import app.openflow.ui.shell.AppRoute
 import app.openflow.ui.shell.AppShell
 import app.openflow.ui.shell.NavStack
+import app.openflow.ui.theme.BubbleTint
 import app.openflow.ui.theme.Motion
 import app.openflow.ui.theme.OpenFlowTheme
 import app.openflow.ui.theme.VisualSkin
@@ -1836,7 +1838,7 @@ private fun PrivacySettings(prefs: FlowPrefs) {
 @Composable
 private fun SoundsSettings(prefs: FlowPrefs) {
     var sounds by remember { mutableStateOf(prefs.bubbleSounds) }
-    var haptics by remember { mutableStateOf(prefs.bubbleHaptics) }
+    var feel by remember { mutableStateOf(prefs.hapticFeel) }
 
     Column(
         Modifier
@@ -1871,25 +1873,30 @@ private fun SoundsSettings(prefs: FlowPrefs) {
         }
 
         OpenCard {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text("Tactile Haptics", style = MaterialTheme.typography.titleSmall)
-                    Text("Vibrate on tap, PTT hold, and edge snap", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                OpenChip(
-                    label = if (haptics) "ON" else "OFF",
-                    isOn = haptics,
-                    onClick = {
-                        haptics = !haptics
-                        prefs.bubbleHaptics = haptics
-                    }
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Tactile Haptics", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "Off / Light (tick) / Full (confirm, reject, click).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(
+                        HapticFeel.OFF to "Off",
+                        HapticFeel.LIGHT to "Light",
+                        HapticFeel.FULL to "Full"
+                    ).forEach { (id, label) ->
+                        OpenChip(
+                            label = label,
+                            isOn = feel == id,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                feel = id
+                                prefs.hapticFeel = id
+                            }
+                        )
+                    }
+                }
             }
         }
         Spacer(Modifier.height(24.dp))
@@ -2183,8 +2190,10 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
     var shape by remember { mutableStateOf(prefs.bubbleShape) }
     var showText by remember { mutableStateOf(prefs.bubbleShowText) }
     var snap by remember { mutableStateOf(prefs.bubbleEdgeSnap) }
-    var haptics by remember { mutableStateOf(prefs.bubbleHaptics) }
+    var feel by remember { mutableStateOf(prefs.hapticFeel) }
     var pulse by remember { mutableStateOf(prefs.bubblePulse) }
+    var tint by remember { mutableStateOf(prefs.bubbleTint) }
+    var copySec by remember { mutableIntStateOf(prefs.copyChipSec) }
 
     Column(
         Modifier
@@ -2225,7 +2234,7 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                 Modifier
                     .size((base.value * scale).dp, (previewH.value * scale).dp)
                     .alpha(opacity)
-                    .background(SecUi.charcoal, previewShape)
+                    .background(Color(BubbleTint.argb(tint)), previewShape)
             )
         }
 
@@ -2257,6 +2266,78 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                             onClick = {
                                 shape = v
                                 prefs.bubbleShape = v
+                                onApplyBubble()
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        OpenCard {
+            Column(
+                Modifier.padding(Dimen.MIN_PADDING),
+                verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+            ) {
+                Text(
+                    "Color",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = SecUi.charcoal
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+                ) {
+                    listOf(
+                        BubbleTint.CHARCOAL to "Charcoal",
+                        BubbleTint.CREAM to "Cream",
+                        BubbleTint.INK to "Ink",
+                        BubbleTint.STONE to "Stone"
+                    ).forEach { (id, label) ->
+                        OpenChip(
+                            label = label,
+                            isOn = tint == id,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                tint = id
+                                prefs.bubbleTint = id
+                                onApplyBubble()
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        OpenCard {
+            Column(
+                Modifier.padding(Dimen.MIN_PADDING),
+                verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+            ) {
+                Text(
+                    "Copy chip",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = SecUi.charcoal
+                )
+                Text(
+                    "How long Copy stays after a save.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = SecUi.muted
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+                ) {
+                    listOf(3, 6, 10).forEach { sec ->
+                        OpenChip(
+                            label = "${sec}s",
+                            isOn = copySec == sec,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                copySec = sec
+                                prefs.copyChipSec = sec
                                 onApplyBubble()
                             }
                         )
@@ -2428,32 +2509,38 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                     )
                 }
 
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            "Tactile Haptics",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = SecUi.charcoal
-                        )
-                        Text(
-                            "Vibration feedback on tap and long-press push-to-talk",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = SecUi.muted
-                        )
-                    }
-                    OpenChip(
-                        label = if (haptics) "ON" else "OFF",
-                        isOn = haptics,
-                        onClick = {
-                            haptics = !haptics
-                            prefs.bubbleHaptics = haptics
-                            onApplyBubble()
-                        }
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Tactile Haptics",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = SecUi.charcoal
                     )
+                    Text(
+                        "Off / Light / Full on tap, save, cancel.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = SecUi.muted
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+                    ) {
+                        listOf(
+                            HapticFeel.OFF to "Off",
+                            HapticFeel.LIGHT to "Light",
+                            HapticFeel.FULL to "Full"
+                        ).forEach { (id, label) ->
+                            OpenChip(
+                                label = label,
+                                isOn = feel == id,
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    feel = id
+                                    prefs.hapticFeel = id
+                                    onApplyBubble()
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }

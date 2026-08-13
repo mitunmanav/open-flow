@@ -100,4 +100,18 @@ class BubbleGeometryTest {
         assertThat(w).isGreaterThan(0)
         assertThat(h).isGreaterThan(0)
     }
+
+    @Test
+    fun idle_circle_is_square() {
+        val (w, h) = BubbleGeometry.overlaySizePx(listening = false, density = 2f, shape = "circle")
+        assertThat(w).isEqualTo(h)
+    }
+
+    @Test
+    fun idle_dot_smaller_than_circle() {
+        val c = BubbleGeometry.overlaySizePx(false, 2f, "circle")
+        val d = BubbleGeometry.overlaySizePx(false, 2f, "dot")
+        assertThat(d.first).isLessThan(c.first)
+        assertThat(d.first).isEqualTo(d.second)
+    }
 }

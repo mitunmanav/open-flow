@@ -728,6 +728,15 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             bubbleDone?.setColorFilter(BubbleChrome.DONE)
             bubbleLabel?.visibility = View.VISIBLE
             bubbleLabel?.text = "Copy"
+            val density = resources.displayMetrics.density
+            val padH = (10f * density).toInt()
+            val padV = (8f * density).toInt()
+            bubbleRoot?.layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER
+            )
+            bubbleRoot?.setPadding(padH, padV, padH, padV)
         }
         applyOverlayWindowSize()
     }
@@ -940,6 +949,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
         stopInProgress = true
         pushToTalk = false
+        hapticSaveOrDiscard(save)
         // Keep listenGeneration stable so onFinal during flush is accepted.
         val gen = listenGeneration
         val prefix = fieldPrefix
@@ -1304,7 +1314,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             icon.layoutParams = LinearLayout.LayoutParams(
                 (20f * density).toInt(),
                 (20f * density).toInt()
-            )
+            ).apply { gravity = Gravity.CENTER }
             label.visibility = View.VISIBLE
             label.setTextColor(BubbleChrome.LABEL)
             if (label.text.isNullOrBlank()) {
@@ -1334,7 +1344,9 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             icon.visibility = View.VISIBLE
             icon.setColorFilter(BubbleChrome.ICON)
             val iconSz = (orbDp * 0.42f * density).toInt()
-            icon.layoutParams = LinearLayout.LayoutParams(iconSz, iconSz)
+            icon.layoutParams = LinearLayout.LayoutParams(iconSz, iconSz).apply {
+                gravity = Gravity.CENTER
+            }
         }
         applyOverlayWindowSize()
     }
@@ -1343,7 +1355,9 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     private fun applyOverlayWindowSize() {
         val params = bubbleParams ?: return
         val density = resources.displayMetrics.density
-        val (w, h) = BubbleGeometry.overlaySizePx(listening, density)
+        val shape = FlowPrefs.normalizeBubbleShape(prefs?.bubbleShape.orEmpty())
+        val wide = listening || copyChipVisible()
+        val (w, h) = BubbleGeometry.overlaySizePx(wide, density, shape)
         params.width = if (w > 0) w else WindowManager.LayoutParams.WRAP_CONTENT
         params.height = if (h > 0) h else WindowManager.LayoutParams.WRAP_CONTENT
         val view = bubbleView ?: return
@@ -1351,6 +1365,21 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             windowManager?.updateViewLayout(view, params)
         } catch (_: Exception) {
         }
+    }
+
+    private fun hapticSaveOrDiscard(save: Boolean) {
+        if (prefs?.bubbleHaptics == false) return
+        val view = bubbleView ?: return
+        val constant = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (save) {
+                android.view.HapticFeedbackConstants.CONFIRM
+            } else {
+                android.view.HapticFeedbackConstants.REJECT
+            }
+        } else {
+            android.view.HapticFeedbackConstants.CONTEXT_CLICK
+        }
+        view.performHapticFeedback(constant)
     }
 
     private fun setListenChrome(elapsedSec: Long) {

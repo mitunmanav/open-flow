@@ -3,77 +3,55 @@
 [![Release](https://img.shields.io/github/v/release/mitunmanav/open-flow)](https://github.com/mitunmanav/open-flow/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Android app: a **floating bubble** types what you say into the app you are already in.
+**Site:** [mitunmanav.github.io/open-flow](https://mitunmanav.github.io/open-flow/)
 
-**Not a keyboard.** Keep Gboard (or any keyboard).
+Android app. A **floating bubble** types what you say. **Not a keyboard** — keep yours.
 
-## The honest line
+## Honest
 
-The app has **no INTERNET permission** and does **not** upload audio itself.
+No INTERNET permission. We do not upload audio.
 
-Speech still goes through Android’s **system recognizer**. On many phones that is Google, and audio **can leave the device**. If you need “voice never leaves this phone,” use a local Whisper/Vosk app — not this one. [Comparison (no sugar)](docs/COMPARISON.md).
+Speech still uses the **system recognizer**. On many phones that is Google. Audio **can leave the device**.
+
+Need “voice never leaves this phone”? Use FUTO / Sayboard / Whisper IME. [Blunt comparison](docs/COMPARISON.md).
 
 ## Install
 
-1. Download the APK from **[Releases](https://github.com/mitunmanav/open-flow/releases/latest)**.
-2. Open it in Files. “Unknown app” / Play Protect is normal. Install anyway.
-3. Open Open Flow. Read the five short screens.
-4. Turn on **Accessibility**.
-5. If the switch is **grey**: Apps → Open Flow → **⋮ → Allow restricted settings**, then try again.
-6. Allow the **microphone**.
-7. Focus a text field → tap the bubble → speak → **tap again**.
+1. Get the APK from **[Releases](https://github.com/mitunmanav/open-flow/releases/latest)**.
+2. Open it in Files. Play Protect “unknown” is normal.
+3. Open the app → five short screens → Accessibility → mic.
+4. If Accessibility is grey: App info → **⋮ → Allow restricted settings**.
+5. Text field → tap bubble → speak → **tap again**.
 
-Step-by-step: [docs/INSTALL.md](docs/INSTALL.md).
+[Install help](docs/INSTALL.md) · [How to use](docs/GUIDE.md)
 
-Copy old text from **History** in the app. There is no copy button on the bubble.
-
-## What you get
-
-| | |
-|---|---|
-| Bubble | Tap, tap again, or hold. X throws away. Drag to move. Drag down to hide. |
-| Cleanup | None / Light / Medium / High — **rules on the phone**, not an AI model |
-| Style | Formal / Casual / Very casual / Excited / Custom |
-| History | Search, copy, share — stays on the phone |
-| Dictionary | One word → another word |
-| Snippet | Short trigger → a whole block of text |
-| Retention | Keep / wipe after 24h / never save |
-
-We **hide** the bubble in many bank and wallet apps. Those apps may still warn. That is their screen.
-
-English only. MIT. No account. No ads.
+Copy from **History** in the app. No copy chip on the bubble.
 
 ## Docs
 
-| Doc | For |
-|-----|-----|
-| [Guide](docs/GUIDE.md) | How to use it |
-| [Install](docs/INSTALL.md) | First install and grey Accessibility |
+| | |
+|---|---|
+| [Website](https://mitunmanav.github.io/open-flow/) | Simple home |
+| [Architecture + diagrams](docs/ARCHITECTURE.md) | How it is built |
+| [Roadmap](docs/ROADMAP.md) | Now / next / not planned |
 | [Privacy](docs/PRIVACY.md) | What we touch |
-| [Architecture](docs/ARCHITECTURE.md) | How the code is shaped |
-| [Comparison](docs/COMPARISON.md) | Us vs FUTO, Sayboard, Whisper IME, Phone Whisper, Kõnele, Wispr — blunt |
-| [How to report](docs/REPORT.md) | Bug or idea, no personal data |
+| [How to report](docs/REPORT.md) | Bug or idea |
 
-## Report a problem
+## Talk / report
 
-**[Open an issue](https://github.com/mitunmanav/open-flow/issues/new/choose)** → Bug or Idea.
+- **[Discussions](https://github.com/mitunmanav/open-flow/discussions)** — questions, ideas
+- **[Issues](https://github.com/mitunmanav/open-flow/issues/new/choose)** — Bug or Idea  
+  What you tapped. What you expected. No personal data.  
+  Security: repo **Security** tab, not a public issue.
 
-Write what you tapped and what you expected. Phone + Android version if you know.  
-No names, emails, bank screens, or private dictation.  
-Security hole: use the repo **Security** tab, not a public issue.
-
-## Build from source
+## Build
 
 ```bash
 ./gradlew :app:testDebugUnitTest :app:assembleDebug
 ```
 
-This GitHub build is **debug-signed** for sideload. Not a Play Store / F-Droid release.
+Debug-signed sideload. Not Play / F-Droid.
 
 ## License
 
-MIT — [LICENSE](LICENSE)
-
-## Security defaults
-
-[SECURITY.md](SECURITY.md) — no INTERNET in the APK, backup off, Accessibility is insert-only.
+MIT — [LICENSE](LICENSE) · [SECURITY.md](SECURITY.md)

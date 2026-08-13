@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Architecture — Open Flow</title>
+  <link rel="stylesheet" href="site.css">
+</head>
+<body>
+<header>
+  <strong><a href="index.html">Open Flow</a></strong>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="roadmap.html">Roadmap</a>
+    <a href="compare.html">Compare</a>
+    <a href="https://github.com/mitunmanav/open-flow">GitHub</a>
+  </nav>
+</header>
+<main>
+  <h1>Architecture</h1>
+  <p>One idea: keep the user’s keyboard. A bubble owned by an Accessibility service listens, polishes words on the phone, and inserts them.</p>
+  <p>Longer write-up: <a href="ARCHITECTURE.md">ARCHITECTURE.md</a></p>
+
+  <h2>1. Where it sits</h2>
+  <p class="muted">The phone’s speech engine is outside our process. That is why “no INTERNET permission” is not the same as “audio never leaves.”</p>
+  <div class="diagram">
+    <svg viewBox="0 0 720 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Context diagram">
+      <rect x="1" y="1" width="718" height="218" fill="#fffdf8" stroke="#1a1a18" stroke-width="2"/>
+      <rect x="24" y="70" width="140" height="70" fill="#1a1a18"/>
+      <text x="94" y="110" fill="#f4efe6" text-anchor="middle" font-size="14">You</text>
+      <rect x="200" y="70" width="160" height="70" fill="none" stroke="#1a1a18" stroke-width="2"/>
+      <text x="280" y="100" text-anchor="middle" font-size="14">Other app</text>
+      <text x="280" y="120" text-anchor="middle" font-size="12" fill="#4a4a48">Notes, chat…</text>
+      <rect x="396" y="70" width="140" height="70" fill="none" stroke="#1a1a18" stroke-width="2"/>
+      <text x="466" y="100" text-anchor="middle" font-size="14">Open Flow</text>
+      <text x="466" y="120" text-anchor="middle" font-size="12" fill="#4a4a48">bubble + app</text>
+      <rect x="572" y="70" width="124" height="70" fill="none" stroke="#1a1a18" stroke-width="2"/>
+      <text x="634" y="100" text-anchor="middle" font-size="13">System STT</text>
+      <text x="634" y="120" text-anchor="middle" font-size="11" fill="#4a4a48">may be Google</text>
+      <path d="M164 105 H200" stroke="#1a1a18" stroke-width="2"/>
+      <path d="M360 105 H396" stroke="#1a1a18" stroke-width="2"/>
+      <path d="M536 105 H572" stroke="#1a1a18" stroke-width="2"/>
+    </svg>
+  </div>
+
+  <h2>2. One dictation</h2>
+  <div class="diagram">
+    <svg viewBox="0 0 720 160" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Dictation flow">
+      <rect x="1" y="1" width="718" height="158" fill="#fffdf8" stroke="#1a1a18" stroke-width="2"/>
+      <g font-size="13" text-anchor="middle">
+        <rect x="16" y="50" width="100" height="56" fill="#1a1a18"/>
+        <text x="66" y="82" fill="#f4efe6">Tap</text>
+        <rect x="132" y="50" width="100" height="56" fill="none" stroke="#1a1a18" stroke-width="2"/>
+        <text x="182" y="82">Listen</text>
+        <rect x="248" y="50" width="100" height="56" fill="none" stroke="#1a1a18" stroke-width="2"/>
+        <text x="298" y="82">Tap again</text>
+        <rect x="364" y="50" width="110" height="56" fill="none" stroke="#1a1a18" stroke-width="2"/>
+        <text x="419" y="82">Polish</text>
+        <rect x="490" y="50" width="100" height="56" fill="none" stroke="#1a1a18" stroke-width="2"/>
+        <text x="540" y="82">Insert</text>
+        <rect x="606" y="50" width="98" height="56" fill="none" stroke="#1a1a18" stroke-width="2"/>
+        <text x="655" y="82">History</text>
+      </g>
+    </svg>
+  </div>
+
+  <h2>3. Polish pipeline</h2>
+  <p class="muted">All on the phone. No LLM. Style runs last.</p>
+  <div class="diagram">
+    <svg viewBox="0 0 720 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Text pipeline">
+      <rect x="1" y="1" width="718" height="198" fill="#fffdf8" stroke="#1a1a18" stroke-width="2"/>
+      <g font-size="12" text-anchor="middle">
+        <rect x="20" y="30" width="120" height="48" fill="none" stroke="#1a1a18" stroke-width="2"/>
+        <text x="80" y="58">Raw STT</text>
+        <rect x="160" y="30" width="120" height="48" fill="none" stroke="#1a1a18" stroke-width="2"/>
+        <text x="220" y="58">Dictionary</text>
+        <rect x="300" y="30" width="120" height="48" fill="none" stroke="#1a1a18" stroke-width="2"/>
+        <text x="360" y="58">Snippet</text>
+        <rect x="440" y="30" width="120" height="48" fill="none" stroke="#1a1a18" stroke-width="2"/>
+        <text x="500" y="58">Cleanup</text>
+        <rect x="580" y="30" width="120" height="48" fill="#1a1a18"/>
+        <text x="640" y="58" fill="#f4efe6">Style</text>
+        <text x="360" y="120" fill="#4a4a48">None → Light → Medium → High (rules)</text>
+        <text x="360" y="150" fill="#4a4a48">Then Formal / Casual / Very casual / Excited / Custom</text>
+      </g>
+    </svg>
+  </div>
+
+  <h2>4. Main modules</h2>
+  <table>
+    <tr><th>Module</th><th>Job</th></tr>
+    <tr><td>App UI</td><td>Walkthrough, setup, Home, History, Dictionary, Settings</td></tr>
+    <tr><td>Accessibility service</td><td>Bubble, field detect, listen, insert</td></tr>
+    <tr><td>STT engine</td><td>System SpeechRecognizer. Fast / Balanced / Accurate</td></tr>
+    <tr><td>Room database</td><td>History, dictionary, snippets — on this phone</td></tr>
+    <tr><td>Policies</td><td>Hide on banks. Skip passwords.</td></tr>
+  </table>
+</main>
+<footer>Open Flow · MIT · diagrams are the real design, not a future plan</footer>
+</body>
+</html>

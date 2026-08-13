@@ -3,3 +3,6 @@ contact_links:
   - name: Install help
     url: https://github.com/mitunmanav/open-flow/blob/main/docs/INSTALL.md
     about: How to install the APK and turn on the bubble
+  - name: Discussions
+    url: https://github.com/mitunmanav/open-flow/discussions
+    about: Questions and ideas (not a crash)

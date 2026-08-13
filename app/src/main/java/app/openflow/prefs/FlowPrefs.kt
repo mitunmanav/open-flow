@@ -82,6 +82,11 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         get() = store.getString("setup_battery_seen", "false") == "true"
         set(v) = store.putString("setup_battery_seen", if (v) "true" else "false")
 
+    /** Home “How Open Flow works” card dismissed. */
+    var seenHowTo: Boolean
+        get() = store.getString("seen_how_to", "false") == "true"
+        set(v) = store.putString("seen_how_to", if (v) "true" else "false")
+
     fun style(): WritingStyle = WritingStyle.fromPref(styleName)
 
     fun customStyleConfig(): CustomStyleConfig = CustomStyleConfig(

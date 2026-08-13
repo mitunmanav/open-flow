@@ -21,7 +21,7 @@
 | Risk | Mitigation |
 |------|------------|
 | Voice leaves device | Default system STT + rules. Cloud ear/brain only after user pick. Honesty line per vendor. |
-| Backup leak | allowBackup false; data extraction rules exclude |
+| Backup leak | allowBackup false; fullBackupContent + data extraction exclude all |
 | Cleartext MITM | NSC cleartext false |
 | Over-broad perms | Request only when used |
 | Accessibility abuse | Minimal events; insert-only; password skip; open source audit |

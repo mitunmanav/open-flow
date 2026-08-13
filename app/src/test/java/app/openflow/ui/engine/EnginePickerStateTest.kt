@@ -196,6 +196,15 @@ class EnginePickerStateTest {
         assertThat(ids).hasSize(4)
     }
 
+    @Test
+    fun launch_default_is_local_phone_stt_rules() {
+        val s = EnginePickerState.of()
+        assertThat(s.earId).isEqualTo("system")
+        assertThat(s.brainId).isEqualTo("none")
+        assertThat(s.needsKey).isFalse()
+        assertThat(s.honesty).contains("Phone STT may still use Google")
+    }
+
     private fun chip(s: EnginePickerState, id: String): FeatureChip =
         s.chips.first { it.id == id }
 }

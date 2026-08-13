@@ -31,4 +31,37 @@ class HomeBannerPolicyTest {
             HomeBannerPolicy.banner(bubbleOn = true, micOn = true, snoozed = false)
         ).isEqualTo(HomeBannerPolicy.Banner.NONE)
     }
+
+    @Test
+    fun repair_copy_points_to_accessibility() {
+        val c = HomeBannerPolicy.copy(HomeBannerPolicy.Banner.REPAIR_A11Y)
+        assertThat(c.title).isEqualTo("Turn on the Flow Bubble")
+        assertThat(c.body).contains("Accessibility")
+        assertThat(c.cta).isEqualTo("Open Accessibility")
+        assertThat(c.a11yLabel).contains("Flow Bubble")
+    }
+
+    @Test
+    fun mic_copy_clear() {
+        val c = HomeBannerPolicy.copy(HomeBannerPolicy.Banner.ALLOW_MIC)
+        assertThat(c.title).isEqualTo("Allow the microphone")
+        assertThat(c.cta).isEqualTo("Allow microphone")
+        assertThat(c.body).contains("bubble")
+    }
+
+    @Test
+    fun snooze_copy_has_end_cta() {
+        val c = HomeBannerPolicy.copy(HomeBannerPolicy.Banner.END_SNOOZE)
+        assertThat(c.title).isEqualTo("Bubble is snoozed")
+        assertThat(c.cta).isEqualTo("End snooze")
+        assertThat(c.body).isNull()
+    }
+
+    @Test
+    fun none_copy_empty() {
+        val c = HomeBannerPolicy.copy(HomeBannerPolicy.Banner.NONE)
+        assertThat(c.title).isEmpty()
+        assertThat(c.cta).isNull()
+        assertThat(c.body).isNull()
+    }
 }

@@ -55,6 +55,14 @@ class NavStackTest {
     }
 
     @Test
+    fun launch_ready_leaves_setup_for_home() {
+        val afterSetup = NavStack.navigate(listOf(AppRoute.Setup), AppRoute.Home)
+        assertThat(afterSetup).containsExactly(AppRoute.Home)
+        assertThat(AppRoute.Setup.isBottomBar()).isFalse()
+        assertThat(NavStack.current(NavStack.initial(ready = true))).isEqualTo(AppRoute.Home)
+    }
+
+    @Test
     fun back_from_settings_tab_goes_to_home() {
         assertThat(NavStack.canGoBack(listOf(AppRoute.Settings))).isTrue()
         assertThat(NavStack.goBack(listOf(AppRoute.Settings))).containsExactly(AppRoute.Home)

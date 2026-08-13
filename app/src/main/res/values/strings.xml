@@ -45,6 +45,10 @@
     <string name="style_tab">Style</string>
     <string name="settings_tab">Settings</string>
     <string name="setup_title">Setup</string>
+    <string name="setup_progress_format">Step %1$d of %2$d</string>
+    <string name="setup_skip_battery_a11y">Skip battery optimization</string>
+    <string name="setup_battery_body">Optional. Stop the phone from killing Open Flow. Tap Skip if you want to finish now.</string>
+    <string name="walkthrough_progress_format">Page %1$d of %2$d</string>
     <string name="accessibility_settings">Accessibility settings</string>
     <string name="mic_granted">Microphone granted</string>
     <string name="bubble_on">Bubble ON</string>

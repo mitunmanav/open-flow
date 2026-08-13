@@ -9,6 +9,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import app.openflow.ui.a11y.Dimen
 import app.openflow.ui.components.ButtonVariant
@@ -30,38 +32,38 @@ fun SetupWizard(
         FirstRunPolicy.Step.BATTERY -> "setup_step_battery"
         FirstRunPolicy.Step.DONE -> null
     }
+    val copy = FirstRunPolicy.copy(step)
+    val onPrimary = when (step) {
+        FirstRunPolicy.Step.A11Y -> onEnableBubble
+        FirstRunPolicy.Step.MIC -> onMic
+        FirstRunPolicy.Step.BATTERY -> onBattery
+        FirstRunPolicy.Step.DONE -> ({})
+    }
     Column(
         modifier
             .fillMaxSize()
             .padding(horizontal = Dimen.PAGE_PAD, vertical = Dimen.GAP)
-            .testTag("setup_wizard"),
+            .testTag("setup_wizard")
+            .semantics { contentDescription = FirstRunPolicy.a11yLabel(step) },
         verticalArrangement = Arrangement.spacedBy(Dimen.GAP)
     ) {
-        when (step) {
-            FirstRunPolicy.Step.A11Y -> SetupStepCard(
-                title = "Turn on the Flow Bubble",
-                body = "Accessibility lets Open Flow insert text in any app. Keep your keyboard.",
-                primary = "Open Accessibility",
-                onPrimary = onEnableBubble,
+        if (step != FirstRunPolicy.Step.DONE) {
+            Text(
+                text = FirstRunPolicy.progressLabel(step),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag("setup_progress"),
+            )
+            SetupStepCard(
+                title = copy.title,
+                body = copy.body,
+                primary = copy.primary,
+                onPrimary = onPrimary,
+                secondary = copy.secondary,
+                onSecondary = if (copy.secondary != null) onSkipBattery else null,
                 stepTag = stepTag,
             )
-            FirstRunPolicy.Step.MIC -> SetupStepCard(
-                title = "Allow the microphone",
-                body = "On-device speech. Open Flow never uploads audio.",
-                primary = "Allow microphone",
-                onPrimary = onMic,
-                stepTag = stepTag,
-            )
-            FirstRunPolicy.Step.BATTERY -> SetupStepCard(
-                title = "Keep the bubble alive",
-                body = "Optional. Stop the phone from killing Open Flow.",
-                primary = "Battery settings",
-                onPrimary = onBattery,
-                secondary = "Skip",
-                onSecondary = onSkipBattery,
-                stepTag = stepTag,
-            )
-            FirstRunPolicy.Step.DONE -> Unit
         }
     }
 }
@@ -98,6 +100,8 @@ private fun SetupStepCard(
                     text = secondary,
                     onClick = onSecondary,
                     variant = ButtonVariant.Outlined,
+                    contentDescription = "Skip battery optimization",
+                    modifier = Modifier.testTag("setup_skip_battery"),
                 )
             }
         }

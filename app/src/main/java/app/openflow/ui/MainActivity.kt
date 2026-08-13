@@ -588,76 +588,85 @@ private fun HomeHub(
             )
         }
 
-        when (HomeBannerPolicy.banner(bubbleOn = bubbleOn, micOn = micOn, snoozed = snoozed)) {
+        when (val banner = HomeBannerPolicy.banner(bubbleOn = bubbleOn, micOn = micOn, snoozed = snoozed)) {
             HomeBannerPolicy.Banner.REPAIR_A11Y -> {
+                val copy = HomeBannerPolicy.copy(banner)
                 OpenCard(modifier = Modifier.testTag("home_banner_repair")) {
                     Column(
                         Modifier.padding(Dimen.MIN_PADDING),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Text(
-                            "Turn on the Flow Bubble",
+                            copy.title,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface,
                             softWrap = true
                         )
-                        Text(
-                            "Repair: Open Flow is not in Accessibility. Tap Enable bubble, turn it ON, then return here.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            softWrap = true
-                        )
+                        if (copy.body != null) {
+                            Text(
+                                copy.body,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                softWrap = true
+                            )
+                        }
                         OpenButton(
-                            text = "Open Accessibility",
+                            text = copy.cta ?: "Open Accessibility",
                             onClick = onEnableBubble,
+                            contentDescription = copy.a11yLabel,
                             modifier = Modifier.testTag("home_banner_a11y")
                         )
                     }
                 }
             }
             HomeBannerPolicy.Banner.ALLOW_MIC -> {
+                val copy = HomeBannerPolicy.copy(banner)
                 OpenCard(modifier = Modifier.testTag("home_banner_mic")) {
                     Column(
                         Modifier.padding(Dimen.MIN_PADDING),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Text(
-                            "Allow the microphone",
+                            copy.title,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface,
                             softWrap = true
                         )
-                        Text(
-                            "Allow the microphone, then focus a field and tap the bubble.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            softWrap = true
-                        )
+                        if (copy.body != null) {
+                            Text(
+                                copy.body,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                softWrap = true
+                            )
+                        }
                         OpenButton(
-                            text = "Allow microphone",
+                            text = copy.cta ?: "Allow microphone",
                             onClick = onMic,
+                            contentDescription = copy.a11yLabel,
                             modifier = Modifier.testTag("home_banner_mic_btn")
                         )
                     }
                 }
             }
             HomeBannerPolicy.Banner.END_SNOOZE -> {
+                val copy = HomeBannerPolicy.copy(banner)
                 OpenCard(modifier = Modifier.testTag("home_banner_snooze")) {
                     Column(
                         Modifier.padding(Dimen.MIN_PADDING),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Text(
-                            "Bubble is snoozed",
+                            copy.title,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface,
                             softWrap = true
                         )
                         OpenButton(
-                            text = "End snooze",
+                            text = copy.cta ?: "End snooze",
                             onClick = {
                                 app.prefs.clearSnooze()
                                 snoozed = false
@@ -667,6 +676,7 @@ private fun HomeHub(
                                     android.widget.Toast.LENGTH_SHORT
                                 ).show()
                             },
+                            contentDescription = copy.a11yLabel,
                             modifier = Modifier.testTag("home_banner_end_snooze")
                         )
                     }

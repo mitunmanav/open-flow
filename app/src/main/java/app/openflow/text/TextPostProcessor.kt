@@ -4,11 +4,16 @@ package app.openflow.text
  * Facade over dictionary, snippets, and [CleanupPipeline].
  * Prefer [polishSessionResult] for production stop / debug inject path.
  *
- * **Pipeline order** (Wispr-like: expand shortcuts, then format):
+ * **Pipeline order** (nothing falls through):
  * 1. [applyDictionary] — user vocabulary (whole-word, case-insensitive)
- * 2. [expandSnippets] — exact-trigger expand
- * 3. [CleanupPipeline.run] — cleanup level + spoken cmds + [WritingStyle]/[CustomStyleConfig]
+ * 2. [expandSnippets] — exact-trigger expand ([PhraseMap] is spoken cmds, not snippets)
+ * 3. [CleanupPipeline.run]:
+ *    - Light: normalize → fillers → reps → [VoiceCommands] → lightGrammar
+ *    - Medium: + false starts → [CourseCorrector] → lists → lightClarity
+ *    - High: + hedges
+ *    - then [StyleApplicator] / [SentenceFormat] / [WritingStyle]
  *
+ * Empty in → empty out. Non-empty content must not vanish (except explicit clear).
  * Local rules only — no cloud AI rewrite.
  * [CleanupResult.raw] is always the original STT string (pre dict/snippet).
  */

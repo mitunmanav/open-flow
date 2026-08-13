@@ -42,8 +42,10 @@ object VoiceCommands {
         return tidy(out.toString())
     }
 
+    private val tokenWs = Regex("\\s+")
+
     private fun tokenize(raw: String): List<String> =
-        raw.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+        raw.trim().split(tokenWs).filter { it.isNotEmpty() }
 
     private fun applyEdit(out: StringBuilder, op: PhraseMap.EditOp) {
         val left = out.toString()
@@ -80,16 +82,23 @@ object VoiceCommands {
         return if (i < 0) "" else t.substring(0, i + 1).trimEnd() + " "
     }
 
+    private val spaceBeforeClose = Regex("""\s+([.,!?;:)\]])""")
+    private val spaceAfterOpen = Regex("""([(\[])\s+""")
+    private val endNeedSpace = Regex("""([.!?])([A-Za-z])""")
+    private val commaNeedSpace = Regex("""(,)([A-Za-z])""")
+    private val horizWs = Regex("[ \\t]+")
+    private val manyNewlines = Regex("\n{3,}")
+
     private fun tidy(s: String): String {
         var t = s
-        t = t.replace(Regex("""\s+([.,!?;:)\]])"""), "$1")
-        t = t.replace(Regex("""([(\[])\s+"""), "$1")
-        t = t.replace(Regex("""([.!?])([A-Za-z])"""), "$1 $2")
-        t = t.replace(Regex("""(,)([A-Za-z])"""), "$1 $2")
+        t = spaceBeforeClose.replace(t, "$1")
+        t = spaceAfterOpen.replace(t, "$1")
+        t = endNeedSpace.replace(t, "$1 $2")
+        t = commaNeedSpace.replace(t, "$1 $2")
         t = t.lines().joinToString("\n") { line ->
-            line.replace(Regex("[ \\t]+"), " ").trim()
+            line.replace(horizWs, " ").trim()
         }
-        t = t.replace(Regex("\n{3,}"), "\n\n")
+        t = manyNewlines.replace(t, "\n\n")
         return t.trim()
     }
 }

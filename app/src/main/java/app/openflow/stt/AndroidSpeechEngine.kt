@@ -50,6 +50,10 @@ class AndroidSpeechEngine(
         override fun onNeedMicPermission() {
             outer?.onNeedMicPermission()
         }
+
+        override fun onRmsChanged(rmsdB: Float) {
+            outer?.onRmsChanged(rmsdB)
+        }
     }
 
     init {
@@ -65,6 +69,10 @@ class AndroidSpeechEngine(
         outer = listener
         // Keep bridge installed so late setListener still receives events.
         engine.setListener(bridge)
+    }
+
+    override fun setBiasing(words: List<String>) {
+        engine.setBiasing(words)
     }
 
     override fun startContinuous(languageTag: String) {

@@ -2,21 +2,32 @@ package app.openflow
 
 import android.app.Application
 import android.content.ComponentCallbacks2
+import app.openflow.ai.NoAI
+import app.openflow.ai.TextAIProvider
 import app.openflow.data.DictationRepository
 import app.openflow.data.OpenFlowDatabase
 import app.openflow.notify.DictationNotifier
 import app.openflow.prefs.FlowPrefs
+import app.openflow.runtime.TrimPolicy
 import kotlinx.coroutines.launch
 
 class OpenFlowApp : Application(), ComponentCallbacks2 {
     /**
      * Last [onTrimMemory] level.
-     * Agent A owns FlowAccessibilityService — do not call it from here.
-     * Service can read this later and drop idle STT via TrimPolicy.shouldDropIdleStt.
+     * Bubble service owns idle-STT drop — do not import bubble here.
+     * Service reads [dropIdleStt] / [lastTrimLevel] + TrimPolicy.shouldDropIdleStt.
      */
     @Volatile
     var lastTrimLevel: Int = 0
         private set
+
+    /** True when last trim says drop idle STT. In-memory only. */
+    @Volatile
+    var dropIdleStt: Boolean = false
+        private set
+
+    /** Product AI hook. Always [NoAI] — no network, no model. */
+    val textAI: TextAIProvider = NoAI
 
     override fun onCreate() {
         super.onCreate()
@@ -29,6 +40,7 @@ class OpenFlowApp : Application(), ComponentCallbacks2 {
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         lastTrimLevel = level
+        dropIdleStt = TrimPolicy.shouldDropIdleStt(level)
     }
 
     val database by lazy { OpenFlowDatabase.get(this) }

@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import app.openflow.stt.LanguagePolicy
 import app.openflow.stt.SttTuning
 import app.openflow.text.CapsMode
+import app.openflow.text.CleanupLevel
 import app.openflow.text.CustomStyleConfig
 import app.openflow.text.EndPunct
 import app.openflow.text.WritingStyle
@@ -90,6 +91,9 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         set(v) = store.putString("seen_how_to", if (v) "true" else "false")
 
     fun style(): WritingStyle = WritingStyle.fromPref(styleName)
+
+    /** Typed cleanup for TEXT pipeline. none→RAW, light, medium→NORMAL, high. */
+    fun cleanup(): CleanupLevel = CleanupLevel.fromPref(cleanupLevel)
 
     fun customStyleConfig(): CustomStyleConfig = CustomStyleConfig(
         endPunct = EndPunct.fromPref(customEndPunct),

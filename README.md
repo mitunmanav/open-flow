@@ -53,9 +53,12 @@ We **hide** the bubble in bank and wallet apps. Those apps may still warn that A
 
 ---
 
-## Privacy
+## Docs
 
-See [docs/PRIVACY.md](docs/PRIVACY.md).
+- [How to use the app](docs/GUIDE.md)
+- [Install](docs/INSTALL.md)
+- [Privacy](docs/PRIVACY.md)
+- [Architecture](docs/ARCHITECTURE.md)
 
 ---
 

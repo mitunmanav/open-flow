@@ -1,6 +1,7 @@
 package app.openflow.data
 
 import androidx.room.withTransaction
+import app.openflow.privacy.RetentionPolicy
 import kotlinx.coroutines.flow.Flow
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -34,10 +35,9 @@ class DictationRepository(
         languageTag: String,
         retentionPolicy: String = "keep"
     ): DictationEntity? {
-        if (retentionPolicy == "never_store") return null
-        if (retentionPolicy == "wipe_24h") {
-            val cutoff = System.currentTimeMillis() - TimeUnit.HOURS.toMillis(24)
-            dictationDao.deleteOlderThan(cutoff)
+        if (!RetentionPolicy.shouldPersist(retentionPolicy)) return null
+        RetentionPolicy.cutoffEpochMs(System.currentTimeMillis(), retentionPolicy)?.let {
+            dictationDao.deleteOlderThan(it)
         }
         val words = cleanText.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }.size
         val e = DictationEntity(
@@ -52,6 +52,11 @@ class DictationRepository(
         dictationDao.upsert(e)
         bumpStats(words)
         return e
+    }
+
+    suspend fun purgeOnLaunch(retentionPolicy: String, nowEpochMs: Long = System.currentTimeMillis()) {
+        val cut = RetentionPolicy.cutoffEpochMs(nowEpochMs, retentionPolicy) ?: return
+        dictationDao.deleteOlderThan(cut)
     }
 
     /** Compat: single string → both raw and clean (pre-pipeline callers). */

@@ -61,4 +61,31 @@ class ContinuousPolicyTest {
         assertThat(p.shouldRecreateRecognizer(sessionCount = 0)).isFalse()
         assertThat(p.shouldRecreateRecognizer(sessionCount = 12)).isTrue()
     }
+
+    @Test
+    fun server_disconnected_restarts_and_recreates() {
+        // ERROR_SERVER_DISCONNECTED = 11 (API 31)
+        assertThat(p.shouldRestart(listening = true, errorCode = 11, hadResult = false))
+            .isTrue()
+        assertThat(p.shouldRecreateOnError(11)).isTrue()
+        assertThat(p.restartDelayMs(errorCode = 11)).isEqualTo(p.normalRestartDelayMs)
+    }
+
+    @Test
+    fun busy_recreates() {
+        assertThat(p.shouldRecreateOnError(8)).isTrue()
+    }
+
+    @Test
+    fun client_restarts_but_does_not_recreate() {
+        assertThat(p.shouldRestart(listening = true, errorCode = 5, hadResult = false))
+            .isTrue()
+        assertThat(p.shouldRecreateOnError(5)).isFalse()
+    }
+
+    @Test
+    fun result_restart_stays_fast() {
+        assertThat(p.restartDelayMs(errorCode = null)).isEqualTo(60L)
+        assertThat(p.normalRestartDelayMs).isEqualTo(60L)
+    }
 }

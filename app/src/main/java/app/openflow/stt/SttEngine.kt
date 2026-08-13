@@ -27,6 +27,9 @@ import java.util.concurrent.atomic.AtomicInteger
  * - Prefer on-device when available; never hard-fail offline-only when pack missing.
  * - On offline/language/client errors → one network-capable retry.
  * - Must run start/stop on main thread.
+ * - After stopListening wait for onResults/onError before startListening again.
+ * - Reuse recognizer; destroy only when done or BUSY / SERVER_DISCONNECTED.
+ * - Failures set [lastError]; never swallow and pretend OK.
  */
 class SttEngine(
     private val context: Context,
@@ -49,13 +52,20 @@ class SttEngine(
     private var recognizer: SpeechRecognizer? = null
     private var listener: Listener? = null
     private val continuous = AtomicBoolean(false)
-    private val starting = AtomicBoolean(false)
+    /** True from startListening until onResults/onError (Android wait contract). */
+    private val inFlight = AtomicBoolean(false)
+    private val restartQueued = AtomicBoolean(false)
     private val sessionCount = AtomicInteger(0)
     private var languageTag: String = LanguagePolicy.LOCKED
     private var restartPosted = false
     private var restartCount = 0
     private val maxRestartsPerSession = 200
     private var savedMusicVolume: Int? = null
+
+    /** Last swallow / engine fail. Never empty-pretend OK. */
+    @Volatile
+    var lastError: String? = null
+        private set
 
     /** When true, force EXTRA_PREFER_OFFLINE. Flips false after offline-related errors. */
     private var forceOfflineOnly: Boolean = preferOnDevice
@@ -94,12 +104,16 @@ class SttEngine(
         this.languageTag = LanguagePolicy.force(languageTag)
         if (!hasMicPermission()) {
             listener?.onNeedMicPermission()
-            listener?.onError("Microphone permission required", fatal = true)
+            rememberError("Microphone permission required", notify = true, fatal = true)
             listener?.onListeningChanged(false)
             return
         }
         if (!isAvailable) {
-            listener?.onError("No speech service — install Google app / offline pack", fatal = true)
+            rememberError(
+                "No speech service — install Google app / offline pack",
+                notify = true,
+                fatal = true
+            )
             listener?.onListeningChanged(false)
             return
         }
@@ -113,11 +127,11 @@ class SttEngine(
         this.languageTag = LanguagePolicy.force(languageTag)
         if (!hasMicPermission()) {
             listener?.onNeedMicPermission()
-            listener?.onError("Microphone permission required", fatal = true)
+            rememberError("Microphone permission required", notify = true, fatal = true)
             return
         }
         if (!isAvailable) {
-            listener?.onError("No speech service on this device", fatal = true)
+            rememberError("No speech service on this device", notify = true, fatal = true)
             return
         }
         continuous.set(false)
@@ -132,16 +146,21 @@ class SttEngine(
     fun stop() {
         continuous.set(false)
         restartCount = 0
+        restartQueued.set(false)
+        inFlight.set(false)
         clearScheduledWork()
         abandonFlush(invokeCallback = true)
         mainHandler.post {
             try {
                 recognizer?.cancel()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                rememberError(
+                    "cancel failed: ${e.message ?: e.javaClass.simpleName}",
+                    notify = true
+                )
             }
             destroyInternal()
             restoreVolume()
-            starting.set(false)
             val l = listener
             listener = null
             l?.onListeningChanged(false)
@@ -170,7 +189,11 @@ class SttEngine(
             }
             try {
                 recognizer?.stopListening()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                rememberError(
+                    "stopListening failed: ${e.message ?: e.javaClass.simpleName}",
+                    notify = true
+                )
                 completeFlush()
                 return@post
             }
@@ -180,12 +203,13 @@ class SttEngine(
 
     fun destroy() {
         continuous.set(false)
+        restartQueued.set(false)
+        inFlight.set(false)
         clearScheduledWork()
         abandonFlush(invokeCallback = true)
         mainHandler.post {
             destroyInternal()
             restoreVolume()
-            starting.set(false)
             listener = null
         }
     }
@@ -213,11 +237,13 @@ class SttEngine(
         mainHandler.post {
             try {
                 recognizer?.cancel()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                rememberError("flush cancel failed: ${e.message ?: e.javaClass.simpleName}")
             }
             destroyInternal()
             restoreVolume()
-            starting.set(false)
+            inFlight.set(false)
+            restartQueued.set(false)
             val cb = flushCallback
             flushCallback = null
             cb?.invoke()
@@ -237,48 +263,46 @@ class SttEngine(
         }
         if (!hasMicPermission()) {
             listener?.onNeedMicPermission()
+            rememberError("Microphone permission required", notify = true, fatal = true)
             continuous.set(false)
             listener?.onListeningChanged(false)
             return
         }
-        if (!starting.compareAndSet(false, true)) {
-            scheduleRestart(ContinuousPolicy.ERROR_RECOGNIZER_BUSY)
-            return
-        }
-        try {
-            val n = sessionCount.incrementAndGet()
-            val needNew = forceRecreate ||
-                recognizer == null ||
-                policy.shouldRecreateRecognizer(n)
-            if (needNew) {
-                destroyInternal()
-                recognizer = createRecognizer()
-            } else {
-                try {
-                    recognizer?.cancel()
-                } catch (_: Exception) {
-                }
-            }
-            val r = recognizer
-            if (r == null) {
-                listener?.onError("Speech recognition not available", fatal = true)
-                continuous.set(false)
-                listener?.onListeningChanged(false)
+        // After stopListening, wait for onResults/onError before startListening again.
+        if (inFlight.get()) {
+            if (!forceRecreate) {
+                restartQueued.set(true)
                 return
             }
-            r.setRecognitionListener(buildListener())
-            softMute()
-            try {
-                r.startListening(buildIntent(languageTag, refreshTuning()))
-            } catch (e: Exception) {
-                listener?.onError(e.message ?: "start failed", fatal = false)
-                // Factory failed — try default recognizer next
-                forceOfflineOnly = false
-                usedOnDeviceFactory = false
-                scheduleRestart(ContinuousPolicy.ERROR_CLIENT)
-            }
-        } finally {
-            mainHandler.postDelayed({ starting.set(false) }, 120)
+            destroyInternal()
+            inFlight.set(false)
+        }
+        val n = sessionCount.incrementAndGet()
+        val needNew = forceRecreate ||
+            recognizer == null ||
+            policy.shouldRecreateRecognizer(n)
+        if (needNew) {
+            destroyInternal()
+            recognizer = createRecognizer()
+        }
+        val r = recognizer
+        if (r == null) {
+            rememberError("Speech recognition not available", notify = true, fatal = true)
+            continuous.set(false)
+            listener?.onListeningChanged(false)
+            return
+        }
+        r.setRecognitionListener(buildListener())
+        softMute()
+        inFlight.set(true)
+        try {
+            r.startListening(buildIntent(languageTag, refreshTuning()))
+        } catch (e: Exception) {
+            inFlight.set(false)
+            rememberError(e.message ?: "start failed", notify = true, fatal = false)
+            forceOfflineOnly = false
+            usedOnDeviceFactory = false
+            scheduleRestart(ContinuousPolicy.ERROR_CLIENT)
         }
     }
 
@@ -299,7 +323,7 @@ class SttEngine(
 
         override fun onError(error: Int) {
             restoreVolume()
-            starting.set(false)
+            inFlight.set(false)
 
             // Offline / language / client → one soft fallback to non-offline default engine
             val offlineRelated = error == SpeechRecognizer.ERROR_CLIENT ||
@@ -314,7 +338,7 @@ class SttEngine(
                 offlineFallbackUsed = true
                 forceOfflineOnly = false
                 usedOnDeviceFactory = false
-                listener?.onError("Retrying speech engine…", fatal = false)
+                rememberError("Retrying speech engine…", notify = true, fatal = false)
                 mainHandler.postDelayed({
                     if (continuous.get()) beginSession(forceRecreate = true)
                 }, 350)
@@ -324,14 +348,16 @@ class SttEngine(
             val fatal = error == ContinuousPolicy.ERROR_INSUFFICIENT_PERMISSIONS ||
                 error == SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS
             val msg = humanError(error)
-            listener?.onError(msg, fatal = fatal)
+            rememberError(msg, notify = true, fatal = fatal)
             if (fatal) {
                 continuous.set(false)
+                restartQueued.set(false)
                 listener?.onListeningChanged(false)
                 signalFlushIfNeeded()
                 return
             }
-            if (policy.shouldRestart(continuous.get(), error, hadResult = false)) {
+            val queued = restartQueued.getAndSet(false)
+            if (policy.shouldRestart(continuous.get(), error, hadResult = false) || queued) {
                 scheduleRestart(error)
             } else if (!continuous.get()) {
                 listener?.onListeningChanged(false)
@@ -341,15 +367,16 @@ class SttEngine(
 
         override fun onResults(results: Bundle?) {
             restoreVolume()
-            starting.set(false)
+            inFlight.set(false)
             restartCount = 0
             val best = extractBestText(results)
             if (best.isNotBlank()) {
                 listener?.onFinal(best)
             } else {
-                listener?.onError("No recognition result", fatal = false)
+                rememberError("No recognition result", notify = true, fatal = false)
             }
-            if (policy.shouldRestart(continuous.get(), null, hadResult = true)) {
+            val queued = restartQueued.getAndSet(false)
+            if (policy.shouldRestart(continuous.get(), null, hadResult = true) || queued) {
                 scheduleRestart(null)
             } else {
                 listener?.onListeningChanged(false)
@@ -382,6 +409,9 @@ class SttEngine(
                     SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED -> "Language not supported"
                     SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE ->
                         "Language pack missing — install offline speech"
+                    SpeechRecognizer.ERROR_SERVER_DISCONNECTED ->
+                        "Speech service disconnected — retry"
+                    SpeechRecognizer.ERROR_TOO_MANY_REQUESTS -> "Too many speech requests"
                     else -> "STT error $error"
                 }
             } else {
@@ -397,7 +427,7 @@ class SttEngine(
         if (restartCount > maxRestartsPerSession) {
             restartPosted = false
             continuous.set(false)
-            listener?.onError("Speech engine unstable — please try again", fatal = true)
+            rememberError("Speech engine unstable — please try again", notify = true, fatal = true)
             listener?.onListeningChanged(false)
             signalFlushIfNeeded()
             return
@@ -406,7 +436,7 @@ class SttEngine(
         mainHandler.postDelayed({
             restartPosted = false
             if (continuous.get()) {
-                val force = errorCode == ContinuousPolicy.ERROR_RECOGNIZER_BUSY ||
+                val force = policy.shouldRecreateOnError(errorCode) ||
                     errorCode == ContinuousPolicy.ERROR_CLIENT
                 beginSession(forceRecreate = force)
             }
@@ -421,7 +451,8 @@ class SttEngine(
                 savedMusicVolume = am.getStreamVolume(AudioManager.STREAM_MUSIC)
             }
             am.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            rememberError("mute failed: ${e.message ?: e.javaClass.simpleName}")
         }
     }
 
@@ -430,7 +461,8 @@ class SttEngine(
         try {
             val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
             am.setStreamVolume(AudioManager.STREAM_MUSIC, saved, 0)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            rememberError("restore volume failed: ${e.message ?: e.javaClass.simpleName}")
         }
         savedMusicVolume = null
     }
@@ -438,11 +470,13 @@ class SttEngine(
     private fun destroyInternal() {
         try {
             recognizer?.cancel()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            rememberError("destroy cancel failed: ${e.message ?: e.javaClass.simpleName}")
         }
         try {
             recognizer?.destroy()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            rememberError("destroy failed: ${e.message ?: e.javaClass.simpleName}")
         }
         recognizer = null
     }
@@ -458,14 +492,20 @@ class SttEngine(
                     usedOnDeviceFactory = true
                     return SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
                 usedOnDeviceFactory = false
+                rememberError(
+                    "on-device factory failed: ${e.message ?: e.javaClass.simpleName}"
+                )
             }
         }
         usedOnDeviceFactory = false
         return try {
             SpeechRecognizer.createSpeechRecognizer(context)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            rememberError(
+                "create SpeechRecognizer failed: ${e.message ?: e.javaClass.simpleName}"
+            )
             null
         }
     }
@@ -476,7 +516,10 @@ class SttEngine(
      * No a11y toggle needed — extras rebuild on this start.
      */
     private fun refreshTuning(): SttTuning {
-        val live = runCatching { FlowPrefs(context).sttTuning() }.getOrNull()
+        val live = runCatching { FlowPrefs(context).sttTuning() }.getOrElse { e ->
+            rememberError("stt tuning prefs: ${e.message ?: e.javaClass.simpleName}")
+            null
+        }
         if (live != null) tuning = live
         return tuning
     }
@@ -536,17 +579,15 @@ class SttEngine(
 
     /**
      * Best engine transcript only — never invent text.
-     * Prefer RESULTS_RECOGNITION; API 33+ may also supply RECOGNITION_PARTS.
+     * Prefer RESULTS_RECOGNITION + CONFIDENCE_SCORES; API 34+ RECOGNITION_PARTS fallback.
      */
     private fun extractBestText(bundle: Bundle?): String {
-        val fromResults = bundle
-            ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-            ?.firstOrNull()
-            ?.trim()
-            .orEmpty()
-        if (fromResults.isNotEmpty()) return fromResults
+        val hyps = bundle?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+        val scores = bundle?.getFloatArray(SpeechRecognizer.CONFIDENCE_SCORES)
+        val picked = HypothesisPick.best(hyps, scores)
+        if (picked.isNotEmpty()) return picked
 
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || bundle == null) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE || bundle == null) {
             return ""
         }
         val parts = try {
@@ -554,17 +595,26 @@ class SttEngine(
                 SpeechRecognizer.RECOGNITION_PARTS,
                 RecognitionPart::class.java
             )
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            rememberError("recognition parts: ${e.message ?: e.javaClass.simpleName}")
             null
         }
         if (parts.isNullOrEmpty()) return ""
 
-        // Structured parts only when engine filled them (formatted if present).
-        val joined = parts.joinToString(" ") { part ->
+        val texts = parts.map { part ->
             val formatted = part.formattedText
             if (!formatted.isNullOrBlank()) formatted.trim() else part.rawText.trim()
-        }.replace(Regex("\\s+"), " ").trim()
-        return joined
+        }
+        return HypothesisPick.joinParts(texts)
+    }
+
+    private fun rememberError(
+        message: String,
+        notify: Boolean = false,
+        fatal: Boolean = false,
+    ) {
+        lastError = message
+        if (notify) listener?.onError(message, fatal)
     }
 
     companion object {

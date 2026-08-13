@@ -2,6 +2,8 @@
 
 Android 8+ (API 26). English only.
 
+**Maintainers:** pre-flight + device matrix → [LAUNCH_CHECKLIST.md](LAUNCH_CHECKLIST.md).
+
 ## 1. Get the APK
 
 Download `open-flow-0.1.5-debug.apk` from the GitHub **Releases** page.

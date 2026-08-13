@@ -9,9 +9,10 @@ object BubbleTapPolicy {
         dragged: Boolean,
         longPressFired: Boolean,
         hitCancel: Boolean,
-        hitDone: Boolean
+        hitDone: Boolean,
+        cancelled: Boolean = false
     ): Action {
-        if (dragged || stopInProgress) return Action.NONE
+        if (cancelled || dragged || stopInProgress) return Action.NONE
         if (longPressFired) {
             return if (listening) Action.STOP_SAVE else Action.NONE
         }

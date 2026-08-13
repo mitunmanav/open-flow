@@ -102,4 +102,19 @@ class BubbleTapPolicyTest {
             )
         ).isEqualTo(BubbleTapPolicy.Action.STOP_DISCARD)
     }
+
+    @Test
+    fun gesture_cancelled_is_none() {
+        assertThat(
+            BubbleTapPolicy.action(
+                listening = false,
+                stopInProgress = false,
+                dragged = false,
+                longPressFired = false,
+                hitCancel = false,
+                hitDone = false,
+                cancelled = true
+            )
+        ).isEqualTo(BubbleTapPolicy.Action.NONE)
+    }
 }

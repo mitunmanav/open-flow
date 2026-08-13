@@ -76,7 +76,7 @@ Applied **after** cleanup.
 - History lives on this phone.
 - You can search, copy, and share from History.
 - Settings: keep / wipe after 24 hours / never save.
-- The app has **no INTERNET permission**.
+- **INTERNET** is declared for future opt-in (model download / cloud ear); unused by default.
 - The **phone’s** speech engine may still use Google. That is not an Open Flow server.
 
 More: [PRIVACY.md](PRIVACY.md).

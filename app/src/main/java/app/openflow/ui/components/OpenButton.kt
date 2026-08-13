@@ -18,8 +18,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.openflow.ui.a11y.Dimen
+import app.openflow.ui.a11y.OpenShapes
 
 enum class ButtonVariant { Filled, Outlined, Text }
 
@@ -35,7 +37,7 @@ fun OpenButton(
 ) {
     val view = LocalView.current
     val scheme = MaterialTheme.colorScheme
-    val shape = MaterialTheme.shapes.small
+    val shape = OpenShapes.Button
     val semanticsMod = Modifier.semantics {
         this.contentDescription = contentDescription ?: text
     }
@@ -70,7 +72,7 @@ fun OpenButton(
                 disabledContainerColor = disabledContainer,
                 disabledContentColor = disabledContent
             )
-        ) { Text(text) }
+        ) { Text(text, overflow = TextOverflow.Visible, softWrap = true) }
 
         ButtonVariant.Outlined -> OutlinedButton(
             onClick = {
@@ -90,7 +92,7 @@ fun OpenButton(
                 contentColor = scheme.onSurface,
                 disabledContentColor = disabledContent
             )
-        ) { Text(text) }
+        ) { Text(text, overflow = TextOverflow.Visible, softWrap = true) }
 
         ButtonVariant.Text -> TextButton(
             onClick = {
@@ -105,7 +107,7 @@ fun OpenButton(
                 contentColor = scheme.onSurface,
                 disabledContentColor = disabledContent
             )
-        ) { Text(text) }
+        ) { Text(text, overflow = TextOverflow.Visible, softWrap = true) }
     }
 }
 

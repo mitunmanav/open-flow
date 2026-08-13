@@ -77,6 +77,7 @@ class NavStackTest {
     fun settings_child_toolbar_back_is_settings() {
         assertThat(AppRoute.Appearance.backTarget()).isEqualTo(AppRoute.Settings)
         assertThat(AppRoute.Privacy.backTarget()).isEqualTo(AppRoute.Settings)
+        assertThat(AppRoute.SpeechAi.backTarget()).isEqualTo(AppRoute.Settings)
         assertThat(AppRoute.Settings.backTarget()).isEqualTo(AppRoute.Settings)
         assertThat(AppRoute.Home.backTarget()).isEqualTo(AppRoute.Home)
         assertThat(AppRoute.Dictionary.backTarget()).isEqualTo(AppRoute.Dictionary)
@@ -109,5 +110,13 @@ class NavStackTest {
         assertThat(AppRoute.Setup.isBottomBar()).isFalse()
         assertThat(NavStack.canGoBack(listOf(AppRoute.Setup))).isFalse()
         assertThat(NavStack.goBack(listOf(AppRoute.Setup))).containsExactly(AppRoute.Setup)
+    }
+
+    @Test
+    fun speech_ai_is_settings_child() {
+        assertThat(AppRoute.SpeechAi.isSettingsSubtree()).isTrue()
+        assertThat(AppRoute.SpeechAi.backTarget()).isEqualTo(AppRoute.Settings)
+        val s = NavStack.navigate(listOf(AppRoute.Settings), AppRoute.SpeechAi)
+        assertThat(s).containsExactly(AppRoute.Settings, AppRoute.SpeechAi).inOrder()
     }
 }

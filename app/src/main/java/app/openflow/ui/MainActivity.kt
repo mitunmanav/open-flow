@@ -114,6 +114,8 @@ import app.openflow.ui.shell.NavStack
 import app.openflow.ui.theme.Motion
 import app.openflow.ui.theme.OpenFlowTheme
 import app.openflow.ui.theme.VisualSkin
+import app.openflow.ui.walkthrough.WalkthroughPager
+import app.openflow.ui.walkthrough.WalkthroughPolicy
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -259,6 +261,27 @@ class MainActivity : ComponentActivity() {
 
                 var layoutTick by remember { mutableIntStateOf(0) }
 
+                var walkthroughSeen by remember { mutableStateOf(app.prefs.seenHowTo) }
+                var walkPage by remember { mutableStateOf(WalkthroughPolicy.Page.WHAT) }
+
+                if (WalkthroughPolicy.needsWalkthrough(walkthroughSeen)) {
+                    WalkthroughPager(
+                        page = walkPage,
+                        onNext = {
+                            val pages = WalkthroughPolicy.pages()
+                            val i = pages.indexOf(walkPage)
+                            if (i < pages.lastIndex) walkPage = pages[i + 1]
+                            else {
+                                app.prefs.seenHowTo = true
+                                walkthroughSeen = true
+                            }
+                        },
+                        onSkip = {
+                            app.prefs.seenHowTo = true
+                            walkthroughSeen = true
+                        },
+                    )
+                } else {
                 BackHandler(enabled = NavStack.canGoBack(navStack)) {
                     goBack()
                 }
@@ -416,6 +439,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                     }
+                }
                 }
             }
         }

@@ -77,8 +77,16 @@ object BubbleGeometry {
         if (listening) {
             return (240f * density).toInt() to barH
         }
-        val idleDp = if (shape == "dot") 28f else 52f
-        val side = (idleDp * density).toInt()
-        return side to side
+        return when (shape) {
+            "pill" -> (112f * density).toInt() to barH
+            "dot" -> {
+                val side = (28f * density).toInt()
+                side to side
+            }
+            else -> {
+                val side = (52f * density).toInt()
+                side to side
+            }
+        }
     }
 }

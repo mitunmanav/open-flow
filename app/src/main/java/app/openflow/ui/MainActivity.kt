@@ -2193,7 +2193,6 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
     var feel by remember { mutableStateOf(prefs.hapticFeel) }
     var pulse by remember { mutableStateOf(prefs.bubblePulse) }
     var tint by remember { mutableStateOf(prefs.bubbleTint) }
-    var copySec by remember { mutableIntStateOf(prefs.copyChipSec) }
 
     Column(
         Modifier
@@ -2302,42 +2301,6 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                             onClick = {
                                 tint = id
                                 prefs.bubbleTint = id
-                                onApplyBubble()
-                            }
-                        )
-                    }
-                }
-            }
-        }
-
-        OpenCard {
-            Column(
-                Modifier.padding(Dimen.MIN_PADDING),
-                verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
-            ) {
-                Text(
-                    "Copy chip",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = SecUi.charcoal
-                )
-                Text(
-                    "How long Copy stays after a save.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = SecUi.muted
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
-                ) {
-                    listOf(3, 6, 10).forEach { sec ->
-                        OpenChip(
-                            label = "${sec}s",
-                            isOn = copySec == sec,
-                            modifier = Modifier.weight(1f),
-                            onClick = {
-                                copySec = sec
-                                prefs.copyChipSec = sec
                                 onApplyBubble()
                             }
                         )

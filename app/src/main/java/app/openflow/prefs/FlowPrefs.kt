@@ -177,11 +177,6 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
             bubbleHaptics = n != HapticFeel.OFF
         }
 
-    /** Copy chip seconds: 3 | 6 | 10 */
-    var copyChipSec: Int
-        get() = normalizeCopyChipSec(store.getString("copy_chip_sec", "6").toIntOrNull() ?: 6)
-        set(v) = store.putString("copy_chip_sec", normalizeCopyChipSec(v).toString())
-
     var bubbleEdgeSnap: Boolean
         get() = store.getString("bubble_edge_snap", "true") == "true"
         set(v) = store.putString("bubble_edge_snap", if (v) "true" else "false")
@@ -304,11 +299,6 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
                 "keep", "wipe_24h", "never_store" -> value.lowercase()
                 else -> "keep"
             }
-
-        fun normalizeCopyChipSec(sec: Int): Int = when (sec) {
-            3, 10 -> sec
-            else -> 6
-        }
     }
 }
 

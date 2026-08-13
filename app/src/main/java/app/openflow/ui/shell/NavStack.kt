@@ -9,6 +9,10 @@ object NavStack {
     fun current(stack: List<AppRoute>): AppRoute =
         stack.lastOrNull() ?: AppRoute.Home
 
+    /** First-run: Setup until a11y+mic (+battery seen). Not a bottom tab. */
+    fun initial(ready: Boolean): List<AppRoute> =
+        if (ready) listOf(AppRoute.Home) else listOf(AppRoute.Setup)
+
     /** Navigate to [dest]. Bottom tabs replace stack; sub-screens push. */
     fun navigate(stack: List<AppRoute>, dest: AppRoute): List<AppRoute> {
         if (dest.isBottomBar()) return listOf(dest)

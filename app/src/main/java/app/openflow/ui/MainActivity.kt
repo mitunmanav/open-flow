@@ -100,15 +100,21 @@ import app.openflow.ui.components.OpenTextField
 import app.openflow.display.DisplayRefreshController
 import app.openflow.display.DisplayRefreshPolicy
 import app.openflow.stt.SttTuning
+import app.openflow.ui.home.HistoryDays
+import app.openflow.ui.home.HomeBannerPolicy
+import app.openflow.ui.setup.FirstRunPolicy
+import app.openflow.ui.setup.SetupWizard
 import app.openflow.ui.shell.AppRoute
 import app.openflow.ui.shell.AppShell
 import app.openflow.ui.shell.NavStack
+import app.openflow.ui.theme.Motion
 import app.openflow.ui.theme.OpenFlowTheme
 import app.openflow.ui.theme.VisualSkin
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 
 /**
  * Theme tokens for MainActivity screens.
@@ -162,7 +168,22 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 // Real back stack — Back pops one level; bottom tabs reset stack.
-                var navStack by remember { mutableStateOf(listOf(AppRoute.Home)) }
+                var bubbleOn by remember { mutableStateOf(FlowAccessibilityService.isRunning()) }
+                var micOn by remember { _micGranted }
+                var batterySeen by remember { mutableStateOf(app.prefs.setupBatterySeen) }
+                _micGranted.value = ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.RECORD_AUDIO
+                ) == PackageManager.PERMISSION_GRANTED
+                var navStack by remember {
+                    mutableStateOf(
+                        NavStack.initial(
+                            !FirstRunPolicy.needsWizard(
+                                FirstRunPolicy.step(bubbleOn, micOn, batterySeen)
+                            )
+                        )
+                    )
+                }
                 val route = NavStack.current(navStack)
                 fun goTo(dest: AppRoute) {
                     navStack = NavStack.navigate(navStack, dest)
@@ -170,6 +191,11 @@ class MainActivity : ComponentActivity() {
                 fun goBack() {
                     navStack = NavStack.goBack(navStack)
                 }
+                fun markBatterySeen() {
+                    app.prefs.setupBatterySeen = true
+                    batterySeen = true
+                }
+                val setupStep = FirstRunPolicy.step(bubbleOn, micOn, batterySeen)
                 androidx.compose.runtime.LaunchedEffect(intent) {
                     if (intent?.getBooleanExtra("open_history", false) == true) {
                         navStack = NavStack.openDeepLink(AppRoute.History)
@@ -184,12 +210,6 @@ class MainActivity : ComponentActivity() {
                     addOnNewIntentListener(listener)
                     onDispose { removeOnNewIntentListener(listener) }
                 }
-                var bubbleOn by remember { mutableStateOf(FlowAccessibilityService.isRunning()) }
-                var micOn by remember { _micGranted }
-                _micGranted.value = ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.RECORD_AUDIO
-                ) == PackageManager.PERMISSION_GRANTED
                 val owner = LocalLifecycleOwner.current
                 DisposableEffect(owner) {
                     val obs = LifecycleEventObserver { _, e ->
@@ -199,6 +219,7 @@ class MainActivity : ComponentActivity() {
                                 this@MainActivity,
                                 Manifest.permission.RECORD_AUDIO
                             ) == PackageManager.PERMISSION_GRANTED
+                            batterySeen = app.prefs.setupBatterySeen
                             FlowAccessibilityService.instance?.applyPrefsVisual()
                             DisplayRefreshController.apply(
                                 this@MainActivity,
@@ -208,6 +229,11 @@ class MainActivity : ComponentActivity() {
                     }
                     owner.lifecycle.addObserver(obs)
                     onDispose { owner.lifecycle.removeObserver(obs) }
+                }
+                androidx.compose.runtime.LaunchedEffect(route, setupStep) {
+                    if (route == AppRoute.Setup && setupStep == FirstRunPolicy.Step.DONE) {
+                        goTo(AppRoute.Home)
+                    }
                 }
 
                 // Apply preferred Hz on first composition
@@ -230,7 +256,8 @@ class MainActivity : ComponentActivity() {
                     AnimatedContent(
                         targetState = route to layoutTick,
                         transitionSpec = {
-                            fadeIn(tween(150)) togetherWith fadeOut(tween(150))
+                            fadeIn(tween(Motion.TAB_SWITCH_MS)) togetherWith
+                                fadeOut(tween(Motion.TAB_SWITCH_MS))
                         },
                         label = "route_content",
                         modifier = Modifier.padding(padding)
@@ -335,6 +362,42 @@ class MainActivity : ComponentActivity() {
                                     layoutTick++
                                 }
                             )
+                            AppRoute.Setup -> SetupWizard(
+                                step = setupStep,
+                                onEnableBubble = {
+                                    try {
+                                        android.widget.Toast.makeText(
+                                            this@MainActivity,
+                                            "Turn ON Open Flow Bubble in Accessibility, then return.",
+                                            android.widget.Toast.LENGTH_LONG
+                                        ).show()
+                                        startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                                    } catch (_: Exception) {
+                                        try {
+                                            startActivity(Intent(Settings.ACTION_SETTINGS))
+                                        } catch (_: Exception) {
+                                        }
+                                    }
+                                },
+                                onMic = { micPermission.launch(Manifest.permission.RECORD_AUDIO) },
+                                onBattery = {
+                                    app.prefs.setupBatterySeen = true
+                                    try {
+                                        startActivity(
+                                            Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                                        )
+                                    } catch (_: Exception) {
+                                        try {
+                                            startActivity(Intent(Settings.ACTION_SETTINGS))
+                                        } catch (_: Exception) {
+                                        }
+                                    }
+                                },
+                                onSkipBattery = {
+                                    markBatterySeen()
+                                    goTo(AppRoute.Home)
+                                }
+                            )
                         }
                     }
                 }
@@ -367,12 +430,14 @@ private fun HomeHub(
     var showText by remember { mutableStateOf(app.prefs.bubbleShowText) }
     var lastClean by remember { mutableStateOf(app.prefs.lastCleanText) }
     var lastRaw by remember { mutableStateOf(app.prefs.lastRawText) }
+    var snoozed by remember { mutableStateOf(app.prefs.isSnoozed()) }
     val owner = LocalLifecycleOwner.current
     DisposableEffect(owner) {
         val obs = LifecycleEventObserver { _, e ->
             if (e == Lifecycle.Event.ON_RESUME) {
                 lastClean = app.prefs.lastCleanText
                 lastRaw = app.prefs.lastRawText
+                snoozed = app.prefs.isSnoozed()
             }
         }
         owner.lifecycle.addObserver(obs)
@@ -402,6 +467,88 @@ private fun HomeHub(
                 subtitle = "Turn cards on in Settings → Home layout.",
                 modifier = Modifier.testTag("home_empty")
             )
+        }
+
+        when (HomeBannerPolicy.banner(bubbleOn = bubbleOn, micOn = micOn, snoozed = snoozed)) {
+            HomeBannerPolicy.Banner.REPAIR_A11Y -> {
+                OpenCard(modifier = Modifier.testTag("home_banner_repair")) {
+                    Column(
+                        Modifier.padding(Dimen.MIN_PADDING),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            "Turn on the Flow Bubble",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            "Repair: Open Flow is not in Accessibility. Tap Enable bubble, turn it ON, then return here.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        OpenButton(
+                            text = "Open Accessibility",
+                            onClick = onEnableBubble,
+                            modifier = Modifier.testTag("home_banner_a11y")
+                        )
+                    }
+                }
+            }
+            HomeBannerPolicy.Banner.ALLOW_MIC -> {
+                OpenCard(modifier = Modifier.testTag("home_banner_mic")) {
+                    Column(
+                        Modifier.padding(Dimen.MIN_PADDING),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            "Allow the microphone",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            "Allow the microphone, then focus a field and tap the bubble.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        OpenButton(
+                            text = "Allow microphone",
+                            onClick = onMic,
+                            modifier = Modifier.testTag("home_banner_mic_btn")
+                        )
+                    }
+                }
+            }
+            HomeBannerPolicy.Banner.END_SNOOZE -> {
+                OpenCard(modifier = Modifier.testTag("home_banner_snooze")) {
+                    Column(
+                        Modifier.padding(Dimen.MIN_PADDING),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            "Bubble is snoozed",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        OpenButton(
+                            text = "End snooze",
+                            onClick = {
+                                app.prefs.clearSnooze()
+                                snoozed = false
+                                android.widget.Toast.makeText(
+                                    ctx,
+                                    "Snooze ended",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            },
+                            modifier = Modifier.testTag("home_banner_end_snooze")
+                        )
+                    }
+                }
+            }
+            HomeBannerPolicy.Banner.NONE -> Unit
         }
 
         visibleModules.forEach { module ->
@@ -756,6 +903,15 @@ private fun HistoryScreen(app: OpenFlowApp) {
                 it.rawText.contains(searchQuery, ignoreCase = true)
         }
     }
+    val nowMs = System.currentTimeMillis()
+    val days = remember(filtered) {
+        HistoryDays.group(
+            filtered.map { HistoryDays.Row(it.id, it.createdAtEpochMs, it.text) },
+            nowMs = nowMs,
+            zoneOffsetMs = TimeZone.getDefault().getOffset(nowMs).toLong()
+        )
+    }
+    val byId = remember(filtered) { filtered.associateBy { it.id } }
 
     Column(
         Modifier
@@ -828,27 +984,41 @@ private fun HistoryScreen(app: OpenFlowApp) {
                 }
             )
         } else {
-            filtered.forEach { d ->
-                DictationCard(
-                    d = d,
-                    onDelete = {
-                        scope.launch { app.dictations.deleteDictation(d.id) }
-                    },
-                    onShare = {
-                        val rows = listOf(
-                            HistoryExport.Row(d.createdAtEpochMs, d.text, d.languageTag, d.wordCount)
-                        )
-                        val shareText = HistoryExport.shareText(rows)
-                        val send = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, shareText)
-                        }
-                        try {
-                            ctx.startActivity(Intent.createChooser(send, "Share dictation"))
-                        } catch (_: Exception) {
-                        }
-                    }
+            days.forEach { day ->
+                Text(
+                    day.label,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
+                day.rows.forEach { row ->
+                    val d = byId[row.id] ?: return@forEach
+                    DictationCard(
+                        d = d,
+                        onDelete = {
+                            scope.launch { app.dictations.deleteDictation(d.id) }
+                        },
+                        onShare = {
+                            val rows = listOf(
+                                HistoryExport.Row(
+                                    d.createdAtEpochMs,
+                                    d.text,
+                                    d.languageTag,
+                                    d.wordCount
+                                )
+                            )
+                            val shareText = HistoryExport.shareText(rows)
+                            val send = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, shareText)
+                            }
+                            try {
+                                ctx.startActivity(Intent.createChooser(send, "Share dictation"))
+                            } catch (_: Exception) {
+                            }
+                        }
+                    )
+                }
             }
         }
         Spacer(Modifier.height(Dimen.GAP_LG))

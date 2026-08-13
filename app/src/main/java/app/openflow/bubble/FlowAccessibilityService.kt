@@ -85,6 +85,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     /** True while stopAndFlush waits for last final — blocks re-entrant stop/start. */
     private var stopInProgress = false
     private var focusedEditable: AccessibilityNodeInfo? = null
+    private var searchFieldFocused = false
     private var listenStartedAt = 0L
     private val serviceJob = SupervisorJob()
     private val scope = CoroutineScope(serviceJob + Dispatchers.Main.immediate)
@@ -224,6 +225,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                                 it.recycle()
                             }
                             focusedEditable = null
+                            searchFieldFocused = false
                             refreshBubbleVisibility()
                         }
                     } finally {
@@ -255,6 +257,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             it.recycle()
         }
         focusedEditable = null
+        searchFieldFocused = false
         instance = null
         serviceJob.cancel()
         super.onDestroy()
@@ -291,6 +294,15 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             it.recycle()
         }
         focusedEditable = target
+        searchFieldFocused = target != null && FieldPolicy.isSearch(
+            inputType = target.inputType,
+            className = target.className?.toString(),
+            hintOrDesc = listOfNotNull(
+                target.hintText?.toString(),
+                target.text?.toString(),
+                target.contentDescription?.toString()
+            ).joinToString(" ")
+        )
         setBubbleEmphasis(target != null)
         refreshBubbleVisibility()
     }
@@ -690,7 +702,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             "dot" -> 0.55f
             else -> 1f
         }
-        return p.bubbleScale * modeMul
+        val searchMul = if (searchFieldFocused && !listening) 0.72f else 1f
+        return p.bubbleScale * modeMul * searchMul
     }
 
     private fun applyVisualScale() {

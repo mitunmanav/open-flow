@@ -1,5 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Default: block cleartext. No network features in base APK. -->
+<!-- Public hosts stay HTTPS.
+     Cleartext only for loopback + RFC1918 literals (laptop HTTP).
+     Android <domain> has no CIDR (issuetracker 37093209). -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">ip6-localhost</domain>
+        <domain>127.0.0.1</domain>
+        <domain>::1</domain>
+        <domain>10.0.2.2</domain>
+        <domain>10.0.0.1</domain>
+        <domain>10.0.0.2</domain>
+        <domain>172.16.0.1</domain>
+        <domain>172.17.0.1</domain>
+        <domain>192.168.0.1</domain>
+        <domain>192.168.1.1</domain>
+        <domain>192.168.1.10</domain>
+        <domain>192.168.1.100</domain>
+    </domain-config>
 </network-security-config>

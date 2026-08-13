@@ -15,7 +15,7 @@ class PrivacyDefaultsTest {
         assertThat(text).contains("Transcript uploaded by OpenFlow: never")
         assertThat(text).contains("Local history: on device")
         assertThat(text).contains("sync: OFF")
-        assertThat(text).contains("INTERNET permission: not declared by OpenFlow")
+        assertThat(text).contains("INTERNET permission: declared; unused until user pick")
         // Must not overclaim STT stays on device
         assertThat(text.lowercase()).doesNotContain("voice stays on device")
     }

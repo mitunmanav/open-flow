@@ -1054,7 +1054,7 @@ private fun HistoryScreen(app: OpenFlowApp) {
         value = if (match == null) {
             dictations
         } else {
-            app.dictations.searchDictations(match)
+            app.dictations.searchDictations(searchQuery)
         }
     }
     val nowMs = System.currentTimeMillis()

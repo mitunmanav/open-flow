@@ -10,7 +10,7 @@ import kotlinx.coroutines.runBlocking
  *
  * **Pipeline order** (nothing falls through):
  * 1. [applyDictionary] — user vocabulary (whole-word, case-insensitive)
- * 2. [expandSnippets] — exact-trigger expand ([PhraseMap] is spoken cmds, not snippets)
+ * 2. [expandSnippets] — whole-word/phrase expand ([PhraseMap] is spoken cmds, not snippets)
  * 3. [CleanupPipeline.run]:
  *    - Light: normalize → fillers → reps → [VoiceCommands] → lightGrammar
  *    - Medium: + false starts → [CourseCorrector] → lists → lightClarity
@@ -98,14 +98,20 @@ object TextPostProcessor {
     ): String = LearnEngine.applyPairs(text, replacements, sides, autoKeys)
 
     fun expandSnippets(text: String, snippets: Map<String, String>): String {
-        if (snippets.isEmpty()) return text
-        var out = text.trim()
-        snippets.entries.sortedByDescending { it.key.length }.forEach { (trigger, body) ->
-            if (trigger.isBlank()) return@forEach
-            if (out.equals(trigger, ignoreCase = true)) {
-                out = body
+        if (snippets.isEmpty() || text.isEmpty()) return text
+        var out = text
+        snippets.entries
+            .filter { it.key.isNotBlank() }
+            .sortedByDescending { it.key.length }
+            .forEach { (trigger, body) ->
+                val needle = trigger.trim()
+                if (needle.isEmpty()) return@forEach
+                val regex = Regex(
+                    "(?<![\\p{L}\\p{N}])${Regex.escape(needle)}(?![\\p{L}\\p{N}])",
+                    RegexOption.IGNORE_CASE
+                )
+                out = regex.replace(out) { body }
             }
-        }
         return out
     }
 }

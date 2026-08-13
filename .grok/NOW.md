@@ -1,9 +1,9 @@
 # NOW
 
-**main:** F20 `68c313c` — Wispr local gaps
-**dev:** `feat/21-ship-day` F21 ship-day polish · 0.1.1
+**main:** F21 `a709c6a` — ship-day 0.1.1 (tap-again, purge, Home chips)
+**dev:** this-repo gate · tree jail · spawn-5 · MiniMax lab
 **lab:** `.worktrees/minimax` / `sandbox/minimax` — exclusive
 
-**DID:** tap-again policy + Cancel/Done hit-test + wipe-24h purge on launch + Home chips + version 0.1.1
+**DID:** F21 merged. Tap-again insert + Cancel/Done hit-test + wipe-24h on launch.
 
-**NEXT:** Mitun device check. Then merge main. F19 after.
+**NEXT:** Mitun phone: install `Open-Flow/apk/open-flow-0.1.1-debug.apk`. Tap start → tap again inserts. F19 after.

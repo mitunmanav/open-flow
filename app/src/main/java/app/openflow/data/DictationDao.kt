@@ -22,6 +22,9 @@ interface DictationDao {
 
     @Query("SELECT * FROM dictations ORDER BY createdAtEpochMs DESC LIMIT 1")
     suspend fun latest(): DictationEntity?
+
+    @Query("SELECT * FROM dictations WHERE id = :id")
+    suspend fun get(id: String): DictationEntity?
 }
 
 @Dao

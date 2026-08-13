@@ -2,6 +2,8 @@ package app.openflow.data
 
 import androidx.room.withTransaction
 import app.openflow.privacy.RetentionPolicy
+import app.openflow.text.LearnPair
+import app.openflow.text.LearnEngine
 import kotlinx.coroutines.flow.Flow
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -66,6 +68,19 @@ class DictationRepository(
     suspend fun deleteDictation(id: String) = dictationDao.delete(id)
 
     suspend fun latestText(): String? = dictationDao.latest()?.text
+
+    suspend fun learnFromEdit(inserted: String, edited: String): List<LearnPair> {
+        val pairs = LearnEngine.pairsFromEdit(inserted, edited)
+        if (pairs.isEmpty()) return emptyList()
+        for (p in pairs) addWord(p.from, p.to)
+        return pairs
+    }
+
+    suspend fun updateDictationText(id: String, newText: String) {
+        val e = dictationDao.get(id) ?: return
+        val words = newText.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }.size
+        dictationDao.upsert(e.copy(text = newText, wordCount = words))
+    }
 
     suspend fun addWord(word: String, replacement: String = word) {
         val w = word.trim()

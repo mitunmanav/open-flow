@@ -15,6 +15,7 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import androidx.core.content.ContextCompat
 import app.openflow.prefs.FlowPrefs
+import java.util.ArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -65,6 +66,13 @@ class SttEngine(
     private var flushCallback: (() -> Unit)? = null
     private val flushDone = AtomicBoolean(false)
     private val flushTimeout = Runnable { completeFlush() }
+
+    /** API 33+ SpeechRecognizer bias strings (dict + focused field). */
+    private var biasing: List<String> = emptyList()
+
+    fun setBiasing(words: List<String>) {
+        biasing = words
+    }
 
     val isAvailable: Boolean
         get() = SpeechRecognizer.isRecognitionAvailable(context)
@@ -516,6 +524,12 @@ class SttEngine(
                 }
                 putExtra(RecognizerIntent.EXTRA_ENABLE_FORMATTING, mode)
                 putExtra(RecognizerIntent.EXTRA_HIDE_PARTIAL_TRAILING_PUNCTUATION, true)
+                putStringArrayListExtra(
+                    RecognizerIntent.EXTRA_BIASING_STRINGS,
+                    ArrayList(biasing)
+                )
+                putExtra(RecognizerIntent.EXTRA_ENABLE_BIASING_DEVICE_CONTEXT, true)
+                putExtra(RecognizerIntent.EXTRA_MASK_OFFENSIVE_WORDS, false)
             }
         }
     }

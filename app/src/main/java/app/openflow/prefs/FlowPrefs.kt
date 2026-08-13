@@ -195,6 +195,11 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         get() = normalizeRetention(store.getString("retention", "keep"))
         set(v) = store.putString("retention", normalizeRetention(v))
 
+    /** Remember word fixes after dictation (on-device). */
+    var autoLearn: Boolean
+        get() = store.getString("auto_learn", "true") == "true"
+        set(v) = store.putString("auto_learn", if (v) "true" else "false")
+
     /** Last dictation session — raw STT (in-app copy; no auto-clipboard). */
     var lastSessionRaw: String
         get() = store.getString("last_session_raw", "")

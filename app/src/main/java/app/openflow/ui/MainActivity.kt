@@ -20,6 +20,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -959,6 +960,12 @@ private fun HomeHub(
                                         ctx.startActivity(Intent.createChooser(send, "Share dictation"))
                                     } catch (_: Exception) {
                                     }
+                                },
+                                onSave = { old, new ->
+                                    scope.launch {
+                                        app.dictations.learnFromEdit(old, new)
+                                        app.dictations.updateDictationText(d.id, new)
+                                    }
                                 }
                             )
                         }
@@ -1103,6 +1110,12 @@ private fun HistoryScreen(app: OpenFlowApp) {
                                 ctx.startActivity(Intent.createChooser(send, "Share dictation"))
                             } catch (_: Exception) {
                             }
+                        },
+                        onSave = { old, new ->
+                            scope.launch {
+                                app.dictations.learnFromEdit(old, new)
+                                app.dictations.updateDictationText(d.id, new)
+                            }
                         }
                     )
                 }
@@ -1113,8 +1126,15 @@ private fun HistoryScreen(app: OpenFlowApp) {
 }
 
 @Composable
-private fun DictationCard(d: DictationEntity, onDelete: () -> Unit, onShare: () -> Unit) {
+private fun DictationCard(
+    d: DictationEntity,
+    onDelete: () -> Unit,
+    onShare: () -> Unit,
+    onSave: (oldText: String, newText: String) -> Unit
+) {
     var showRaw by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf(false) }
+    var draft by remember(d.id, d.text) { mutableStateOf(d.text) }
     val hasRaw = d.rawText.isNotBlank() && d.rawText != d.text
     val timeStr = remember(d.createdAtEpochMs) {
         val sdf = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
@@ -1157,11 +1177,38 @@ private fun DictationCard(d: DictationEntity, onDelete: () -> Unit, onShare: () 
                 }
             }
 
-            Text(
-                d.text.take(500),
-                style = MaterialTheme.typography.bodyMedium,
-                color = SecUi.charcoal
-            )
+            if (editing) {
+                OpenTextField(
+                    value = draft,
+                    onValueChange = { draft = it },
+                    singleLine = false,
+                    minLines = 2,
+                    showClearButton = false,
+                    modifier = Modifier.testTag("history_edit")
+                )
+                OpenButton(
+                    text = "Save",
+                    onClick = {
+                        val new = draft.trim()
+                        if (new.isNotEmpty() && new != d.text) {
+                            onSave(d.text, new)
+                        }
+                        editing = false
+                    }
+                )
+            } else {
+                Text(
+                    d.text.take(500),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = SecUi.charcoal,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            draft = d.text
+                            editing = true
+                        }
+                )
+            }
 
             if (hasRaw) {
                 OpenChip(
@@ -1675,7 +1722,7 @@ private fun SettingsHub(
         SettingsRow("Flow Bubble & Gestures", "Shape, size, opacity, edge magnetic snap", onBubble)
         SettingsRow("Cleanup Pipeline", "Filler words, course corrections, lists", onCleanup)
         SettingsRow("Writing Style", "Casual, formal, concise persona", onStyle)
-        SettingsRow("Custom Vocabulary", "Personalized spelling & acronyms", onDictionary)
+        SettingsRow("Custom Vocabulary", "Personalized spelling, acronyms, auto-learn from fixes", onDictionary)
         SettingsRow("Voice Snippets", "Trigger phrases → text expansion", onSnippets)
         SettingsRow("Appearance", "Dark / light theme, visual skins", onAppearance)
         SettingsRow("Privacy & Retention", "Zero-cloud audit, auto-wipe policies", onPrivacy)
@@ -1784,6 +1831,46 @@ private fun PrivacySettings(prefs: FlowPrefs) {
             style = MaterialTheme.typography.bodySmall,
             color = SecUi.muted
         )
+
+        var autoLearn by remember { mutableStateOf(prefs.autoLearn) }
+        OpenCard(
+            selected = autoLearn,
+            onClick = {
+                autoLearn = !autoLearn
+                prefs.autoLearn = autoLearn
+            },
+            modifier = Modifier.testTag("privacy_auto_learn")
+        ) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(Dimen.MIN_PADDING),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "Auto-learn from fixes",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = SecUi.charcoal
+                    )
+                    Text(
+                        "When you correct a word after dictation, remember it. Off = no new pairs.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = SecUi.muted
+                    )
+                }
+                if (autoLearn) {
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = "On",
+                        tint = SecUi.charcoal,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
 
         listOf(
             "keep" to ("Keep forever" to "Store history in on-device SQLite (not encrypted). Never uploaded by Open Flow."),

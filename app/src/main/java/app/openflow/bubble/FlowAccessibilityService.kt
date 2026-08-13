@@ -46,11 +46,13 @@ import app.openflow.prefs.FlowPrefs
 import app.openflow.ui.HapticFeel
 import app.openflow.ui.theme.BubbleTint
 import app.openflow.stt.LanguagePolicy
+import app.openflow.stt.SttBias
 import app.openflow.stt.SttEngine
 import app.openflow.stt.SttTuning
 import app.openflow.text.CleanupLevel
 import app.openflow.text.CleanupResult
 import app.openflow.text.CustomStyleConfig
+import app.openflow.text.LearnEngine
 import app.openflow.text.TextPostProcessor
 import app.openflow.text.WritingStyle
 import kotlinx.coroutines.CoroutineScope
@@ -118,6 +120,11 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     /** TYPE_INPUT_METHOD height in px. 0 = IME down / unknown. Not written to prefs. */
     private var imeHeightPx: Int = 0
 
+    /** Last successful field write — watch for user fix (auto-learn). */
+    private var lastInserted: String = ""
+    private var lastInsertAt: Long = 0L
+    private var lastInsertPkg: String? = null
+
     /** Debug-only: adb inject without mic (see companion ACTION_INJECT). */
     private val injectReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -155,7 +162,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             eventTypes = AccessibilityEvent.TYPE_VIEW_FOCUSED or
                 AccessibilityEvent.TYPE_VIEW_CLICKED or
                 AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or
-                AccessibilityEvent.TYPE_WINDOWS_CHANGED
+                AccessibilityEvent.TYPE_WINDOWS_CHANGED or
+                AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED
             feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
             flags = flags or
                 AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or
@@ -209,6 +217,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                     source.recycle()
                 }
             }
+            AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED -> maybeLearnFromTextChanged(event)
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
             AccessibilityEvent.TYPE_WINDOWS_CHANGED -> {
                 rootInActiveWindow?.let { root ->
@@ -233,6 +242,49 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                         @Suppress("DEPRECATION")
                         root.recycle()
                     }
+                }
+            }
+        }
+    }
+
+    private fun maybeLearnFromTextChanged(event: AccessibilityEvent) {
+        val p = prefs ?: return
+        if (!p.autoLearn) return
+        if (listening || stopInProgress) return
+        if (!LearnEngine.shouldWatch(SystemClock.elapsedRealtime(), lastInsertAt)) return
+        val pkg = event.packageName?.toString()
+        if (lastInsertPkg != null && pkg != null && pkg != lastInsertPkg) return
+        val source = event.source
+        try {
+            if (source != null) {
+                if (source.isPassword) return
+                if (FieldPolicy.isSensitive(
+                        isPassword = source.isPassword,
+                        inputType = source.inputType,
+                        className = source.className?.toString(),
+                        hintOrDesc = listOfNotNull(
+                            source.hintText?.toString(),
+                            source.contentDescription?.toString()
+                        ).joinToString(" ")
+                    )
+                ) {
+                    return
+                }
+            }
+            val newText = source?.text?.toString()
+                ?: event.text?.joinToString("").orEmpty()
+            if (LearnEngine.isOwnSet(newText, lastInserted)) return
+            val from = lastInserted
+            lastInserted = newText
+            scope.launch(Dispatchers.IO) {
+                runCatching { app.dictations.learnFromEdit(from, newText) }
+            }
+        } finally {
+            if (source != null) {
+                try {
+                    @Suppress("DEPRECATION")
+                    source.recycle()
+                } catch (_: Exception) {
                 }
             }
         }
@@ -897,8 +949,20 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 }
             }
         })
-        stt?.startContinuous(lang)
-        android.util.Log.i("OpenFlow.Bubble", "listen start gen=$gen")
+        val fieldForBias = fieldPrefix
+        scope.launch(Dispatchers.IO) {
+            val dict = runCatching { app.dictations.dictionaryMap() }.getOrDefault(emptyMap())
+            val bias = SttBias.strings(dict, SttBias.fieldTokens(fieldForBias))
+            mainHandler.post {
+                if (gen != listenGeneration || !listening || stopInProgress) return@post
+                stt?.setBiasing(bias)
+                stt?.startContinuous(lang)
+                android.util.Log.i(
+                    "OpenFlow.Bubble",
+                    "listen start gen=$gen bias=${bias.size}"
+                )
+            }
+        }
     }
 
     private fun stopListening(save: Boolean) {
@@ -1175,6 +1239,11 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 "OpenFlow.Bubble",
                 "setText ok=$ok mergedLen=${merged.length} class=${node.className}"
             )
+            if (ok) {
+                lastInserted = merged
+                lastInsertAt = SystemClock.elapsedRealtime()
+                lastInsertPkg = node.packageName?.toString() ?: lastPackage
+            }
             if (!ok) {
                 // Wispr-style fallback: put on clipboard so user can paste.
                 try {

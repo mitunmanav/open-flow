@@ -67,8 +67,28 @@ class EnginePickerStateTest {
         val s = EnginePickerState.of(earId = "system", brainId = "laptop")
         assertThat(s.honesty).isEqualTo("Text goes to the computer you set.")
         assertThat(s.needsUrl).isTrue()
+        assertThat(s.needsKey).isTrue()
         assertThat(s.rewrite).isTrue()
         assertThat(s.commandMode).isTrue()
+    }
+
+    @Test
+    fun laptop_brain_shows_key_field() {
+        val s = EnginePickerState.of(earId = "system", brainId = "laptop")
+        assertThat(s.needsKey).isTrue()
+        assertThat(EnginePickerState.of("system", "none").needsKey).isFalse()
+    }
+
+    @Test
+    fun missing_key_line_only_when_needed_and_empty() {
+        assertThat(EnginePickerState.missingKeyLine(needsKey = true, keyMask = ""))
+            .isEqualTo("Paste a key or this pick cannot call the net.")
+        assertThat(EnginePickerState.missingKeyLine(needsKey = true, keyMask = "••••abcd"))
+            .isNull()
+        assertThat(EnginePickerState.missingKeyLine(needsKey = false, keyMask = ""))
+            .isNull()
+        assertThat(EnginePickerState.missingKeyLine(needsKey = false, keyMask = "••••abcd"))
+            .isNull()
     }
 
     @Test

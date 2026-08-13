@@ -367,7 +367,21 @@ class MainActivity : ComponentActivity() {
                                 onHomeLayout = { goTo(AppRoute.HomeModules) },
                                 onNavLayout = { goTo(AppRoute.NavModules) }
                             )
-                            AppRoute.SpeechAi -> EngineSettingsScreen()
+                            AppRoute.SpeechAi -> {
+                                val session = app.engineSession
+                                EngineSettingsScreen(
+                                    initialEar = app.enginePrefs.earId,
+                                    initialBrain = app.enginePrefs.brainId,
+                                    initialUrl = app.enginePrefs.customBaseUrl,
+                                    initialSarvamMode = app.enginePrefs.sarvamMode,
+                                    initialKeyMask = session.keyMask(),
+                                    onPick = { e, b -> session.pick(e, b) },
+                                    onSaveKey = session::saveKey,
+                                    onSaveUrl = session::saveUrl,
+                                    onSarvamMode = session::saveSarvam,
+                                    onKeyMask = session::keyMask,
+                                )
+                            }
                             AppRoute.Customize -> CustomizeHub(
                                 onHomeLayout = { goTo(AppRoute.HomeModules) },
                                 onNavLayout = { goTo(AppRoute.NavModules) }

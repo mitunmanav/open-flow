@@ -105,6 +105,7 @@ import app.openflow.ui.components.OpenTextField
 import app.openflow.display.DisplayRefreshController
 import app.openflow.display.DisplayRefreshPolicy
 import app.openflow.stt.SttTuning
+import app.openflow.ui.engine.EngineSettingsScreen
 import app.openflow.ui.home.HistoryDays
 import app.openflow.ui.home.HomeBannerPolicy
 import app.openflow.ui.setup.FirstRunPolicy
@@ -347,6 +348,7 @@ class MainActivity : ComponentActivity() {
                             AppRoute.Snippets -> SnippetsTab(app)
                             AppRoute.Style -> StyleTab(app.prefs)
                             AppRoute.Settings -> SettingsHub(
+                                onSpeechAi = { goTo(AppRoute.SpeechAi) },
                                 onDictionary = { goTo(AppRoute.Dictionary) },
                                 onSnippets = { goTo(AppRoute.Snippets) },
                                 onStyle = { goTo(AppRoute.Style) },
@@ -358,6 +360,7 @@ class MainActivity : ComponentActivity() {
                                 onHomeLayout = { goTo(AppRoute.HomeModules) },
                                 onNavLayout = { goTo(AppRoute.NavModules) }
                             )
+                            AppRoute.SpeechAi -> EngineSettingsScreen()
                             AppRoute.Customize -> CustomizeHub(
                                 onHomeLayout = { goTo(AppRoute.HomeModules) },
                                 onNavLayout = { goTo(AppRoute.NavModules) }
@@ -1647,6 +1650,7 @@ private fun StyleTab(prefs: FlowPrefs) {
 
 @Composable
 private fun SettingsHub(
+    onSpeechAi: () -> Unit,
     onDictionary: () -> Unit,
     onSnippets: () -> Unit,
     onStyle: () -> Unit,
@@ -1672,6 +1676,7 @@ private fun SettingsHub(
             color = SecUi.muted
         )
 
+        SettingsRow("Speech + AI", "Ear, brain, key, URL. Where audio and text go.", onSpeechAi)
         SettingsRow("Flow Bubble & Gestures", "Shape, size, opacity, edge magnetic snap", onBubble)
         SettingsRow("Cleanup Pipeline", "Filler words, course corrections, lists", onCleanup)
         SettingsRow("Writing Style", "Casual, formal, concise persona", onStyle)

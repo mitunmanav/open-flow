@@ -53,4 +53,12 @@ class NavStackTest {
         assertThat(NavStack.initial(ready = false)).containsExactly(AppRoute.Setup)
         assertThat(NavStack.initial(ready = true)).containsExactly(AppRoute.Home)
     }
+
+    @Test
+    fun speech_ai_is_settings_child() {
+        assertThat(AppRoute.SpeechAi.isSettingsSubtree()).isTrue()
+        assertThat(AppRoute.SpeechAi.backTarget()).isEqualTo(AppRoute.Settings)
+        val s = NavStack.navigate(listOf(AppRoute.Settings), AppRoute.SpeechAi)
+        assertThat(s).containsExactly(AppRoute.Settings, AppRoute.SpeechAi).inOrder()
+    }
 }

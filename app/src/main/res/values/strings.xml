@@ -78,4 +78,16 @@
     <string name="dark_system">System</string>
     <string name="dark_light">Light</string>
     <string name="dark_dark">Dark</string>
+    <string name="speech_ai_title">Speech + AI</string>
+    <string name="speech_ai_ear">Ear (speech)</string>
+    <string name="speech_ai_brain">Brain (cleanup / Command)</string>
+    <string name="speech_ai_honesty_hint">We do not claim private or anonymous. Pick says where this utterance goes.</string>
+    <string name="speech_ai_key">API key</string>
+    <string name="speech_ai_key_hint">Paste key. Saved key shows last 4 only.</string>
+    <string name="speech_ai_key_saved">Saved key %1$s</string>
+    <string name="speech_ai_save_key">Save key</string>
+    <string name="speech_ai_url">Laptop / custom URL</string>
+    <string name="speech_ai_url_hint">http://192.168.1.1:11434/v1</string>
+    <string name="speech_ai_sarvam_mode">Sarvam mode</string>
+    <string name="speech_ai_command_on">Command Mode — this brain can do it</string>
 </resources>

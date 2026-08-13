@@ -127,4 +127,12 @@ class NavStackTest {
         val s = NavStack.navigate(listOf(AppRoute.Settings), AppRoute.SpeechAi)
         assertThat(s).containsExactly(AppRoute.Settings, AppRoute.SpeechAi).inOrder()
     }
+
+    @Test
+    fun customize_and_nav_modules_dead_routes_gone() {
+        val names = AppRoute.entries.map { it.name }
+        assertThat(names).doesNotContain("Customize")
+        assertThat(names).doesNotContain("NavModules")
+        assertThat(names).contains("HomeModules")
+    }
 }

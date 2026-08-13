@@ -27,7 +27,7 @@
     <string name="enable_bubble_hint">Enable Open Flow in Accessibility for the floating bubble. Keep your normal keyboard.</string>
     <string name="permission_mic">Microphone is required to dictate and record.</string>
     <string name="offline_prefer">Prefer on-device speech recognition</string>
-    <string name="privacy_stt_disclaimer">Speech recognition uses Android system STT. Audio may leave the device depending on OEM and network. OpenFlow never uploads audio or transcripts.</string>
+    <string name="privacy_stt_disclaimer">Speech recognition uses Android system STT. Audio may leave the device depending on OEM and network. A brain you pick can POST this utterance. Open Flow has no server.</string>
     <string name="last_result_title">Last session</string>
     <string name="copy_cleaned">Copy cleaned</string>
     <string name="copy_raw">Copy raw</string>

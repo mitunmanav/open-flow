@@ -1,5 +1,7 @@
 package app.openflow.ui.setup
 
+import app.openflow.ui.privacy.PrivacyHonesty
+
 object FirstRunPolicy {
     enum class Step { A11Y, MIC, BATTERY, DONE }
 
@@ -40,7 +42,7 @@ object FirstRunPolicy {
         )
         Step.MIC -> StepCopy(
             title = "Allow the microphone",
-            body = "On-device speech. Open Flow never uploads audio.",
+            body = PrivacyHonesty.SETUP_MIC,
             primary = "Allow microphone",
         )
         Step.BATTERY -> StepCopy(

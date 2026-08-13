@@ -71,7 +71,8 @@ class FirstRunPolicyTest {
         assertThat(a11y.body).contains("keyboard")
         assertThat(a11y.primary).isEqualTo("Open Accessibility")
         val mic = FirstRunPolicy.copy(FirstRunPolicy.Step.MIC)
-        assertThat(mic.body).contains("never uploads")
+        assertThat(mic.body.lowercase()).contains("post")
+        assertThat(mic.body.lowercase()).doesNotContain("never uploads")
         assertThat(mic.primary).isEqualTo("Allow microphone")
         assertThat(mic.secondary).isNull()
     }

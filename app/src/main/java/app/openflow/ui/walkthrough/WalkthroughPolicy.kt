@@ -1,5 +1,7 @@
 package app.openflow.ui.walkthrough
 
+import app.openflow.ui.privacy.PrivacyHonesty
+
 object WalkthroughPolicy {
     enum class Page { WHAT, TALK, DICT_VS_SNIP, PRIVACY, READY }
 
@@ -34,7 +36,7 @@ object WalkthroughPolicy {
         )
         Page.PRIVACY -> PageCopy(
             "Privacy",
-            "We do not upload. Phone speech may still use Google. History stays on this phone. You can wipe or never save.",
+            PrivacyHonesty.WALKTHROUGH,
         )
         Page.READY -> PageCopy(
             "Ready",

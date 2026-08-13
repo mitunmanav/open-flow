@@ -64,6 +64,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -113,7 +114,9 @@ import app.openflow.display.DisplayRefreshPolicy
 import app.openflow.stt.SttTuning
 import app.openflow.ui.engine.EngineSettingsScreen
 import app.openflow.ui.home.HistoryDays
+import app.openflow.ui.home.HistorySearchPolicy
 import app.openflow.ui.home.HomeBannerPolicy
+import app.openflow.ui.privacy.PrivacyHonesty
 import app.openflow.ui.setup.FirstRunPolicy
 import app.openflow.ui.setup.SetupWizard
 import app.openflow.ui.shell.AppRoute
@@ -364,8 +367,7 @@ class MainActivity : ComponentActivity() {
                                 onCleanup = { goTo(AppRoute.Cleanup) },
                                 onPrivacy = { goTo(AppRoute.Privacy) },
                                 onSounds = { goTo(AppRoute.Sounds) },
-                                onHomeLayout = { goTo(AppRoute.HomeModules) },
-                                onNavLayout = { goTo(AppRoute.NavModules) }
+                                onHomeLayout = { goTo(AppRoute.HomeModules) }
                             )
                             AppRoute.SpeechAi -> {
                                 val session = app.engineSession
@@ -382,10 +384,6 @@ class MainActivity : ComponentActivity() {
                                     onKeyMask = session::keyMask,
                                 )
                             }
-                            AppRoute.Customize -> CustomizeHub(
-                                onHomeLayout = { goTo(AppRoute.HomeModules) },
-                                onNavLayout = { goTo(AppRoute.NavModules) }
-                            )
                             AppRoute.Appearance -> AppearanceSettings(app.prefs)
                             AppRoute.BubbleSettings -> BubbleSettings(
                                 prefs = app.prefs,
@@ -410,20 +408,6 @@ class MainActivity : ComponentActivity() {
                                 defaultEncode = LayoutPrefs.DEFAULT_HOME,
                                 onChange = {
                                     app.prefs.setHomeModules(it)
-                                    layoutTick++
-                                }
-                            )
-                            AppRoute.NavModules -> ModuleEditor(
-                                title = "Menu visibility",
-                                subtitle = "Settings always stays. Bottom tabs are not listed here.",
-                                modules = app.prefs.navModules(),
-                                labels = mapOf(
-                                    "history" to "History",
-                                    "customize" to "Customize"
-                                ),
-                                defaultEncode = LayoutPrefs.DEFAULT_NAV,
-                                onChange = {
-                                    app.prefs.setNavModules(it)
                                     layoutTick++
                                 }
                             )
@@ -1049,7 +1033,7 @@ private fun HomeHub(
         }
 
         Text(
-            "System SpeechRecognizer may use network depending on your device. Open Flow itself never uploads audio or transcripts.",
+            PrivacyHonesty.HOME_FOOTER,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
             softWrap = true
@@ -1065,12 +1049,12 @@ private fun HistoryScreen(app: OpenFlowApp) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val ctx = LocalContext.current
-
-    val filtered = remember(dictations, searchQuery) {
-        if (searchQuery.isBlank()) dictations
-        else dictations.filter {
-            it.text.contains(searchQuery, ignoreCase = true) ||
-                it.rawText.contains(searchQuery, ignoreCase = true)
+    val match = HistorySearchPolicy.ftsMatch(searchQuery)
+    val filtered by produceState(dictations, match, dictations) {
+        value = if (match == null) {
+            dictations
+        } else {
+            app.dictations.searchDictations(match)
         }
     }
     val nowMs = System.currentTimeMillis()
@@ -1851,8 +1835,7 @@ private fun SettingsHub(
     onCleanup: () -> Unit,
     onPrivacy: () -> Unit,
     onSounds: () -> Unit,
-    onHomeLayout: () -> Unit,
-    onNavLayout: () -> Unit
+    onHomeLayout: () -> Unit
 ) {
     Column(
         Modifier
@@ -1879,7 +1862,6 @@ private fun SettingsHub(
         SettingsRow("Privacy & Retention", "Zero-cloud audit, auto-wipe policies", onPrivacy)
         SettingsRow("Haptics & Feedback", "Tactile clicks and audio feedback", onSounds)
         SettingsRow("Home layout", "Reorder and toggle Home cards", onHomeLayout)
-        SettingsRow("Menu visibility", "Show or hide optional menu entries", onNavLayout)
 
         Text(
             "Open Flow is free and open source (MIT). No trackers. No analytics.",
@@ -1888,24 +1870,6 @@ private fun SettingsHub(
             modifier = Modifier.padding(top = Dimen.GAP_SM)
         )
         Spacer(Modifier.height(Dimen.GAP_LG))
-    }
-}
-
-@Composable
-private fun CustomizeHub(
-    onHomeLayout: () -> Unit,
-    onNavLayout: () -> Unit
-) {
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(SecUi.cream)
-            .padding(horizontal = Dimen.PAGE_PAD, vertical = Dimen.GAP)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
-    ) {
-        SettingsRow("Home layout", "Modules on Home", onHomeLayout)
-        SettingsRow("Menu visibility", "Show or hide optional menu entries", onNavLayout)
     }
 }
 
@@ -1998,7 +1962,7 @@ private fun PrivacySettings(prefs: FlowPrefs) {
             modifier = Modifier.testTag("privacy_internet_honesty")
         )
         Text(
-            "History and settings stay on this phone. Cloud ear/brain only if you pick them.",
+            PrivacyHonesty.SETTINGS_BODY,
             style = MaterialTheme.typography.bodySmall,
             color = SecUi.muted,
             softWrap = true
@@ -2047,7 +2011,7 @@ private fun PrivacySettings(prefs: FlowPrefs) {
         }
 
         listOf(
-            "keep" to ("Keep forever" to "Store history in on-device SQLite (not encrypted). Never uploaded by Open Flow."),
+            "keep" to ("Keep forever" to PrivacyHonesty.KEEP_FOREVER),
             "wipe_24h" to ("Wipe after 24h" to "Delete dictations older than 24 hours on each new save."),
             "never_store" to ("Never store" to "Do not write history. Last-session copy still available until you clear it.")
         ).forEach { (v, pair) ->

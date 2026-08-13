@@ -90,11 +90,14 @@ fun EngineSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
         ) {
             EnginePickerState.ears.forEach { preset ->
+                val on = EnginePickerState.earEnabled(preset.id)
                 OpenChip(
                     label = preset.label,
                     isOn = ear == preset.id,
+                    enabled = on,
                     modifier = Modifier.testTag("ear_" + preset.id),
                     onClick = {
+                        if (!on) return@OpenChip
                         ear = preset.id
                         onPick(preset.id, brain)
                         savedMask = onKeyMask()
@@ -102,6 +105,12 @@ fun EngineSettingsScreen(
                 )
             }
         }
+        Text(
+            text = EnginePickerState.STUB_EAR_REASON,
+            style = MaterialTheme.typography.bodySmall,
+            color = scheme.error,
+            modifier = Modifier.testTag("engine_ear_disabled")
+        )
 
         Text(
             text = stringResource(R.string.speech_ai_brain),
@@ -113,15 +122,38 @@ fun EngineSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
         ) {
             EnginePickerState.brains.forEach { preset ->
+                val on = EnginePickerState.brainEnabled(preset.id, url)
                 OpenChip(
                     label = preset.label,
                     isOn = brain == preset.id,
+                    enabled = on,
                     modifier = Modifier.testTag("brain_" + preset.id),
                     onClick = {
+                        if (!on) return@OpenChip
                         brain = preset.id
                         onPick(ear, preset.id)
                         savedMask = onKeyMask()
                     }
+                )
+            }
+        }
+        EnginePickerState.brainDisabledReason("on_phone", url)?.let { why ->
+            Text(
+                text = why,
+                style = MaterialTheme.typography.bodySmall,
+                color = scheme.error,
+                modifier = Modifier.testTag("engine_brain_disabled")
+            )
+        }
+        if (!EnginePickerState.brainEnabled("laptop", url) ||
+            !EnginePickerState.brainEnabled("custom", url)
+        ) {
+            EnginePickerState.brainDisabledReason("laptop", url)?.let { why ->
+                Text(
+                    text = why,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = scheme.onSurfaceVariant,
+                    modifier = Modifier.testTag("engine_url_gate")
                 )
             }
         }
@@ -211,20 +243,18 @@ fun EngineSettingsScreen(
             )
         }
 
-        if (state.needsUrl) {
-            OpenTextField(
-                value = url,
-                onValueChange = {
-                    url = it
-                    onSaveUrl(it)
-                },
-                label = stringResource(R.string.speech_ai_url),
-                placeholder = stringResource(R.string.speech_ai_url_hint),
-                contentDescription = stringResource(R.string.speech_ai_url),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                modifier = Modifier.testTag("engine_url")
-            )
-        }
+        OpenTextField(
+            value = url,
+            onValueChange = {
+                url = it
+                onSaveUrl(it)
+            },
+            label = stringResource(R.string.speech_ai_url),
+            placeholder = stringResource(R.string.speech_ai_url_hint),
+            contentDescription = stringResource(R.string.speech_ai_url),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+            modifier = Modifier.testTag("engine_url")
+        )
 
         Spacer(Modifier.height(Dimen.GAP_LG))
     }

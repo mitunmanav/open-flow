@@ -1,5 +1,7 @@
 package app.openflow.ui.engine
 
+import app.openflow.ai.providers.host.HostUrl
+
 /**
  * Pure picker view-model. String ids only — no engine/ import (f31 owns types).
  * Feature lights duplicate FeatureGate (ids only). Do not wait for FeatureAuto.
@@ -72,6 +74,27 @@ data class EnginePickerState(
         private val urlEars = setOf("laptop", "custom_stt")
         private val urlBrains = setOf("laptop", "custom")
         private val rewriteBrains = knownBrains - setOf("none", "on_phone")
+
+        const val STUB_EAR_REASON = "Not in 0.1.5 — system STT only"
+
+        fun earEnabled(id: String): Boolean = id == "system"
+
+        fun earDisabledReason(id: String): String? =
+            if (earEnabled(id)) null else STUB_EAR_REASON
+
+        fun brainEnabled(id: String, url: String): Boolean = when (id) {
+            "none" -> true
+            "on_phone" -> false
+            "laptop", "custom" -> HostUrl.allow(url)
+            else -> id in knownBrains
+        }
+
+        fun brainDisabledReason(id: String, url: String): String? = when {
+            brainEnabled(id, url) -> null
+            id == "on_phone" -> "Not in 0.1.5 — on-phone brain is a stub"
+            id in urlBrains -> "Need a valid HTTPS or LAN URL"
+            else -> null
+        }
 
         fun of(earId: String = "system", brainId: String = "none"): EnginePickerState {
             val ear = if (earId in knownEars) earId else "system"

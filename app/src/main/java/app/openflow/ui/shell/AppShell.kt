@@ -1,8 +1,12 @@
 package app.openflow.ui.shell
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.material.icons.Icons
@@ -24,9 +28,11 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -77,6 +83,7 @@ fun AppShell(
     val muted = scheme.onSurfaceVariant
     val selectedBg = scheme.primary
     val onSelected = scheme.onPrimary
+    val hardShape = MaterialTheme.shapes.small
 
     Scaffold(
         contentWindowInsets = WindowInsets.safeDrawing,
@@ -152,7 +159,25 @@ fun AppShell(
                         onClick = { onNavigate(item.route) },
                         modifier = Modifier.testTag(item.testTag),
                         icon = {
-                            Icon(item.icon, contentDescription = item.contentDescription)
+                            // M3 hardcodes CircleShape stadium; hide it, draw 2dp block.
+                            Box(
+                                modifier = Modifier
+                                    .background(
+                                        color = if (selected) selectedBg else Color.Transparent,
+                                        shape = hardShape
+                                    )
+                                    .then(
+                                        if (selected) {
+                                            Modifier.border(2.dp, scheme.outline, hardShape)
+                                        } else {
+                                            Modifier
+                                        }
+                                    )
+                                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(item.icon, contentDescription = item.contentDescription)
+                            }
                         },
                         label = {
                             Text(
@@ -163,7 +188,7 @@ fun AppShell(
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = onSelected,
                             selectedTextColor = onSurface,
-                            indicatorColor = selectedBg,
+                            indicatorColor = surface,
                             unselectedIconColor = muted,
                             unselectedTextColor = muted
                         )

@@ -43,6 +43,8 @@ import app.openflow.OpenFlowApp
 import app.openflow.R
 import app.openflow.notify.DictationNotifier
 import app.openflow.prefs.FlowPrefs
+import app.openflow.ui.HapticFeel
+import app.openflow.ui.theme.BubbleTint
 import app.openflow.stt.LanguagePolicy
 import app.openflow.stt.SttEngine
 import app.openflow.stt.SttTuning
@@ -110,7 +112,6 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     private var draggingNow = false
     private var compactVisual = false
     private var lastInteractionAt = 0L
-    private var lastCommitAt = -1L
     private var lastRms = 0f
     /** Soft keyboard present (Wispr: bubble lives with field + keyboard). */
     private var imeVisible: Boolean = false
@@ -367,11 +368,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             if (listening || stopInProgress) stopListening(save = false)
         }
         bubbleDone?.setOnClickListener {
-            if (listening || stopInProgress) {
-                stopListening(save = true)
-            } else if (copyChipVisible()) {
-                copyLastToClipboard()
-            }
+            if (listening || stopInProgress) stopListening(save = true)
         }
 
         if (prefs == null) prefs = FlowPrefs(this)
@@ -428,9 +425,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             longPressFired = true
             pushToTalk = true
             if (!listening && !stopInProgress) startListening()
-            if (prefs?.bubbleHaptics != false) {
-                view.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-            }
+            hapticEvent(HapticFeel.Event.TAP)
         }
         view.setOnTouchListener { v, event ->
             // Parent OnTouch returns true — Cancel/Done clicks never fire. Hit-test in ACTION_UP.
@@ -557,9 +552,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         snapAnimator?.cancel()
         val startX = params.x
         if (startX == targetX) {
-            if (prefs?.bubbleHaptics != false) {
-                view.performHapticFeedback(android.view.HapticFeedbackConstants.CONTEXT_CLICK)
-            }
+            hapticEvent(HapticFeel.Event.TAP)
             return
         }
         snapAnimator = ValueAnimator.ofInt(startX, targetX).apply {
@@ -575,9 +568,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             start()
         }
         prefs?.bubbleX = targetX
-        if (prefs?.bubbleHaptics != false) {
-            view.performHapticFeedback(android.view.HapticFeedbackConstants.CONTEXT_CLICK)
-        }
+        hapticEvent(HapticFeel.Event.TAP)
     }
 
     private fun hideBubble() {
@@ -712,26 +703,6 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         bubbleView?.scaleY = s
     }
 
-    private fun copyChipAgeMs(): Long {
-        if (lastCommitAt < 0L) return -1L
-        return SystemClock.elapsedRealtime() - lastCommitAt
-    }
-
-    private fun copyChipVisible(): Boolean =
-        CopyChip.shouldShow(copyChipAgeMs(), listening)
-
-    private fun refreshCopyChip() {
-        if (listening) return
-        val show = copyChipVisible()
-        bubbleDone?.visibility = if (show) View.VISIBLE else View.GONE
-        if (show) {
-            bubbleDone?.setColorFilter(BubbleChrome.DONE)
-            bubbleLabel?.visibility = View.VISIBLE
-            bubbleLabel?.text = "Copy"
-        }
-        applyOverlayWindowSize()
-    }
-
     private fun copyLastToClipboard() {
         val text = prefs?.lastSessionClean.orEmpty()
         if (text.isBlank()) {
@@ -776,7 +747,6 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             compactVisual = wantCompact
             applyVisualScale()
         }
-        if (!listening) refreshCopyChip()
     }
 
     private fun setBubbleEmphasis(hasField: Boolean) {
@@ -940,6 +910,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
         stopInProgress = true
         pushToTalk = false
+        hapticSaveOrDiscard(save)
         // Keep listenGeneration stable so onFinal during flush is accepted.
         val gen = listenGeneration
         val prefix = fieldPrefix
@@ -977,9 +948,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                     if (finalText.isNotBlank()) {
                         commitSessionToField(finalText, prefix)
                         prefs?.setLastSession(raw = result.raw, clean = finalText)
-                        lastCommitAt = SystemClock.elapsedRealtime()
-                        lastInteractionAt = lastCommitAt
-                        refreshCopyChip()
+                        lastInteractionAt = SystemClock.elapsedRealtime()
                         val wordCount = finalText.split(Regex("\\s+"))
                             .filter { it.isNotBlank() }.size
                         val retention = prefs?.retentionPolicy ?: "keep"
@@ -1066,9 +1035,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             if (finalText.isNotBlank()) {
                 commitSessionToField(finalText, prefix)
                 prefs?.setLastSession(raw = result.raw, clean = finalText)
-                lastCommitAt = SystemClock.elapsedRealtime()
-                lastInteractionAt = lastCommitAt
-                refreshCopyChip()
+                lastInteractionAt = SystemClock.elapsedRealtime()
                 val wordCount = finalText.split(Regex("\\s+")).filter { it.isNotBlank() }.size
                 val retention = prefs?.retentionPolicy ?: "keep"
                 val lang = LanguagePolicy.LOCKED
@@ -1277,13 +1244,15 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             else -> 52f
         }
         val stroke = BubbleChrome.strokePx(density)
+        val fill = BubbleTint.argb(p.bubbleTint)
+        val on = BubbleTint.onArgb(p.bubbleTint)
 
         if (listening) {
             val bg = GradientDrawable().apply {
                 this.shape = GradientDrawable.RECTANGLE
                 cornerRadius = BubbleChrome.cornerPx("listen", density)
-                setColor(BubbleChrome.LISTEN_FILL)
-                setStroke(stroke, BubbleChrome.LISTEN_STROKE)
+                setColor(fill)
+                setStroke(stroke, on)
             }
             root.background = bg
             root.layoutParams = FrameLayout.LayoutParams(
@@ -1296,17 +1265,17 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             root.setPadding(padH, padV, padH, padV)
 
             cancel?.visibility = View.VISIBLE
-            cancel?.setColorFilter(BubbleChrome.CANCEL)
+            cancel?.setColorFilter(on)
             done?.visibility = View.VISIBLE
-            done?.setColorFilter(BubbleChrome.DONE)
+            done?.setColorFilter(on)
             icon.visibility = View.VISIBLE
-            icon.setColorFilter(BubbleChrome.ICON)
+            icon.setColorFilter(on)
             icon.layoutParams = LinearLayout.LayoutParams(
                 (20f * density).toInt(),
                 (20f * density).toInt()
-            )
+            ).apply { gravity = Gravity.CENTER }
             label.visibility = View.VISIBLE
-            label.setTextColor(BubbleChrome.LABEL)
+            label.setTextColor(on)
             if (label.text.isNullOrBlank()) {
                 label.text = BubbleLabelFormatter.listening(0)
             }
@@ -1328,13 +1297,15 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 if (!useOval) {
                     cornerRadius = BubbleChrome.cornerPx(shape, density)
                 }
-                setColor(BubbleChrome.IDLE_FILL)
-                setStroke(stroke, BubbleChrome.IDLE_STROKE)
+                setColor(fill)
+                setStroke(stroke, on)
             }
             icon.visibility = View.VISIBLE
-            icon.setColorFilter(BubbleChrome.ICON)
+            icon.setColorFilter(on)
             val iconSz = (orbDp * 0.42f * density).toInt()
-            icon.layoutParams = LinearLayout.LayoutParams(iconSz, iconSz)
+            icon.layoutParams = LinearLayout.LayoutParams(iconSz, iconSz).apply {
+                gravity = Gravity.CENTER
+            }
         }
         applyOverlayWindowSize()
     }
@@ -1343,7 +1314,9 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     private fun applyOverlayWindowSize() {
         val params = bubbleParams ?: return
         val density = resources.displayMetrics.density
-        val (w, h) = BubbleGeometry.overlaySizePx(listening, density)
+        val shape = FlowPrefs.normalizeBubbleShape(prefs?.bubbleShape.orEmpty())
+        val wide = listening
+        val (w, h) = BubbleGeometry.overlaySizePx(wide, density, shape)
         params.width = if (w > 0) w else WindowManager.LayoutParams.WRAP_CONTENT
         params.height = if (h > 0) h else WindowManager.LayoutParams.WRAP_CONTENT
         val view = bubbleView ?: return
@@ -1351,6 +1324,15 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             windowManager?.updateViewLayout(view, params)
         } catch (_: Exception) {
         }
+    }
+
+    private fun hapticEvent(event: HapticFeel.Event) {
+        val constant = HapticFeel.constantFor(prefs?.hapticFeel ?: HapticFeel.FULL, event) ?: return
+        bubbleView?.performHapticFeedback(constant)
+    }
+
+    private fun hapticSaveOrDiscard(save: Boolean) {
+        hapticEvent(if (save) HapticFeel.Event.SAVE else HapticFeel.Event.CANCEL)
     }
 
     private fun setListenChrome(elapsedSec: Long) {

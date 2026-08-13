@@ -20,7 +20,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:elevation="10dp"
-        android:gravity="center_vertical"
+        android:gravity="center"
         android:orientation="horizontal"
         android:paddingStart="10dp"
         android:paddingTop="10dp"
@@ -32,9 +32,11 @@
             android:id="@+id/bubble_cancel"
             android:layout_width="36dp"
             android:layout_height="36dp"
+            android:layout_gravity="center_vertical"
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/flow_bubble_cancel"
             android:padding="6dp"
+            android:scaleType="centerInside"
             android:src="@android:drawable/ic_menu_close_clear_cancel"
             android:visibility="gone" />
 
@@ -42,7 +44,9 @@
             android:id="@+id/bubble_icon"
             android:layout_width="22dp"
             android:layout_height="22dp"
+            android:layout_gravity="center"
             android:contentDescription="@string/app_name"
+            android:scaleType="centerInside"
             android:src="@drawable/ic_mic" />
 
         <!-- Live status / partials / simple wave proxy -->
@@ -65,10 +69,12 @@
             android:id="@+id/bubble_done"
             android:layout_width="36dp"
             android:layout_height="36dp"
+            android:layout_gravity="center_vertical"
             android:layout_marginStart="4dp"
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/flow_bubble_done"
             android:padding="6dp"
+            android:scaleType="centerInside"
             android:src="@android:drawable/ic_menu_save"
             android:visibility="gone" />
     </LinearLayout>

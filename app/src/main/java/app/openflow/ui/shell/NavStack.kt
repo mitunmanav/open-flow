@@ -24,11 +24,19 @@ object NavStack {
         return base + dest
     }
 
-    fun canGoBack(stack: List<AppRoute>): Boolean = stack.size > 1
+    fun canGoBack(stack: List<AppRoute>): Boolean {
+        if (stack.size > 1) return true
+        val cur = stack.singleOrNull() ?: return false
+        return cur.isBottomBar() && cur != AppRoute.Home
+    }
 
     fun goBack(stack: List<AppRoute>): List<AppRoute> {
-        if (stack.size <= 1) return stack.ifEmpty { listOf(AppRoute.Home) }
-        return stack.dropLast(1)
+        if (stack.size > 1) return stack.dropLast(1)
+        val cur = stack.singleOrNull()
+        if (cur != null && cur.isBottomBar() && cur != AppRoute.Home) {
+            return listOf(AppRoute.Home)
+        }
+        return stack.ifEmpty { listOf(AppRoute.Home) }
     }
 
     fun openDeepLink(dest: AppRoute): List<AppRoute> =

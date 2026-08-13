@@ -31,6 +31,18 @@ class NavStackTest {
     }
 
     @Test
+    fun back_from_dictionary_tab_goes_to_home() {
+        assertThat(NavStack.canGoBack(listOf(AppRoute.Dictionary))).isTrue()
+        assertThat(NavStack.goBack(listOf(AppRoute.Dictionary))).containsExactly(AppRoute.Home)
+    }
+
+    @Test
+    fun back_from_home_stays() {
+        assertThat(NavStack.canGoBack(listOf(AppRoute.Home))).isFalse()
+        assertThat(NavStack.goBack(listOf(AppRoute.Home))).containsExactly(AppRoute.Home)
+    }
+
+    @Test
     fun no_duplicate_push() {
         val s = NavStack.navigate(listOf(AppRoute.Settings, AppRoute.Appearance), AppRoute.Appearance)
         assertThat(s).containsExactly(AppRoute.Settings, AppRoute.Appearance).inOrder()

@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.5 — 2026-08-13
+
+GitHub sideload ship.
+
+- No copy chip on the bubble (copy from History)
+- First-open walkthrough
+- Brutal nav, pill overlay matches settings
+- Back from Dictionary goes to Home
+- Hide bubble on more bank/wallet apps
+- Color presets + haptic Off/Light/Full
+- Own cream/charcoal mark
+
+
+
 ## 0.1.1 — 2026-08-13
 
 Ship-day polish. No INTERNET. No F19.

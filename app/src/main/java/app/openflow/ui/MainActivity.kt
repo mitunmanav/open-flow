@@ -19,8 +19,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -34,6 +35,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -70,6 +73,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -107,9 +112,12 @@ import app.openflow.ui.setup.SetupWizard
 import app.openflow.ui.shell.AppRoute
 import app.openflow.ui.shell.AppShell
 import app.openflow.ui.shell.NavStack
+import app.openflow.ui.theme.BubbleTint
 import app.openflow.ui.theme.Motion
 import app.openflow.ui.theme.OpenFlowTheme
 import app.openflow.ui.theme.VisualSkin
+import app.openflow.ui.walkthrough.WalkthroughPager
+import app.openflow.ui.walkthrough.WalkthroughPolicy
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -120,6 +128,18 @@ import java.util.TimeZone
  * Theme tokens for MainActivity screens.
  * MUST read [MaterialTheme.colorScheme] so light/dark/system work.
  */
+/** Home layout row explainer. Used by ModuleEditor when a row is focused/moved. */
+object HomeFeelCopy {
+    fun moduleWhat(id: String): String = when (id) {
+        "setup" -> "permissions"
+        "test" -> "practice field"
+        "keys" -> "cleanup chips"
+        "stats" -> "last dictation"
+        "recent" -> "history"
+        else -> ""
+    }
+}
+
 private object SecUi {
     val cream: androidx.compose.ui.graphics.Color
         @Composable get() = MaterialTheme.colorScheme.background
@@ -243,6 +263,27 @@ class MainActivity : ComponentActivity() {
 
                 var layoutTick by remember { mutableIntStateOf(0) }
 
+                var walkthroughSeen by remember { mutableStateOf(app.prefs.seenHowTo) }
+                var walkPage by remember { mutableStateOf(WalkthroughPolicy.Page.WHAT) }
+
+                if (WalkthroughPolicy.needsWalkthrough(walkthroughSeen)) {
+                    WalkthroughPager(
+                        page = walkPage,
+                        onNext = {
+                            val pages = WalkthroughPolicy.pages()
+                            val i = pages.indexOf(walkPage)
+                            if (i < pages.lastIndex) walkPage = pages[i + 1]
+                            else {
+                                app.prefs.seenHowTo = true
+                                walkthroughSeen = true
+                            }
+                        },
+                        onSkip = {
+                            app.prefs.seenHowTo = true
+                            walkthroughSeen = true
+                        },
+                    )
+                } else {
                 BackHandler(enabled = NavStack.canGoBack(navStack)) {
                     goBack()
                 }
@@ -401,6 +442,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
+                }
             }
         }
     }
@@ -431,6 +473,7 @@ private fun HomeHub(
     var lastClean by remember { mutableStateOf(app.prefs.lastCleanText) }
     var lastRaw by remember { mutableStateOf(app.prefs.lastRawText) }
     var snoozed by remember { mutableStateOf(app.prefs.isSnoozed()) }
+    var seenHowTo by remember { mutableStateOf(app.prefs.seenHowTo) }
     val owner = LocalLifecycleOwner.current
     DisposableEffect(owner) {
         val obs = LifecycleEventObserver { _, e ->
@@ -460,6 +503,50 @@ private fun HomeHub(
             .testTag("home_hub"),
         verticalArrangement = Arrangement.spacedBy(Dimen.GAP)
     ) {
+        if (!seenHowTo) {
+            OpenCard(modifier = Modifier.testTag("home_howto")) {
+                Column(
+                    Modifier.padding(Dimen.MIN_PADDING),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        "How Open Flow works",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = SecUi.charcoal
+                    )
+                    Text(
+                        "Not a keyboard. Keep yours.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = SecUi.charcoal
+                    )
+                    Text(
+                        "Tap the bubble, then tap again to insert.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = SecUi.charcoal
+                    )
+                    Text(
+                        "X cancel.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = SecUi.charcoal
+                    )
+                    Text(
+                        "Dictionary = one word. Snippet = whole block.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = SecUi.charcoal
+                    )
+                    OpenButton(
+                        text = "Got it",
+                        onClick = {
+                            app.prefs.seenHowTo = true
+                            seenHowTo = true
+                        },
+                        modifier = Modifier.testTag("home_howto_got_it")
+                    )
+                }
+            }
+        }
+
         if (visibleModules.isEmpty()) {
             EmptyState(
                 icon = Icons.Default.Tune,
@@ -1157,7 +1244,7 @@ private fun DictionaryTab(app: OpenFlowApp) {
         verticalArrangement = Arrangement.spacedBy(Dimen.GAP)
     ) {
         Text(
-            "Local replacement rules applied instantly during insertion.",
+            "Change one word (say API, insert the long name).",
             style = MaterialTheme.typography.bodySmall,
             color = SecUi.muted
         )
@@ -1267,7 +1354,7 @@ private fun SnippetsTab(app: OpenFlowApp) {
         verticalArrangement = Arrangement.spacedBy(Dimen.GAP)
     ) {
         Text(
-            "Speak the trigger phrase alone to automatically expand into full text.",
+            "Say a short trigger. Paste a whole block.",
             style = MaterialTheme.typography.bodySmall,
             color = SecUi.muted
         )
@@ -1751,7 +1838,7 @@ private fun PrivacySettings(prefs: FlowPrefs) {
 @Composable
 private fun SoundsSettings(prefs: FlowPrefs) {
     var sounds by remember { mutableStateOf(prefs.bubbleSounds) }
-    var haptics by remember { mutableStateOf(prefs.bubbleHaptics) }
+    var feel by remember { mutableStateOf(prefs.hapticFeel) }
 
     Column(
         Modifier
@@ -1786,25 +1873,30 @@ private fun SoundsSettings(prefs: FlowPrefs) {
         }
 
         OpenCard {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text("Tactile Haptics", style = MaterialTheme.typography.titleSmall)
-                    Text("Vibrate on tap, PTT hold, and edge snap", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                OpenChip(
-                    label = if (haptics) "ON" else "OFF",
-                    isOn = haptics,
-                    onClick = {
-                        haptics = !haptics
-                        prefs.bubbleHaptics = haptics
-                    }
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Tactile Haptics", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "Off / Light (tick) / Full (confirm, reject, click).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(
+                        HapticFeel.OFF to "Off",
+                        HapticFeel.LIGHT to "Light",
+                        HapticFeel.FULL to "Full"
+                    ).forEach { (id, label) ->
+                        OpenChip(
+                            label = label,
+                            isOn = feel == id,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                feel = id
+                                prefs.hapticFeel = id
+                            }
+                        )
+                    }
+                }
             }
         }
         Spacer(Modifier.height(24.dp))
@@ -1822,6 +1914,7 @@ private fun ModuleEditor(
     onChange: (List<LayoutPrefs.Module>) -> Unit
 ) {
     var local by remember(modules) { mutableStateOf(modules) }
+    var focusedId by remember { mutableStateOf<String?>(null) }
     Column(
         Modifier
             .fillMaxSize()
@@ -1839,7 +1932,10 @@ private fun ModuleEditor(
         )
         local.forEachIndexed { index, m ->
             val locked = m.id in lockVisible
-            OpenCard {
+            val what = HomeFeelCopy.moduleWhat(m.id)
+            OpenCard(
+                onClick = { focusedId = m.id }
+            ) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(
                         Modifier.fillMaxWidth(),
@@ -1867,6 +1963,7 @@ private fun ModuleEditor(
                             label = if (m.visible) "Show" else "Hide",
                             isOn = m.visible,
                             onClick = {
+                                focusedId = m.id
                                 if (!locked) {
                                     local = LayoutPrefs.toggleVisible(local, m.id)
                                     onChange(local)
@@ -1877,6 +1974,7 @@ private fun ModuleEditor(
                             label = "↑ Up",
                             isOn = false,
                             onClick = {
+                                focusedId = m.id
                                 local = LayoutPrefs.move(local, m.id, -1)
                                 onChange(local)
                             }
@@ -1885,9 +1983,17 @@ private fun ModuleEditor(
                             label = "↓ Down",
                             isOn = false,
                             onClick = {
+                                focusedId = m.id
                                 local = LayoutPrefs.move(local, m.id, 1)
                                 onChange(local)
                             }
+                        )
+                    }
+                    if (focusedId == m.id && what.isNotEmpty()) {
+                        Text(
+                            what,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = SecUi.charcoal
                         )
                     }
                     if (locked) {
@@ -1954,7 +2060,6 @@ private fun SettingsRow(title: String, subtitle: String, onClick: () -> Unit) {
 @Composable
 private fun AppearanceSettings(prefs: FlowPrefs) {
     val dark by prefs.darkMode.collectAsState()
-    val skin by prefs.visualSkin.collectAsState()
     val context = LocalContext.current
     var refreshHz by remember { mutableIntStateOf(prefs.refreshHz) }
     var sttProfile by remember { mutableStateOf(prefs.sttProfile) }
@@ -2016,26 +2121,6 @@ private fun AppearanceSettings(prefs: FlowPrefs) {
 
         OpenCard {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Design language", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OpenChip(
-                        label = "Modern Brutal",
-                        isOn = skin == VisualSkin.BRUTAL,
-                        modifier = Modifier.weight(1f),
-                        onClick = { prefs.setVisualSkin(VisualSkin.BRUTAL) }
-                    )
-                    OpenChip(
-                        label = "M3 Soft",
-                        isOn = skin == VisualSkin.M3,
-                        modifier = Modifier.weight(1f),
-                        onClick = { prefs.setVisualSkin(VisualSkin.M3) }
-                    )
-                }
-            }
-        }
-
-        OpenCard {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Screen refresh", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                 Text(
                     "Prefer 60 / 90 / 120 / 144 Hz when the phone supports it. Device may clamp.",
@@ -2082,12 +2167,13 @@ private fun AppearanceSettings(prefs: FlowPrefs) {
                             onClick = {
                                 sttProfile = id
                                 prefs.sttProfile = id
+                                FlowAccessibilityService.instance?.applyPrefsVisual()
                             }
                         )
                     }
                 }
                 Text(
-                    "Re-enable Flow Bubble in Accessibility after changing STT profile (service reloads knobs).",
+                    "Applies on next listen.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -2104,8 +2190,9 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
     var shape by remember { mutableStateOf(prefs.bubbleShape) }
     var showText by remember { mutableStateOf(prefs.bubbleShowText) }
     var snap by remember { mutableStateOf(prefs.bubbleEdgeSnap) }
-    var haptics by remember { mutableStateOf(prefs.bubbleHaptics) }
+    var feel by remember { mutableStateOf(prefs.hapticFeel) }
     var pulse by remember { mutableStateOf(prefs.bubblePulse) }
+    var tint by remember { mutableStateOf(prefs.bubbleTint) }
 
     Column(
         Modifier
@@ -2120,6 +2207,35 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
             style = MaterialTheme.typography.bodySmall,
             color = SecUi.muted
         )
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(72.dp)
+                .border(SecUi.hardBorder)
+                .background(SecUi.cream)
+                .testTag("bubble_preview"),
+            contentAlignment = Alignment.Center
+        ) {
+            val previewShape = when (shape) {
+                "circle", "dot" -> CircleShape
+                "pill" -> RoundedCornerShape(50)
+                else -> RoundedCornerShape(2.dp)
+            }
+            val base = when (shape) {
+                "dot" -> 18.dp
+                "circle" -> 36.dp
+                "square" -> 36.dp
+                else -> 56.dp
+            }
+            val previewH = if (shape == "pill") 28.dp else base
+            Box(
+                Modifier
+                    .size((base.value * scale).dp, (previewH.value * scale).dp)
+                    .alpha(opacity)
+                    .background(Color(BubbleTint.argb(tint)), previewShape)
+            )
+        }
 
         OpenCard {
             Column(
@@ -2149,6 +2265,42 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                             onClick = {
                                 shape = v
                                 prefs.bubbleShape = v
+                                onApplyBubble()
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        OpenCard {
+            Column(
+                Modifier.padding(Dimen.MIN_PADDING),
+                verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+            ) {
+                Text(
+                    "Color",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = SecUi.charcoal
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+                ) {
+                    listOf(
+                        BubbleTint.CHARCOAL to "Charcoal",
+                        BubbleTint.CREAM to "Cream",
+                        BubbleTint.INK to "Ink",
+                        BubbleTint.STONE to "Stone"
+                    ).forEach { (id, label) ->
+                        OpenChip(
+                            label = label,
+                            isOn = tint == id,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                tint = id
+                                prefs.bubbleTint = id
                                 onApplyBubble()
                             }
                         )
@@ -2320,32 +2472,38 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                     )
                 }
 
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            "Tactile Haptics",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = SecUi.charcoal
-                        )
-                        Text(
-                            "Vibration feedback on tap and long-press push-to-talk",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = SecUi.muted
-                        )
-                    }
-                    OpenChip(
-                        label = if (haptics) "ON" else "OFF",
-                        isOn = haptics,
-                        onClick = {
-                            haptics = !haptics
-                            prefs.bubbleHaptics = haptics
-                            onApplyBubble()
-                        }
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Tactile Haptics",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = SecUi.charcoal
                     )
+                    Text(
+                        "Off / Light / Full on tap, save, cancel.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = SecUi.muted
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+                    ) {
+                        listOf(
+                            HapticFeel.OFF to "Off",
+                            HapticFeel.LIGHT to "Light",
+                            HapticFeel.FULL to "Full"
+                        ).forEach { (id, label) ->
+                            OpenChip(
+                                label = label,
+                                isOn = feel == id,
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    feel = id
+                                    prefs.hapticFeel = id
+                                    onApplyBubble()
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }

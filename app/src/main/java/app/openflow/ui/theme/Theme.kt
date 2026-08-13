@@ -89,7 +89,7 @@ private val BrutalDark = darkColorScheme(
     onBackground = Color(0xFFF5F2EB),
     surfaceVariant = BrutalColors.StoneDark,
     // Was Stone (cream-ish) — too low contrast on dark; use muted light gray
-    onSurfaceVariant = Color(0xFFC8C3B8),
+    onSurfaceVariant = Color(0xFFD8D3C8),
     outline = Color(0xFFB8B2A6),
     outlineVariant = BrutalColors.StoneDark,
     error = BrutalColors.Error,
@@ -106,10 +106,10 @@ private val M3Shapes = Shapes(
 
 /** Hard edges — product default skin. */
 private val BrutalShapes = Shapes(
-    extraSmall = RoundedCornerShape(0.dp),
+    extraSmall = RoundedCornerShape(2.dp),
     small = RoundedCornerShape(2.dp),
     medium = RoundedCornerShape(2.dp),
-    large = RoundedCornerShape(4.dp),
+    large = RoundedCornerShape(2.dp),
     extraLarge = RoundedCornerShape(4.dp)
 )
 

@@ -21,4 +21,13 @@ object OpenFlowMigrations {
             )
         }
     }
+
+    /** v5 → v6: add index on createdAtEpochMs for fast history queries. */
+    val MIGRATION_5_6 = object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_dictations_createdAtEpochMs` ON `dictations` (`createdAtEpochMs`)"
+            )
+        }
+    }
 }

@@ -19,9 +19,11 @@ class DictationRepositoryTest {
     }
 
     @Test
-    fun destructive_fallback_forbidden_and_version_unbumped() {
+    fun destructive_fallback_forbidden_and_version_matches() {
         assertThat(RoomOpenPolicy.ALLOW_DESTRUCTIVE_FALLBACK).isFalse()
-        assertThat(RoomOpenPolicy.VERSION).isEqualTo(5)
+        assertThat(RoomOpenPolicy.VERSION).isEqualTo(6)
+        assertThat(OpenFlowMigrations.MIGRATION_5_6.startVersion).isEqualTo(5)
+        assertThat(OpenFlowMigrations.MIGRATION_5_6.endVersion).isEqualTo(6)
     }
 
     @Test

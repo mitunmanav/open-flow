@@ -7,7 +7,7 @@ class ProviderNoticeTest {
     @Test
     fun system_plus_none() {
         assertThat(ProviderNotice.line("system", "none"))
-            .isEqualTo("On this phone. Phone STT may still use Google.")
+            .isEqualTo("On this phone. Phone speech may still use Google.")
     }
 
     @Test

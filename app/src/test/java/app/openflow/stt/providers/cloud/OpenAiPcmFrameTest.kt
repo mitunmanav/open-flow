@@ -20,7 +20,9 @@ class OpenAiPcmFrameTest {
         assertThat(sock.sentText).hasSize(2)
         val msg = sock.sentText[1]
         assertThat(msg).contains("\"type\":\"input_audio_buffer.append\"")
-        assertThat(msg).contains(Base64.getEncoder().encodeToString(chunk))
+        val up = PcmResample.upsample16kTo24k(chunk)
+        assertThat(msg).contains(Base64.getEncoder().encodeToString(up))
+        assertThat(msg).doesNotContain(Base64.getEncoder().encodeToString(chunk))
         ear.stop()
         assertThat(sock.sentText).contains("""{"type":"input_audio_buffer.commit"}""")
     }

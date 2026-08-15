@@ -72,7 +72,6 @@ object LearnEngine {
         persist()
     }
 
-    /** Wipe all learned sides; keep persistHook. */
     fun clearAll() {
         store = LearnSides()
         persist()

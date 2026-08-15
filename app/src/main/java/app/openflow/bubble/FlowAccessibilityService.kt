@@ -47,8 +47,10 @@ import app.openflow.prefs.FlowPrefs
 import app.openflow.ui.HapticFeel
 import app.openflow.ui.theme.BubbleTint
 import app.openflow.runtime.TrimPolicy
+import app.openflow.stt.providers.cloud.CloudEar
 import app.openflow.stt.AndroidSpeechEngine
 import app.openflow.stt.LanguagePolicy
+import app.openflow.stt.MainThreadHop
 import app.openflow.stt.SpeechEngine
 import app.openflow.stt.SttBias
 import app.openflow.stt.SttEngine
@@ -199,15 +201,20 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
+        // Every event can carry the foreground package — do not wait for
+        // WINDOW_STATE_CHANGED alone (task restore / am start can skip it).
+        lastPackage = ActivePackageTracker.remember(lastPackage, event.packageName?.toString())
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
             event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED
         ) {
-            event.packageName?.toString()?.let { lastPackage = it }
             // Keyboard open/close → bubble show/hide (Wispr).
             refreshBubbleVisibility()
         }
         if (prefs?.isSnoozed() == true) return
-        if (PackagePolicy.shouldHideBubble(lastPackage)) return
+        if (ActivePackageTracker.shouldIgnoreFocus(lastPackage)) {
+            refreshBubbleVisibility()
+            return
+        }
         when (event.eventType) {
             AccessibilityEvent.TYPE_VIEW_FOCUSED,
             AccessibilityEvent.TYPE_VIEW_CLICKED -> {
@@ -224,7 +231,10 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             AccessibilityEvent.TYPE_WINDOWS_CHANGED -> {
                 rootInActiveWindow?.let { root ->
                     try {
-                        root.packageName?.toString()?.let { lastPackage = it }
+                        lastPackage = ActivePackageTracker.remember(
+                            lastPackage,
+                            root.packageName?.toString(),
+                        )
                         val focused = findFocusedEditable(root)
                         if (focused != null) {
                             updateFocusFrom(focused)
@@ -425,14 +435,11 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         bubbleLabel = view.findViewById(R.id.bubble_label)
         bubblePulseRing = view.findViewById(R.id.bubble_pulse_ring)
         bubbleCancel = view.findViewById(R.id.bubble_cancel)
-        bubbleDone = view.findViewById(R.id.bubble_done)
+        bubbleDone = null // Done/save icon removed — tap bubble to insert
 
-        // Wispr: Cancel discards, Done inserts.
+        // Wispr: Cancel discards; tap bubble inserts.
         bubbleCancel?.setOnClickListener {
             if (listening || stopInProgress) stopListening(save = false)
-        }
-        bubbleDone?.setOnClickListener {
-            if (listening || stopInProgress) stopListening(save = true)
         }
 
         if (prefs == null) prefs = FlowPrefs(this)
@@ -711,6 +718,12 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     private fun refreshBubbleVisibility() {
         refreshImeHeight()
         val snoozed = prefs?.isSnoozed() == true
+        val activePkg = try {
+            rootInActiveWindow?.packageName?.toString()
+        } catch (_: Exception) {
+            null
+        }
+        lastPackage = ActivePackageTracker.remember(lastPackage, activePkg)
         val bankHide = PackagePolicy.shouldHideBubble(lastPackage)
         val hasField = focusedEditable != null
         // Wispr: show on text field. Keep visible while listening even if focus blips.
@@ -864,8 +877,17 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             /** Accept STT while this generation is active (including flush). */
             private fun live(): Boolean = gen == listenGeneration
 
-            override fun onPartial(text: String) {
-                if (!live()) return
+            /** Cloud WS / PCM threads must not touch Views or Toast. */
+            private fun ui(block: () -> Unit) {
+                MainThreadHop.run(
+                    isMain = Looper.myLooper() == Looper.getMainLooper(),
+                    post = { mainHandler.post(it) },
+                    block = block,
+                )
+            }
+
+            override fun onPartial(text: String) = ui {
+                if (!live()) return@ui
                 lastPartial = text.trim()
                 val elapsed = (SystemClock.elapsedRealtime() - listenStartedAt) / 1000
                 if (prefs?.bubbleShowText == true) {
@@ -877,9 +899,9 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 }
             }
 
-            override fun onFinal(text: String) {
-                if (!live()) return
-                if (text.isBlank()) return
+            override fun onFinal(text: String) = ui {
+                if (!live()) return@ui
+                if (text.isBlank()) return@ui
                 if (sessionBuffer.isNotEmpty()) sessionBuffer.append(' ')
                 sessionBuffer.append(text.trim())
                 lastPartial = ""
@@ -893,8 +915,9 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 }
             }
 
-            override fun onError(message: String, fatal: Boolean) {
-                if (!live() && !fatal) return
+            override fun onError(message: String, fatal: Boolean) = ui {
+                if (!live() && !fatal) return@ui
+                android.util.Log.w("OpenFlow.Bubble", "ear error fatal=$fatal msg=$message")
                 val mic = message.contains("Microphone", true) ||
                     message.contains("Allow mic", true)
                 val soft = !fatal && !mic && (
@@ -906,17 +929,18 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                     )
                 if (soft) {
                     setListenChrome((SystemClock.elapsedRealtime() - listenStartedAt) / 1000)
-                    return
+                    return@ui
                 }
-                bubbleLabel?.text = if (mic) {
+                val shown = if (mic) {
                     BubbleLabelFormatter.needMic()
                 } else {
-                    message.take(48)
+                    BubbleLabelFormatter.earError(message)
                 }
+                bubbleLabel?.text = shown
                 if (!mic && !soft) {
                     Toast.makeText(
                         this@FlowAccessibilityService,
-                        message.take(48),
+                        shown,
                         Toast.LENGTH_SHORT
                     ).show()
                 }
@@ -925,14 +949,14 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 }
             }
 
-            override fun onNeedMicPermission() {
-                if (!live()) return
+            override fun onNeedMicPermission() = ui {
+                if (!live()) return@ui
                 bubbleLabel?.text = BubbleLabelFormatter.needMic()
                 if (!stopInProgress) stopListening(save = false)
             }
 
-            override fun onReady() {
-                if (!live()) return
+            override fun onReady() = ui {
+                if (!live()) return@ui
                 val elapsed = (SystemClock.elapsedRealtime() - listenStartedAt) / 1000
                 if (prefs?.bubbleShowText == true) {
                     val current = bubbleLabel?.text?.toString().orEmpty()
@@ -947,15 +971,17 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 }
             }
 
-            override fun onListeningChanged(isOn: Boolean) {
-                if (!live()) return
+            override fun onListeningChanged(isOn: Boolean) = ui {
+                if (!live()) return@ui
                 if (!isOn && listening && !stopInProgress) {
+                    // System STT ends a segment this way. Cloud ears end via onError / user stop only.
+                    if (ear is CloudEar) return@ui
                     stopListening(save = true)
                 }
             }
 
-            override fun onRmsChanged(rmsdB: Float) {
-                if (!live()) return
+            override fun onRmsChanged(rmsdB: Float) = ui {
+                if (!live()) return@ui
                 lastRms = BubbleRms.capture(rmsdB)
                 applyRmsPulse()
                 if (prefs?.bubbleShowText != true) {
@@ -1332,10 +1358,10 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     }
 
     /**
-     * Minimal brutal chrome:
-     * - Idle: hard charcoal tile + cream stroke + mic
-     * - Listening: hard bar Cancel | status | Done (no purple)
-     * Shape pref: circle/dot/pill/square; default square (product brutal).
+     * Clean chrome:
+     * - Idle: soft pill + charcoal/cream (tint prefs)
+     * - Listening: Cancel | status (tap bubble to insert; no Done icon)
+     * Default shape: pill (product clean).
      */
     private fun updateBubbleVisuals() {
         val p = prefs ?: return
@@ -1344,15 +1370,14 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         val label = bubbleLabel ?: return
         val pulseRing = bubblePulseRing ?: return
         val cancel = bubbleCancel
-        val done = bubbleDone
         val density = resources.displayMetrics.density
         val shape = FlowPrefs.normalizeBubbleShape(p.bubbleShape)
 
         val mode = FlowPrefs.normalizeBubbleMode(p.bubbleMode)
         val orbDp = when (mode) {
             "dot" -> 40f
-            "compact" -> 48f
-            else -> 52f
+            "compact" -> 44f
+            else -> 48f
         }
         val stroke = BubbleChrome.strokePx(density)
         val fill = BubbleTint.argb(p.bubbleTint)
@@ -1361,7 +1386,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         if (listening) {
             val bg = GradientDrawable().apply {
                 this.shape = GradientDrawable.RECTANGLE
-                cornerRadius = BubbleChrome.cornerPx("listen", density)
+                cornerRadius = BubbleChrome.cornerPx("listen", density, p.bubbleRoundness)
                 setColor(fill)
                 setStroke(stroke, on)
             }
@@ -1371,19 +1396,17 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.CENTER
             )
-            val padH = (10f * density).toInt()
-            val padV = (8f * density).toInt()
+            val padH = (8f * density).toInt()
+            val padV = (6f * density).toInt()
             root.setPadding(padH, padV, padH, padV)
 
             cancel?.visibility = View.VISIBLE
             cancel?.setColorFilter(on)
-            done?.visibility = View.VISIBLE
-            done?.setColorFilter(on)
             icon.visibility = View.VISIBLE
             icon.setColorFilter(on)
             icon.layoutParams = LinearLayout.LayoutParams(
-                (20f * density).toInt(),
-                (20f * density).toInt()
+                (18f * density).toInt(),
+                (18f * density).toInt()
             ).apply { gravity = Gravity.CENTER }
             label.visibility = View.VISIBLE
             label.setTextColor(on)
@@ -1395,25 +1418,24 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             pulseRing.visibility = View.GONE
         } else {
             cancel?.visibility = View.GONE
-            done?.visibility = View.GONE
             label.visibility = View.GONE
             pulseRing.visibility = View.GONE
 
-            val size = (orbDp * density).toInt()
-            root.layoutParams = FrameLayout.LayoutParams(size, size, Gravity.CENTER)
+            val (w, h) = BubbleGeometry.overlaySizePx(listening = false, density = density, shape = shape)
+            root.layoutParams = FrameLayout.LayoutParams(w, h, Gravity.CENTER)
             root.setPadding(0, 0, 0, 0)
             val useOval = shape == "circle" || shape == "dot"
             root.background = GradientDrawable().apply {
                 this.shape = if (useOval) GradientDrawable.OVAL else GradientDrawable.RECTANGLE
                 if (!useOval) {
-                    cornerRadius = BubbleChrome.cornerPx(shape, density)
+                    cornerRadius = BubbleChrome.cornerPx(shape, density, p.bubbleRoundness)
                 }
                 setColor(fill)
                 setStroke(stroke, on)
             }
             icon.visibility = View.VISIBLE
             icon.setColorFilter(on)
-            val iconSz = (orbDp * 0.42f * density).toInt()
+            val iconSz = ((if (shape == "pill") 22f else orbDp * 0.42f) * density).toInt()
             icon.layoutParams = LinearLayout.LayoutParams(iconSz, iconSz).apply {
                 gravity = Gravity.CENTER
             }
@@ -1513,5 +1535,27 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             private set
 
         fun isRunning(): Boolean = instance != null
+
+        /**
+         * True when Settings lists our service — even if [instance] is briefly null
+         * after install / process restart (race before onServiceConnected).
+         */
+        fun isEnabled(context: android.content.Context): Boolean {
+            val flat = android.provider.Settings.Secure.getString(
+                context.contentResolver,
+                android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
+            )
+            val want = android.content.ComponentName(
+                context,
+                FlowAccessibilityService::class.java,
+            ).flattenToString()
+            return enabledInSecureList(flat, want)
+        }
+
+        /** Pure parse of ENABLED_ACCESSIBILITY_SERVICES colon list. */
+        fun enabledInSecureList(flat: String?, componentFlattened: String): Boolean {
+            if (flat.isNullOrBlank() || componentFlattened.isBlank()) return false
+            return flat.split(':').any { it.equals(componentFlattened, ignoreCase = true) }
+        }
     }
 }

@@ -10,7 +10,7 @@ import okio.ByteString.Companion.toByteString
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
-/** Real OkHttp WebSocket. Blocked URLs throw. Never logs headers. */
+/** OkHttp WebSocket. Blocked URLs throw. Never logs headers. */
 class AndroidCloudSocket(
     private val open: (Request, WebSocketListener) -> WebSocket = { req, listener ->
         defaultClient().newWebSocket(req, listener)
@@ -43,12 +43,9 @@ class AndroidCloudSocket(
                 }
 
                 override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                    val code = response?.code
-                    val detail = when {
-                        code != null -> "cloud socket failed ($code)"
-                        !t.message.isNullOrBlank() -> t.message!!
-                        else -> "cloud socket failed"
-                    }
+                    val detail = response?.code?.let { "cloud socket failed ($it)" }
+                        ?: t.message?.takeIf { it.isNotBlank() }
+                        ?: "cloud socket failed"
                     onError(detail)
                 }
             },

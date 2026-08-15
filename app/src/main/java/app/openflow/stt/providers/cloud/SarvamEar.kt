@@ -3,10 +3,7 @@ package app.openflow.stt.providers.cloud
 import app.openflow.ai.providers.cloud.ChatJson
 import java.util.Base64
 
-/**
- * Sarvam streaming STT per docs.sarvam.ai speech-to-text/ws.
- * Audio = JSON base64 (not raw binary). Header api-subscription-key.
- */
+/** Sarvam STT: wss speech-to-text/ws, base64 JSON audio, api-subscription-key. */
 class SarvamEar(
     apiKey: () -> String,
     socket: CloudSocket,
@@ -16,7 +13,7 @@ class SarvamEar(
 ) : CloudEar(apiKey, socket, hasMic, pcm) {
 
     override fun connectUrl(languageTag: String): String {
-        val lang = languageTag.ifBlank { "en-IN" }
+        val lang = sarvamLanguage(languageTag)
         val m = mode.ifBlank { "transcribe" }
         return "wss://api.sarvam.ai/speech-to-text/ws" +
             "?model=saaras:v3" +
@@ -41,7 +38,6 @@ class SarvamEar(
     }
 
     override fun parse(message: String): EarUtterance? {
-        // Official streaming: {"type":"data","data":{"transcript":"…"}}
         val responseType = ChatJson.firstString(message, "type")
         if (responseType == "data") {
             val text = ChatJson.firstString(message, "transcript") ?: return null
@@ -49,7 +45,6 @@ class SarvamEar(
             return EarUtterance(text, final = true)
         }
         if (responseType == "error" || responseType == "events") return null
-        // Legacy realtime event/text shape (tests + older clients)
         val event = ChatJson.firstString(message, "event").orEmpty()
         val text = ChatJson.firstString(message, "text") ?: return null
         if (text.isBlank()) return null
@@ -57,6 +52,17 @@ class SarvamEar(
             event.contains("final") -> EarUtterance(text, final = true)
             event.contains("partial") -> EarUtterance(text, final = false)
             else -> null
+        }
+    }
+
+    companion object {
+        /** Sarvam expects en-IN / hi-IN style tags, not en-US. */
+        fun sarvamLanguage(languageTag: String): String {
+            val t = languageTag.trim().ifBlank { return "en-IN" }
+            return when {
+                t.equals("en-US", ignoreCase = true) || t.equals("en", ignoreCase = true) -> "en-IN"
+                else -> t
+            }
         }
     }
 }

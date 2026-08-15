@@ -35,7 +35,9 @@ class SarvamEarTest {
         pcm.emit(chunk)
         assertThat(sock.sentBytes).isEmpty()
         assertThat(sock.sentText[0]).contains(Base64.getEncoder().encodeToString(chunk))
+        // Docs: AudioData.encoding enum is only audio/wav; sample_rate is string.
         assertThat(sock.sentText[0]).contains("\"encoding\":\"audio/wav\"")
+        assertThat(sock.sentText[0]).contains("\"sample_rate\":\"16000\"")
         sock.push("""{"type":"data","data":{"transcript":"namaste duniya","request_id":"r1","metrics":{"audio_duration":1.0,"processing_latency":0.1}}}""")
         assertThat(rec.finals).contains("namaste duniya")
         ear.stop()
@@ -63,6 +65,17 @@ class SarvamEarTest {
             startOnce("en-IN")
         }
         assertThat(sock.url).contains("mode=transcribe")
+        assertThat(sock.url).contains("language-code=en-IN")
+    }
+
+    @Test
+    fun en_us_maps_to_en_in() {
+        assertThat(SarvamEar.sarvamLanguage("en-US")).isEqualTo("en-IN")
+        val sock = FakeSocket()
+        SarvamEar(apiKey = { "k" }, socket = sock).apply {
+            setListener(RecListener())
+            startOnce("en-US")
+        }
         assertThat(sock.url).contains("language-code=en-IN")
     }
 

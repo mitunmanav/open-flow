@@ -85,11 +85,12 @@ class BubbleGeometryTest {
     }
 
     @Test
-    fun overlaySizePx_idle_is_52dp_square() {
+    fun overlaySizePx_idle_default_is_clean_pill() {
         val (w, h) = BubbleGeometry.overlaySizePx(listening = false, density = 2.625f)
-        // 52dp * 2.625 = 136.5 → 136px
-        assertThat(w).isEqualTo(136)
-        assertThat(h).isEqualTo(136)
+        // default shape pill: 96dp × 48dp
+        assertThat(w).isEqualTo((96f * 2.625f).toInt())
+        assertThat(h).isEqualTo((48f * 2.625f).toInt())
+        assertThat(w).isGreaterThan(h)
     }
 
     @Test
@@ -104,16 +105,16 @@ class BubbleGeometryTest {
     @Test
     fun idle_pill_is_wide_not_square() {
         val (w, h) = BubbleGeometry.overlaySizePx(listening = false, density = 2f, shape = "pill")
-        assertThat(w).isEqualTo(224) // 112dp
-        assertThat(h).isEqualTo(104) // 52dp
+        assertThat(w).isEqualTo(192) // 96dp
+        assertThat(h).isEqualTo(96) // 48dp
         assertThat(w).isGreaterThan(h)
     }
 
     @Test
-    fun idle_circle_is_52dp_square() {
+    fun idle_circle_is_48dp_square() {
         val (w, h) = BubbleGeometry.overlaySizePx(listening = false, density = 2f, shape = "circle")
-        assertThat(w).isEqualTo(104)
-        assertThat(h).isEqualTo(104)
+        assertThat(w).isEqualTo(96)
+        assertThat(h).isEqualTo(96)
     }
 
     @Test
@@ -124,11 +125,11 @@ class BubbleGeometryTest {
     }
 
     @Test
-    fun listen_is_240x52_regardless_of_shape() {
+    fun listen_is_220x48_regardless_of_shape() {
         for (shape in listOf("pill", "circle", "dot", "square")) {
             val (w, h) = BubbleGeometry.overlaySizePx(listening = true, density = 2f, shape = shape)
-            assertThat(w).isEqualTo(480)
-            assertThat(h).isEqualTo(104)
+            assertThat(w).isEqualTo(440)
+            assertThat(h).isEqualTo(96)
         }
     }
 

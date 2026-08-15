@@ -107,13 +107,11 @@ object DictationNotifier {
             PackageManager.PERMISSION_GRANTED
     }
 
-    /** Drop dictation + service-stopped notifications. */
     fun cancelAll(ctx: Context) {
-        try {
-            val nm = ctx.getSystemService(NotificationManager::class.java) ?: return
+        val nm = ctx.getSystemService(NotificationManager::class.java) ?: return
+        runCatching {
             nm.cancel(NOTIF_ID)
             nm.cancel(NOTIF_ID + 1)
-        } catch (_: Exception) {
         }
     }
 }

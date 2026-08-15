@@ -26,7 +26,8 @@ class DeepgramEarTest {
         ear.startContinuous("en-US")
         assertThat(sock.url).isEqualTo(
             "wss://api.deepgram.com/v1/listen" +
-                "?encoding=linear16&sample_rate=16000&channels=1&interim_results=true",
+                "?model=nova-2&encoding=linear16&sample_rate=16000&channels=1&interim_results=true" +
+                "&language=en-US",
         )
         assertThat(sock.headers["Authorization"]).isEqualTo("Token dg-key")
         sock.push("""{"is_final":false,"channel":{"alternatives":[{"transcript":"hello"}]}}""")

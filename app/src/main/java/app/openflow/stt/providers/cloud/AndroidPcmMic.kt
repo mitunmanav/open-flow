@@ -6,7 +6,7 @@ import android.media.MediaRecorder
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 
-/** 16 kHz mono PCM16 from the mic. Fail-soft if AudioRecord cannot start. */
+/** 16 kHz mono PCM16 mic. Fail-soft if AudioRecord cannot start. */
 class AndroidPcmMic(
     private val sampleRate: Int = 16_000,
 ) : PcmSource {
@@ -65,19 +65,11 @@ class AndroidPcmMic(
 
     override fun stop() {
         running.set(false)
-        try {
-            worker?.join(500)
-        } catch (_: Exception) {
-        }
+        runCatching { worker?.join(500) }
         worker = null
-        try {
-            record?.stop()
-        } catch (_: Exception) {
-        }
-        try {
-            record?.release()
-        } catch (_: Exception) {
-        }
+        val ar = record
         record = null
+        runCatching { ar?.stop() }
+        runCatching { ar?.release() }
     }
 }

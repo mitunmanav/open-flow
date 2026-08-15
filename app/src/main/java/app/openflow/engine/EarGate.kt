@@ -1,9 +1,6 @@
 package app.openflow.engine
 
-/**
- * Live picks for development / opt-in cloud.
- * Stub ears (on-phone / laptop / custom_stt) stay gated until Track B/C.
- */
+/** Which ear/brain ids are live; stubs resolve away. */
 object EarGate {
     private val cloudEars = setOf("openai", "deepgram", "assemblyai", "sarvam")
 
@@ -18,9 +15,9 @@ object EarGate {
     }
 
     fun resolveBrain(id: String): String {
-        val b = id.trim().lowercase()
-        return if (b == "on_phone") EnginePrefs.DEFAULT_BRAIN else id.trim().ifEmpty {
-            EnginePrefs.DEFAULT_BRAIN
-        }
+        val trimmed = id.trim()
+        if (trimmed.isEmpty()) return EnginePrefs.DEFAULT_BRAIN
+        if (trimmed.equals("on_phone", ignoreCase = true)) return EnginePrefs.DEFAULT_BRAIN
+        return trimmed
     }
 }

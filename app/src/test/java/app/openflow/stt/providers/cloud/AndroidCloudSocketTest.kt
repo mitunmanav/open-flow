@@ -80,7 +80,8 @@ class AndroidCloudSocketTest {
         sock.fail("cloud socket failed")
         assertThat(lis.errors).containsExactly("cloud socket failed")
         assertThat(lis.fatal).containsExactly(true)
-        assertThat(lis.listening.last()).isFalse()
+        // Error path must not emit listening=false (that auto-stops the bubble early).
+        assertThat(lis.listening).containsExactly(true)
     }
 
     private class RecordingWs : WebSocket {

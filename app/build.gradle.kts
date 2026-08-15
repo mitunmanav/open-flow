@@ -7,12 +7,12 @@ plugins {
 
 android {
     namespace = "app.openflow"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "app.openflow"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 6
         versionName = "0.1.5"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

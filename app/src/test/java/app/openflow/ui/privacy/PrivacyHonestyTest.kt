@@ -14,6 +14,9 @@ class PrivacyHonestyTest {
         assertThat(PrivacyHonesty.HOME_FOOTER.lowercase()).doesNotContain("never upload")
         assertThat(PrivacyHonesty.SETTINGS_BODY.lowercase()).doesNotContain("never upload")
         assertThat(PrivacyHonesty.KEEP_FOREVER.lowercase()).doesNotContain("never uploaded")
+        // Cloud ear is opt-in — do not claim it is off for this version.
+        assertThat(PrivacyHonesty.SETTINGS_BODY.lowercase()).doesNotContain("off in 0.1")
+        assertThat(PrivacyHonesty.SETTINGS_BODY.lowercase()).contains("until you pick")
     }
 
     @Test

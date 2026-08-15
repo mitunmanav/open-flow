@@ -13,6 +13,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -97,6 +98,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import app.openflow.R
 import app.openflow.OpenFlowApp
+import app.openflow.bubble.BubbleChrome
 import app.openflow.bubble.FlowAccessibilityService
 import app.openflow.data.DictationEntity
 import app.openflow.data.DictionaryWordEntity
@@ -119,6 +121,7 @@ import app.openflow.ui.engine.EngineSettingsScreen
 import app.openflow.ui.home.HistoryDays
 import app.openflow.ui.home.HistorySearchPolicy
 import app.openflow.ui.home.HomeBannerPolicy
+import app.openflow.ui.home.ModuleEditorVisibility
 import app.openflow.ui.privacy.PrivacyHonesty
 import app.openflow.ui.setup.FirstRunPolicy
 import app.openflow.ui.setup.SetupWizard
@@ -129,6 +132,8 @@ import app.openflow.ui.theme.BubbleTint
 import app.openflow.ui.theme.Motion
 import app.openflow.ui.theme.OpenFlowTheme
 import app.openflow.ui.theme.VisualSkin
+import app.openflow.ui.theme.rememberMotionMs
+import app.openflow.ui.theme.rememberShouldAnimate
 import app.openflow.ui.walkthrough.WalkthroughPager
 import app.openflow.ui.walkthrough.WalkthroughPolicy
 import kotlinx.coroutines.launch
@@ -201,7 +206,12 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 // Real back stack — Back pops one level; bottom tabs reset stack.
-                var bubbleOn by remember { mutableStateOf(FlowAccessibilityService.isRunning()) }
+                var bubbleOn by remember {
+                    mutableStateOf(
+                        FlowAccessibilityService.isRunning() ||
+                            FlowAccessibilityService.isEnabled(this@MainActivity)
+                    )
+                }
                 var micOn by remember { _micGranted }
                 var batterySeen by remember { mutableStateOf(app.prefs.setupBatterySeen) }
                 _micGranted.value = ContextCompat.checkSelfPermission(
@@ -247,7 +257,8 @@ class MainActivity : ComponentActivity() {
                 DisposableEffect(owner) {
                     val obs = LifecycleEventObserver { _, e ->
                         if (e == Lifecycle.Event.ON_RESUME) {
-                            bubbleOn = FlowAccessibilityService.isRunning()
+                            bubbleOn = FlowAccessibilityService.isRunning() ||
+                                FlowAccessibilityService.isEnabled(this@MainActivity)
                             micOn = ContextCompat.checkSelfPermission(
                                 this@MainActivity,
                                 Manifest.permission.RECORD_AUDIO
@@ -307,11 +318,17 @@ class MainActivity : ComponentActivity() {
                     onBack = { goBack() },
                     isDrawerExtraVisible = { true }
                 ) { padding ->
+                    val tabMs = rememberMotionMs(Motion.TAB_SWITCH_MS)
+                    val animateTabs = rememberShouldAnimate()
                     AnimatedContent(
                         targetState = route to layoutTick,
                         transitionSpec = {
-                            fadeIn(tween(Motion.TAB_SWITCH_MS)) togetherWith
-                                fadeOut(tween(Motion.TAB_SWITCH_MS))
+                            if (!animateTabs || tabMs == 0) {
+                                fadeIn(tween(0)) togetherWith fadeOut(tween(0))
+                            } else {
+                                fadeIn(tween(tabMs, easing = FastOutSlowInEasing)) togetherWith
+                                    fadeOut(tween(tabMs, easing = FastOutSlowInEasing))
+                            }
                         },
                         label = "route_content",
                         modifier = Modifier.padding(padding)
@@ -475,10 +492,11 @@ private fun HomeHub(
     onOpenSpeechAi: () -> Unit,
     onBattery: () -> Unit
 ) {
-    val dictations by app.dictations.observeDictations().collectAsState(initial = emptyList())
+    val dictations by app.dictations.observeRecentDictations(3).collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
     val ctx = LocalContext.current
     var statsText by remember { mutableStateOf("…") }
+    var sessionCount by remember { mutableIntStateOf(0) }
     var localNote by rememberSaveable { mutableStateOf("") }
     var cleanup by remember { mutableStateOf(app.prefs.cleanupLevel) }
     var showText by remember { mutableStateOf(app.prefs.bubbleShowText) }
@@ -496,6 +514,7 @@ private fun HomeHub(
                 scope.launch {
                     val s = app.dictations.stats()
                     statsText = "${s.totalWords} words · ${s.totalSessions} sessions · ${s.streakDays}d streak"
+                    sessionCount = s.totalSessions.toInt()
                 }
             }
         }
@@ -503,6 +522,7 @@ private fun HomeHub(
         scope.launch {
             val s = app.dictations.stats()
             statsText = "${s.totalWords} words · ${s.totalSessions} sessions · ${s.streakDays}d streak"
+            sessionCount = s.totalSessions.toInt()
         }
         onDispose { owner.lifecycle.removeObserver(obs) }
     }
@@ -769,19 +789,14 @@ private fun HomeHub(
                                     modifier = Modifier.testTag("setup_chip_mic"),
                                     onClick = onMic
                                 )
-                                OpenChip(
-                                    label = "Battery settings",
-                                    isOn = false,
-                                    showCheckWhenOn = false,
-                                    modifier = Modifier.testTag("setup_chip_battery"),
-                                    onClick = onBattery
-                                )
                             }
                             if (!bubbleOn) {
                                 OpenButton(
                                     text = "Open Accessibility",
                                     onClick = onEnableBubble,
-                                    modifier = Modifier.testTag("setup_btn_a11y")
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("setup_btn_a11y")
                                 )
                             }
                             if (!micOn) {
@@ -789,7 +804,9 @@ private fun HomeHub(
                                     text = "Allow microphone",
                                     onClick = onMic,
                                     variant = if (bubbleOn) ButtonVariant.Filled else ButtonVariant.Outlined,
-                                    modifier = Modifier.testTag("setup_btn_mic")
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("setup_btn_mic")
                                 )
                             }
                             if (ready) {
@@ -797,7 +814,26 @@ private fun HomeHub(
                                     text = "Bubble settings",
                                     onClick = onOpenBubbleSettings,
                                     variant = ButtonVariant.Outlined,
-                                    modifier = Modifier.testTag("setup_btn_bubble_settings")
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("setup_btn_bubble_settings")
+                                )
+                                OpenButton(
+                                    text = "Battery settings",
+                                    onClick = onBattery,
+                                    variant = ButtonVariant.Outlined,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("setup_chip_battery")
+                                )
+                            } else {
+                                OpenButton(
+                                    text = "Battery settings",
+                                    onClick = onBattery,
+                                    variant = ButtonVariant.Outlined,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("setup_chip_battery")
                                 )
                             }
                         }
@@ -825,7 +861,7 @@ private fun HomeHub(
                                 onValueChange = { localNote = it },
                                 placeholder = "Tap bubble · speak · tap stop…",
                                 singleLine = false,
-                                minLines = 3,
+                                minLines = 2,
                                 modifier = Modifier.testTag("practice_field")
                             )
                         }
@@ -895,43 +931,57 @@ private fun HomeHub(
                                     }
                                 )
                             }
-                            FlowRow(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .wrapContentHeight(),
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            Text(
+                                "More",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
                             ) {
                                 OpenButton(
                                     text = "Speech + AI",
                                     onClick = onOpenSpeechAi,
-                                    variant = ButtonVariant.Text,
-                                    modifier = Modifier.testTag("home_link_speech_ai")
+                                    variant = ButtonVariant.Outlined,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("home_link_speech_ai")
                                 )
                                 OpenButton(
-                                    text = "Rules",
+                                    text = "Cleanup",
                                     onClick = onOpenCleanup,
-                                    variant = ButtonVariant.Text,
-                                    modifier = Modifier.testTag("home_link_cleanup")
+                                    variant = ButtonVariant.Outlined,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("home_link_cleanup")
                                 )
                                 OpenButton(
                                     text = "Style",
                                     onClick = onOpenStyle,
-                                    variant = ButtonVariant.Text,
-                                    modifier = Modifier.testTag("home_link_style")
+                                    variant = ButtonVariant.Outlined,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("home_link_style")
                                 )
                                 OpenButton(
                                     text = "Theme",
                                     onClick = onOpenAppearance,
-                                    variant = ButtonVariant.Text,
-                                    modifier = Modifier.testTag("home_link_theme")
+                                    variant = ButtonVariant.Outlined,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("home_link_theme")
                                 )
                             }
                         }
                     }
                 }
                 "stats" -> {
-                    if (lastClean.isNotBlank()) {
+                    val topRecent = dictations.firstOrNull()?.text?.trim().orEmpty()
+                    val showLastCard = lastClean.isNotBlank() &&
+                        lastClean.trim() != topRecent
+                    if (showLastCard) {
                         OpenCard(modifier = Modifier.testTag("home_last_dictation")) {
                             Column(
                                 Modifier.padding(Dimen.MIN_PADDING),
@@ -985,7 +1035,7 @@ private fun HomeHub(
                             )
                         }
                         OpenButton(
-                            text = "All (${dictations.size})",
+                            text = "All ($sessionCount)",
                             onClick = onOpenHistory,
                             variant = ButtonVariant.Text,
                             modifier = Modifier.testTag("home_history_all")
@@ -1001,7 +1051,7 @@ private fun HomeHub(
                             modifier = Modifier.testTag("home_recent_empty")
                         )
                     } else {
-                        dictations.take(4).forEach { d: DictationEntity ->
+                        dictations.forEach { d: DictationEntity ->
                             DictationCard(
                                 d = d,
                                 onDelete = {
@@ -1047,7 +1097,7 @@ private fun HomeHub(
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
             softWrap = true
         )
-        Spacer(Modifier.height(Dimen.GAP))
+        Spacer(Modifier.height(Dimen.Space8))
     }
 }
 
@@ -1299,30 +1349,7 @@ private fun DictationCard(
                 )
             }
 
-            if (hasRaw) {
-                OpenChip(
-                    label = if (showRaw) "Hide raw" else "Show raw",
-                    isOn = showRaw,
-                    onClick = { showRaw = !showRaw }
-                )
-                if (showRaw) {
-                    Surface(
-                        color = SecUi.stone,
-                        shape = MaterialTheme.shapes.small,
-                        border = SecUi.thinBorder,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            d.rawText,
-                            modifier = Modifier.padding(Dimen.GAP_SM),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = SecUi.charcoal,
-                            softWrap = true
-                        )
-                    }
-                }
-            }
-
+            // Compact labels so Copy | Raw | Copy raw fit one row on 411dp.
             FlowRow(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1332,7 +1359,28 @@ private fun DictationCard(
             ) {
                 CopyButton(text = d.text, label = "Copy")
                 if (hasRaw) {
-                    CopyButton(text = d.rawText, label = "Copy Raw")
+                    OpenChip(
+                        label = if (showRaw) "Hide" else "Raw",
+                        isOn = showRaw,
+                        onClick = { showRaw = !showRaw }
+                    )
+                    CopyButton(text = d.rawText, label = "Raw copy")
+                }
+            }
+            if (hasRaw && showRaw) {
+                Surface(
+                    color = SecUi.stone,
+                    shape = MaterialTheme.shapes.small,
+                    border = SecUi.thinBorder,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        d.rawText,
+                        modifier = Modifier.padding(Dimen.GAP_SM),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = SecUi.charcoal,
+                        softWrap = true
+                    )
                 }
             }
         }
@@ -1439,7 +1487,7 @@ private fun DictionaryTab(app: OpenFlowApp) {
                     modifier = Modifier.testTag("dict_repl")
                 )
                 OpenButton(
-                    text = "Save Word",
+                    text = "Save word",
                     modifier = Modifier.testTag("dict_save_word"),
                     enabled = word.isNotBlank(),
                     onClick = {
@@ -1569,7 +1617,7 @@ private fun SnippetsTab(app: OpenFlowApp) {
                     minLines = 3
                 )
                 OpenButton(
-                    text = "Add Snippet",
+                    text = "Add snippet",
                     modifier = Modifier.testTag("snippet_add"),
                     enabled = trigger.isNotBlank() && body.isNotBlank(),
                     onClick = {
@@ -1879,7 +1927,7 @@ private fun SettingsHub(
             softWrap = true
         )
 
-        SettingsRow("Speech + AI", "Ear, brain, key, URL. Where audio and text go.", onSpeechAi)
+        SettingsRow("Speech + AI", "Pick speech and rewrite. Where audio and text go.", onSpeechAi)
         SettingsRow("Flow Bubble & Gestures", "Shape, size, opacity, edge magnetic snap", onBubble)
         SettingsRow("Cleanup Pipeline", "Filler words, course corrections, lists", onCleanup)
         SettingsRow("Writing Style", "Casual, formal, concise persona", onStyle)
@@ -2260,18 +2308,18 @@ private fun ModuleEditor(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        OpenChip(
-                            label = if (m.visible) "Show" else "Hide",
-                            isOn = m.visible,
-                            modifier = Modifier.wrapContentHeight(),
-                            onClick = {
-                                focusedId = m.id
-                                if (!locked) {
+                        if (ModuleEditorVisibility.showHideChip(locked)) {
+                            OpenChip(
+                                label = if (m.visible) "Show" else "Hide",
+                                isOn = m.visible,
+                                modifier = Modifier.wrapContentHeight(),
+                                onClick = {
+                                    focusedId = m.id
                                     local = LayoutPrefs.toggleVisible(local, m.id)
                                     onChange(local)
                                 }
-                            }
-                        )
+                            )
+                        }
                         OpenChip(
                             label = "↑ Up",
                             isOn = false,
@@ -2331,36 +2379,38 @@ private fun ModuleEditor(
 
 @Composable
 private fun SettingsRow(title: String, subtitle: String, onClick: () -> Unit) {
-    OpenCard(onClick = onClick) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .heightIn(min = Dimen.MIN_TOUCH)
-                .padding(Dimen.MIN_PADDING),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = SecUi.charcoal,
-                    softWrap = true
-                )
-                Text(
-                    subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = SecUi.muted,
-                    softWrap = true
-                )
-            }
-            Icon(
-                Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = "Open $title",
-                tint = SecUi.muted
+    // Flat row — no offset-shadow OpenCard (many shadows = Settings jank).
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = Dimen.MIN_TOUCH)
+            .border(SecUi.hardBorder)
+            .clickable(onClick = onClick)
+            .padding(Dimen.MIN_PADDING),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = SecUi.charcoal,
+                softWrap = true
+            )
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = SecUi.muted,
+                softWrap = true,
+                maxLines = 2
             )
         }
+        Icon(
+            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = "Open $title",
+            tint = SecUi.muted
+        )
     }
 }
 
@@ -2539,6 +2589,7 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
     var feel by remember { mutableStateOf(prefs.hapticFeel) }
     var pulse by remember { mutableStateOf(prefs.bubblePulse) }
     var tint by remember { mutableStateOf(prefs.bubbleTint) }
+    var roundness by remember { mutableStateOf(prefs.bubbleRoundness) }
 
     Column(
         Modifier
@@ -2568,14 +2619,22 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                 .heightIn(min = 120.dp)
                 .padding(vertical = Dimen.GAP_SM)
                 .border(SecUi.hardBorder)
-                .background(SecUi.cream)
+                .background(Color(BubbleTint.previewStageArgb(tint)))
                 .testTag("bubble_preview"),
             contentAlignment = Alignment.Center
         ) {
-            val previewShape = when (shape) {
-                "circle", "dot" -> CircleShape
-                "pill" -> RoundedCornerShape(50)
-                else -> RoundedCornerShape(2.dp)
+            val previewShape = when {
+                shape == "circle" || shape == "dot" -> CircleShape
+                shape == "pill" -> when (roundness) {
+                    BubbleChrome.ROUND_ROUND -> RoundedCornerShape(50)
+                    BubbleChrome.ROUND_SOFT -> RoundedCornerShape(16.dp)
+                    else -> RoundedCornerShape(12.dp)
+                }
+                else -> when (roundness) {
+                    BubbleChrome.ROUND_ROUND -> RoundedCornerShape(16.dp)
+                    BubbleChrome.ROUND_SOFT -> RoundedCornerShape(8.dp)
+                    else -> RoundedCornerShape(2.dp)
+                }
             }
             val baseW = when (shape) {
                 "dot" -> 22.dp
@@ -2665,15 +2724,66 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                         BubbleTint.CHARCOAL to "Charcoal",
                         BubbleTint.CREAM to "Cream",
                         BubbleTint.INK to "Ink",
-                        BubbleTint.STONE to "Stone"
+                        BubbleTint.STONE to "Stone",
+                        BubbleTint.SKY to "Sky",
+                        BubbleTint.FOREST to "Forest",
+                        BubbleTint.CORAL to "Coral",
+                        BubbleTint.GRAPE to "Grape",
                     ).forEach { (id, label) ->
                         OpenChip(
                             label = label,
                             isOn = tint == id,
+                            showCheckWhenOn = true,
                             modifier = Modifier.wrapContentHeight(),
                             onClick = {
                                 tint = id
                                 prefs.bubbleTint = id
+                                onApplyBubble()
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        OpenCard {
+            Column(
+                Modifier.padding(Dimen.MIN_PADDING),
+                verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+            ) {
+                Text(
+                    "Corners",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = SecUi.charcoal
+                )
+                Text(
+                    "Hard = brutal. Soft / Round = friendlier pill edges.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = SecUi.muted
+                )
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight(),
+                    horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM),
+                    verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+                ) {
+                    listOf(
+                        BubbleChrome.ROUND_HARD to "Hard",
+                        BubbleChrome.ROUND_SOFT to "Soft",
+                        BubbleChrome.ROUND_ROUND to "Round",
+                    ).forEach { (id, label) ->
+                        OpenChip(
+                            label = label,
+                            isOn = roundness == id,
+                            showCheckWhenOn = true,
+                            modifier = Modifier
+                                .wrapContentHeight()
+                                .testTag("bubble_round_$id"),
+                            onClick = {
+                                roundness = id
+                                prefs.bubbleRoundness = id
                                 onApplyBubble()
                             }
                         )
@@ -2891,7 +3001,7 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
         }
 
         OpenButton(
-            text = "Wake / Reset Bubble",
+            text = "Wake / reset bubble",
             onClick = {
                 prefs.clearSnooze()
                 onApplyBubble()

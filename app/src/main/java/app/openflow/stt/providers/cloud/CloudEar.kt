@@ -29,14 +29,11 @@ abstract class CloudEar(
     override fun stop() {
         pcm.stop()
         val live = session
+        session = null
         if (live != null) {
-            try {
-                onSessionClose(live)
-            } catch (_: Exception) {
-            }
+            runCatching { onSessionClose(live) }
             live.close()
         }
-        session = null
         listener?.onListeningChanged(false)
     }
 
@@ -70,7 +67,8 @@ abstract class CloudEar(
                 onError = { err ->
                     pcm.stop()
                     session = null
-                    listener?.onListeningChanged(false)
+                    // Do not emit listening=false first — service treats that as end-of-utterance
+                    // and can stop before onError toast/log runs.
                     listener?.onError(err, true)
                 },
                 onText = { msg ->
@@ -93,14 +91,11 @@ abstract class CloudEar(
         }
     }
 
-    /** Default: raw PCM binary (Deepgram / AssemblyAI). */
     protected open fun writeAudio(session: CloudSession, pcm: ByteArray) {
         session.send(pcm)
     }
 
-    /** After connect, before mic. OpenAI session.update, etc. */
     protected open fun onSessionOpen(session: CloudSession) = Unit
 
-    /** Before socket close. Terminate / CloseStream / flush / commit. */
     protected open fun onSessionClose(session: CloudSession) = Unit
 }

@@ -40,14 +40,14 @@ class WalkthroughPolicyTest {
     @Test
     fun copy_not_ime_and_privacy_clear() {
         val what = WalkthroughPolicy.copy(WalkthroughPolicy.Page.WHAT)
-        assertThat(what.title).isEqualTo("What")
-        assertThat(what.body).contains("Not a keyboard")
+        assertThat(what.title).isEqualTo("Speak to type")
+        assertThat(what.body).contains("Not a new keyboard")
         val privacy = WalkthroughPolicy.copy(WalkthroughPolicy.Page.PRIVACY)
         assertThat(privacy.body.lowercase()).contains("post")
         assertThat(privacy.body.lowercase()).doesNotContain("do not upload")
         val ready = WalkthroughPolicy.copy(WalkthroughPolicy.Page.READY)
         assertThat(ready.body).contains("bubble")
         assertThat(WalkthroughPolicy.a11yLabel(WalkthroughPolicy.Page.WHAT))
-            .isEqualTo("Page 1 of 5. What.")
+            .isEqualTo("Page 1 of 5. Speak to type.")
     }
 }

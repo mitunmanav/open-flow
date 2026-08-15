@@ -9,6 +9,9 @@ import app.openflow.engine.EarGate
  */
 data class EnginePreset(val id: String, val label: String)
 
+/** Picker group: Local / Cloud / Later. */
+data class EngineSection(val id: String, val title: String, val items: List<EnginePreset>)
+
 /** Indicator chip. Lit = this pick turns it on. Not a toggle. */
 data class FeatureChip(val id: String, val label: String, val lit: Boolean)
 
@@ -29,8 +32,8 @@ data class EnginePickerState(
 ) {
     companion object {
         val ears: List<EnginePreset> = listOf(
-            EnginePreset("system", "Phone STT"),
-            EnginePreset("on_phone", "On this phone"),
+            EnginePreset("system", "Phone speech"),
+            EnginePreset("on_phone", "Whisper on phone"),
             EnginePreset("laptop", "Your computer"),
             EnginePreset("openai", "OpenAI"),
             EnginePreset("deepgram", "Deepgram"),
@@ -41,7 +44,7 @@ data class EnginePickerState(
 
         val brains: List<EnginePreset> = listOf(
             EnginePreset("none", "Rules only"),
-            EnginePreset("on_phone", "On this phone"),
+            EnginePreset("on_phone", "On-device model"),
             EnginePreset("laptop", "Your computer"),
             EnginePreset("openai", "OpenAI"),
             EnginePreset("grok", "Grok (xAI)"),
@@ -60,8 +63,70 @@ data class EnginePickerState(
         val sarvamModes: List<EnginePreset> = listOf(
             EnginePreset("transcribe", "Transcribe"),
             EnginePreset("translate", "Translate"),
-            EnginePreset("mix", "Mix"),
-            EnginePreset("roman", "Roman"),
+            EnginePreset("verbatim", "Verbatim"),
+            EnginePreset("translit", "Translit"),
+            EnginePreset("codemix", "Code-mix"),
+        )
+
+        fun earSections(): List<EngineSection> = listOf(
+            EngineSection(
+                "local",
+                "On this phone",
+                listOf(EnginePreset("system", "Phone speech")),
+            ),
+            EngineSection(
+                "cloud",
+                "Cloud speech",
+                listOf(
+                    EnginePreset("openai", "OpenAI"),
+                    EnginePreset("deepgram", "Deepgram"),
+                    EnginePreset("assemblyai", "AssemblyAI"),
+                    EnginePreset("sarvam", "Sarvam"),
+                ),
+            ),
+            EngineSection(
+                "later",
+                "Coming later",
+                listOf(
+                    EnginePreset("on_phone", "Whisper on phone"),
+                    EnginePreset("laptop", "Your computer"),
+                    EnginePreset("custom_stt", "Custom speech URL"),
+                ),
+            ),
+        )
+
+        fun brainSections(): List<EngineSection> = listOf(
+            EngineSection(
+                "rules",
+                "No AI rewrite",
+                listOf(EnginePreset("none", "Rules only")),
+            ),
+            EngineSection(
+                "cloud",
+                "Cloud rewrite",
+                listOf(
+                    EnginePreset("openai", "OpenAI"),
+                    EnginePreset("grok", "Grok (xAI)"),
+                    EnginePreset("minimax", "MiniMax"),
+                    EnginePreset("deepseek", "DeepSeek"),
+                    EnginePreset("gemini", "Gemini"),
+                    EnginePreset("mistral", "Mistral"),
+                    EnginePreset("together", "Together"),
+                    EnginePreset("fireworks", "Fireworks"),
+                    EnginePreset("openrouter", "OpenRouter"),
+                    EnginePreset("sarvam", "Sarvam"),
+                    EnginePreset("anthropic", "Anthropic"),
+                ),
+            ),
+            EngineSection(
+                "later",
+                "Coming later",
+                listOf(
+                    EnginePreset("on_phone", "On-device model"),
+                    EnginePreset("laptop", "Your computer"),
+                    EnginePreset("custom", "Custom URL"),
+                ),
+            ),
         )
 
         private val knownEars = ears.map { it.id }.toSet()
@@ -77,7 +142,7 @@ data class EnginePickerState(
         private val urlBrains = setOf("laptop", "custom")
         private val rewriteBrains = knownBrains - setOf("none", "on_phone")
 
-        const val STUB_EAR_REASON = "Not ready — pick Phone STT or a cloud ear with a key"
+        const val STUB_EAR_REASON = "Not ready yet — use Phone speech or a cloud option with a key"
 
         fun earEnabled(id: String): Boolean = EarGate.live(id)
 
@@ -93,8 +158,8 @@ data class EnginePickerState(
 
         fun brainDisabledReason(id: String, url: String): String? = when {
             brainEnabled(id, url) -> null
-            id == "on_phone" -> "Not in 0.1.5 — on-phone brain is a stub"
-            id in urlBrains -> "Need a valid HTTPS or LAN URL"
+            id == "on_phone" -> "Not in this version — on-device rewrite comes later"
+            id in urlBrains -> "Add a valid HTTPS or LAN URL first"
             else -> null
         }
 
@@ -117,17 +182,16 @@ data class EnginePickerState(
                 pathKind = kind,
                 honesty = "$kind. ${honestyLine(ear, brain)}",
                 highLabel = if (rewrite) "High (AI)" else "High (rules)",
-                commandWhy = if (rewrite) null else "Command Mode — needs a brain",
+                commandWhy = if (rewrite) null else "Voice commands need a rewrite brain",
                 chips = listOf(
                     FeatureChip("high_ai", if (rewrite) "High AI" else "High (rules)", rewrite),
-                    FeatureChip("command", "Command", rewrite),
-                    FeatureChip("live_partials", "live partials", livePartials),
+                    FeatureChip("command", "Commands", rewrite),
+                    FeatureChip("live_partials", "Live partials", livePartials),
                     FeatureChip("sarvam", "Sarvam modes", showSarvam),
                 ),
             )
         }
 
-        /** Local = system/on_phone ear + rules/on_phone brain. Else Online. */
         fun pathKind(ear: String, brain: String): String {
             val onlineEar = ear in setOf("openai", "deepgram", "assemblyai", "sarvam", "laptop", "custom_stt")
             val onlineBrain = brain in rewriteBrains
@@ -143,7 +207,7 @@ data class EnginePickerState(
 
         fun missingKeyLine(needsKey: Boolean, keyMask: String): String? =
             if (needsKey && keyMask.isBlank()) {
-                "Paste a key or this pick cannot call the net."
+                "Add an API key below — this choice needs the network."
             } else {
                 null
             }
@@ -175,7 +239,7 @@ data class EnginePickerState(
             return if (ear == "on_phone") {
                 "Audio stays on this phone."
             } else {
-                "On this phone. Phone STT may still use Google."
+                "On this phone. Phone speech may still use Google."
             }
         }
     }

@@ -20,13 +20,15 @@ class OpenAiRealtimeEar(
         )
 
     override fun onSessionOpen(session: CloudSession) {
+        // Docs: session.update + type=transcription; PCM 24 kHz; gpt-live-transcribe + languages[].
         session.sendText(
-            """{"type":"session.update","session":{"input_audio_format":"pcm16"}}""",
+            """{"type":"session.update","session":{"type":"transcription","audio":{"input":{"format":{"type":"audio/pcm","rate":24000},"transcription":{"model":"gpt-live-transcribe","languages":["en"]},"turn_detection":{"type":"server_vad"}}}}}""",
         )
     }
 
     override fun writeAudio(session: CloudSession, pcm: ByteArray) {
-        val b64 = Base64.getEncoder().encodeToString(pcm)
+        val at24k = PcmResample.upsample16kTo24k(pcm)
+        val b64 = Base64.getEncoder().encodeToString(at24k)
         session.sendText(
             """{"type":"input_audio_buffer.append","audio":"$b64"}""",
         )

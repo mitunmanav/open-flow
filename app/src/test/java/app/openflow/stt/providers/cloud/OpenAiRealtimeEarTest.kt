@@ -30,9 +30,9 @@ class OpenAiRealtimeEarTest {
         assertThat(sock.url).isEqualTo("wss://api.openai.com/v1/realtime?intent=transcription")
         assertThat(sock.headers["Authorization"]).isEqualTo("Bearer sk-live")
         assertThat(sock.headers["OpenAI-Beta"]).isEqualTo("realtime=v1")
-        assertThat(sock.sentText).contains(
-            """{"type":"session.update","session":{"input_audio_format":"pcm16"}}""",
-        )
+        assertThat(sock.sentText.any { it.contains("\"type\":\"session.update\"") && it.contains("transcription") }).isTrue()
+        assertThat(sock.sentText.any { it.contains("gpt-live-transcribe") && it.contains("24000") }).isTrue()
+        assertThat(sock.sentText.none { it.contains("transcription_session.update") }).isTrue()
         assertThat(rec.ready).isEqualTo(1)
         assertThat(rec.listening).contains(true)
         sock.push("""{"type":"conversation.item.input_audio_transcription.delta","delta":"hi"}""")

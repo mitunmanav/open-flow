@@ -1028,7 +1028,9 @@ private fun HomeHub(
                                 },
                                 onSave = { old, new ->
                                     scope.launch {
-                                        app.dictations.learnFromEdit(old, new)
+                                        if (app.prefs.autoLearn) {
+                                            app.dictations.learnFromEdit(old, new)
+                                        }
                                         app.dictations.updateDictationText(d.id, new)
                                     }
                                 }
@@ -1187,7 +1189,9 @@ private fun HistoryScreen(app: OpenFlowApp) {
                         },
                         onSave = { old, new ->
                             scope.launch {
-                                app.dictations.learnFromEdit(old, new)
+                                if (app.prefs.autoLearn) {
+                                    app.dictations.learnFromEdit(old, new)
+                                }
                                 app.dictations.updateDictationText(d.id, new)
                             }
                         }
@@ -1459,6 +1463,13 @@ private fun DictionaryTab(app: OpenFlowApp) {
                 modifier = Modifier.testTag("dict_empty")
             )
         } else {
+            OpenButton(
+                text = "Clear all learned",
+                modifier = Modifier.testTag("dict_clear_learned"),
+                onClick = {
+                    scope.launch { app.dictations.clearLearned() }
+                }
+            )
             words.forEach { w: DictionaryWordEntity ->
                 OpenCard {
                     Row(

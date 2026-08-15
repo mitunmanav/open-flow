@@ -13,6 +13,7 @@ import app.openflow.ai.providers.ondevice.OnDeviceBrain
 import app.openflow.data.DictationRepository
 import app.openflow.data.OpenFlowDatabase
 import app.openflow.engine.BrainId
+import app.openflow.engine.EarGate
 import app.openflow.engine.EarId
 import app.openflow.engine.EnginePrefs
 import app.openflow.engine.EngineSession
@@ -25,8 +26,10 @@ import app.openflow.secrets.AndroidSecretStore
 import app.openflow.secrets.SecretStore
 import app.openflow.stt.AndroidSpeechEngine
 import app.openflow.stt.SpeechEngine
+import app.openflow.stt.providers.cloud.AndroidCloudSocket
+import app.openflow.stt.providers.cloud.AndroidPcmMic
 import app.openflow.stt.providers.cloud.CloudSocket
-import app.openflow.stt.providers.cloud.FailSoftSocket
+import app.openflow.stt.providers.cloud.PcmSource
 import app.openflow.stt.providers.host.LaptopEar
 import app.openflow.stt.providers.ondevice.OnDeviceEar
 import kotlinx.coroutines.launch
@@ -89,11 +92,17 @@ class OpenFlowApp : Application(), ComponentCallbacks2 {
     val engineSession by lazy { EngineSession(enginePrefs, secrets) }
     val systemEar by lazy { AndroidSpeechEngine(this) }
     val cloudHttp by lazy { AndroidCloudHttp() }
+    val cloudSocket by lazy { AndroidCloudSocket() }
+    val cloudPcm by lazy { AndroidPcmMic() }
     val registry by lazy {
         ProviderRegistry(
             fallbackEar = { systemEar },
             fallbackBrain = { NoAI },
-        ).also { AppEngineWire.install(it, secrets, enginePrefs, systemEar, cloudHttp, pendingSocket) }
+        ).also {
+            AppEngineWire.install(
+                it, secrets, enginePrefs, systemEar, cloudHttp, cloudSocket, cloudPcm,
+            )
+        }
     }
 
     fun currentEar(): SpeechEngine = AppEngineWire.currentEar(registry, enginePrefs)
@@ -101,16 +110,13 @@ class OpenFlowApp : Application(), ComponentCallbacks2 {
     fun currentBrain(): TextAIProvider = AppEngineWire.currentBrain(registry, enginePrefs)
 }
 
-/** Cloud WS not wired. Connect returns a dead session. Never throws. */
-private val pendingSocket = FailSoftSocket()
-
 /** Pure wire helper. Factories exist without keys. */
 object AppEngineWire {
     fun currentEar(registry: ProviderRegistry, enginePrefs: EnginePrefs): SpeechEngine =
-        registry.ear(enginePrefs.earId)
+        registry.ear(EarGate.resolve(enginePrefs.earId))
 
     fun currentBrain(registry: ProviderRegistry, enginePrefs: EnginePrefs): TextAIProvider =
-        registry.brain(enginePrefs.brainId)
+        registry.brain(EarGate.resolveBrain(enginePrefs.brainId))
 
     const val DEFAULT_LAPTOP_MODEL = "llama3"
 
@@ -121,6 +127,7 @@ object AppEngineWire {
         systemEar: SpeechEngine,
         http: CloudHttp,
         socket: CloudSocket,
+        pcm: PcmSource = PcmSource.None,
     ) {
         registry.registerEar(EarId.SYSTEM) { systemEar }
         registry.registerEar(EarId.ON_PHONE) { OnDeviceEar() }
@@ -160,6 +167,7 @@ object AppEngineWire {
                         { secrets.get(id).orEmpty() },
                         socket,
                         enginePrefs.sarvamMode,
+                        pcm,
                     )
                 }
             }

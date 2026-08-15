@@ -149,6 +149,12 @@ class DictationRepository(
         LearnEngine.drop(id)
     }
 
+    /** Wipe dictionary + learn sides. Manual + auto. */
+    suspend fun clearLearned() {
+        dictionaryDao.deleteAll()
+        LearnEngine.clearAll()
+    }
+
     suspend fun addSnippet(trigger: String, body: String) {
         val t = trigger.trim()
         snippetDao.upsert(

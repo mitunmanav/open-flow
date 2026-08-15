@@ -125,6 +125,19 @@ class DictationRepositoryTest {
     }
 
     @Test
+    fun clearLearned_wipes_dict_and_sides() = runTest {
+        val f = fakes()
+        f.repo.addWord("foo", "bar")
+        f.repo.learnFromEdit("Meet Mitton", "Meet Mitun")
+        assertThat(f.repo.dictionaryMap()).isNotEmpty()
+        assertThat(LearnEngine.autoKeys()).isNotEmpty()
+        f.repo.clearLearned()
+        assertThat(f.repo.dictionaryMap()).isEmpty()
+        assertThat(LearnEngine.autoKeys()).isEmpty()
+        assertThat(LearnEngine.sideBags()).isEmpty()
+    }
+
+    @Test
     fun add_delete_word_snippet_and_dictation() = runTest {
         val f = fakes()
         f.repo.addWord("foo", "bar")
@@ -426,6 +439,11 @@ private class FakeDictionaryDao : DictionaryDao {
 
     override suspend fun delete(id: String) {
         items.remove(id)
+        publish()
+    }
+
+    override suspend fun deleteAll() {
+        items.clear()
         publish()
     }
 }

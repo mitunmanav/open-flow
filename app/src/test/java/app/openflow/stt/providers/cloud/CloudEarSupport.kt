@@ -41,6 +41,7 @@ internal class FakeSocket : CloudSocket {
     var url: String? = null
     var headers: Map<String, String> = emptyMap()
     var onText: ((String) -> Unit)? = null
+    var onError: ((String) -> Unit)? = null
     var closed = false
     val sentText = mutableListOf<String>()
     val sentBytes = mutableListOf<ByteArray>()
@@ -48,11 +49,13 @@ internal class FakeSocket : CloudSocket {
     override fun connect(
         url: String,
         headers: Map<String, String>,
+        onError: (String) -> Unit,
         onText: (String) -> Unit,
     ): CloudSession {
         this.url = url
         this.headers = headers
         this.onText = onText
+        this.onError = onError
         closed = false
         return object : CloudSession {
             override fun send(bytes: ByteArray) {
@@ -71,5 +74,9 @@ internal class FakeSocket : CloudSocket {
 
     fun push(msg: String) {
         onText?.invoke(msg)
+    }
+
+    fun fail(msg: String) {
+        onError?.invoke(msg)
     }
 }

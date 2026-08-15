@@ -71,7 +71,29 @@ class BrainPolishTest {
             brain = fake,
             brainId = "openai",
         )
-        assertThat(fake.calls).isEqualTo(1)
+        assertThat(fake.calls).isEqualTo(2)
+    }
+
+    @Test
+    fun rewrite_brain_runs_command_mode() = runTest {
+        val fake = TrackingBrain()
+        TextPostProcessor.polishSessionResult(
+            raw = sample,
+            level = CleanupLevel.HIGH,
+            brain = fake,
+            brainId = "openai",
+        )
+        assertThat(fake.modes).containsExactly("cleanup", "command").inOrder()
+    }
+
+    private class TrackingBrain : TextAIProvider {
+        override val name: String = "fake"
+        val modes = mutableListOf<String>()
+
+        override suspend fun enhance(text: String, mode: String): String {
+            modes += mode
+            return text
+        }
     }
 
     @Test

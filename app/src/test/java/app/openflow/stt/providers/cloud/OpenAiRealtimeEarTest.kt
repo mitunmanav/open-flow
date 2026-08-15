@@ -29,6 +29,10 @@ class OpenAiRealtimeEarTest {
         ear.startContinuous("en-US")
         assertThat(sock.url).isEqualTo("wss://api.openai.com/v1/realtime?intent=transcription")
         assertThat(sock.headers["Authorization"]).isEqualTo("Bearer sk-live")
+        assertThat(sock.headers["OpenAI-Beta"]).isEqualTo("realtime=v1")
+        assertThat(sock.sentText).contains(
+            """{"type":"session.update","session":{"input_audio_format":"pcm16"}}""",
+        )
         assertThat(rec.ready).isEqualTo(1)
         assertThat(rec.listening).contains(true)
         sock.push("""{"type":"conversation.item.input_audio_transcription.delta","delta":"hi"}""")
@@ -36,6 +40,7 @@ class OpenAiRealtimeEarTest {
         assertThat(rec.partials).contains("hi")
         assertThat(rec.finals).contains("hi there")
         ear.stop()
+        assertThat(sock.sentText).contains("""{"type":"input_audio_buffer.commit"}""")
         assertThat(sock.closed).isTrue()
         assertThat(rec.listening.last()).isFalse()
     }

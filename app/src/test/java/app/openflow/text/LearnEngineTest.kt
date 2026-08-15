@@ -19,6 +19,19 @@ class LearnEngineTest {
     }
 
     @Test
+    fun clearAll_wipes_sides_keeps_hook() {
+        var encoded = "unset"
+        LearnEngine.persistHook = { encoded = it }
+        LearnEngine.putAuto("wisper", setOf("a", "b"))
+        assertThat(LearnEngine.autoKeys()).contains("wisper")
+        LearnEngine.clearAll()
+        assertThat(LearnEngine.autoKeys()).isEmpty()
+        assertThat(LearnEngine.sideBags()).isEmpty()
+        assertThat(encoded).isEqualTo("")
+        assertThat(LearnEngine.persistHook).isNotNull()
+    }
+
+    @Test
     fun identical_empty() {
         assertThat(LearnEngine.pairsFromEdit("hello", "hello")).isEmpty()
         assertThat(LearnEngine.pairsFromEdit("  hello  ", "hello")).isEmpty()

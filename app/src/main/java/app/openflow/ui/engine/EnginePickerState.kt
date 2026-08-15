@@ -1,6 +1,7 @@
 package app.openflow.ui.engine
 
 import app.openflow.ai.providers.host.HostUrl
+import app.openflow.engine.EarGate
 
 /**
  * Pure picker view-model. String ids only — no engine/ import (f31 owns types).
@@ -20,6 +21,7 @@ data class EnginePickerState(
     val needsKey: Boolean,
     val needsUrl: Boolean,
     val showSarvamMode: Boolean,
+    val pathKind: String,
     val honesty: String,
     val highLabel: String,
     val commandWhy: String?,
@@ -75,9 +77,9 @@ data class EnginePickerState(
         private val urlBrains = setOf("laptop", "custom")
         private val rewriteBrains = knownBrains - setOf("none", "on_phone")
 
-        const val STUB_EAR_REASON = "Not in 0.1.5 — system STT only"
+        const val STUB_EAR_REASON = "Not ready — pick Phone STT or a cloud ear with a key"
 
-        fun earEnabled(id: String): Boolean = id == "system"
+        fun earEnabled(id: String): Boolean = EarGate.live(id)
 
         fun earDisabledReason(id: String): String? =
             if (earEnabled(id)) null else STUB_EAR_REASON
@@ -102,6 +104,7 @@ data class EnginePickerState(
             val rewrite = brain in rewriteBrains
             val livePartials = ear in knownEars
             val showSarvam = ear == "sarvam"
+            val kind = pathKind(ear, brain)
             return EnginePickerState(
                 earId = ear,
                 brainId = brain,
@@ -111,7 +114,8 @@ data class EnginePickerState(
                 needsKey = ear in keyEars || brain in keyBrains,
                 needsUrl = ear in urlEars || brain in urlBrains,
                 showSarvamMode = showSarvam,
-                honesty = honestyLine(ear, brain),
+                pathKind = kind,
+                honesty = "$kind. ${honestyLine(ear, brain)}",
                 highLabel = if (rewrite) "High (AI)" else "High (rules)",
                 commandWhy = if (rewrite) null else "Command Mode — needs a brain",
                 chips = listOf(
@@ -121,6 +125,13 @@ data class EnginePickerState(
                     FeatureChip("sarvam", "Sarvam modes", showSarvam),
                 ),
             )
+        }
+
+        /** Local = system/on_phone ear + rules/on_phone brain. Else Online. */
+        fun pathKind(ear: String, brain: String): String {
+            val onlineEar = ear in setOf("openai", "deepgram", "assemblyai", "sarvam", "laptop", "custom_stt")
+            val onlineBrain = brain in rewriteBrains
+            return if (onlineEar || onlineBrain) "Online" else "Local"
         }
 
         fun maskKey(key: String): String {

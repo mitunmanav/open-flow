@@ -22,12 +22,13 @@ class AssemblyEarTest {
         val ear = AssemblyEar(apiKey = { "asm-key" }, socket = sock)
         ear.setListener(rec)
         ear.startContinuous("en-US")
-        assertThat(sock.url).isEqualTo("wss://streaming.assemblyai.com/v3/ws")
+        assertThat(sock.url).isEqualTo("wss://streaming.assemblyai.com/v3/ws?sample_rate=16000")
         assertThat(sock.headers["Authorization"]).isEqualTo("asm-key")
         sock.push("""{"type":"Turn","transcript":"hey","end_of_turn":false}""")
         sock.push("""{"type":"Turn","transcript":"hey there","end_of_turn":true}""")
         assertThat(rec.partials).contains("hey")
         assertThat(rec.finals).contains("hey there")
         ear.stop()
+        assertThat(sock.sentText).contains("""{"type":"Terminate"}""")
     }
 }

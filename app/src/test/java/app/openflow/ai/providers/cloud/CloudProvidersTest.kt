@@ -2,8 +2,7 @@ package app.openflow.ai.providers.cloud
 
 import app.openflow.ai.TextAIProvider
 import app.openflow.stt.SpeechEngine
-import app.openflow.stt.providers.cloud.CloudSocket
-import app.openflow.stt.providers.cloud.CloudSession
+import app.openflow.stt.providers.cloud.FailSoftSocket
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
@@ -52,13 +51,7 @@ class CloudProvidersTest {
 
     @Test
     fun factory_builds_ears() {
-        val sock = CloudSocket { _, _, _ ->
-            object : CloudSession {
-                override fun send(bytes: ByteArray) {}
-                override fun sendText(text: String) {}
-                override fun close() {}
-            }
-        }
+        val sock = FailSoftSocket()
         assertThat(CloudProviders.ear("openai", { "k" }, sock)).isInstanceOf(SpeechEngine::class.java)
         assertThat(CloudProviders.ear("deepgram", { "k" }, sock)).isInstanceOf(SpeechEngine::class.java)
         assertThat(CloudProviders.ear("assemblyai", { "k" }, sock)).isInstanceOf(SpeechEngine::class.java)

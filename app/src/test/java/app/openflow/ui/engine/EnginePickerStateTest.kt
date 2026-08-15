@@ -28,27 +28,27 @@ class EnginePickerStateTest {
     @Test
     fun ear_on_phone_audio_stays() {
         val s = EnginePickerState.of(earId = "on_phone", brainId = "none")
-        assertThat(s.honesty).isEqualTo("Audio stays on this phone.")
+        assertThat(s.honesty).isEqualTo("Local. Audio stays on this phone.")
         assertThat(s.needsKey).isFalse()
     }
 
     @Test
     fun ear_laptop_audio_to_computer() {
         val s = EnginePickerState.of(earId = "laptop", brainId = "none")
-        assertThat(s.honesty).isEqualTo("Audio goes to your computer.")
+        assertThat(s.honesty).isEqualTo("Online. Audio goes to your computer.")
         assertThat(s.needsUrl).isTrue()
     }
 
     @Test
     fun system_none_may_use_google() {
         val s = EnginePickerState.of(earId = "system", brainId = "none")
-        assertThat(s.honesty).isEqualTo("On this phone. Phone STT may still use Google.")
+        assertThat(s.honesty).isEqualTo("Local. On this phone. Phone STT may still use Google.")
     }
 
     @Test
     fun grok_is_xai_not_groq() {
         val s = EnginePickerState.of(earId = "system", brainId = "grok")
-        assertThat(s.honesty).isEqualTo("Text of this utterance goes to xAI (Grok). Not Groq.")
+        assertThat(s.honesty).isEqualTo("Online. Text of this utterance goes to xAI (Grok). Not Groq.")
         assertThat(s.needsKey).isTrue()
         assertThat(s.rewrite).isTrue()
         assertThat(s.honesty).contains("Not Groq")
@@ -58,14 +58,14 @@ class EnginePickerStateTest {
     @Test
     fun openai_ear_voice_to_openai() {
         val s = EnginePickerState.of(earId = "openai", brainId = "none")
-        assertThat(s.honesty).isEqualTo("Your voice goes to OpenAI.")
+        assertThat(s.honesty).isEqualTo("Online. Your voice goes to OpenAI.")
         assertThat(s.needsKey).isTrue()
     }
 
     @Test
     fun brain_laptop_to_their_computer() {
         val s = EnginePickerState.of(earId = "system", brainId = "laptop")
-        assertThat(s.honesty).isEqualTo("Text goes to the computer you set.")
+        assertThat(s.honesty).isEqualTo("Online. Text goes to the computer you set.")
         assertThat(s.needsUrl).isTrue()
         assertThat(s.needsKey).isTrue()
         assertThat(s.rewrite).isTrue()
@@ -122,7 +122,7 @@ class EnginePickerStateTest {
         assertThat(s.rewrite).isFalse()
         assertThat(s.commandMode).isFalse()
         assertThat(s.needsKey).isFalse()
-        assertThat(s.honesty).isEqualTo("On this phone. Phone STT may still use Google.")
+        assertThat(s.honesty).isEqualTo("Local. On this phone. Phone STT may still use Google.")
     }
 
     @Test
@@ -206,18 +206,18 @@ class EnginePickerStateTest {
     }
 
     @Test
-    fun launch_ears_only_system_enabled() {
+    fun launch_ears_system_and_cloud_enabled() {
         assertThat(EnginePickerState.earEnabled("system")).isTrue()
-        for (id in listOf(
-            "on_phone", "laptop", "openai", "deepgram", "assemblyai", "sarvam", "custom_stt"
-        )) {
+        for (id in listOf("openai", "deepgram", "assemblyai", "sarvam")) {
+            assertThat(EnginePickerState.earEnabled(id)).isTrue()
+            assertThat(EnginePickerState.earDisabledReason(id)).isNull()
+        }
+        for (id in listOf("on_phone", "laptop", "custom_stt")) {
             assertThat(EnginePickerState.earEnabled(id)).isFalse()
             assertThat(EnginePickerState.earDisabledReason(id))
-                .isEqualTo("Not in 0.1.5 — system STT only")
+                .isEqualTo(EnginePickerState.STUB_EAR_REASON)
         }
         assertThat(EnginePickerState.earDisabledReason("system")).isNull()
-        assertThat(EnginePickerState.STUB_EAR_REASON)
-            .isEqualTo("Not in 0.1.5 — system STT only")
     }
 
     @Test
@@ -246,6 +246,14 @@ class EnginePickerStateTest {
         assertThat(src).contains("brainEnabled")
         assertThat(src).contains("STUB_EAR_REASON")
         assertThat(src).contains("engine_ear_disabled")
+    }
+
+    @Test
+    fun pathKind_local_vs_online() {
+        assertThat(EnginePickerState.of("system", "none").pathKind).isEqualTo("Local")
+        assertThat(EnginePickerState.of("openai", "none").pathKind).isEqualTo("Online")
+        assertThat(EnginePickerState.of("system", "openai").pathKind).isEqualTo("Online")
+        assertThat(EnginePickerState.of("on_phone", "none").pathKind).isEqualTo("Local")
     }
 
     private fun chip(s: EnginePickerState, id: String): FeatureChip =

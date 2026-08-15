@@ -6,6 +6,7 @@ import app.openflow.stt.providers.cloud.AssemblyEar
 import app.openflow.stt.providers.cloud.CloudSocket
 import app.openflow.stt.providers.cloud.DeepgramEar
 import app.openflow.stt.providers.cloud.OpenAiRealtimeEar
+import app.openflow.stt.providers.cloud.PcmSource
 import app.openflow.stt.providers.cloud.SarvamEar
 
 object CloudProviders {
@@ -24,6 +25,7 @@ object CloudProviders {
             apiKey: () -> String,
             socket: CloudSocket,
             mode: String,
+            pcm: PcmSource,
         ): SpeechEngine
     }
 
@@ -49,10 +51,10 @@ object CloudProviders {
         registry.addBrain("custom") { key, model, url, http ->
             brain("custom", key, model, url, http)!!
         }
-        registry.addEar("openai") { key, socket, _ -> ear("openai", key, socket)!! }
-        registry.addEar("deepgram") { key, socket, _ -> ear("deepgram", key, socket)!! }
-        registry.addEar("assemblyai") { key, socket, _ -> ear("assemblyai", key, socket)!! }
-        registry.addEar("sarvam") { key, socket, mode -> ear("sarvam", key, socket, mode)!! }
+        registry.addEar("openai") { key, socket, _, pcm -> ear("openai", key, socket, pcm = pcm)!! }
+        registry.addEar("deepgram") { key, socket, _, pcm -> ear("deepgram", key, socket, pcm = pcm)!! }
+        registry.addEar("assemblyai") { key, socket, _, pcm -> ear("assemblyai", key, socket, pcm = pcm)!! }
+        registry.addEar("sarvam") { key, socket, mode, pcm -> ear("sarvam", key, socket, mode, pcm)!! }
     }
 
     fun brain(
@@ -72,11 +74,12 @@ object CloudProviders {
         apiKey: () -> String,
         socket: CloudSocket,
         mode: String = "transcribe",
+        pcm: PcmSource = PcmSource.None,
     ): SpeechEngine? = when (id) {
-        "openai" -> OpenAiRealtimeEar(apiKey, socket)
-        "deepgram" -> DeepgramEar(apiKey, socket)
-        "assemblyai" -> AssemblyEar(apiKey, socket)
-        "sarvam" -> SarvamEar(apiKey, socket, mode)
+        "openai" -> OpenAiRealtimeEar(apiKey, socket, pcm = pcm)
+        "deepgram" -> DeepgramEar(apiKey, socket, pcm = pcm)
+        "assemblyai" -> AssemblyEar(apiKey, socket, pcm = pcm)
+        "sarvam" -> SarvamEar(apiKey, socket, mode, pcm = pcm)
         else -> null
     }
 }

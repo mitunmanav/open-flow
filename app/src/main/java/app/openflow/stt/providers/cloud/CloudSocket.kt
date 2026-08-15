@@ -1,9 +1,10 @@
 package app.openflow.stt.providers.cloud
 
-fun interface CloudSocket {
+interface CloudSocket {
     fun connect(
         url: String,
         headers: Map<String, String>,
+        onError: (String) -> Unit = {},
         onText: (String) -> Unit,
     ): CloudSession
 }

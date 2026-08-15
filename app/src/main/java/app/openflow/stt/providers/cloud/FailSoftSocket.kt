@@ -5,6 +5,7 @@ class FailSoftSocket : CloudSocket {
     override fun connect(
         url: String,
         headers: Map<String, String>,
+        onError: (String) -> Unit,
         onText: (String) -> Unit,
     ): CloudSession = Dead
 

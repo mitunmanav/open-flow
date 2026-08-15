@@ -13,6 +13,20 @@ class HostUrlTest {
     }
 
     @Test
+    fun wss_any_host_allowed() {
+        assertThat(HostUrl.allow("wss://api.deepgram.com/v1/listen")).isTrue()
+        assertThat(HostUrl.allow("wss://api.openai.com/v1/realtime")).isTrue()
+        assertThat(HostUrl.allow("WSS://streaming.assemblyai.com/v3/ws")).isTrue()
+    }
+
+    @Test
+    fun ws_nsc_literals_allowed_public_rejected() {
+        assertThat(HostUrl.allow("ws://127.0.0.1:9000")).isTrue()
+        assertThat(HostUrl.allow("ws://localhost:9000")).isTrue()
+        assertThat(HostUrl.allow("ws://example.com/stt")).isFalse()
+    }
+
+    @Test
     fun http_nsc_literals_allowed() {
         assertThat(HostUrl.allow("http://10.0.0.1/v1")).isTrue()
         assertThat(HostUrl.allow("http://10.0.0.2/v1")).isTrue()

@@ -64,6 +64,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -74,6 +75,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -506,6 +509,10 @@ private fun HomeHub(
                 lastClean = app.prefs.lastCleanText
                 lastRaw = app.prefs.lastRawText
                 snoozed = app.prefs.isSnoozed()
+                scope.launch {
+                    val s = app.dictations.stats()
+                    statsText = "${s.totalWords} words · ${s.totalSessions} sessions · ${s.streakDays}d streak"
+                }
             }
         }
         owner.lifecycle.addObserver(obs)
@@ -1280,7 +1287,7 @@ private fun DictationCard(
                 )
             } else {
                 Text(
-                    d.text.take(500),
+                    d.text,
                     style = MaterialTheme.typography.bodyMedium,
                     color = SecUi.charcoal,
                     softWrap = true,
@@ -1308,7 +1315,7 @@ private fun DictationCard(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            d.rawText.take(400),
+                            d.rawText,
                             modifier = Modifier.padding(Dimen.GAP_SM),
                             style = MaterialTheme.typography.bodySmall,
                             color = SecUi.charcoal,
@@ -1338,6 +1345,13 @@ private fun DictationCard(
 private fun CopyButton(text: String, label: String = "Copy") {
     val ctx = LocalContext.current
     var copied by remember { mutableStateOf(false) }
+
+    LaunchedEffect(copied) {
+        if (copied) {
+            delay(2000)
+            copied = false
+        }
+    }
 
     OutlinedButton(
         onClick = {
@@ -1605,7 +1619,7 @@ private fun SnippetsTab(app: OpenFlowApp) {
                             }
                         }
                         Text(
-                            s.body.take(200),
+                            if (s.body.length > 200) "${s.body.take(200)}…" else s.body,
                             style = MaterialTheme.typography.bodyMedium,
                             color = SecUi.muted,
                             softWrap = true

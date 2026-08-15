@@ -27,7 +27,8 @@ object DisplayRefreshController {
         val currentHz = display.refreshRate
         val currentModeId = try {
             display.mode.modeId
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            android.util.Log.w("DisplayRefresh", "failed to read current modeId", e)
             -1
         }
         if (!DisplayRefreshPolicy.needsApply(currentHz, hz) &&
@@ -40,25 +41,8 @@ object DisplayRefreshController {
             val lp = activity.window.attributes
             lp.preferredDisplayModeId = pick.modeId
             activity.window.attributes = lp
-        } catch (_: Exception) {
-        }
-
-        // API 30+: also hint the window surface if available
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            try {
-                activity.window.decorView.post {
-                    try {
-                        val holder = activity.window.decorView.rootView
-                        // SurfaceControl path is OEM-sensitive; modeId is the reliable lever.
-                        @Suppress("UNUSED_VARIABLE")
-                        val rate = pick.refreshRateHz
-                        @Suppress("UNUSED_VARIABLE")
-                        val compat = Surface.FRAME_RATE_COMPATIBILITY_DEFAULT
-                    } catch (_: Exception) {
-                    }
-                }
-            } catch (_: Exception) {
-            }
+        } catch (e: Exception) {
+            android.util.Log.w("DisplayRefresh", "failed to set preferredDisplayModeId", e)
         }
     }
 }

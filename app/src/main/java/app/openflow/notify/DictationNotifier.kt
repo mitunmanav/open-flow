@@ -33,7 +33,8 @@ object DictationNotifier {
             val nm = ctx.getSystemService(NotificationManager::class.java) ?: return false
             nm.createNotificationChannel(ch)
             true
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            android.util.Log.w("DictationNotifier", "createChannel failed", e)
             false
         }
     }
@@ -68,7 +69,8 @@ object DictationNotifier {
                 .build()
             nm.notify(NOTIF_ID, n)
             true
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            android.util.Log.w("DictationNotifier", "notifyIfPermitted failed", e)
             false
         }
     }
@@ -93,7 +95,8 @@ object DictationNotifier {
                 .build()
             nm.notify(NOTIF_ID + 1, n)
             true
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            android.util.Log.w("DictationNotifier", "notifyServiceStopped failed", e)
             false
         }
     }

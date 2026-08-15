@@ -178,10 +178,12 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS
             notificationTimeout = 100
         }
-        android.util.Log.i(
-            "OpenFlow.Bubble",
-            "ear from registry pick=${app.enginePrefs.earId}"
-        )
+        if (BuildConfig.DEBUG) {
+            android.util.Log.i(
+                "OpenFlow.Bubble",
+                "ear from registry pick=${app.enginePrefs.earId}"
+            )
+        }
         showBubble()
         instance = this
         lastInteractionAt = SystemClock.elapsedRealtime()
@@ -189,7 +191,9 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         registerCopyReceiver()
         mainHandler.removeCallbacks(pulseTick)
         mainHandler.post(pulseTick)
-        android.util.Log.i("OpenFlow.Bubble", "onServiceConnected overlay=ready debugInject=${BuildConfig.DEBUG}")
+        if (BuildConfig.DEBUG) {
+            android.util.Log.i("OpenFlow.Bubble", "onServiceConnected overlay=ready debugInject=${BuildConfig.DEBUG}")
+        }
         refreshBubbleVisibility()
     }
 
@@ -968,10 +972,12 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 if (gen != listenGeneration || !listening) return@post
                 ear.setBiasing(bias)
                 ear.startContinuous(lang)
-                android.util.Log.i(
-                    "OpenFlow.Bubble",
-                    "listen start gen=$gen ear=${ear.javaClass.simpleName} bias=${bias.size}"
-                )
+                if (BuildConfig.DEBUG) {
+                    android.util.Log.i(
+                        "OpenFlow.Bubble",
+                        "listen start gen=$gen ear=${ear.javaClass.simpleName} bias=${bias.size}"
+                    )
+                }
             }
         }
     }
@@ -998,11 +1004,13 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 return
             }
             val raw = SessionText.commitRaw(sessionBuffer.toString(), lastPartial)
-            android.util.Log.i(
-                "OpenFlow.Bubble",
-                "stop save=$save rawLen=${raw.length} finalsLen=${sessionBuffer.length} " +
-                    "partialLen=${lastPartial.length} gen=$gen"
-            )
+            if (BuildConfig.DEBUG) {
+                android.util.Log.i(
+                    "OpenFlow.Bubble",
+                    "stop save=$save rawLen=${raw.length} finalsLen=${sessionBuffer.length} " +
+                        "partialLen=${lastPartial.length} gen=$gen"
+                )
+            }
             listenGeneration++
             listening = false
             setListeningAwake(false)
@@ -1018,15 +1026,17 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 val lang = LanguagePolicy.LOCKED
                 polishSession(raw, prefix) { result ->
                     val finalText = result.clean
-                    android.util.Log.i(
-                        "OpenFlow.Bubble",
-                        "commit cleanLen=${finalText.length} prefixLen=${prefix.length}"
-                    )
+                    if (BuildConfig.DEBUG) {
+                        android.util.Log.i(
+                            "OpenFlow.Bubble",
+                            "commit cleanLen=${finalText.length} prefixLen=${prefix.length}"
+                        )
+                    }
                     if (finalText.isNotBlank()) {
                         commitSessionToField(finalText, prefix)
                         prefs?.setLastSession(raw = result.raw, clean = finalText)
                         lastInteractionAt = SystemClock.elapsedRealtime()
-                        val wordCount = finalText.split(Regex("\\s+"))
+                        val wordCount = finalText.split(WORD_SPLIT)
                             .filter { it.isNotBlank() }.size
                         val retention = prefs?.retentionPolicy ?: "keep"
                         scope.launch(Dispatchers.IO) {
@@ -1113,7 +1123,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 commitSessionToField(finalText, prefix)
                 prefs?.setLastSession(raw = result.raw, clean = finalText)
                 lastInteractionAt = SystemClock.elapsedRealtime()
-                val wordCount = finalText.split(Regex("\\s+")).filter { it.isNotBlank() }.size
+                val wordCount = finalText.split(WORD_SPLIT).filter { it.isNotBlank() }.size
                 val retention = prefs?.retentionPolicy ?: "keep"
                 val lang = LanguagePolicy.LOCKED
                 scope.launch(Dispatchers.IO) {
@@ -1490,6 +1500,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     }
 
     companion object {
+        private val WORD_SPLIT = Regex("\\s+")
+
         /** Debug broadcast action (any build id; handler no-ops if not DEBUG). */
         const val ACTION_INJECT = "app.openflow.INJECT_DICTATION"
         const val ACTION_COPY_LAST = "app.openflow.COPY_LAST"

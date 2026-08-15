@@ -30,7 +30,8 @@ class AnthropicBrain(
         return try {
             val raw = http.post(MESSAGES, headers, body)
             ChatJson.firstString(raw, "text")?.takeIf { it.isNotBlank() } ?: text
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            android.util.Log.w("AnthropicBrain", "enhance request failed, returning raw text", e)
             text
         }
     }

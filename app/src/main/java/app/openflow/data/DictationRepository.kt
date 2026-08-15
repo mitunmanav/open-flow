@@ -51,30 +51,34 @@ class DictationRepository(
         retentionPolicy: String = "keep"
     ): DictationEntity? {
         if (!RetentionPolicy.shouldPersist(retentionPolicy)) return null
-        RetentionPolicy.cutoffEpochMs(System.currentTimeMillis(), retentionPolicy)?.let {
-            dictationDao.deleteOlderThan(it)
-            ftsDao.deleteOrphans()
+        return db.transact {
+            RetentionPolicy.cutoffEpochMs(System.currentTimeMillis(), retentionPolicy)?.let {
+                dictationDao.deleteOlderThan(it)
+                ftsDao.deleteOrphans()
+            }
+            val words = cleanText.trim().split(WORD_SPLIT).filter { it.isNotEmpty() }.size
+            val e = DictationEntity(
+                id = UUID.randomUUID().toString(),
+                text = cleanText,
+                rawText = rawText,
+                createdAtEpochMs = System.currentTimeMillis(),
+                durationMs = durationMs,
+                languageTag = languageTag,
+                wordCount = words
+            )
+            dictationDao.upsert(e)
+            indexFts(e)
+            bumpStatsInternal(words)
+            e
         }
-        val words = cleanText.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }.size
-        val e = DictationEntity(
-            id = UUID.randomUUID().toString(),
-            text = cleanText,
-            rawText = rawText,
-            createdAtEpochMs = System.currentTimeMillis(),
-            durationMs = durationMs,
-            languageTag = languageTag,
-            wordCount = words
-        )
-        dictationDao.upsert(e)
-        indexFts(e)
-        bumpStats(words)
-        return e
     }
 
     suspend fun purgeOnLaunch(retentionPolicy: String, nowEpochMs: Long = System.currentTimeMillis()) {
         val cut = RetentionPolicy.cutoffEpochMs(nowEpochMs, retentionPolicy) ?: return
-        dictationDao.deleteOlderThan(cut)
-        ftsDao.deleteOrphans()
+        db.transact {
+            dictationDao.deleteOlderThan(cut)
+            ftsDao.deleteOrphans()
+        }
     }
 
     /** Compat: single string → both raw and clean (pre-pipeline callers). */
@@ -82,8 +86,10 @@ class DictationRepository(
         saveDictation(rawText = text, cleanText = text, durationMs = durationMs, languageTag = languageTag)
 
     suspend fun deleteDictation(id: String) {
-        dictationDao.delete(id)
-        ftsDao.deleteBySessionId(id)
+        db.transact {
+            dictationDao.delete(id)
+            ftsDao.deleteBySessionId(id)
+        }
     }
 
     suspend fun latestText(): String? = dictationDao.latest()?.text
@@ -115,12 +121,14 @@ class DictationRepository(
 
     /** @return false when [id] is missing (no silent no-op). */
     suspend fun updateDictationText(id: String, newText: String): Boolean {
-        val e = dictationDao.get(id) ?: return false
-        val words = newText.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }.size
-        val updated = e.copy(text = newText, wordCount = words)
-        dictationDao.upsert(updated)
-        indexFts(updated)
-        return true
+        return db.transact {
+            val e = dictationDao.get(id) ?: return@transact false
+            val words = newText.trim().split(WORD_SPLIT).filter { it.isNotEmpty() }.size
+            val updated = e.copy(text = newText, wordCount = words)
+            dictationDao.upsert(updated)
+            indexFts(updated)
+            true
+        }
     }
 
     suspend fun addWord(word: String, replacement: String = word) {
@@ -168,24 +176,32 @@ class DictationRepository(
         )
     }
 
+    private suspend fun bumpStatsInternal(words: Int) {
+        val cur = statsDao.get() ?: AppStatsEntity()
+        val day = TimeUnit.MILLISECONDS.toDays(System.currentTimeMillis())
+        val streak = when {
+            cur.lastDayEpoch == 0L -> 1
+            day == cur.lastDayEpoch -> cur.streakDays
+            day == cur.lastDayEpoch + 1 -> cur.streakDays + 1
+            else -> 1
+        }
+        statsDao.upsert(
+            cur.copy(
+                totalWords = cur.totalWords + words,
+                totalSessions = cur.totalSessions + 1,
+                lastDayEpoch = day,
+                streakDays = streak
+            )
+        )
+    }
+
     private suspend fun bumpStats(words: Int) {
         db.transact {
-            val cur = statsDao.get() ?: AppStatsEntity()
-            val day = TimeUnit.MILLISECONDS.toDays(System.currentTimeMillis())
-            val streak = when {
-                cur.lastDayEpoch == 0L -> 1
-                day == cur.lastDayEpoch -> cur.streakDays
-                day == cur.lastDayEpoch + 1 -> cur.streakDays + 1
-                else -> 1
-            }
-            statsDao.upsert(
-                cur.copy(
-                    totalWords = cur.totalWords + words,
-                    totalSessions = cur.totalSessions + 1,
-                    lastDayEpoch = day,
-                    streakDays = streak
-                )
-            )
+            bumpStatsInternal(words)
         }
+    }
+
+    companion object {
+        private val WORD_SPLIT = Regex("\\s+")
     }
 }

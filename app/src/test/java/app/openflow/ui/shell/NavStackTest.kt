@@ -135,4 +135,24 @@ class NavStackTest {
         assertThat(names).doesNotContain("NavModules")
         assertThat(names).contains("HomeModules")
     }
+
+    @Test
+    fun navstack_saver_saves_and_restores() {
+        val stack = listOf(AppRoute.Settings, AppRoute.Appearance)
+        val saved = with(NavStack.Saver) {
+            val scope = androidx.compose.runtime.saveable.SaverScope { true }
+            scope.save(stack)
+        }
+        assertThat(saved).containsExactly("Settings", "Appearance").inOrder()
+
+        val restored = NavStack.Saver.restore(saved!!)
+        assertThat(restored).containsExactly(AppRoute.Settings, AppRoute.Appearance).inOrder()
+    }
+
+    @Test
+    fun navstack_saver_handles_corrupt_entries() {
+        val badList = arrayListOf("UnknownRoute1", "NotARoute")
+        val restored = NavStack.Saver.restore(badList)
+        assertThat(restored).containsExactly(AppRoute.Home)
+    }
 }

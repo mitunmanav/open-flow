@@ -255,6 +255,46 @@ class DictationRepositoryTest {
         assertThat(f.repo.searchDictations("old")).isEmpty()
     }
 
+    @Test
+    fun operations_execute_inside_transactions() = runTest {
+        var txCount = 0
+        val trackingDb = object : OpenFlowDb {
+            override suspend fun <R> transact(block: suspend () -> R): R {
+                txCount++
+                return block()
+            }
+        }
+        val dict = FakeDictationDao()
+        val fts = FakeDictationFtsDao { dict.ids() }
+        val words = FakeDictionaryDao()
+        val snips = FakeSnippetDao()
+        val stats = FakeStatsDao()
+        val repo = DictationRepository(
+            db = trackingDb,
+            dictationDao = dict,
+            ftsDao = fts,
+            dictionaryDao = words,
+            snippetDao = snips,
+            statsDao = stats
+        )
+
+        val saved = repo.saveDictation("raw", "clean", 100L, "en-US")
+        assertThat(saved).isNotNull()
+        assertThat(txCount).isAtLeast(1)
+
+        val countBeforeUpdate = txCount
+        repo.updateDictationText(saved!!.id, "updated clean")
+        assertThat(txCount).isGreaterThan(countBeforeUpdate)
+
+        val countBeforeDelete = txCount
+        repo.deleteDictation(saved.id)
+        assertThat(txCount).isGreaterThan(countBeforeDelete)
+
+        val countBeforePurge = txCount
+        repo.purgeOnLaunch("wipe_24h")
+        assertThat(txCount).isGreaterThan(countBeforePurge)
+    }
+
     private fun row(id: String, text: String, createdAt: Long) = DictationEntity(
         id = id,
         text = text,

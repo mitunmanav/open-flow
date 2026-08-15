@@ -32,7 +32,8 @@ class OpenAiCompatBrain(
         return try {
             val raw = http.post(url, headers, body)
             ChatJson.firstString(raw, "content")?.takeIf { it.isNotBlank() } ?: text
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            android.util.Log.w("OpenAiCompatBrain", "enhance request failed, returning raw text", e)
             text
         }
     }

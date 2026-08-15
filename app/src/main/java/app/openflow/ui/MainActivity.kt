@@ -208,7 +208,7 @@ class MainActivity : ComponentActivity() {
                     this,
                     Manifest.permission.RECORD_AUDIO
                 ) == PackageManager.PERMISSION_GRANTED
-                var navStack by remember {
+                var navStack by rememberSaveable(stateSaver = NavStack.Saver) {
                     mutableStateOf(
                         NavStack.initial(
                             !FirstRunPolicy.needsWizard(
@@ -1437,6 +1437,7 @@ private fun DictionaryTab(app: OpenFlowApp) {
                 OpenButton(
                     text = "Save Word",
                     modifier = Modifier.testTag("dict_save_word"),
+                    enabled = word.isNotBlank(),
                     onClick = {
                         if (word.isNotBlank()) {
                             scope.launch {
@@ -1559,6 +1560,7 @@ private fun SnippetsTab(app: OpenFlowApp) {
                 OpenButton(
                     text = "Add Snippet",
                     modifier = Modifier.testTag("snippet_add"),
+                    enabled = trigger.isNotBlank() && body.isNotBlank(),
                     onClick = {
                         if (trigger.isNotBlank() && body.isNotBlank()) {
                             scope.launch {

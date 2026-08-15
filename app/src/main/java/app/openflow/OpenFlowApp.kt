@@ -50,10 +50,18 @@ class OpenFlowApp : Application(), ComponentCallbacks2 {
     val textAI: TextAIProvider
         get() = currentBrain()
 
+    private val appScope = kotlinx.coroutines.CoroutineScope(
+        kotlinx.coroutines.SupervisorJob() +
+            kotlinx.coroutines.Dispatchers.IO +
+            kotlinx.coroutines.CoroutineExceptionHandler { _, e ->
+                android.util.Log.e("OpenFlowApp", "background task failed", e)
+            }
+    )
+
     override fun onCreate() {
         super.onCreate()
         DictationNotifier.createChannel(this)
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+        appScope.launch {
             dictations.purgeOnLaunch(prefs.retentionPolicy)
         }
     }
@@ -104,6 +112,8 @@ object AppEngineWire {
     fun currentBrain(registry: ProviderRegistry, enginePrefs: EnginePrefs): TextAIProvider =
         registry.brain(enginePrefs.brainId)
 
+    const val DEFAULT_LAPTOP_MODEL = "llama3"
+
     fun install(
         registry: ProviderRegistry,
         secrets: SecretStore,
@@ -122,7 +132,7 @@ object AppEngineWire {
         registry.registerBrain(BrainId.LAPTOP) {
             LaptopBrain(
                 baseUrl = enginePrefs.customBaseUrl.ifBlank { null },
-                model = enginePrefs.brainModel.ifBlank { "llama3" },
+                model = enginePrefs.brainModel.ifBlank { DEFAULT_LAPTOP_MODEL },
                 apiKey = secrets.get("laptop"),
                 post = HostPost { url, headers, json -> http.post(url, headers, json) },
             )

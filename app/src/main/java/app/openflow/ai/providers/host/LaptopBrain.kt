@@ -32,7 +32,8 @@ class LaptopBrain(
         val body = chatBody(text, mode)
         return try {
             parseContent(post.post(url, headers, body)) ?: text
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            android.util.Log.w("LaptopBrain", "enhance request failed, returning raw text", e)
             text
         }
     }

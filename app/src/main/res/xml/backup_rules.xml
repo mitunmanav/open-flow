@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Full backup (API < 31). allowBackup=false is primary; exclude all as belt+suspenders. -->
 <full-backup-content>
     <exclude domain="root" />
     <exclude domain="file" />

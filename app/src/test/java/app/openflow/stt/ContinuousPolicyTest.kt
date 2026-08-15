@@ -88,4 +88,20 @@ class ContinuousPolicyTest {
         assertThat(p.restartDelayMs(errorCode = null)).isEqualTo(60L)
         assertThat(p.normalRestartDelayMs).isEqualTo(60L)
     }
+
+    @Test
+    fun language_not_supported_restarts_and_recreates() {
+        // ERROR_LANGUAGE_NOT_SUPPORTED = 12 (API 31)
+        assertThat(p.shouldRestart(listening = true, errorCode = 12, hadResult = false))
+            .isTrue()
+        assertThat(p.shouldRecreateOnError(12)).isTrue()
+    }
+
+    @Test
+    fun language_unavailable_restarts_and_recreates() {
+        // ERROR_LANGUAGE_UNAVAILABLE = 13 (API 31)
+        assertThat(p.shouldRestart(listening = true, errorCode = 13, hadResult = false))
+            .isTrue()
+        assertThat(p.shouldRecreateOnError(13)).isTrue()
+    }
 }

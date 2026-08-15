@@ -35,6 +35,7 @@ class SttEngine(
     private val context: Context,
     private val preferOnDevice: Boolean = true,
     private val policy: ContinuousPolicy = ContinuousPolicy(),
+    private val fallbackPolicy: OnDeviceFallbackPolicy = OnDeviceFallbackPolicy(),
     private val mainHandler: Handler = Handler(Looper.getMainLooper()),
     private val softMuteBeeps: Boolean = false,
     private var tuning: SttTuning = SttTuning(),
@@ -326,22 +327,19 @@ class SttEngine(
             inFlight.set(false)
 
             // Offline / language / client → one soft fallback to non-offline default engine
-            val offlineRelated = error == SpeechRecognizer.ERROR_CLIENT ||
-                error == SpeechRecognizer.ERROR_SERVER ||
-                error == SpeechRecognizer.ERROR_NETWORK ||
-                error == SpeechRecognizer.ERROR_NETWORK_TIMEOUT ||
-                (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-                    (error == SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED ||
-                        error == SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE))
+            val offlineRelated = fallbackPolicy.shouldSoftFallback(error)
 
-            if (offlineRelated && !offlineFallbackUsed && continuous.get()) {
+            if (offlineRelated &&
+                fallbackPolicy.canSoftFallback(offlineFallbackUsed) &&
+                continuous.get()
+            ) {
                 offlineFallbackUsed = true
                 forceOfflineOnly = false
                 usedOnDeviceFactory = false
                 rememberError("Retrying speech engine…", notify = true, fatal = false)
                 mainHandler.postDelayed({
                     if (continuous.get()) beginSession(forceRecreate = true)
-                }, 350)
+                }, fallbackPolicy.softFallbackDelayMs)
                 return
             }
 
@@ -484,19 +482,27 @@ class SttEngine(
     private fun createRecognizer(): SpeechRecognizer? {
         if (!SpeechRecognizer.isRecognitionAvailable(context)) return null
         // Prefer on-device factory when available (API 31+) and still trying offline path
-        if (preferOnDevice && forceOfflineOnly && !offlineFallbackUsed &&
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+        val onDeviceOk = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            runCatching { SpeechRecognizer.isOnDeviceRecognitionAvailable(context) }
+                .getOrDefault(false)
+        if (fallbackPolicy.tryOnDeviceFactory(
+                preferOnDevice = preferOnDevice,
+                forceOfflineOnly = forceOfflineOnly,
+                offlineFallbackUsed = offlineFallbackUsed,
+                onDeviceAvailable = onDeviceOk,
+            )
         ) {
             try {
-                if (SpeechRecognizer.isOnDeviceRecognitionAvailable(context)) {
-                    usedOnDeviceFactory = true
-                    return SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
-                }
+                usedOnDeviceFactory = true
+                return SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
             } catch (e: Exception) {
                 usedOnDeviceFactory = false
-                rememberError(
-                    "on-device factory failed: ${e.message ?: e.javaClass.simpleName}"
-                )
+                // Missing pack / OEM — fail-soft, never crash.
+                if (!fallbackPolicy.factoryFailureIsFatal()) {
+                    rememberError(
+                        "on-device factory failed: ${e.message ?: e.javaClass.simpleName}"
+                    )
+                }
             }
         }
         usedOnDeviceFactory = false

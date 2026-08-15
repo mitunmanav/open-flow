@@ -128,4 +128,145 @@ class FieldPolicyTest {
         // TYPE_CLASS_TEXT | TYPE_TEXT_VARIATION_FILTER = 0xb1
         assertThat(FieldPolicy.isSearch(0xb1, "android.widget.EditText", null)).isTrue()
     }
+
+    @Test
+    fun cvv_hint_is_sensitive() {
+        assertThat(
+            FieldPolicy.isSensitive(false, 1, "android.widget.EditText", "CVV")
+        ).isTrue()
+    }
+
+    @Test
+    fun ssn_hint_is_sensitive() {
+        assertThat(
+            FieldPolicy.isSensitive(false, 1, "EditText", "Social Security Number")
+        ).isTrue()
+    }
+
+    @Test
+    fun credit_card_hint_is_sensitive() {
+        assertThat(
+            FieldPolicy.isSensitive(false, 1, "EditText", "Credit card")
+        ).isTrue()
+    }
+
+    @Test
+    fun otp_hint_is_sensitive() {
+        assertThat(
+            FieldPolicy.isSensitive(false, 1, "EditText", "Enter OTP")
+        ).isTrue()
+    }
+
+    @Test
+    fun accident_hint_not_sensitive() {
+        assertThat(
+            FieldPolicy.isSensitive(false, 1, "EditText", "Describe the accident")
+        ).isFalse()
+    }
+
+    @Test
+    fun accepts_skips_password_flag() {
+        assertThat(
+            FieldPolicy.acceptsDictation(
+                enabled = true,
+                isEditable = true,
+                isPassword = true,
+                inputType = 1,
+                className = "android.widget.EditText",
+                hintText = null,
+                contentDescription = null
+            )
+        ).isFalse()
+    }
+
+    @Test
+    fun accepts_skips_password_input_type() {
+        assertThat(
+            FieldPolicy.acceptsDictation(
+                enabled = true,
+                isEditable = true,
+                isPassword = false,
+                inputType = 0x81,
+                className = "android.widget.EditText",
+                hintText = null,
+                contentDescription = null
+            )
+        ).isFalse()
+    }
+
+    @Test
+    fun accepts_skips_phone_input_type() {
+        assertThat(
+            FieldPolicy.acceptsDictation(
+                enabled = true,
+                isEditable = true,
+                isPassword = false,
+                inputType = 0x3,
+                className = "android.widget.EditText",
+                hintText = null,
+                contentDescription = null
+            )
+        ).isFalse()
+    }
+
+    @Test
+    fun accepts_skips_number_input_type() {
+        assertThat(
+            FieldPolicy.acceptsDictation(
+                enabled = true,
+                isEditable = true,
+                isPassword = false,
+                inputType = 0x2,
+                className = "android.widget.EditText",
+                hintText = null,
+                contentDescription = null
+            )
+        ).isFalse()
+    }
+
+    @Test
+    fun accepts_skips_otp_hint() {
+        assertThat(
+            FieldPolicy.acceptsDictation(
+                enabled = true,
+                isEditable = true,
+                isPassword = false,
+                inputType = 1,
+                className = "android.widget.EditText",
+                hintText = "Enter OTP",
+                contentDescription = null
+            )
+        ).isFalse()
+    }
+
+    @Test
+    fun accepts_normal_message_field() {
+        assertThat(
+            FieldPolicy.acceptsDictation(
+                enabled = true,
+                isEditable = true,
+                isPassword = false,
+                inputType = 1,
+                className = "android.widget.EditText",
+                hintText = "Message",
+                contentDescription = null
+            )
+        ).isTrue()
+    }
+
+    @Test
+    fun accepts_chat_body_with_pin_word() {
+        assertThat(
+            FieldPolicy.acceptsDictation(
+                enabled = true,
+                isEditable = true,
+                isPassword = false,
+                inputType = 1,
+                className = "android.widget.EditText",
+                hintText = "Message",
+                contentDescription = null,
+                bodyText = "can you send the pin later"
+            )
+        ).isTrue()
+    }
 }

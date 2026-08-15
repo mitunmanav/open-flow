@@ -196,6 +196,58 @@ class EnginePickerStateTest {
         assertThat(ids).hasSize(4)
     }
 
+    @Test
+    fun launch_default_is_local_phone_stt_rules() {
+        val s = EnginePickerState.of()
+        assertThat(s.earId).isEqualTo("system")
+        assertThat(s.brainId).isEqualTo("none")
+        assertThat(s.needsKey).isFalse()
+        assertThat(s.honesty).contains("Phone STT may still use Google")
+    }
+
+    @Test
+    fun launch_ears_only_system_enabled() {
+        assertThat(EnginePickerState.earEnabled("system")).isTrue()
+        for (id in listOf(
+            "on_phone", "laptop", "openai", "deepgram", "assemblyai", "sarvam", "custom_stt"
+        )) {
+            assertThat(EnginePickerState.earEnabled(id)).isFalse()
+            assertThat(EnginePickerState.earDisabledReason(id))
+                .isEqualTo("Not in 0.1.5 — system STT only")
+        }
+        assertThat(EnginePickerState.earDisabledReason("system")).isNull()
+        assertThat(EnginePickerState.STUB_EAR_REASON)
+            .isEqualTo("Not in 0.1.5 — system STT only")
+    }
+
+    @Test
+    fun launch_brains_none_and_http_on_phone_off_url_gated() {
+        assertThat(EnginePickerState.brainEnabled("none", url = "")).isTrue()
+        assertThat(EnginePickerState.brainEnabled("openai", url = "")).isTrue()
+        assertThat(EnginePickerState.brainEnabled("grok", url = "")).isTrue()
+        assertThat(EnginePickerState.brainEnabled("anthropic", url = "")).isTrue()
+        assertThat(EnginePickerState.brainEnabled("on_phone", url = "")).isFalse()
+        assertThat(EnginePickerState.brainEnabled("laptop", url = "")).isFalse()
+        assertThat(EnginePickerState.brainEnabled("custom", url = "not-a-url")).isFalse()
+        assertThat(EnginePickerState.brainEnabled("laptop", url = "https://example.com/v1")).isTrue()
+        assertThat(EnginePickerState.brainEnabled("custom", url = "http://192.168.1.1:11434/v1")).isTrue()
+        assertThat(EnginePickerState.brainDisabledReason("on_phone", url = "")).isNotEmpty()
+        assertThat(EnginePickerState.brainDisabledReason("laptop", url = "")).isNotEmpty()
+        assertThat(EnginePickerState.brainDisabledReason("none", url = "")).isNull()
+    }
+
+    @Test
+    fun settings_screen_wires_gates_no_silent_pick() {
+        val src = java.io.File(
+            app.openflow.ui.qa.UiSourceScan.projectRoot(),
+            "app/src/main/java/app/openflow/ui/engine/EngineSettingsScreen.kt"
+        ).readText()
+        assertThat(src).contains("earEnabled")
+        assertThat(src).contains("brainEnabled")
+        assertThat(src).contains("STUB_EAR_REASON")
+        assertThat(src).contains("engine_ear_disabled")
+    }
+
     private fun chip(s: EnginePickerState, id: String): FeatureChip =
         s.chips.first { it.id == id }
 }

@@ -117,4 +117,32 @@ class BubbleTapPolicyTest {
             )
         ).isEqualTo(BubbleTapPolicy.Action.NONE)
     }
+
+    @Test
+    fun idle_long_press_is_none() {
+        assertThat(
+            BubbleTapPolicy.action(
+                listening = false,
+                stopInProgress = false,
+                dragged = false,
+                longPressFired = true,
+                hitCancel = false,
+                hitDone = false
+            )
+        ).isEqualTo(BubbleTapPolicy.Action.NONE)
+    }
+
+    @Test
+    fun listen_long_press_saves() {
+        assertThat(
+            BubbleTapPolicy.action(
+                listening = true,
+                stopInProgress = false,
+                dragged = false,
+                longPressFired = true,
+                hitCancel = false,
+                hitDone = false
+            )
+        ).isEqualTo(BubbleTapPolicy.Action.STOP_SAVE)
+    }
 }

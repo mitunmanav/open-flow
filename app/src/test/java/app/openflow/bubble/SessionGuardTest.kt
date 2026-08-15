@@ -21,4 +21,17 @@ class SessionGuardTest {
     fun stop_at_five_minutes() {
         assertThat(SessionGuard.phase(300_000L)).isEqualTo(SessionPhase.STOP)
     }
+
+    @Test
+    fun negative_elapsed_is_none() {
+        assertThat(SessionGuard.phase(-1L)).isEqualTo(SessionPhase.NONE)
+    }
+
+    @Test
+    fun remaining_ms_clamps() {
+        assertThat(SessionGuard.remainingMs(0L)).isEqualTo(SessionGuard.STOP_MS)
+        assertThat(SessionGuard.remainingMs(300_000L)).isEqualTo(0L)
+        assertThat(SessionGuard.remainingMs(400_000L)).isEqualTo(0L)
+        assertThat(SessionGuard.remainingMs(-5L)).isEqualTo(SessionGuard.STOP_MS)
+    }
 }

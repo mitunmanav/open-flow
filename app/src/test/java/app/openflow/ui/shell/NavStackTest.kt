@@ -55,6 +55,14 @@ class NavStackTest {
     }
 
     @Test
+    fun launch_ready_leaves_setup_for_home() {
+        val afterSetup = NavStack.navigate(listOf(AppRoute.Setup), AppRoute.Home)
+        assertThat(afterSetup).containsExactly(AppRoute.Home)
+        assertThat(AppRoute.Setup.isBottomBar()).isFalse()
+        assertThat(NavStack.current(NavStack.initial(ready = true))).isEqualTo(AppRoute.Home)
+    }
+
+    @Test
     fun back_from_settings_tab_goes_to_home() {
         assertThat(NavStack.canGoBack(listOf(AppRoute.Settings))).isTrue()
         assertThat(NavStack.goBack(listOf(AppRoute.Settings))).containsExactly(AppRoute.Home)
@@ -118,5 +126,13 @@ class NavStackTest {
         assertThat(AppRoute.SpeechAi.backTarget()).isEqualTo(AppRoute.Settings)
         val s = NavStack.navigate(listOf(AppRoute.Settings), AppRoute.SpeechAi)
         assertThat(s).containsExactly(AppRoute.Settings, AppRoute.SpeechAi).inOrder()
+    }
+
+    @Test
+    fun customize_and_nav_modules_dead_routes_gone() {
+        val names = AppRoute.entries.map { it.name }
+        assertThat(names).doesNotContain("Customize")
+        assertThat(names).doesNotContain("NavModules")
+        assertThat(names).contains("HomeModules")
     }
 }

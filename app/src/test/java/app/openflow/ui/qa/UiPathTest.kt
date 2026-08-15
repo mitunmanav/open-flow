@@ -22,11 +22,9 @@ class UiPathTest {
             AppRoute.Style,
             AppRoute.Settings,
             AppRoute.SpeechAi,
-            AppRoute.Customize,
             AppRoute.Appearance,
             AppRoute.BubbleSettings,
             AppRoute.HomeModules,
-            AppRoute.NavModules,
             AppRoute.Cleanup,
             AppRoute.Privacy,
             AppRoute.Sounds,
@@ -100,6 +98,7 @@ class UiPathTest {
             "engine_settings",
             "engine_feature_chips",
             "engine_honesty",
+            "engine_ear_disabled",
             "home_link_speech_ai",
         )
     }

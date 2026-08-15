@@ -24,7 +24,9 @@ data class ContinuousPolicy(
             ERROR_SERVER,
             ERROR_AUDIO,
             ERROR_TOO_MANY_REQUESTS,
-            ERROR_SERVER_DISCONNECTED -> true
+            ERROR_SERVER_DISCONNECTED,
+            ERROR_LANGUAGE_NOT_SUPPORTED,
+            ERROR_LANGUAGE_UNAVAILABLE -> true
             ERROR_INSUFFICIENT_PERMISSIONS -> false
             null -> false
             else -> true // unknown: try again while user wants continuous
@@ -39,10 +41,12 @@ data class ContinuousPolicy(
     fun shouldRecreateRecognizer(sessionCount: Int): Boolean =
         sessionCount > 0 && sessionCount % recreateEveryNSessions == 0
 
-    /** Busy / dropped service — new recognizer. Do not die quiet. */
+    /** Busy / dropped / language pack miss — new recognizer. Do not die quiet. */
     fun shouldRecreateOnError(errorCode: Int?): Boolean = when (errorCode) {
         ERROR_RECOGNIZER_BUSY,
-        ERROR_SERVER_DISCONNECTED -> true
+        ERROR_SERVER_DISCONNECTED,
+        ERROR_LANGUAGE_NOT_SUPPORTED,
+        ERROR_LANGUAGE_UNAVAILABLE -> true
         else -> false
     }
 
@@ -58,5 +62,9 @@ data class ContinuousPolicy(
         const val ERROR_INSUFFICIENT_PERMISSIONS = 9
         const val ERROR_TOO_MANY_REQUESTS = 10
         const val ERROR_SERVER_DISCONNECTED = 11
+        /** API 31+ SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED */
+        const val ERROR_LANGUAGE_NOT_SUPPORTED = 12
+        /** API 31+ SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE */
+        const val ERROR_LANGUAGE_UNAVAILABLE = 13
     }
 }

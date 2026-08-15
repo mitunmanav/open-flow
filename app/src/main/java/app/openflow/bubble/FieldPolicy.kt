@@ -18,7 +18,22 @@ object FieldPolicy {
         val hay = listOfNotNull(className, hintOrDesc).joinToString(" ").lowercase()
         if (hay.contains("password") || hay.contains("pin") || hay.contains("otp")) return true
         if (hay.contains("phone")) return true
+        if (hasSensitiveToken(hay)) return true
         return false
+    }
+
+    private fun hasSensitiveToken(hay: String): Boolean {
+        // Word-ish tokens — avoid "accident" matching "cid".
+        val tokens = listOf(
+            "cvv", "cvc", "cid", "ssn", "social security", "credit card", "card number"
+        )
+        return tokens.any { token ->
+            if (token.contains(' ')) {
+                hay.contains(token)
+            } else {
+                Regex("""\b${Regex.escape(token)}\b""").containsMatchIn(hay)
+            }
+        }
     }
 
     /** Hint + contentDescription only. Never live field body — "pin" in a message would skip. */
@@ -38,6 +53,36 @@ object FieldPolicy {
             c.contains("autocompletetextview") ||
             c.contains("textinputedittext") ||
             c.contains("webView".lowercase()) // WebView may host inputs; still try insert
+    }
+
+    /**
+     * Usable dictation target. Uses [inputType] + hint/desc only.
+     * [bodyText] ignored — chat "pin" must not skip.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    fun acceptsDictation(
+        enabled: Boolean,
+        isEditable: Boolean,
+        isPassword: Boolean,
+        inputType: Int,
+        className: String?,
+        hintText: String?,
+        contentDescription: String?,
+        bodyText: String? = null
+    ): Boolean {
+        if (!enabled) return false
+        val looksEdit = isEditable || isEditableClass(className)
+        if (!looksEdit) return false
+        if (isSensitive(
+                isPassword = isPassword,
+                inputType = inputType,
+                className = className,
+                hintOrDesc = skipHints(hintText, contentDescription)
+            )
+        ) {
+            return false
+        }
+        return true
     }
 
     fun isSearch(inputType: Int, className: String?, hintOrDesc: String?): Boolean {

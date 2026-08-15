@@ -35,7 +35,7 @@ class LaptopEarTest {
     @Test
     fun lan_url_ready_no_fake_final() {
         val rec = Rec()
-        val ear = LaptopEar(baseUrl = "http://192.168.0.10:9000/v1")
+        val ear = LaptopEar(baseUrl = "http://192.168.0.1:9000/v1")
         ear.setListener(rec)
         ear.startOnce("en-US")
         assertThat(ear.isAvailable).isTrue()

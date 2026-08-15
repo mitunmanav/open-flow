@@ -46,9 +46,11 @@ import app.openflow.notify.DictationNotifier
 import app.openflow.prefs.FlowPrefs
 import app.openflow.ui.HapticFeel
 import app.openflow.ui.theme.BubbleTint
+import app.openflow.runtime.TrimPolicy
 import app.openflow.stt.AndroidSpeechEngine
 import app.openflow.stt.LanguagePolicy
 import app.openflow.stt.SpeechEngine
+import app.openflow.stt.SttBias
 import app.openflow.stt.SttEngine
 import app.openflow.text.CleanupLevel
 import app.openflow.text.CleanupResult
@@ -331,6 +333,24 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
 
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        dropIdleSttIfNeeded(level)
+    }
+
+    /** App sets [OpenFlowApp.dropIdleStt]; service actually stops idle ear. */
+    private fun dropIdleSttIfNeeded(level: Int = app.lastTrimLevel) {
+        val lvl = if (app.dropIdleStt) {
+            maxOf(level, TrimPolicy.TRIM_MEMORY_BACKGROUND)
+        } else {
+            level
+        }
+        if (!TrimPolicy.dropIdleEngine(lvl, listening, stopInProgress)) return
+        ear?.stop()
+        ear = null
+        lastRms = 0f
+    }
+
     private fun updateFocusFrom(node: AccessibilityNodeInfo) {
         val target = when {
             isUsableEditable(node) -> {
@@ -347,11 +367,10 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         searchFieldFocused = target != null && FieldPolicy.isSearch(
             inputType = target.inputType,
             className = target.className?.toString(),
-            hintOrDesc = listOfNotNull(
+            hintOrDesc = FieldPolicy.skipHints(
                 target.hintText?.toString(),
-                target.text?.toString(),
                 target.contentDescription?.toString()
-            ).joinToString(" ")
+            )
         )
         setBubbleEmphasis(target != null)
         refreshBubbleVisibility()
@@ -381,25 +400,17 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         return null
     }
 
-    private fun isUsableEditable(node: AccessibilityNodeInfo): Boolean {
-        if (!node.isEnabled) return false
-        val looksEdit = node.isEditable ||
-            FieldPolicy.isEditableClass(node.className?.toString())
-        if (!looksEdit) return false
-        if (FieldPolicy.isSensitive(
-                isPassword = node.isPassword,
-                inputType = 0,
-                className = node.className?.toString(),
-                hintOrDesc = listOfNotNull(
-                    node.text?.toString(),
-                    node.contentDescription?.toString()
-                ).joinToString(" ")
-            )
-        ) {
-            return false
-        }
-        return true
-    }
+    private fun isUsableEditable(node: AccessibilityNodeInfo): Boolean =
+        FieldPolicy.acceptsDictation(
+            enabled = node.isEnabled,
+            isEditable = node.isEditable,
+            isPassword = node.isPassword,
+            inputType = node.inputType,
+            className = node.className?.toString(),
+            hintText = node.hintText?.toString(),
+            contentDescription = node.contentDescription?.toString(),
+            bodyText = node.text?.toString()
+        )
 
     private fun showBubble() {
         if (bubbleView != null) return
@@ -767,9 +778,11 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     }
 
     private fun onPulseTick() {
+        dropIdleSttIfNeeded()
         val now = SystemClock.elapsedRealtime()
         if (listening) {
             setListeningAwake(true)
+            applyRmsPulse()
             val elapsed = now - listenStartedAt
             when (SessionGuard.phase(elapsed)) {
                 SessionPhase.STOP -> {
@@ -936,9 +949,31 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                     stopListening(save = true)
                 }
             }
+
+            override fun onRmsChanged(rmsdB: Float) {
+                if (!live()) return
+                lastRms = BubbleRms.capture(rmsdB)
+                applyRmsPulse()
+                if (prefs?.bubbleShowText != true) {
+                    setListenChrome(
+                        (SystemClock.elapsedRealtime() - listenStartedAt) / 1000
+                    )
+                }
+            }
         })
-        ear.startContinuous(lang)
-        android.util.Log.i("OpenFlow.Bubble", "listen start gen=$gen ear=${ear.javaClass.simpleName}")
+        scope.launch(Dispatchers.IO) {
+            val dict = runCatching { app.dictations.dictionaryMap() }.getOrDefault(emptyMap())
+            val bias = SttBias.strings(dict, SttBias.fieldTokens(fieldPrefix))
+            mainHandler.post {
+                if (gen != listenGeneration || !listening) return@post
+                ear.setBiasing(bias)
+                ear.startContinuous(lang)
+                android.util.Log.i(
+                    "OpenFlow.Bubble",
+                    "listen start gen=$gen ear=${ear.javaClass.simpleName} bias=${bias.size}"
+                )
+            }
+        }
     }
 
     private fun stopListening(save: Boolean) {
@@ -971,6 +1006,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             listenGeneration++
             listening = false
             setListeningAwake(false)
+            lastRms = 0f
+            applyRmsPulse()
             sessionBuffer = StringBuilder()
             lastPartial = ""
             fieldPrefix = ""
@@ -1390,6 +1427,17 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
     }
 
+    private fun applyRmsPulse() {
+        val view = bubbleView ?: return
+        if (!listening) {
+            applyVisualScale()
+            return
+        }
+        val s = effectiveScale() * BubbleRms.pulseScale(lastRms)
+        view.scaleX = s
+        view.scaleY = s
+    }
+
     private fun hapticEvent(event: HapticFeel.Event) {
         val constant = HapticFeel.constantFor(prefs?.hapticFeel ?: HapticFeel.FULL, event) ?: return
         bubbleView?.performHapticFeedback(constant)
@@ -1422,7 +1470,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         if (p.bubbleShowText) {
             bubbleLabel?.text = BubbleLabelFormatter.listening(elapsedSec) + cmd
         } else {
-            val bars = WaveformBars.fromRms(lastRms)
+            val bars = BubbleRms.bars(lastRms)
             val warn = SessionGuard.phase(elapsedSec * 1000L) == SessionPhase.WARN
             val suffix = if (warn) " wrap" else if (elapsedSec > 0) "  ${elapsedSec}s" else ""
             bubbleLabel?.text = bars + suffix + cmd

@@ -13,7 +13,8 @@ class PrivacyDefaultsTest {
         assertThat(text).contains("OpenFlow server: none")
         assertThat(text).contains("Analytics: disabled")
         assertThat(text).contains("Audio uploaded by OpenFlow: only if cloud ear")
-        assertThat(text).contains("Transcript uploaded by OpenFlow: never")
+        assertThat(text).contains("Transcript uploaded by OpenFlow: only if cloud brain")
+        assertThat(text.lowercase()).doesNotContain("transcript uploaded by openflow: never")
         assertThat(text).contains("Local history: on device")
         assertThat(text).contains("sync: OFF")
         assertThat(text).contains("INTERNET permission: declared; unused until user pick")
@@ -50,6 +51,18 @@ class PrivacyDefaultsTest {
             assertThat(text).doesNotContain("oops we kept audio")
             assertThat(text).contains("audio uploaded by openflow: only if cloud ear")
         }
+    }
+
+    @Test
+    fun transcript_leaves_only_if_cloud_brain() {
+        assertThat(PrivacyDefaults.transcriptLeaves("none")).isFalse()
+        assertThat(PrivacyDefaults.transcriptLeaves("on_phone")).isFalse()
+        assertThat(PrivacyDefaults.transcriptLeaves("")).isFalse()
+        assertThat(PrivacyDefaults.transcriptLeaves("openai")).isTrue()
+        assertThat(PrivacyDefaults.transcriptLeaves("grok")).isTrue()
+        assertThat(PrivacyDefaults.transcriptLeaves("anthropic")).isTrue()
+        assertThat(PrivacyDefaults.transcriptLeaves("laptop")).isTrue()
+        assertThat(PrivacyDefaults.transcriptLeaves("custom")).isTrue()
     }
 
     @Test

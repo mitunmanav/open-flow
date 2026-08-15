@@ -5,7 +5,7 @@
 - No account
 - No analytics / ads / trackers
 - **`INTERNET` declared.** Unused until user picks a net ear/brain or downloads a model. Do not strip.
-- Public hosts: HTTPS only. Cleartext HTTP only for laptop/LAN (RFC1918 / localhost) via `network_security_config`
+- Public hosts: HTTPS only. Cleartext HTTP only for NSC listed LAN literals (no CIDR) + localhost via `network_security_config`. `HostUrl` matches that list.
 - API keys: device Keystore + separate prefs file. Never FlowPrefs. Never logs. Never backup.
 - `allowBackup="false"`
 - Mic permission only at runtime, when user records / dictating
@@ -21,8 +21,8 @@
 | Risk | Mitigation |
 |------|------------|
 | Voice leaves device | Default system STT + rules. Cloud ear/brain only after user pick. Honesty line per vendor. |
-| Backup leak | allowBackup false; data extraction rules exclude |
-| Cleartext MITM | NSC cleartext false |
+| Backup leak | allowBackup false; fullBackupContent + data extraction exclude all |
+| Cleartext MITM | NSC cleartext false except listed LAN literals; HostUrl matches NSC |
 | Over-broad perms | Request only when used |
 | Accessibility abuse | Minimal events; insert-only; password skip; open source audit |
 | Supply chain | FOSS deps; pin versions in Gradle |

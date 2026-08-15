@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit
 class DictationRepository(
     private val db: OpenFlowDb,
     private val dictationDao: DictationDao,
+    private val ftsDao: DictationFtsDao,
     private val dictionaryDao: DictionaryDao,
     private val snippetDao: SnippetDao,
     private val statsDao: StatsDao
@@ -29,6 +30,15 @@ class DictationRepository(
         snippetDao.all().associate { it.trigger to it.body }
 
     /**
+     * FTS search over clean + raw text. Blank / noise query → full ordered list.
+     * Local only — no network.
+     */
+    suspend fun searchDictations(query: String): List<DictationEntity> {
+        val match = FtsQuery.sanitize(query) ?: return dictationDao.allOrdered()
+        return dictationDao.searchFts(match)
+    }
+
+    /**
      * Persist a dictation with raw STT + clean text.
      * [retentionPolicy]: keep | wipe_24h | never_store
      * Returns null when never_store (history skipped).
@@ -43,6 +53,7 @@ class DictationRepository(
         if (!RetentionPolicy.shouldPersist(retentionPolicy)) return null
         RetentionPolicy.cutoffEpochMs(System.currentTimeMillis(), retentionPolicy)?.let {
             dictationDao.deleteOlderThan(it)
+            ftsDao.deleteOrphans()
         }
         val words = cleanText.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }.size
         val e = DictationEntity(
@@ -55,6 +66,7 @@ class DictationRepository(
             wordCount = words
         )
         dictationDao.upsert(e)
+        indexFts(e)
         bumpStats(words)
         return e
     }
@@ -62,13 +74,17 @@ class DictationRepository(
     suspend fun purgeOnLaunch(retentionPolicy: String, nowEpochMs: Long = System.currentTimeMillis()) {
         val cut = RetentionPolicy.cutoffEpochMs(nowEpochMs, retentionPolicy) ?: return
         dictationDao.deleteOlderThan(cut)
+        ftsDao.deleteOrphans()
     }
 
     /** Compat: single string → both raw and clean (pre-pipeline callers). */
     suspend fun saveDictation(text: String, durationMs: Long, languageTag: String): DictationEntity? =
         saveDictation(rawText = text, cleanText = text, durationMs = durationMs, languageTag = languageTag)
 
-    suspend fun deleteDictation(id: String) = dictationDao.delete(id)
+    suspend fun deleteDictation(id: String) {
+        dictationDao.delete(id)
+        ftsDao.deleteBySessionId(id)
+    }
 
     suspend fun latestText(): String? = dictationDao.latest()?.text
 
@@ -101,7 +117,9 @@ class DictationRepository(
     suspend fun updateDictationText(id: String, newText: String): Boolean {
         val e = dictationDao.get(id) ?: return false
         val words = newText.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }.size
-        dictationDao.upsert(e.copy(text = newText, wordCount = words))
+        val updated = e.copy(text = newText, wordCount = words)
+        dictationDao.upsert(updated)
+        indexFts(updated)
         return true
     }
 
@@ -138,6 +156,17 @@ class DictationRepository(
     suspend fun deleteSnippet(id: String) = snippetDao.delete(id)
 
     suspend fun stats(): AppStatsEntity = statsDao.get() ?: AppStatsEntity()
+
+    private suspend fun indexFts(e: DictationEntity) {
+        ftsDao.deleteBySessionId(e.id)
+        ftsDao.upsert(
+            DictationFtsEntity(
+                sessionId = e.id,
+                text = e.text,
+                rawText = e.rawText
+            )
+        )
+    }
 
     private suspend fun bumpStats(words: Int) {
         db.transact {

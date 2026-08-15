@@ -69,6 +69,7 @@ class OpenFlowApp : Application(), ComponentCallbacks2 {
         DictationRepository(
             database,
             database.dictationDao(),
+            database.dictationFtsDao(),
             database.dictionaryDao(),
             database.snippetDao(),
             database.statsDao()

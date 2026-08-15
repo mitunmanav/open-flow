@@ -44,4 +44,32 @@ class TrimPolicyTest {
         assertThat(TrimPolicy.shouldDropIdleStt(0)).isFalse()
         assertThat(TrimPolicy.action(0)).isEqualTo(TrimPolicy.Action.KEEP)
     }
+
+    @Test
+    fun drop_idle_engine_when_background_and_idle() {
+        assertThat(
+            TrimPolicy.dropIdleEngine(level = 40, listening = false, stopInProgress = false)
+        ).isTrue()
+    }
+
+    @Test
+    fun keep_engine_while_listening() {
+        assertThat(
+            TrimPolicy.dropIdleEngine(level = 40, listening = true, stopInProgress = false)
+        ).isFalse()
+    }
+
+    @Test
+    fun keep_engine_while_flush() {
+        assertThat(
+            TrimPolicy.dropIdleEngine(level = 40, listening = false, stopInProgress = true)
+        ).isFalse()
+    }
+
+    @Test
+    fun keep_engine_on_ui_hidden() {
+        assertThat(
+            TrimPolicy.dropIdleEngine(level = 20, listening = false, stopInProgress = false)
+        ).isFalse()
+    }
 }

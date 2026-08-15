@@ -55,6 +55,36 @@ object FieldPolicy {
             c.contains("webView".lowercase()) // WebView may host inputs; still try insert
     }
 
+    /**
+     * Usable dictation target. Uses [inputType] + hint/desc only.
+     * [bodyText] ignored — chat "pin" must not skip.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    fun acceptsDictation(
+        enabled: Boolean,
+        isEditable: Boolean,
+        isPassword: Boolean,
+        inputType: Int,
+        className: String?,
+        hintText: String?,
+        contentDescription: String?,
+        bodyText: String? = null
+    ): Boolean {
+        if (!enabled) return false
+        val looksEdit = isEditable || isEditableClass(className)
+        if (!looksEdit) return false
+        if (isSensitive(
+                isPassword = isPassword,
+                inputType = inputType,
+                className = className,
+                hintOrDesc = skipHints(hintText, contentDescription)
+            )
+        ) {
+            return false
+        }
+        return true
+    }
+
     fun isSearch(inputType: Int, className: String?, hintOrDesc: String?): Boolean {
         val hay = listOfNotNull(className, hintOrDesc).joinToString(" ").lowercase()
         if (hay.contains("search") || hay.contains("query") || hay.contains("url bar")) return true

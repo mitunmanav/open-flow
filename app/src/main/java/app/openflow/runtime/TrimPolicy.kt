@@ -27,4 +27,8 @@ object TrimPolicy {
     fun shouldDropIdleStt(level: Int): Boolean = action(level) == Action.DROP_IDLE_STT
 
     fun shouldReleaseUiCaches(level: Int): Boolean = action(level) != Action.KEEP
+
+    /** Drop idle SpeechRecognizer. Never while listen/flush. */
+    fun dropIdleEngine(level: Int, listening: Boolean, stopInProgress: Boolean = false): Boolean =
+        shouldDropIdleStt(level) && !listening && !stopInProgress
 }

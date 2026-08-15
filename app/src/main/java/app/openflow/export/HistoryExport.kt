@@ -12,7 +12,8 @@ import java.util.Locale
  */
 object HistoryExport {
 
-    private val stampFmt = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US)
+    private val stampFmt: SimpleDateFormat
+        get() = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US)
 
     data class Row(
         val createdAtEpochMs: Long,

@@ -45,6 +45,73 @@ class TextPostProcessorTest {
     }
 
     @Test
+    fun snippet_in_sentence_whole_word_expand() {
+        val out = TextPostProcessor.expandSnippets(
+            "please send sig today",
+            mapOf("sig" to "Best regards,\nMitun")
+        )
+        assertThat(out).contains("please send")
+        assertThat(out).contains("Best regards")
+        assertThat(out).contains("Mitun")
+        assertThat(out).contains("today")
+        assertThat(out.lowercase()).doesNotContain("sig")
+    }
+
+    @Test
+    fun snippet_does_not_expand_partial_word() {
+        val out = TextPostProcessor.expandSnippets(
+            "the signal is ready",
+            mapOf("sig" to "BLOCK")
+        )
+        assertThat(out).isEqualTo("the signal is ready")
+    }
+
+    @Test
+    fun snippet_phrase_in_sentence() {
+        val out = TextPostProcessor.expandSnippets(
+            "please use my address thanks",
+            mapOf("my address" to "1 Main St")
+        )
+        assertThat(out).contains("please use")
+        assertThat(out).contains("1 Main St")
+        assertThat(out).contains("thanks")
+        assertThat(out.lowercase()).doesNotContain("my address")
+    }
+
+    @Test
+    fun snippet_in_sentence_case_insensitive() {
+        val out = TextPostProcessor.expandSnippets(
+            "Send SIG please",
+            mapOf("sig" to "Best regards")
+        )
+        assertThat(out).contains("Best regards")
+        assertThat(out).doesNotContain("SIG")
+    }
+
+    @Test
+    fun snippet_longest_phrase_wins() {
+        val out = TextPostProcessor.expandSnippets(
+            "email sig now",
+            mapOf("sig" to "SHORT", "email sig" to "LONG BODY")
+        )
+        assertThat(out).contains("LONG BODY")
+        assertThat(out).doesNotContain("SHORT")
+    }
+
+    @Test
+    fun polishSessionResult_snippet_in_sentence_before_cleanup() {
+        val result = TextPostProcessor.polishSessionResult(
+            raw = "um send sig please",
+            level = CleanupLevel.LIGHT,
+            style = WritingStyle.CASUAL,
+            snippets = mapOf("sig" to "Best regards,\nMitun")
+        )
+        assertThat(result.raw).isEqualTo("um send sig please")
+        assertThat(result.clean).contains("Best regards")
+        assertThat(result.clean).contains("Mitun")
+    }
+
+    @Test
     fun question_mark_for_how() {
         val out = TextPostProcessor.process("how are you doing today")
         assertThat(out).endsWith("?")

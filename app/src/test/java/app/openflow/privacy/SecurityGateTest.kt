@@ -1,6 +1,7 @@
 package app.openflow.privacy
 
 import app.openflow.ai.providers.cloud.CloudHttpSafe
+import app.openflow.ai.providers.host.HostUrl
 import app.openflow.prefs.FlowPrefs
 import app.openflow.secrets.AndroidSecretStore
 import com.google.common.truth.Truth.assertThat
@@ -61,6 +62,35 @@ class SecurityGateTest {
         val text = PrivacyDefaults.reportText()
         assertThat(text).doesNotContain(sample)
         assertThat(text.lowercase()).doesNotContain("sk-")
+    }
+
+    @Test
+    fun hosturl_http_matches_nsc_domain_literals() {
+        val xml = locate("src/main/res/xml/network_security_config.xml").readText()
+        val domains = Regex("""<domain(?:\s[^>]*)?>([^<]+)</domain>""")
+            .findAll(xml)
+            .map { it.groupValues[1].trim() }
+            .toList()
+        assertThat(domains).isNotEmpty()
+        for (d in domains) {
+            val host = if (":" in d) "[$d]" else d
+            assertThat(HostUrl.allow("http://$host")).isTrue()
+        }
+        for (h in HostUrl.NSC_CLEARTEXT_HOSTS) {
+            assertThat(xml).contains(">$h<")
+        }
+        assertThat(HostUrl.allow("http://192.168.1.5")).isFalse()
+        assertThat(HostUrl.allow("http://172.31.255.255")).isFalse()
+        assertThat(xml).contains("cleartextTrafficPermitted=\"false\"")
+        assertThat(xml).doesNotContain("cleartextTrafficPermitted=\"true\" />")
+    }
+
+    @Test
+    fun report_honest_about_brain_post() {
+        val text = PrivacyDefaults.reportText()
+        assertThat(text).contains("Transcript uploaded by OpenFlow: only if cloud brain")
+        assertThat(text.lowercase()).doesNotContain("transcript uploaded by openflow: never")
+        assertThat(text).contains("Audio uploaded by OpenFlow: only if cloud ear")
     }
 
     @Test

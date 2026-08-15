@@ -6,6 +6,8 @@ Android 8+ (API 26). English only. **Debug-signed sideload is OK** for early lau
 
 **Maintainers:** pre-flight + device matrix → [LAUNCH_CHECKLIST.md](LAUNCH_CHECKLIST.md).
 
+**Maintainers:** pre-flight + device matrix → [LAUNCH_CHECKLIST.md](LAUNCH_CHECKLIST.md).
+
 ## 1. Get the APK
 
 | Source | Where |

@@ -20,6 +20,7 @@ interface SpeechEngine {
         fun onReady()
         fun onListeningChanged(listening: Boolean)
         fun onNeedMicPermission() {}
+        fun onRmsChanged(rmsdB: Float) {}
     }
 
     /** True when a speech recognizer is available on this device. */
@@ -38,4 +39,7 @@ interface SpeechEngine {
     fun stop()
 
     fun destroy()
+
+    /** API 33+ SpeechRecognizer bias. Default no-op. */
+    fun setBiasing(words: List<String>) {}
 }

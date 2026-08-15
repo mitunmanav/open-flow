@@ -8,7 +8,7 @@ class LaptopBrainTest {
 
     @Test
     fun name_is_laptop() {
-        assertThat(LaptopBrain(baseUrl = "http://192.168.1.5:11434/v1").name).isEqualTo("laptop")
+        assertThat(LaptopBrain(baseUrl = "http://192.168.1.1:11434/v1").name).isEqualTo("laptop")
     }
 
     @Test
@@ -25,7 +25,7 @@ class LaptopBrainTest {
         var seenUrl = ""
         var seenJson = ""
         val brain = LaptopBrain(
-            baseUrl = "http://192.168.1.5:11434/v1",
+            baseUrl = "http://192.168.1.1:11434/v1",
             model = "llama3.2",
             post = { url, _, json ->
                 seenUrl = url
@@ -34,7 +34,7 @@ class LaptopBrainTest {
             },
         )
         assertThat(brain.enhance("raw talk", "cleanup")).isEqualTo("cleaned")
-        assertThat(seenUrl).isEqualTo("http://192.168.1.5:11434/v1/chat/completions")
+        assertThat(seenUrl).isEqualTo("http://192.168.1.1:11434/v1/chat/completions")
         assertThat(seenJson).contains("llama3.2")
         assertThat(seenJson).contains("raw talk")
         assertThat(seenJson).contains("Do not invent facts")

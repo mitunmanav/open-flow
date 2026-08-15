@@ -2,17 +2,66 @@
 
 ## 0.1.5 — 2026-08-13
 
-GitHub sideload ship.
+GitHub sideload ship. Verified 603 PASS / 0 fail / 0 err / 0 skip unit tests. APK ~17 MB at `app/build/outputs/apk/debug/app-debug.apk`. Main tip `3ce83f2`.
 
-- No copy chip on the bubble (copy from History)
-- First-open walkthrough
-- Brutal nav, pill overlay matches settings
-- Back from Dictionary goes to Home
-- Hide bubble on more bank/wallet apps
-- Color presets + haptic Off/Light/Full
-- Own cream/charcoal mark
+### Added
+- **Engine picker** — Speech + AI screen. Pick from `system | on_phone | laptop | openai | deepgram | assemblyai | sarvam | custom_stt` (ear) and `none | on_phone | laptop | openai | grok | MiniMax | deepseek | gemini | mistral | together | fireworks | openrouter | sarvam | anthropic | custom` (brain).
+- **BYOK** — API keys stored in `AndroidSecretStore` (AES-GCM wrapped by AndroidKeyStore). Last-4 mask in UI. `EngineSession.saveKey` writes every key id the current pick needs.
+- **Laptop / LAN ear + brain** — `LaptopEar` + `LaptopBrain` over user URL. `HostUrl` blocks public HTTP, allows loopback / RFC1918 / link-local only.
+- **Cloud ears** — `OpenAiRealtimeEar` / `DeepgramEar` / `AssemblyEar` / `SarvamEar`. `FailSoftSocket` keeps callers safe — connect returns dead session, no live audio yet, no crash.
+- **HTTP brain rate limit** — `RateLimit.DEFAULT_PER_MINUTE = 30` per host. Denied = `IOException("rate limited")`, not silent drop.
+- **`FieldContext` / `CommandChrome` / `BrainPick`** — `HIGH_AI` + `COMMAND` + `FIELD_CONTEXT` features light up from `FeatureAuto.of(ear, brain)`.
+- **`AppStylePolicy`** — per-app style (personal/work/email/other) wired into polish path.
+- **`FtsQueryTest`** — Room history search covers both raw and clean text.
+- **`HostUrlTest`** / `LaptopBrainTest` / `LaptopEarTest` / `NamedCloudTest` / `CloudProvidersTest` / `AndroidCloudHttpTest` / `AnthropicBrainTest` / `OpenAiCompatBrainTest` — pick wire contract covered by JVM tests.
+- **`PrivacyHonestyTest`** / **`SecurityGateTest`** / **`UiPathTest`** / **`WindowChromeTest`** — manifest + privacy + UI source sanity tests that grep real files.
+- **`BubbleTapPolicy.cancelled`** param — gesture cancel returns `Action.NONE`.
+- **`FieldPolicy.skipHints`** — only hint + contentDescription (never live body) used for sensitive skip.
+- **5 walkthrough pages** — What / Talk / Dict vs Snippet / Privacy / Ready.
+- **Brutal cream / charcoal / ink theme** as ship default. M3 skin opt-in (defined, no UI picker).
+- **Idle shrink** after 5s. **Waveform bars** (4-cell RMS).
+- **Bubble shapes** — pill / circle / square / dot. **Color tints** — charcoal / cream / ink / stone.
+- **Engine + STT profiles** — Fast / Balanced / Accurate.
+- **Adaptive refresh** preference (60 / 90 / 120 / 144 Hz).
+- **Dark mode** — system / light / dark.
 
+### Changed
+- Bubble uses `app.currentEar()` each tap (not raw `SttEngine`).
+- Polish path goes through `EngineSession` + `FeatureAuto` + `SendPolicy.forBrain`.
+- `NetworkSecurityConfig` cleartext: `localhost` / `127.0.0.1` / `10.0.2.2` / `192.168.x.x` / `172.16-31.x.x` / link-local v6.
+- `androidx.compose.material:material-icons-extended` brought in for Dict / Snippets / Style icons.
+- README, GUIDE, INSTALL, COMPARISON, ARCHITECTURE: re-verified against actual code (e.g. real test count, real APK path, real permissions).
+- HISTORY in `MainActivity` shows day groups (`HistoryDays.group` → Today / Yesterday / Earlier) + search + edit raw + share markdown + copy clean.
 
+### Fixed
+- Bubble cancel discards (not saves) — `BubbleTapPolicy.Action.STOP_DISCARD`.
+- Overlay hit-test for Cancel / Done (parent `OnTouch` ate clicks) — hit-test on `ACTION_UP`.
+- `wipe_24h` retention purges on launch, not only on next save.
+- Bubble security: a11y overlay uses `TYPE_ACCESSIBILITY_OVERLAY`, no `SYSTEM_ALERT_WINDOW`.
+- `BubbleTapPolicy.cancelled` short-circuits — gesture cancel no longer fires `Action.START`.
+- `FieldPolicy.isSensitive` catches password input-type variations even when `isPassword` flag false.
+- README claimed "no INTERNET permission" — INTERNET is declared (NSC-blocked by default). README reworded to "declared; off until opt-in".
+
+### Security
+- INTERNET declared, NSC cleartext LAN-only, `allowBackup=false`, `dataExtractionRules` excludes root/file/database/sharedpref/external.
+- API keys AES-GCM wrapped by AndroidKeyStore (`openflow_secrets_aes` alias). Plain key never logged. Uninstall deletes.
+- Room v4 — **no** `fallbackToDestructiveMigration()`. Schema mismatch throws. User history preserved.
+- `Recycle AccessibilityNodeInfo` after every read (`@Suppress("DEPRECATION")`).
+- No clipboard leak on every insert — only on no-field fallback.
+- `Recorder` permission not declared. FGS not in manifest. Recorder is V2.
+
+### Known limits (call out in release notes)
+- **Language: en-US only.** Other BCP-47 tags are forced to en-US.
+- **STT: phone engine.** May still use Google / OEM. We do not upload. INTERNET unused.
+- **Debug-signed** sideload APK. Release keystore is a later step (F-Droid / Play).
+- **No bubble copy chip** — copy from History.
+- **Cloud WS audio** is not live yet (`FailSoftSocket`). HTTP brain calls work end-to-end.
+
+### Phone test (Mitun, before shipping APK to public)
+- Install from **Files**, not only ADB. Android 13+ Restricted Settings path required.
+- Bubble appears in text field; mic grant → tap → speak → tap → insert.
+- Password / PIN / bank field → bubble hidden or no insert.
+- History search / copy / share works.
 
 ## 0.1.1 — 2026-08-13
 
@@ -42,7 +91,7 @@ First public GitHub release.
 - Dictionary, snippets, cleanup levels, bubble appearance
 
 ### Privacy
-- No INTERNET permission
+- No INTERNET permission (changed: INTERNET declared but blocked by NSC)
 - Honest STT network disclosure
 - Retention: keep / wipe 24h / never store (enforced)
 - Cloud + device-transfer backup excludes

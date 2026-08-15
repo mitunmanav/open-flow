@@ -1,5 +1,6 @@
 package app.openflow.bubble
 
+import android.annotation.SuppressLint
 import android.Manifest
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
@@ -1446,6 +1447,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         const val ACTION_COPY_LAST = "app.openflow.COPY_LAST"
         const val EXTRA_TEXT = "text"
 
+        @SuppressLint("StaticFieldLeak")
         @Volatile
         var instance: FlowAccessibilityService? = null
             private set

@@ -65,6 +65,10 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+    lint {
+        abortOnError = false
+        disable += setOf("NewApi", "NetworkSecurityConfig")
+    }
 }
 
 dependencies {

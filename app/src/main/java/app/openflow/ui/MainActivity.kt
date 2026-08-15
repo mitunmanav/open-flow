@@ -132,6 +132,7 @@ import app.openflow.ui.theme.BubbleTint
 import app.openflow.ui.theme.Motion
 import app.openflow.ui.theme.OpenFlowTheme
 import app.openflow.ui.theme.VisualSkin
+import app.openflow.ui.theme.VisualSkin.*
 import app.openflow.ui.theme.rememberMotionMs
 import app.openflow.ui.theme.rememberShouldAnimate
 import app.openflow.ui.walkthrough.WalkthroughPager
@@ -2418,6 +2419,7 @@ private fun SettingsRow(title: String, subtitle: String, onClick: () -> Unit) {
 @Composable
 private fun AppearanceSettings(prefs: FlowPrefs) {
     val dark by prefs.darkMode.collectAsState()
+    val skin by prefs.visualSkin.collectAsState()
     val context = LocalContext.current
     var refreshHz by remember { mutableIntStateOf(prefs.refreshHz) }
     var sttProfile by remember { mutableStateOf(prefs.sttProfile) }
@@ -2484,6 +2486,39 @@ private fun AppearanceSettings(prefs: FlowPrefs) {
                             isOn = dark == v,
                             modifier = Modifier.wrapContentHeight(),
                             onClick = { prefs.setDarkMode(v) }
+                        )
+                    }
+                }
+            }
+        }
+
+        OpenCard {
+            Column(
+                Modifier
+                    .padding(Dimen.MIN_PADDING)
+                    .wrapContentHeight(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text("Visual skin", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, softWrap = true)
+                Text(
+                    "Brutal = hard borders, high contrast. Soft = rounded Material look.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    softWrap = true
+                )
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(BRUTAL to "Brutal", M3 to "Soft").forEach { (v, label) ->
+                        OpenChip(
+                            label = label,
+                            isOn = skin == v,
+                            modifier = Modifier.wrapContentHeight(),
+                            onClick = { prefs.setVisualSkin(v) }
                         )
                     }
                 }

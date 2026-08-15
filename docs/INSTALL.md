@@ -12,7 +12,7 @@ Android 8+ (API 26). English only. **Debug-signed sideload is OK** for early lau
 
 | Source | Where |
 |--------|--------|
-| GitHub Releases | `open-flow-0.1.5-debug.apk` → [Releases](https://github.com/mitunmanav/open-flow/releases/latest) |
+| GitHub Releases | `open-flow-0.1.6-debug.apk` → [Releases](https://github.com/mitunmanav/open-flow/releases/latest) |
 | Desktop (dev) | `/home/mitun/Desktop/open-flow.apk` — copy to phone |
 | Fresh build | `app/build/outputs/apk/debug/app-debug.apk` |
 

@@ -1,5 +1,6 @@
 package app.openflow.ai.providers.cloud
 
+import app.openflow.BuildConfig
 import app.openflow.ai.TextAIProvider
 
 class OpenAiCompatBrain(
@@ -33,7 +34,9 @@ class OpenAiCompatBrain(
             val raw = http.post(url, headers, body)
             ChatJson.firstString(raw, "content")?.takeIf { it.isNotBlank() } ?: text
         } catch (e: Exception) {
-            android.util.Log.w("OpenAiCompatBrain", "enhance request failed, returning raw text", e)
+            if (BuildConfig.DEBUG) {
+                android.util.Log.w("OpenAiCompatBrain", "enhance request failed, returning raw text", e)
+            }
             text
         }
     }

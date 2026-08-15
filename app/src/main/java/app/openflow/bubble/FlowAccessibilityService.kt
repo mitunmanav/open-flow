@@ -917,7 +917,9 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
             override fun onError(message: String, fatal: Boolean) = ui {
                 if (!live() && !fatal) return@ui
-                android.util.Log.w("OpenFlow.Bubble", "ear error fatal=$fatal msg=$message")
+                if (BuildConfig.DEBUG) {
+                    android.util.Log.w("OpenFlow.Bubble", "ear error fatal=$fatal msg=$message")
+                }
                 val mic = message.contains("Microphone", true) ||
                     message.contains("Allow mic", true)
                 val soft = !fatal && !mic && (
@@ -1133,7 +1135,9 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         if (!BuildConfig.DEBUG) return
         val text = raw.trim()
         if (text.isBlank()) {
-            android.util.Log.w("OpenFlow.Inject", "blank")
+            if (BuildConfig.DEBUG) {
+                android.util.Log.w("OpenFlow.Inject", "blank")
+            }
             return
         }
         val prefix = captureFieldPrefix()
@@ -1181,7 +1185,9 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             injectReceiverRegistered = true
             android.util.Log.i("OpenFlow.Inject", "receiver registered action=$ACTION_INJECT")
         } catch (e: Exception) {
-            android.util.Log.e("OpenFlow.Inject", "register failed", e)
+            if (BuildConfig.DEBUG) {
+                android.util.Log.e("OpenFlow.Inject", "register failed", e)
+            }
         }
     }
 

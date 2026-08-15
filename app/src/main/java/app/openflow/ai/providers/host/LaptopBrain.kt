@@ -1,5 +1,6 @@
 package app.openflow.ai.providers.host
 
+import app.openflow.BuildConfig
 import app.openflow.ai.TextAIProvider
 
 fun interface HostPost {
@@ -33,7 +34,9 @@ class LaptopBrain(
         return try {
             parseContent(post.post(url, headers, body)) ?: text
         } catch (e: Exception) {
-            android.util.Log.w("LaptopBrain", "enhance request failed, returning raw text", e)
+            if (BuildConfig.DEBUG) {
+                android.util.Log.w("LaptopBrain", "enhance request failed, returning raw text", e)
+            }
             text
         }
     }

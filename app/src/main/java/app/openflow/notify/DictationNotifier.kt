@@ -11,6 +11,7 @@ import android.os.Build
 import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import app.openflow.BuildConfig
 import app.openflow.R
 import app.openflow.bubble.FlowAccessibilityService
 import app.openflow.ui.MainActivity
@@ -34,7 +35,9 @@ object DictationNotifier {
             nm.createNotificationChannel(ch)
             true
         } catch (e: Exception) {
-            android.util.Log.w("DictationNotifier", "createChannel failed", e)
+            if (BuildConfig.DEBUG) {
+                android.util.Log.w("DictationNotifier", "createChannel failed", e)
+            }
             false
         }
     }
@@ -70,7 +73,9 @@ object DictationNotifier {
             nm.notify(NOTIF_ID, n)
             true
         } catch (e: Exception) {
-            android.util.Log.w("DictationNotifier", "notifyIfPermitted failed", e)
+            if (BuildConfig.DEBUG) {
+                android.util.Log.w("DictationNotifier", "notifyIfPermitted failed", e)
+            }
             false
         }
     }
@@ -96,7 +101,9 @@ object DictationNotifier {
             nm.notify(NOTIF_ID + 1, n)
             true
         } catch (e: Exception) {
-            android.util.Log.w("DictationNotifier", "notifyServiceStopped failed", e)
+            if (BuildConfig.DEBUG) {
+                android.util.Log.w("DictationNotifier", "notifyServiceStopped failed", e)
+            }
             false
         }
     }

@@ -3,6 +3,7 @@ package app.openflow.display
 import android.app.Activity
 import android.os.Build
 import android.view.Surface
+import app.openflow.BuildConfig
 
 /**
  * Apply preferred refresh rate (60/90/120/144) best-effort.
@@ -28,7 +29,9 @@ object DisplayRefreshController {
         val currentModeId = try {
             display.mode.modeId
         } catch (e: Exception) {
-            android.util.Log.w("DisplayRefresh", "failed to read current modeId", e)
+            if (BuildConfig.DEBUG) {
+                android.util.Log.w("DisplayRefresh", "failed to read current modeId", e)
+            }
             -1
         }
         if (!DisplayRefreshPolicy.needsApply(currentHz, hz) &&
@@ -42,7 +45,9 @@ object DisplayRefreshController {
             lp.preferredDisplayModeId = pick.modeId
             activity.window.attributes = lp
         } catch (e: Exception) {
-            android.util.Log.w("DisplayRefresh", "failed to set preferredDisplayModeId", e)
+            if (BuildConfig.DEBUG) {
+                android.util.Log.w("DisplayRefresh", "failed to set preferredDisplayModeId", e)
+            }
         }
     }
 }

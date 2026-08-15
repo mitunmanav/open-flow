@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.1.6 — 2026-08-16
+
+GitHub sideload ship (channel unchanged). Verified 735 PASS / 0 fail / 0 err / 0 skip unit tests (106 XML files). APK `open-flow-0.1.6-debug.apk` (debug-signed) at `app/build/outputs/apk/debug/app-debug.apk`. Main tip `5c68ac2`. versionCode 7 · versionName 0.1.6.
+
+### Added
+- **ActivePackageTracker** — bubble only shows in the active app, not everywhere.
+- **Light brutal skin** — visual skin control in appearance.
+- **Reduced-motion support.**
+- **Honesty row for disabled ears** — disabled ears say so instead of sitting silent.
+
+### Changed
+- **Dead / hide controls wired or hidden** — engine picker + home module editors no longer show controls that do nothing.
+- **Cloud ear hardening** — `MainThreadHop` + `PcmResample`.
+- **targetSdk / compileSdk 36.**
+- Unit tests 683 → **735**.
+
+### Known limits (call out in release notes)
+- **Language: en-US only.**
+- **STT: phone engine.** May still use Google / OEM. We do not upload. INTERNET unused by Open Flow until opt-in.
+- **Debug-signed** sideload APK. Bank apps may still warn about Accessibility. Not Play / F-Droid yet.
+
 ## 0.1.5 — 2026-08-13
 
 GitHub sideload ship. Verified 603 PASS / 0 fail / 0 err / 0 skip unit tests. APK ~17 MB at `app/build/outputs/apk/debug/app-debug.apk`. Main tip `3ce83f2`.

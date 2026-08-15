@@ -57,7 +57,9 @@ class OpenFlowApp : Application(), ComponentCallbacks2 {
         kotlinx.coroutines.SupervisorJob() +
             kotlinx.coroutines.Dispatchers.IO +
             kotlinx.coroutines.CoroutineExceptionHandler { _, e ->
-                android.util.Log.e("OpenFlowApp", "background task failed", e)
+                if (BuildConfig.DEBUG) {
+                    android.util.Log.e("OpenFlowApp", "background task failed", e)
+                }
             }
     )
 

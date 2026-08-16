@@ -6,13 +6,17 @@
     <!-- unused until user pick (net ear/brain or model download) -->
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- Android 11+ package visibility: find speech recognition services -->
+    <!-- Android 11+ package visibility: STT services + launcher apps for Style picker -->
     <queries>
         <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>
         <intent>
             <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
         </intent>
     </queries>
 

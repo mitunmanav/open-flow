@@ -12,6 +12,7 @@ import app.openflow.text.CleanupLevel
 import app.openflow.text.CustomStyleConfig
 import app.openflow.text.EndPunct
 import app.openflow.text.LearnEngine
+import app.openflow.text.StyleCategory
 import app.openflow.text.WritingStyle
 import app.openflow.ui.HapticFeel
 import app.openflow.ui.theme.BubbleTint
@@ -345,6 +346,96 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         }
         store.putString("app_overrides", encodeAppOverrides(current))
     }
+
+    /** Wispr-shaped Style hub: per-category WritingStyle. */
+    fun getHubStyle(category: StyleCategory): WritingStyle {
+        migrateLegacyAppContextIfNeeded()
+        val raw = store.getString("hub_style_${category.name}", "")
+        val style = if (raw.isNotEmpty()) WritingStyle.fromPref(raw) else category.defaultStyle
+        return category.coerce(style)
+    }
+
+    fun setHubStyle(category: StyleCategory, style: WritingStyle) {
+        store.putString("hub_style_${category.name}", category.coerce(style).name)
+    }
+
+    fun hubStylesMap(): Map<StyleCategory, WritingStyle> =
+        StyleCategory.entries.associateWith { getHubStyle(it) }
+
+    fun getStyleAppAssignments(): Map<String, StyleCategory> {
+        migrateLegacyAppContextIfNeeded()
+        val raw = store.getString("style_app_assignments", "")
+        if (raw.isBlank()) return emptyMap()
+        return raw.lines().mapNotNull { line ->
+            val parts = line.split(";", limit = 2)
+            if (parts.size < 2) return@mapNotNull null
+            val pkg = parts[0].trim().lowercase()
+            if (pkg.isEmpty()) return@mapNotNull null
+            pkg to StyleCategory.fromName(parts[1])
+        }.toMap()
+    }
+
+    fun setStyleAppAssignment(packageName: String, category: StyleCategory) {
+        val pkg = packageName.trim().lowercase()
+        if (pkg.isEmpty()) return
+        val next = getStyleAppAssignments().toMutableMap()
+        next[pkg] = category
+        store.putString("style_app_assignments", encodeStyleAssignments(next))
+    }
+
+    fun removeStyleAppAssignment(packageName: String) {
+        val pkg = packageName.trim().lowercase()
+        val next = getStyleAppAssignments().toMutableMap()
+        next.remove(pkg)
+        store.putString("style_app_assignments", encodeStyleAssignments(next))
+    }
+
+    /**
+     * One-shot: old 7-cat AppContext → 4-cat Style hub.
+     * MESSAGING→PERSONAL, WORK_COLLAB→WORK, EMAIL→EMAIL, else OTHER.
+     */
+    fun migrateLegacyAppContextIfNeeded() {
+        if (store.getString("style_hub_migrated", "") == "1") return
+        val messaging = getCategoryStyle(AppCategory.MESSAGING)
+        val work = getCategoryStyle(AppCategory.WORK_COLLAB)
+        val email = getCategoryStyle(AppCategory.EMAIL)
+        val other = getCategoryStyle(AppCategory.GENERAL)
+
+        if (store.getString("hub_style_PERSONAL", "").isEmpty()) {
+            store.putString("hub_style_PERSONAL", StyleCategory.PERSONAL.coerce(messaging).name)
+        }
+        if (store.getString("hub_style_WORK", "").isEmpty()) {
+            store.putString("hub_style_WORK", StyleCategory.WORK.coerce(work).name)
+        }
+        if (store.getString("hub_style_EMAIL", "").isEmpty()) {
+            store.putString("hub_style_EMAIL", StyleCategory.EMAIL.coerce(email).name)
+        }
+        if (store.getString("hub_style_OTHER", "").isEmpty()) {
+            store.putString("hub_style_OTHER", StyleCategory.OTHER.coerce(other).name)
+        }
+
+        if (store.getString("style_app_assignments", "").isEmpty()) {
+            val mapped = getAppOverrides().associate { ov ->
+                val cat = when (ov.category) {
+                    AppCategory.MESSAGING -> StyleCategory.PERSONAL
+                    AppCategory.WORK_COLLAB -> StyleCategory.WORK
+                    AppCategory.EMAIL -> StyleCategory.EMAIL
+                    else -> StyleCategory.OTHER
+                }
+                ov.packageName.lowercase().trim() to cat
+            }.filterKeys { it.isNotEmpty() }
+            if (mapped.isNotEmpty()) {
+                store.putString("style_app_assignments", encodeStyleAssignments(mapped))
+            }
+        }
+
+        store.putString("style_hub_migrated", "1")
+    }
+
+    private fun encodeStyleAssignments(map: Map<String, StyleCategory>): String =
+        map.entries.joinToString("\n") { (pkg, cat) ->
+            "${pkg.replace(";", "_").replace("\n", " ")};${cat.name}"
+        }
 
     companion object {
         const val PREFS_NAME = "openflow_prefs"

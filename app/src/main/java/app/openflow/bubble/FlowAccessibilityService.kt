@@ -17,6 +17,8 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -44,7 +46,14 @@ import androidx.core.content.ContextCompat
 import app.openflow.BuildConfig
 import app.openflow.OpenFlowApp
 import app.openflow.R
+import app.openflow.ai.NoAI
 import app.openflow.notify.DictationNotifier
+import app.openflow.orchestrate.BrainRouter
+import app.openflow.orchestrate.PipelineArtifactPolicy
+import app.openflow.orchestrate.ProviderHealth
+import app.openflow.orchestrate.RouteSignals
+import app.openflow.orchestrate.SessionArtifact
+import app.openflow.orchestrate.SttRouter
 import app.openflow.prefs.FlowPrefs
 import app.openflow.ui.HapticFeel
 import app.openflow.ui.theme.BubbleTint
@@ -56,11 +65,14 @@ import app.openflow.stt.SpeechEngine
 import app.openflow.stt.SttBias
 import app.openflow.stt.SttEngine
 import app.openflow.text.CleanupResult
+import app.openflow.text.CleanupLevel
+import app.openflow.text.CommandMode
 import app.openflow.text.CustomStyleConfig
 import app.openflow.text.InsertPolish
 import app.openflow.text.PressEnterPolicy
 import app.openflow.text.LearnEngine
 import app.openflow.text.TextPostProcessor
+import app.openflow.text.VoiceCommands
 import app.openflow.text.StyleResolvePolicy
 import app.openflow.text.WritingStyle
 import kotlinx.coroutines.CoroutineScope
@@ -96,6 +108,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
     /** Live listen ear from [OpenFlowApp.currentEar]. Not a raw [SttEngine]. */
     private var ear: SpeechEngine? = null
+    private var sessionEarId: String = "system"
+    private val providerHealth = ProviderHealth()
     private var listening = false
     private var pushToTalk = false
     /** True while stopAndFlush waits for last final — blocks re-entrant stop/start. */
@@ -1057,7 +1071,15 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         setBubbleEmphasis(true)
 
         val lang = InsertPolish.language(prefs?.languageTag)
-        val ear = app.currentEar()
+        val autoRoute = app.enginePrefs.autoRoute
+        val earPick = SttRouter.pick(
+            auto = autoRoute,
+            manualEarId = app.enginePrefs.earId,
+            signals = routeSignals(),
+            health = providerHealth,
+        )
+        sessionEarId = earPick.providerId
+        val ear = if (autoRoute) app.registry.ear(sessionEarId) else app.currentEar()
         this.ear = ear
         ear.setListener(object : SpeechEngine.Listener {
             /** Accept STT while this generation is active (including flush). */
@@ -1103,6 +1125,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
             override fun onError(message: String, fatal: Boolean) = ui {
                 if (!live() && !fatal) return@ui
+                if (fatal) providerHealth.recordFailure(sessionEarId)
                 if (BuildConfig.DEBUG) {
                     android.util.Log.w("OpenFlow.Bubble", "ear error fatal=$fatal msg=$message")
                 }
@@ -1145,6 +1168,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
             override fun onReady() = ui {
                 if (!live()) return@ui
+                providerHealth.recordSuccess(sessionEarId)
                 val elapsed = (SystemClock.elapsedRealtime() - listenStartedAt) / 1000
                 if (prefs?.bubbleShowText == true) {
                     val current = bubbleLabel?.text?.toString().orEmpty()
@@ -1208,6 +1232,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         hapticSaveOrDiscard(save)
         // Keep listenGeneration stable so onFinal during flush is accepted.
         val gen = listenGeneration
+        val routedEarId = sessionEarId
         val prefix = fieldPrefix
         val dur = SystemClock.elapsedRealtime() - listenStartedAt
         bubbleLabel?.text = "…"
@@ -1238,7 +1263,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
             if (save && raw.isNotBlank()) {
                 val lang = InsertPolish.language(prefs?.languageTag)
-                polishSession(raw, prefix) { result ->
+                polishSession(raw, prefix, routedEarId) { result ->
                     finishPolishedInsert(
                         result = result,
                         prefix = prefix,
@@ -1305,7 +1330,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
         val prefix = captureFieldPrefix()
         val dur = 0L
-        polishSession(text, prefix) { result ->
+        polishSession(text, prefix, sessionEarId) { result ->
             finishPolishedInsert(
                 result = result,
                 prefix = prefix,
@@ -1368,6 +1393,26 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         copyReceiverRegistered = false
     }
 
+    private fun routeSignals(): RouteSignals {
+        val online = runCatching {
+            val manager = getSystemService(ConnectivityManager::class.java)
+            val capabilities = manager?.getNetworkCapabilities(manager.activeNetwork)
+            capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true &&
+                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+        }.getOrDefault(false)
+        fun keyed(ids: Set<String>): Set<String> = ids.filterTo(mutableSetOf()) { id ->
+            runCatching { app.secrets.get(id).orEmpty().isNotBlank() }.getOrDefault(false)
+        }
+        return RouteSignals(
+            online = online,
+            keyedEars = keyed(CLOUD_EAR_IDS),
+            keyedBrains = keyed(CLOUD_BRAIN_IDS),
+        )
+    }
+
+    private fun looksLikeCommand(text: String): Boolean =
+        CommandMode.applyLocal(text) != text || VoiceCommands.apply(text) != text
+
     /**
      * Same path for stopListening + debug inject:
      * dict → snippets → CleanupPipeline(pref level) → optional brain (if picked) → dict again.
@@ -1375,22 +1420,13 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     private fun polishSession(
         text: String,
         surroundingField: String,
+        routedEarId: String,
         onDone: (CleanupResult) -> Unit,
     ) {
         scope.launch(Dispatchers.IO) {
             val dict = app.dictations.dictionaryMap()
             val snip = app.dictations.snippetMap()
             val prefLevel = prefs?.cleanupLevel ?: "medium"
-            val earId = app.enginePrefs.earId
-            val brainId = InsertPolish.brainIdForInsert(app.enginePrefs.brainId)
-            val brainRewrite = InsertPolish.brainRewriteOnInsert(app.enginePrefs.brainId)
-            val fieldOn = FieldContext.on(brainRewrite)
-            val surrounding = FieldContext.surrounding(fieldOn, surroundingField)
-            val brain = if (brainRewrite) {
-                FieldContext.wrapBrain(app.currentBrain(), surrounding)
-            } else {
-                app.currentBrain()
-            }
             val level = InsertPolish.level(prefLevel)
             val p = prefs
             val style = if (p != null) {
@@ -1403,23 +1439,104 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 WritingStyle.CASUAL
             }
             val custom = p?.customStyleConfig() ?: CustomStyleConfig()
-            val result = TextPostProcessor.polishSessionResult(
-                raw = text,
-                style = style,
-                level = level,
-                custom = custom,
-                dictionary = dict,
-                snippets = snip,
-                brain = brain,
-                brainRewrite = brainRewrite,
-                earId = earId,
-                brainId = brainId,
-                promptHint = null,
-            )
+            val autoRoute = app.enginePrefs.autoRoute
+            val (result, brainId) = if (autoRoute) {
+                val local = TextPostProcessor.polishSessionResult(
+                    raw = text,
+                    style = style,
+                    level = level,
+                    custom = custom,
+                    dictionary = dict,
+                    snippets = snip,
+                    brain = NoAI,
+                    brainRewrite = false,
+                    earId = routedEarId,
+                    brainId = "none",
+                    promptHint = null,
+                )
+                val pickedBrain = if (level == CleanupLevel.RAW) {
+                    "none"
+                } else {
+                    BrainRouter.pick(
+                        auto = true,
+                        manualBrainId = app.enginePrefs.brainId,
+                        signals = routeSignals(),
+                        health = providerHealth,
+                        looksLikeCommand = looksLikeCommand(text),
+                        textLen = local.clean.length,
+                    ).providerId
+                }
+                val artifact = if (pickedBrain == "none") {
+                    SessionArtifact(raw = local.raw, cleaned = local.clean)
+                } else {
+                    val surrounding = FieldContext.surrounding(true, surroundingField)
+                    val brain = FieldContext.wrapBrain(app.registry.brain(pickedBrain), surrounding)
+                    PipelineArtifactPolicy.build(local.raw, local.clean) { cleaned ->
+                        brain.enhance(cleaned, "cleanup")
+                    }.let { built ->
+                        built.copy(
+                            ai = TextPostProcessor.applyDictionary(
+                                built.ai,
+                                dict,
+                                sides = LearnEngine.sideBags(),
+                                autoKeys = LearnEngine.autoKeys(),
+                            )
+                        )
+                    }.also { built ->
+                        if (built.ai.isBlank()) providerHealth.recordFailure(pickedBrain)
+                        else providerHealth.recordSuccess(pickedBrain)
+                    }
+                }
+                local.copy(raw = artifact.raw, clean = artifact.bestAvailable()) to pickedBrain
+            } else {
+                val manualBrainId = InsertPolish.brainIdForInsert(app.enginePrefs.brainId)
+                val brainRewrite = InsertPolish.brainRewriteOnInsert(app.enginePrefs.brainId)
+                val surrounding = FieldContext.surrounding(
+                    FieldContext.on(brainRewrite),
+                    surroundingField,
+                )
+                val brain = if (brainRewrite) {
+                    FieldContext.wrapBrain(app.currentBrain(), surrounding)
+                } else {
+                    app.currentBrain()
+                }
+                runCatching {
+                    TextPostProcessor.polishSessionResult(
+                        raw = text,
+                        style = style,
+                        level = level,
+                        custom = custom,
+                        dictionary = dict,
+                        snippets = snip,
+                        brain = brain,
+                        brainRewrite = brainRewrite,
+                        earId = app.enginePrefs.earId,
+                        brainId = manualBrainId,
+                        promptHint = null,
+                    )
+                }.getOrElse {
+                    providerHealth.recordFailure(manualBrainId)
+                    val local = TextPostProcessor.polishSessionResult(
+                        raw = text,
+                        style = style,
+                        level = level,
+                        custom = custom,
+                        dictionary = dict,
+                        snippets = snip,
+                        brain = NoAI,
+                        brainRewrite = false,
+                        earId = app.enginePrefs.earId,
+                        brainId = "none",
+                        promptHint = null,
+                    )
+                    val artifact = SessionArtifact(raw = local.raw, cleaned = local.clean)
+                    local.copy(clean = artifact.bestAvailable())
+                } to manualBrainId
+            }
             android.util.Log.i(
                 "OpenFlow.Cleanup",
                 "level=$level pref=$prefLevel style=$style lang=${InsertPolish.language(prefs?.languageTag)} " +
-                    "brain=$brainId rewrite=$brainRewrite field=${surrounding.isNotEmpty()} " +
+                    "brain=$brainId auto=$autoRoute field=${surroundingField.isNotEmpty()} " +
                     "rawLen=${text.length} cleanLen=${result.clean.length} " +
                     "corr=${result.corrections.size} " +
                     "changed=${text.trim() != result.clean.trim()}"
@@ -1777,6 +1894,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
     companion object {
         private val WORD_SPLIT = Regex("\\s+")
+        private val CLOUD_EAR_IDS = setOf("openai", "deepgram", "assemblyai", "sarvam")
+        private val CLOUD_BRAIN_IDS = setOf("openai", "anthropic", "grok", "gemini")
 
         /** Debug broadcast action (any build id; handler no-ops if not DEBUG). */
         const val ACTION_INJECT = "app.openflow.INJECT_DICTATION"

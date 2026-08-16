@@ -66,6 +66,21 @@ class HistoryExportTest {
     }
 
     @Test
+    fun share_blankText_fallsBackToRawText() {
+        val share = HistoryExport.shareText(
+            listOf(
+                HistoryExport.Row(
+                    createdAtEpochMs = 1L,
+                    text = " ",
+                    rawText = "raw fallback",
+                )
+            )
+        )
+
+        assertThat(share).contains("raw fallback")
+    }
+
+    @Test
     fun exports_all_today_fields() {
         val row = HistoryExport.Row(
             createdAtEpochMs = 1_700_000_000_000L,

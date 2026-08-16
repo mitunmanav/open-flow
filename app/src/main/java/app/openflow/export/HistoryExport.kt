@@ -1,5 +1,6 @@
 package app.openflow.export
 
+import app.openflow.orchestrate.SharePayload
 import app.openflow.stt.LanguagePolicy
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -64,7 +65,7 @@ object HistoryExport {
                     append("ms")
                 }
                 append("\n")
-                append(row.text.trim())
+                append(SharePayload.forRow(row.text, row.rawText))
             }
         }
     }

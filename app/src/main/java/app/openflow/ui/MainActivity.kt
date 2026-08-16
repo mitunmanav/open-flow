@@ -1111,7 +1111,8 @@ private fun HomeHub(
                                                 d.createdAtEpochMs,
                                                 d.text,
                                                 d.languageTag,
-                                                d.wordCount
+                                                d.wordCount,
+                                                d.rawText,
                                             )
                                         )
                                         val shareText = HistoryExport.shareText(rows)
@@ -1203,7 +1204,13 @@ private fun HistoryScreen(app: OpenFlowApp) {
                 OutlinedButton(
                     onClick = {
                         val rows = dictations.map { d ->
-                            HistoryExport.Row(d.createdAtEpochMs, d.text, d.languageTag, d.wordCount)
+                            HistoryExport.Row(
+                                d.createdAtEpochMs,
+                                d.text,
+                                d.languageTag,
+                                d.wordCount,
+                                d.rawText,
+                            )
                         }
                         val shareText = HistoryExport.toMarkdown(rows)
                         val send = Intent(Intent.ACTION_SEND).apply {
@@ -1287,7 +1294,8 @@ private fun HistoryScreen(app: OpenFlowApp) {
                                     d.createdAtEpochMs,
                                     d.text,
                                     d.languageTag,
-                                    d.wordCount
+                                    d.wordCount,
+                                    d.rawText,
                                 )
                             )
                             val shareText = HistoryExport.shareText(rows)

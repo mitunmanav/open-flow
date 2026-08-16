@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.7 — 2026-08-16
+
+Text pipeline improvements and TDD fixes. Verified 757 PASS / 0 fail / 0 err / 0 skip unit tests. Main tip `152d663`. versionCode 8 · versionName 0.1.7.
+
+### Added
+- **LearnEngine enhancements** — Case transfer is strictly applied to close variants, keeping map casing for genuinely different words. Multi-word replacements and plurals/suffixes are now supported correctly.
+- **CourseCorrector expansion** — Now resolves complex triple-chained corrections (e.g., "meet at 3 actually 4 wait no 5"), handles structural chunk replacements without losing context, and tracks new correction markers like "change that to", "or rather", and "forget it".
+- **CleanupPipeline upgrades** — Fully removes stacked discourse openers, collapses repeated phrases instead of just single words, handles hedge spacing without double commas, and parses spoken lists correctly.
+
+### Changed
+- Unit tests 735 → **757**.
+
 ## 0.1.6 — 2026-08-16
 
 GitHub sideload ship (channel unchanged). Verified 735 PASS / 0 fail / 0 err / 0 skip unit tests (106 XML files). APK `open-flow-0.1.6-debug.apk` (debug-signed) at `app/build/outputs/apk/debug/app-debug.apk`. Main tip `5c68ac2`. versionCode 7 · versionName 0.1.6.

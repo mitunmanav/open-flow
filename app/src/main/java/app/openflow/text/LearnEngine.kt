@@ -24,6 +24,7 @@ object LearnEngine {
     )
 
     private const val MANUAL_MARK = "*"
+    private val SUFFIXES = listOf("'s", "s", "ed", "ing", "er", "est")
 
     @Volatile
     private var store: LearnSides = LearnSides()
@@ -229,10 +230,19 @@ object LearnEngine {
             val amb = isAmbiguous(from, to)
             var i = 0
             while (i < tokens.size) {
-                if (!matchesAt(tokens, i, fromToks)) {
-                    i++
-                    continue
+                var matchedExact = matchesAt(tokens, i, fromToks)
+                var suffixMatch: Pair<String, String>? = null
+
+                if (!matchedExact) {
+                    if (fromToks.size == 1 && isWordToken(tokens[i])) {
+                        suffixMatch = matchWithSuffix(tokens[i], fromToks[0])
+                    }
+                    if (suffixMatch == null) {
+                        i++
+                        continue
+                    }
                 }
+
                 val next = wordAfter(tokens, i, fromToks.size)
                 if (next != null && isTitleCaseWord(next)) {
                     i++
@@ -250,7 +260,15 @@ object LearnEngine {
                     }
                 }
                 if (apply) {
-                    i = replaceSpan(tokens, i, fromToks.size, to)
+                    if (suffixMatch != null) {
+                        val (_, suffix) = suffixMatch
+                        val cased = transferCase(tokens[i].removeSuffix(suffix), to)
+                        tokens[i] = cased + suffix
+                        i++
+                    } else {
+                        val replacement = transferCase(tokens[i], to)
+                        i = replaceSpan(tokens, i, fromToks.size, replacement)
+                    }
                     continue
                 }
                 i++
@@ -399,5 +417,35 @@ object LearnEngine {
             }
         }
         return start + 1
+    }
+
+    internal fun transferCase(source: String, replacement: String): String {
+        if (source.isEmpty() || replacement.isEmpty()) return replacement
+        // Never re-case multi-word replacements (e.g. "openflow" → "Open Flow")
+        if (' ' in replacement) return replacement
+        // Only transfer case when source and replacement are close variants of the same word
+        // (e.g. "mitton"→"Mitun"). For genuinely different replacements preserve map casing.
+        val srcLetters = source.lowercase().filter { it.isLetter() }
+        val repLetters = replacement.lowercase().filter { it.isLetter() }
+        if (srcLetters.isEmpty() || repLetters.isEmpty()) return replacement
+        if (levenshtein(srcLetters, repLetters) > srcLetters.length / 2) return replacement
+        // all uppercase
+        if (source.all { !it.isLetter() || it.isUpperCase() }) return replacement.uppercase()
+        // all lowercase
+        if (source.all { !it.isLetter() || it.isLowerCase() }) return replacement.lowercase()
+        // title case or mixed — keep replacement as-is
+        return replacement
+    }
+
+    internal fun matchWithSuffix(token: String, fromWord: String): Pair<String, String>? {
+        for (sfx in SUFFIXES) {
+            if (token.endsWith(sfx, ignoreCase = true) && !fromWord.endsWith(sfx, ignoreCase = true)) {
+                val stem = token.dropLast(sfx.length)
+                if (stem.equals(fromWord, ignoreCase = true)) {
+                    return stem to sfx
+                }
+            }
+        }
+        return null
     }
 }

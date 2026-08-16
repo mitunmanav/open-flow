@@ -18,6 +18,7 @@ import kotlinx.coroutines.runBlocking
  *    - then [StyleApplicator] / [SentenceFormat] / [WritingStyle]
  * 4. High + [FeatureAuto] HIGH_AI (or [brainRewrite]) → injected [TextAIProvider.enhance]
  *    after rules. Default [NoAI].
+ * 5. Local & AI [CommandMode] semantic transforms.
  *
  * Empty in → empty out. Non-empty content must not vanish (except explicit clear).
  * [CleanupResult.raw] is always the original STT string (pre dict/snippet).
@@ -66,15 +67,51 @@ object TextPostProcessor {
         val result = CleanupPipeline.run(t, level, style, custom)
         val features = FeatureAuto.of(earId, brainId, languages)
         val highAi = brainRewrite || Feature.HIGH_AI in features
-        var cleaned = if (level == CleanupLevel.HIGH && highAi) {
-            runBlocking { brain.enhance(result.clean, "cleanup") }
+
+        var cleaned = if (level == CleanupLevel.HIGH && highAi && brain != NoAI) {
+            val enhanced = runBlocking { brain.enhance(result.clean, "cleanup") }
+            sanitizeBrainOutput(enhanced, result.clean)
         } else {
             result.clean
         }
-        if (Feature.COMMAND in features) {
+
+        // Apply local voice command transforms (e.g. bullets, numbered list, case)
+        cleaned = CommandMode.applyLocal(cleaned)
+
+        if (Feature.COMMAND in features && brain != NoAI) {
             cleaned = runBlocking { CommandMode.apply(cleaned, brainCommand = true, brain = brain) }
         }
+
         return result.copy(raw = original.trim().ifEmpty { original }, clean = cleaned)
+    }
+
+    private fun sanitizeBrainOutput(aiOutput: String, fallback: String): String {
+        val trimmed = aiOutput.trim()
+        if (trimmed.isBlank() && fallback.isNotBlank()) return fallback
+
+        // Strip conversational prefixes that LLMs occasionally emit
+        var clean = trimmed
+        val chatterPrefixes = listOf(
+            Regex("^(?i)here is the (?:cleaned|polished|formatted) text:?\\s*"),
+            Regex("^(?i)cleaned transcript:?\\s*"),
+            Regex("^(?i)sure[!,.]?\\s*here(?:'s| is) (?:the )?(?:cleaned )?text:?\\s*"),
+            Regex("^(?i)here(?:'s| is) what you said:?\\s*"),
+            Regex("^(?i)output:?\\s*"),
+        )
+        for (prefix in chatterPrefixes) {
+            clean = prefix.replace(clean, "").trim()
+        }
+
+        // Strip surrounding quotes if whole output was quoted
+        if (clean.length >= 2 && clean.startsWith("\"") && clean.endsWith("\"")) {
+            clean = clean.substring(1, clean.length - 1).trim()
+        }
+
+        // If AI returned hallucinated empty or absurdly long response, fallback
+        if (clean.isBlank() && fallback.isNotBlank()) return fallback
+        if (clean.length > fallback.length * 4 + 100 && fallback.isNotBlank()) return fallback
+
+        return clean
     }
 
     /** @deprecated Use [WritingStyle]. Kept for binary-safe renames in prefs UI. */

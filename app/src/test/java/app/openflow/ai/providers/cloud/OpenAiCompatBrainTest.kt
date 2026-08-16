@@ -83,6 +83,15 @@ class OpenAiCompatBrainTest {
     }
 
     @Test
+    fun sarvam_adds_subscription_key_header() = runTest {
+        val http = FakeHttp()
+        brain(id = "sarvam", url = "https://api.sarvam.ai/v1", http = http).enhance("hello", "cleanup")
+        assertThat(http.headers["api-subscription-key"]).isEqualTo("sk-test")
+        assertThat(http.headers["Authorization"]).isEqualTo("Bearer sk-test")
+        assertThat(http.json).contains("\"temperature\":0.1")
+    }
+
+    @Test
     fun strips_email_and_phone_before_post() = runTest {
         val http = FakeHttp()
         brain(http = http).enhance("mail me at a@b.com or 9876543210 thanks", "cleanup")

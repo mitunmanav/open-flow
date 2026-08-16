@@ -215,4 +215,61 @@ class CourseCorrectorTest {
         assertThat(out.lowercase()).contains("actually")
         assertThat(out.lowercase()).contains("world")
     }
+
+    @Test
+    fun triple_chain_resolves_to_last() {
+        val out = CourseCorrector.apply("meet at 3 actually 4 wait no 5")
+        assertThat(out.lowercase()).contains("5")
+        assertThat(out.lowercase()).doesNotContain("at 3")
+        assertThat(out.lowercase()).doesNotContain("at 4")
+        assertThat(out.lowercase()).contains("meet")
+    }
+
+    @Test
+    fun change_that_to_entity() {
+        val out = CourseCorrector.apply("set color to red change that to blue")
+        assertThat(out.lowercase()).contains("blue")
+        assertThat(out.lowercase()).doesNotContain("red")
+    }
+
+    @Test
+    fun forget_it_with_trailing_restart() {
+        val out = CourseCorrector.apply("I was going to say something forget it let's move on")
+        assertThat(out.lowercase()).contains("move on")
+        assertThat(out.lowercase()).doesNotContain("going to say")
+    }
+
+    @Test
+    fun period_bare_no_replaces_number() {
+        val out = CourseCorrector.apply("the price is 50. No, 75.")
+        assertThat(out.lowercase()).contains("75")
+        assertThat(out.lowercase()).doesNotContain("50")
+    }
+
+    @Test
+    fun hold_on_swaps_name() {
+        val out = CourseCorrector.apply("invite Sarah hold on invite Mike")
+        assertThat(out.lowercase()).contains("mike")
+        assertThat(out.lowercase()).doesNotContain("sarah")
+    }
+
+    @Test
+    fun or_rather_replaces() {
+        val out = CourseCorrector.apply("meet Monday or rather Wednesday")
+        assertThat(out.lowercase()).contains("wednesday")
+        assertThat(out.lowercase()).doesNotContain("monday")
+        assertThat(out.lowercase()).contains("meet")
+    }
+
+    @Test
+    fun analyze_records_multiple_corrections() {
+        val r = CourseCorrector.analyze("meet at 3 actually 4 wait no 5")
+        assertThat(r.corrections.size).isAtLeast(2)
+    }
+
+    @Test
+    fun marker_at_start_keeps_after() {
+        val out = CourseCorrector.apply("actually send the report")
+        assertThat(out.lowercase()).contains("send the report")
+    }
 }

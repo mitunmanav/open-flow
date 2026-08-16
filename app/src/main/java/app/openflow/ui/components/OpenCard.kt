@@ -39,13 +39,14 @@ fun OpenCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val scheme = MaterialTheme.colorScheme
+    val shape = MaterialTheme.shapes.medium
     val borderColor = when {
-        disabled -> scheme.outline.copy(alpha = 0.4f)
-        else -> scheme.outline
+        disabled -> scheme.outline.copy(alpha = 0.3f)
+        selected -> scheme.primary
+        else -> scheme.outline.copy(alpha = 0.5f)
     }
-    val shadowColor = scheme.outline
     val faceColor = when {
-        disabled -> scheme.surfaceVariant.copy(alpha = 0.7f)
+        disabled -> scheme.surfaceVariant.copy(alpha = 0.6f)
         selected -> scheme.surfaceVariant
         else -> scheme.surface
     }
@@ -57,8 +58,8 @@ fun OpenCard(
             else Modifier
         )
         .graphicsLayer { clip = false }
-        .background(color = faceColor, shape = OpenShapes.Card)
-        .border(BorderStroke(Dimen.BORDER, borderColor), OpenShapes.Card)
+        .background(color = faceColor, shape = shape)
+        .border(BorderStroke(1.dp, borderColor), shape)
         .semantics {
             if (contentDescription != null) this.contentDescription = contentDescription
             if (disabled) this.disabled()
@@ -70,19 +71,11 @@ fun OpenCard(
             } else Modifier
         )
 
-    // Minimal offset room (2dp) — not chunky 4dp. clip off so chips/text not cut.
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .graphicsLayer { clip = false }
-            .padding(end = 2.dp, bottom = 2.dp)
+            .padding(vertical = 2.dp)
     ) {
-        Box(
-            Modifier
-                .matchParentSize()
-                .offset(2.dp, 2.dp)
-                .background(shadowColor)
-        )
         Column(
             modifier = faceMod,
             content = content

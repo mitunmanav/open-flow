@@ -85,7 +85,7 @@ fun OpenTextField(
         singleLine = effectiveSingleLine,
         minLines = if (effectiveSingleLine) 1 else minLines,
         maxLines = effectiveMaxLines,
-        shape = OpenShapes.Field,
+        shape = MaterialTheme.shapes.small,
         leadingIcon = leadingIcon,
         trailingIcon = if (showClearButton && value.isNotEmpty() && enabled) {
             {

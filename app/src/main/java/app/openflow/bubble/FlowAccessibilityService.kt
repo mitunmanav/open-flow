@@ -1234,7 +1234,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         surroundingField: String,
         onDone: (CleanupResult) -> Unit,
     ) {
-        scope.launch(Dispatchers.Default) {
+        scope.launch(Dispatchers.IO) {
             val dict = app.dictations.dictionaryMap()
             val snip = app.dictations.snippetMap()
             val prefLevel = prefs?.cleanupLevel ?: "medium"
@@ -1264,6 +1264,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 snippets = snip,
                 brain = brain,
                 brainRewrite = brainRewrite,
+                earId = earId,
+                brainId = brainId,
             )
             android.util.Log.i(
                 "OpenFlow.Cleanup",

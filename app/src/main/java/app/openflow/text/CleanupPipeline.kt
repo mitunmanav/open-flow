@@ -210,8 +210,12 @@ object CleanupPipeline {
     /** Drop leading empty discourse openers (first line). */
     internal fun lightClarity(t: String): String {
         var s = t
-        s = clarityOpenerComma.replace(s, "")
-        s = clarityOpenerSpace.replace(s, "")
+        var prev: String
+        do {
+            prev = s
+            s = clarityOpenerComma.replace(s, "")
+            s = clarityOpenerSpace.replace(s, "")
+        } while (s != prev)
         return normalizeKeepNewlines(s)
     }
 
@@ -261,9 +265,11 @@ object CleanupPipeline {
         var s = t
         for ((re, rep) in hedgePhrases) {
             s = re.replace(s, rep)
+            s = normalize(s)
         }
         hedgeWordRegexes.forEach { re ->
             s = re.replace(s, " ")
+            s = normalize(s)
         }
         s = justHedge.replace(s, "")
         s = doubleComma.replace(s, ",")

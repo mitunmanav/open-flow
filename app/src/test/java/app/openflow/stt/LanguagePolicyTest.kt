@@ -18,13 +18,28 @@ class LanguagePolicyTest {
     }
 
     @Test
-    fun isAllowed_only_en_and_en_us() {
+    fun normalize_handles_supported_languages() {
+        assertThat(LanguagePolicy.normalize(null)).isEqualTo("en-US")
+        assertThat(LanguagePolicy.normalize("")).isEqualTo("en-US")
+        assertThat(LanguagePolicy.normalize("fr-fr")).isEqualTo("fr-FR")
+        assertThat(LanguagePolicy.normalize("hi-in")).isEqualTo("hi-IN")
+        assertThat(LanguagePolicy.normalize("es-es")).isEqualTo("es-ES")
+        assertThat(LanguagePolicy.normalize("en-gb")).isEqualTo("en-GB")
+        assertThat(LanguagePolicy.normalize("en")).isEqualTo("en-US")
+        assertThat(LanguagePolicy.normalize("en-US")).isEqualTo("en-US")
+        assertThat(LanguagePolicy.normalize("ja-jp")).isEqualTo("ja-JP")
+    }
+
+    @Test
+    fun isAllowed_validates_catalog() {
         assertThat(LanguagePolicy.isAllowed("en")).isTrue()
         assertThat(LanguagePolicy.isAllowed("en-US")).isTrue()
         assertThat(LanguagePolicy.isAllowed("EN-us")).isTrue()
-        assertThat(LanguagePolicy.isAllowed("en-GB")).isFalse()
-        assertThat(LanguagePolicy.isAllowed("fr-FR")).isFalse()
-        assertThat(LanguagePolicy.isAllowed("es-ES")).isFalse()
+        assertThat(LanguagePolicy.isAllowed("en-GB")).isTrue()
+        assertThat(LanguagePolicy.isAllowed("fr-FR")).isTrue()
+        assertThat(LanguagePolicy.isAllowed("es-ES")).isTrue()
+        assertThat(LanguagePolicy.isAllowed("hi-IN")).isTrue()
+        assertThat(LanguagePolicy.isAllowed("unknown-locale")).isFalse()
         assertThat(LanguagePolicy.isAllowed("")).isFalse()
         assertThat(LanguagePolicy.isAllowed(null)).isFalse()
     }

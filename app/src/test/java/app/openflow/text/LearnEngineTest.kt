@@ -230,4 +230,48 @@ class LearnEngineTest {
         )
         return candidates.first { it.exists() }.readText()
     }
+
+    @Test
+    fun applyPairs_transfers_case_from_source() {
+        val map = mapOf("Mitton" to "Mitun")
+        // lowercase source → lowercase replacement
+        assertThat(LearnEngine.applyPairs("hello mitton", map)).isEqualTo("hello mitun")
+        // UPPERCASE source → UPPERCASE replacement
+        assertThat(LearnEngine.applyPairs("hello MITTON", map)).isEqualTo("hello MITUN")
+        // Title case (matches map key exactly) → keeps map value
+        assertThat(LearnEngine.applyPairs("hello Mitton", map)).isEqualTo("hello Mitun")
+    }
+
+    @Test
+    fun applyPairs_handles_plurals() {
+        val map = mapOf("Mitton" to "Mitun")
+        // plural s
+        assertThat(LearnEngine.applyPairs("hello Mittons", map)).isEqualTo("hello Mituns")
+        // possessive 's
+        assertThat(LearnEngine.applyPairs("Mitton's house", map)).isEqualTo("Mitun's house")
+    }
+
+    @Test
+    fun encode_decode_roundtrip_idempotent() {
+        LearnEngine.putAuto("wisper", setOf("voice", "app"))
+        LearnEngine.putAuto("mic", setOf("turn"))
+        LearnEngine.putManual("botton")
+        val encoded1 = LearnEngine.encodeSides()
+        LearnEngine.loadSides(encoded1)
+        val encoded2 = LearnEngine.encodeSides()
+        assertThat(encoded2).isEqualTo(encoded1)
+    }
+
+    @Test
+    fun middle_word_change_learns_pair() {
+        val pairs = LearnEngine.pairsFromEdit("send the report", "send the document")
+        assertThat(pairs).containsExactly(LearnPair("report", "document"))
+    }
+
+    @Test
+    fun levenshtein_known_values() {
+        assertThat(LearnEngine.levenshtein("kitten", "sitting")).isEqualTo(3)
+        assertThat(LearnEngine.levenshtein("", "abc")).isEqualTo(3)
+        assertThat(LearnEngine.levenshtein("abc", "abc")).isEqualTo(0)
+    }
 }

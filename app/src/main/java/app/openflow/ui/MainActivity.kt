@@ -398,11 +398,17 @@ class MainActivity : ComponentActivity() {
                                     initialUrl = app.enginePrefs.customBaseUrl,
                                     initialSarvamMode = app.enginePrefs.sarvamMode,
                                     initialKeyMask = session.keyMask(),
+                                    initialEarKeyMask = session.earKeyMask(),
+                                    initialBrainKeyMask = session.brainKeyMask(),
                                     onPick = { e, b -> session.pick(e, b) },
                                     onSaveKey = session::saveKey,
+                                    onSaveEarKey = session::saveEarKey,
+                                    onSaveBrainKey = session::saveBrainKey,
                                     onSaveUrl = session::saveUrl,
                                     onSarvamMode = session::saveSarvam,
                                     onKeyMask = session::keyMask,
+                                    onEarKeyMask = session::earKeyMask,
+                                    onBrainKeyMask = session::brainKeyMask,
                                 )
                             }
                             AppRoute.Appearance -> AppearanceSettings(app.prefs)
@@ -1117,8 +1123,8 @@ private fun HistoryScreen(app: OpenFlowApp) {
             app.dictations.searchDictations(searchQuery)
         }
     }
-    val nowMs = System.currentTimeMillis()
     val days = remember(filtered) {
+        val nowMs = System.currentTimeMillis()
         HistoryDays.group(
             filtered.map { HistoryDays.Row(it.id, it.createdAtEpochMs, it.text) },
             nowMs = nowMs,

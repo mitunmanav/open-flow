@@ -22,6 +22,8 @@ data class EnginePickerState(
     val commandMode: Boolean,
     val livePartials: Boolean,
     val needsKey: Boolean,
+    val needsEarKey: Boolean = false,
+    val needsBrainKey: Boolean = false,
     val needsUrl: Boolean,
     val showSarvamMode: Boolean,
     val pathKind: String,
@@ -170,13 +172,17 @@ data class EnginePickerState(
             val livePartials = ear in knownEars
             val showSarvam = ear == "sarvam"
             val kind = pathKind(ear, brain)
+            val earKey = ear in keyEars
+            val brainKey = brain in keyBrains
             return EnginePickerState(
                 earId = ear,
                 brainId = brain,
                 rewrite = rewrite,
                 commandMode = rewrite,
                 livePartials = livePartials,
-                needsKey = ear in keyEars || brain in keyBrains,
+                needsKey = earKey || brainKey,
+                needsEarKey = earKey,
+                needsBrainKey = brainKey,
                 needsUrl = ear in urlEars || brain in urlBrains,
                 showSarvamMode = showSarvam,
                 pathKind = kind,

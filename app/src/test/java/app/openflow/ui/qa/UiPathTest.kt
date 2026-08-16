@@ -78,11 +78,12 @@ class UiPathTest {
     companion object {
         val REQUIRED_TAGS = listOf(
             "home_hub",
-            "home_keys",
-            "home_cleanup_chips",
+            "home_stats",
+            "home_local_note",
+            "home_note_field",
+            "home_history_search",
             "bubble_preview",
             "dict_word",
-            "practice_field",
             "privacy_auto_learn",
         )
 
@@ -103,7 +104,8 @@ class UiPathTest {
             "nav_snippets",
             "dict_fab",
             "snippet_fab",
-            "home_link_speech_ai",
+            "home_stats_pages",
+            "home_banner_repair",
         )
     }
 }

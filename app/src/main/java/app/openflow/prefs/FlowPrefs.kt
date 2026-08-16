@@ -101,6 +101,11 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         get() = store.getString("seen_how_to", "false") == "true"
         set(v) = store.putString("seen_how_to", if (v) "true" else "false")
 
+    /** Home local scratch note (device-only). */
+    var homeNote: String
+        get() = store.getString(KEY_HOME_NOTE, "")
+        set(v) = store.putString(KEY_HOME_NOTE, v)
+
     fun style(): WritingStyle = WritingStyle.fromPref(styleName)
 
     /** Typed cleanup for TEXT pipeline. none→RAW, light, medium→NORMAL, high. */
@@ -439,6 +444,7 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
 
     companion object {
         const val PREFS_NAME = "openflow_prefs"
+        private const val KEY_HOME_NOTE = "home_note"
 
         /** Product default: light brutal (not soft M3). */
         fun defaultVisualSkinStorage(): String = VisualSkin.BRUTAL.storage

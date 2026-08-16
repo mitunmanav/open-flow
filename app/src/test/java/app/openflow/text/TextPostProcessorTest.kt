@@ -353,6 +353,17 @@ class TextPostProcessorTest {
     }
 
     @Test
+    fun polishSessionResult_local_command_without_brain() {
+        val r = TextPostProcessor.polishSessionResult(
+            raw = "make bullets milk comma eggs",
+            level = CleanupLevel.LIGHT,
+            brainRewrite = false,
+            brainId = "none",
+        )
+        assertThat(r.clean).isEqualTo("• Milk\n• Eggs")
+    }
+
+    @Test
     fun empty_and_blank_strings_handled_safely() {
         assertThat(TextPostProcessor.process("")).isEmpty()
         assertThat(TextPostProcessor.process("   ")).isEmpty()

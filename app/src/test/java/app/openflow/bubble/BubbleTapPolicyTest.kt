@@ -145,4 +145,49 @@ class BubbleTapPolicyTest {
             )
         ).isEqualTo(BubbleTapPolicy.Action.STOP_SAVE)
     }
+
+    @Test
+    fun idle_copy_chip_does_not_start() {
+        assertThat(
+            BubbleTapPolicy.action(
+                listening = false,
+                stopInProgress = false,
+                dragged = false,
+                longPressFired = false,
+                hitCancel = false,
+                hitDone = false,
+                hitCopy = true,
+            )
+        ).isEqualTo(BubbleTapPolicy.Action.COPY)
+    }
+
+    @Test
+    fun idle_undo_chip() {
+        assertThat(
+            BubbleTapPolicy.action(
+                listening = false,
+                stopInProgress = false,
+                dragged = false,
+                longPressFired = false,
+                hitCancel = false,
+                hitDone = false,
+                hitUndo = true,
+            )
+        ).isEqualTo(BubbleTapPolicy.Action.UNDO)
+    }
+
+    @Test
+    fun idle_paste_chip() {
+        assertThat(
+            BubbleTapPolicy.action(
+                listening = false,
+                stopInProgress = false,
+                dragged = false,
+                longPressFired = false,
+                hitCancel = false,
+                hitDone = false,
+                hitPaste = true,
+            )
+        ).isEqualTo(BubbleTapPolicy.Action.PASTE)
+    }
 }

@@ -103,7 +103,7 @@ class HistoryExportTest {
     }
 
     @Test
-    fun non_english_tag_forced_to_en_us_in_output() {
+    fun catalog_lang_kept_in_export() {
         val md = HistoryExport.toMarkdown(
             listOf(
                 HistoryExport.Row(
@@ -114,7 +114,7 @@ class HistoryExportTest {
                 )
             )
         )
-        assertThat(md).contains("en-US")
-        assertThat(md).doesNotContain("fr-FR")
+        assertThat(md).contains("fr-FR")
+        assertThat(md).doesNotContain("(en-US,")
     }
 }

@@ -6,15 +6,22 @@ import org.junit.Test
 class LanguagePolicyTest {
 
     @Test
-    fun force_maps_everything_to_en_us() {
+    fun force_keeps_catalog_langs() {
         assertThat(LanguagePolicy.force(null)).isEqualTo("en-US")
         assertThat(LanguagePolicy.force("")).isEqualTo("en-US")
-        assertThat(LanguagePolicy.force("fr-FR")).isEqualTo("en-US")
-        assertThat(LanguagePolicy.force("hi-IN")).isEqualTo("en-US")
-        assertThat(LanguagePolicy.force("es-ES")).isEqualTo("en-US")
-        assertThat(LanguagePolicy.force("en-GB")).isEqualTo("en-US")
+        assertThat(LanguagePolicy.force("hi-IN")).isEqualTo("hi-IN")
+        assertThat(LanguagePolicy.force("en-IN")).isEqualTo("en-IN")
+        assertThat(LanguagePolicy.force("en-GB")).isEqualTo("en-GB")
+        assertThat(LanguagePolicy.force("fr-FR")).isEqualTo("fr-FR")
         assertThat(LanguagePolicy.force("en")).isEqualTo("en-US")
-        assertThat(LanguagePolicy.force("en-US")).isEqualTo("en-US")
+        assertThat(LanguagePolicy.force("nope")).isEqualTo("en-US")
+    }
+
+    @Test
+    fun iso639_from_tag() {
+        assertThat(LanguagePolicy.iso639("hi-IN")).isEqualTo("hi")
+        assertThat(LanguagePolicy.iso639("en-IN")).isEqualTo("en")
+        assertThat(LanguagePolicy.iso639("zh-CN")).isEqualTo("zh")
     }
 
     @Test

@@ -10,7 +10,7 @@ import android.os.Looper
  */
 class AndroidSpeechEngine(
     context: Context,
-    preferOnDevice: Boolean = true,
+    preferOnDevice: Boolean = false,
     policy: ContinuousPolicy = ContinuousPolicy(),
     mainHandler: Handler = Handler(Looper.getMainLooper()),
     softMuteBeeps: Boolean = false,

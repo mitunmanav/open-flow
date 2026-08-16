@@ -16,7 +16,7 @@
 - English only. MIT. No account.
 
 **The hard truth about speech:**  
-Android’s own docs say the default recognizer is likely to stream audio to a remote service. `createOnDeviceSpeechRecognizer()` exists, and Open Flow prefers it, but many phones still fall back to Google’s engine. **Declared-but-unused INTERNET does not mean your voice never leaves the device.**
+Android’s own docs say the default recognizer is likely to stream audio to a remote service. Open Flow uses that default path. `createOnDeviceSpeechRecognizer()` is optional, not the default. **Declared-but-unused INTERNET does not mean your voice never leaves the device.**
 
 If that sentence bothers you, use a Whisper/Vosk app below.
 
@@ -35,7 +35,7 @@ If that sentence bothers you, use a Whisper/Vosk app below.
 | Audio can leave phone | **Yes, often** (Google STT) | Only if you turn on cloud | No (after model download) | No (after model download) | No (after model download) | **Yes** on default server (even unencrypted) | **Yes** (that is the product) |
 | INTERNET in the app | **Declared; unused until opt-in** | For models / optional API | For model download | For model download (can revoke) | For model download | Yes (server) | Yes |
 | Cleanup | Rule lists | Optional OpenAI | In-model / app | Weak / none | Weak / none | Server-side | Cloud LLM |
-| Languages | **en-US only** | Several (model-dependent) | Many | 20+ Vosk models | Many | Depends on server | Many |
+| Languages | Catalog (en-US default) | Several (model-dependent) | Many | 20+ Vosk models | Many | Depends on server | Many |
 | License | **MIT** | Personal / permissive | Non-OSI (commercial restrictions) | GPL-3.0 | GPL-3.0 | Apache-2.0 | Closed |
 | On F-Droid | **No** | No | Their repo | **Yes** | **Yes** | **Yes** | No |
 | History + dict/snippets | **Yes** | Limited | Weak | No | No | No | Yes (their cloud) |

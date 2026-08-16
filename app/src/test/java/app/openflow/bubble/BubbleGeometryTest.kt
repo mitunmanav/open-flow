@@ -146,4 +146,18 @@ class BubbleGeometryTest {
         assertThat(d.first).isLessThan(c.first)
         assertThat(d.first).isEqualTo(d.second)
     }
+
+    @Test
+    fun overlaySizePx_chips_uses_compact_bar() {
+        val idle = BubbleGeometry.overlaySizePx(listening = false, density = 2f, shape = "pill")
+        val chips = BubbleGeometry.overlaySizePx(
+            listening = false,
+            density = 2f,
+            shape = "pill",
+            chips = true,
+        )
+        assertThat(chips.second).isEqualTo(idle.second)
+        assertThat(chips.first).isGreaterThan(idle.first)
+        assertThat(chips.first).isAtMost((200f * 2f).toInt())
+    }
 }

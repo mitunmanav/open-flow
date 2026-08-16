@@ -271,6 +271,37 @@ class DictationRepositoryTest {
     }
 
     @Test
+    fun import_dictionary_skips_snippet_conflict() = runTest {
+        val f = fakes()
+        f.repo.addSnippet("sig", "Best regards")
+        val out = f.repo.importDictionary("sig,signature\nwisper,Wispr\n")
+        assertThat(out.added).isEqualTo(1)
+        assertThat(out.conflicts).isEqualTo(1)
+        assertThat(f.repo.dictionaryMap()).containsEntry("wisper", "Wispr")
+        assertThat(f.repo.dictionaryMap()).doesNotContainKey("sig")
+        assertThat(f.repo.snippetMap()).containsEntry("sig", "Best regards")
+    }
+
+    @Test
+    fun import_snippets_skips_dict_conflict() = runTest {
+        val f = fakes()
+        f.repo.addWord("addr", "address")
+        val out = f.repo.importSnippets("addr,123 Main\nsig,Best regards\n")
+        assertThat(out.added).isEqualTo(1)
+        assertThat(out.conflicts).isEqualTo(1)
+        assertThat(f.repo.snippetMap()).containsEntry("sig", "Best regards")
+        assertThat(f.repo.snippetMap()).doesNotContainKey("addr")
+    }
+
+    @Test
+    fun addWord_false_when_snippet_owns_word() = runTest {
+        val f = fakes()
+        f.repo.addSnippet("foo", "block")
+        assertThat(f.repo.addWord("foo", "bar")).isFalse()
+        assertThat(f.repo.dictionaryMap()).isEmpty()
+    }
+
+    @Test
     fun operations_execute_inside_transactions() = runTest {
         var txCount = 0
         val trackingDb = object : OpenFlowDb {

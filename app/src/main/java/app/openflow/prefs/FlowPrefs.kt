@@ -57,10 +57,10 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         set(v) = store.putString("bubble_mode", normalizeBubbleMode(v))
 
     var languageTag: String
-        get() = LanguagePolicy.force(
+        get() = LanguagePolicy.normalize(
             store.getString("language_tag", SttTuning.DEFAULT_LANGUAGE)
         )
-        set(v) = store.putString("language_tag", LanguagePolicy.force(v))
+        set(v) = store.putString("language_tag", LanguagePolicy.normalize(v))
 
     /** formal | casual | very_casual | excited | custom */
     var styleName: String

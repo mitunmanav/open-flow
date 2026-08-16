@@ -1,6 +1,7 @@
 package app.openflow.stt.providers.cloud
 
 import app.openflow.ai.providers.cloud.ChatJson
+import app.openflow.stt.LanguagePolicy
 import java.util.Base64
 
 class OpenAiRealtimeEar(
@@ -10,8 +11,12 @@ class OpenAiRealtimeEar(
     pcm: PcmSource = PcmSource.None,
 ) : CloudEar(apiKey, socket, hasMic, pcm) {
 
-    override fun connectUrl(languageTag: String): String =
-        "wss://api.openai.com/v1/realtime?intent=transcription"
+    private var iso639: String = "en"
+
+    override fun connectUrl(languageTag: String): String {
+        iso639 = LanguagePolicy.iso639(languageTag)
+        return "wss://api.openai.com/v1/realtime?intent=transcription"
+    }
 
     override fun authHeaders(key: String): Map<String, String> =
         mapOf(
@@ -22,7 +27,7 @@ class OpenAiRealtimeEar(
     override fun onSessionOpen(session: CloudSession) {
         // Docs: session.update + type=transcription; PCM 24 kHz; gpt-live-transcribe + languages[].
         session.sendText(
-            """{"type":"session.update","session":{"type":"transcription","audio":{"input":{"format":{"type":"audio/pcm","rate":24000},"transcription":{"model":"gpt-live-transcribe","languages":["en"]},"turn_detection":{"type":"server_vad"}}}}}""",
+            """{"type":"session.update","session":{"type":"transcription","audio":{"input":{"format":{"type":"audio/pcm","rate":24000},"transcription":{"model":"gpt-live-transcribe","languages":["$iso639"]},"turn_detection":{"type":"server_vad"}}}}}""",
         )
     }
 

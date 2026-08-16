@@ -25,14 +25,16 @@ import android.os.SystemClock
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
+import android.view.VelocityTracker
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
 import android.view.animation.DecelerateInterpolator
-import android.view.animation.OvershootInterpolator
+import android.view.animation.PathInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -49,17 +51,13 @@ import app.openflow.ui.theme.BubbleTint
 import app.openflow.runtime.TrimPolicy
 import app.openflow.stt.providers.cloud.CloudEar
 import app.openflow.stt.AndroidSpeechEngine
-import app.openflow.stt.LanguagePolicy
 import app.openflow.stt.MainThreadHop
 import app.openflow.stt.SpeechEngine
 import app.openflow.stt.SttBias
 import app.openflow.stt.SttEngine
-import app.openflow.text.CleanupLevel
 import app.openflow.text.CleanupResult
 import app.openflow.text.CustomStyleConfig
-import app.openflow.text.Feature
-import app.openflow.text.FeatureAuto
-import app.openflow.text.FeatureGate
+import app.openflow.text.InsertPolish
 import app.openflow.text.LearnEngine
 import app.openflow.text.TextPostProcessor
 import app.openflow.text.WritingStyle
@@ -88,6 +86,9 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     private var bubblePulseRing: View? = null
     private var bubbleCancel: ImageView? = null
     private var bubbleDone: ImageView? = null
+    private var bubbleChipCopy: TextView? = null
+    private var bubbleChipUndo: TextView? = null
+    private var bubbleChipPaste: TextView? = null
     private var bubbleParams: WindowManager.LayoutParams? = null
     private var snapAnimator: ValueAnimator? = null
 
@@ -133,6 +134,9 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     private var lastInserted: String = ""
     private var lastInsertAt: Long = 0L
     private var lastInsertPkg: String? = null
+    private var undoSnap: UndoInsert.Snapshot? = null
+    private var postStopAt: Long = 0L
+    private var lastInsertOk: Boolean = false
 
     /** Debug-only: adb inject without mic (see companion ACTION_INJECT). */
     private val injectReceiver = object : BroadcastReceiver() {
@@ -436,6 +440,9 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         bubblePulseRing = view.findViewById(R.id.bubble_pulse_ring)
         bubbleCancel = view.findViewById(R.id.bubble_cancel)
         bubbleDone = null // Done/save icon removed — tap bubble to insert
+        bubbleChipCopy = view.findViewById(R.id.bubble_chip_copy)
+        bubbleChipUndo = view.findViewById(R.id.bubble_chip_undo)
+        bubbleChipPaste = view.findViewById(R.id.bubble_chip_paste)
 
         // Wispr: Cancel discards; tap bubble inserts.
         bubbleCancel?.setOnClickListener {
@@ -452,7 +459,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.BOTTOM or Gravity.END
@@ -492,6 +500,9 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         var startY = 0
         var dragged = false
         var longPressFired = false
+        var lastVx = 0f
+        var velocityTracker: VelocityTracker? = null
+        val slop = ViewConfiguration.get(this).scaledTouchSlop
         val longPress = Runnable {
             longPressFired = true
             pushToTalk = true
@@ -500,23 +511,29 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
         view.setOnTouchListener { v, event ->
             // Parent OnTouch returns true — Cancel/Done clicks never fire. Hit-test in ACTION_UP.
-            when (event.action) {
+            when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
+                    snapAnimator?.cancel()
+                    velocityTracker?.recycle()
+                    velocityTracker = VelocityTracker.obtain().also { it.addMovement(event) }
+                    lastVx = 0f
                     downRawX = event.rawX
                     downRawY = event.rawY
                     startX = params.x
                     startY = prefs?.bubbleY ?: params.y
                     dragged = false
                     longPressFired = false
-                    // Smooth press-in (Wispr-like).
                     animatePress(v, pressed = true)
                     if (!listening) mainHandler.postDelayed(longPress, 420)
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
+                    velocityTracker?.addMovement(event)
+                    velocityTracker?.computeCurrentVelocity(1000)
+                    lastVx = velocityTracker?.xVelocity ?: 0f
                     val dx = (event.rawX - downRawX).toInt()
                     val dy = (event.rawY - downRawY).toInt()
-                    if (abs(dx) + abs(dy) > 14) {
+                    if (!dragged && BubbleMotion.passedSlop(dx, dy, slop)) {
                         dragged = true
                         draggingNow = true
                         lastInteractionAt = SystemClock.elapsedRealtime()
@@ -526,6 +543,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                         }
                         mainHandler.removeCallbacks(longPress)
                     }
+                    if (!BubbleMotion.shouldUpdateLayout(dragged)) return@setOnTouchListener true
                     val dm = resources.displayMetrics
                     val h = v.height.takeIf { it > 0 } ?: v.measuredHeight.takeIf { it > 0 } ?: 120
                     params.x = (startX - dx).coerceAtLeast(0)
@@ -535,7 +553,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                         bubbleHeightPx = h
                     )
                     params.y = BubbleGeometry.parkYAboveIme(dragY, imeHeightPx)
-                    if (dragY < 40 && dragged) {
+                    if (dragY < 40) {
                         bubbleLabel?.visibility = View.VISIBLE
                         bubbleLabel?.text = getString(R.string.flow_bubble_snooze_hint)
                     }
@@ -550,6 +568,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                     draggingNow = false
                     lastInteractionAt = SystemClock.elapsedRealtime()
                     animatePress(v, pressed = false)
+                    velocityTracker?.recycle()
+                    velocityTracker = null
                     val dm = resources.displayMetrics
                     val h = v.height.takeIf { it > 0 } ?: v.measuredHeight.takeIf { it > 0 } ?: 120
                     val upDy = (event.rawY - downRawY).toInt()
@@ -564,19 +584,22 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                         refreshBubbleVisibility()
                         return@setOnTouchListener true
                     }
-                    if (dragged && prefs?.bubbleEdgeSnap == true) {
-                        snapBubbleToEdge(v, params)
-                    }
-                    if (dragged) {
+                    val snapping = dragged && prefs?.bubbleEdgeSnap == true
+                    params.y = BubbleGeometry.parkYAboveIme(savedY, imeHeightPx)
+                    if (snapping) {
+                        snapBubbleToEdge(v, params, lastVx)
+                    } else if (dragged) {
                         prefs?.let {
                             it.bubbleX = params.x
                             it.bubbleY = savedY
                         }
-                        params.y = BubbleGeometry.parkYAboveIme(savedY, imeHeightPx)
                         try {
                             windowManager?.updateViewLayout(v, params)
                         } catch (_: Exception) {
                         }
+                    }
+                    if (dragged && snapping) {
+                        prefs?.bubbleY = savedY
                     }
                     when (
                         BubbleTapPolicy.action(
@@ -585,12 +608,18 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                             dragged = dragged,
                             longPressFired = longPressFired,
                             hitCancel = hitVisible(bubbleCancel, event.rawX, event.rawY),
-                            hitDone = hitVisible(bubbleDone, event.rawX, event.rawY)
+                            hitDone = hitVisible(bubbleDone, event.rawX, event.rawY),
+                            hitCopy = hitVisible(bubbleChipCopy, event.rawX, event.rawY),
+                            hitUndo = hitVisible(bubbleChipUndo, event.rawX, event.rawY),
+                            hitPaste = hitVisible(bubbleChipPaste, event.rawX, event.rawY),
                         )
                     ) {
                         BubbleTapPolicy.Action.START -> startListening()
                         BubbleTapPolicy.Action.STOP_SAVE -> stopListening(save = true)
                         BubbleTapPolicy.Action.STOP_DISCARD -> stopListening(save = false)
+                        BubbleTapPolicy.Action.COPY -> copyLastToClipboard()
+                        BubbleTapPolicy.Action.UNDO -> undoLastInsert()
+                        BubbleTapPolicy.Action.PASTE -> pasteClipboardIntoField()
                         BubbleTapPolicy.Action.NONE -> { }
                     }
                     pushToTalk = false
@@ -612,23 +641,33 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             .start()
     }
 
-    private fun snapBubbleToEdge(view: View, params: WindowManager.LayoutParams) {
+    private fun snapBubbleToEdge(
+        view: View,
+        params: WindowManager.LayoutParams,
+        vxPxPerSec: Float = 0f,
+    ) {
         val dm = resources.displayMetrics
         val w = view.width.takeIf { it > 0 } ?: view.measuredWidth.takeIf { it > 0 } ?: 120
-        val targetX = BubbleGeometry.snapOffsetFromEnd(
+        val targetX = BubbleMotion.snapX(
             x = params.x,
+            vxPxPerSec = vxPxPerSec,
             screenWidthPx = dm.widthPixels,
-            bubbleWidthPx = w
+            bubbleWidthPx = w,
         )
         snapAnimator?.cancel()
         val startX = params.x
+        prefs?.bubbleX = targetX
         if (startX == targetX) {
             hapticEvent(HapticFeel.Event.TAP)
+            try {
+                windowManager?.updateViewLayout(view, params)
+            } catch (_: Exception) {
+            }
             return
         }
         snapAnimator = ValueAnimator.ofInt(startX, targetX).apply {
-            duration = 240L
-            interpolator = OvershootInterpolator(0.9f)
+            duration = BubbleMotion.snapDurationMs(abs(targetX - startX), vxPxPerSec)
+            interpolator = PathInterpolator(0.22f, 1f, 0.36f, 1f)
             addUpdateListener { anim ->
                 params.x = anim.animatedValue as Int
                 try {
@@ -638,7 +677,6 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             }
             start()
         }
-        prefs?.bubbleX = targetX
         hapticEvent(HapticFeel.Event.TAP)
     }
 
@@ -658,6 +696,9 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         bubblePulseRing = null
         bubbleCancel = null
         bubbleDone = null
+        bubbleChipCopy = null
+        bubbleChipUndo = null
+        bubbleChipPaste = null
         bubbleParams = null
     }
 
@@ -786,12 +827,150 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             Toast.makeText(this, R.string.flow_bubble_saved_in_app, Toast.LENGTH_SHORT).show()
             return
         }
+        copyTextToClipboard(text)
+        Toast.makeText(this, R.string.flow_bubble_copied_clipboard, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun copyTextToClipboard(text: String) {
+        if (text.isBlank()) return
         try {
             val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
             cm.setPrimaryClip(android.content.ClipData.newPlainText("Open Flow", text))
-            Toast.makeText(this, R.string.flow_bubble_copied_clipboard, Toast.LENGTH_SHORT).show()
         } catch (_: Exception) {
         }
+    }
+
+    private fun postStopActive(): Boolean {
+        if (listening || postStopAt <= 0L) return false
+        val text = prefs?.lastSessionClean.orEmpty()
+        val s = PostStopChips.state(
+            elapsedMs = SystemClock.elapsedRealtime() - postStopAt,
+            hasSessionText = text.isNotBlank(),
+            insertOk = lastInsertOk,
+            canUndo = UndoInsert.canUndo(undoSnap),
+        )
+        return s.any
+    }
+
+    private fun armPostStopChips(insertOk: Boolean) {
+        lastInsertOk = insertOk
+        postStopAt = SystemClock.elapsedRealtime()
+        refreshPostStopChips()
+    }
+
+    private fun clearPostStopChips() {
+        postStopAt = 0L
+        bubbleChipCopy?.visibility = View.GONE
+        bubbleChipUndo?.visibility = View.GONE
+        bubbleChipPaste?.visibility = View.GONE
+        updateBubbleVisuals()
+    }
+
+    private fun refreshPostStopChips() {
+        if (listening) return
+        if (postStopAt > 0L && !PostStopChips.visible(SystemClock.elapsedRealtime() - postStopAt)) {
+            clearPostStopChips()
+            return
+        }
+        val text = prefs?.lastSessionClean.orEmpty()
+        val s = PostStopChips.state(
+            elapsedMs = if (postStopAt <= 0L) Long.MAX_VALUE else SystemClock.elapsedRealtime() - postStopAt,
+            hasSessionText = text.isNotBlank(),
+            insertOk = lastInsertOk,
+            canUndo = UndoInsert.canUndo(undoSnap),
+        )
+        bubbleChipCopy?.visibility = if (s.copy) View.VISIBLE else View.GONE
+        bubbleChipUndo?.visibility = if (s.undo) View.VISIBLE else View.GONE
+        bubbleChipPaste?.visibility = if (s.paste) View.VISIBLE else View.GONE
+        if (s.any) updateBubbleVisuals()
+    }
+
+    private fun undoLastInsert() {
+        val snap = undoSnap ?: return
+        if (!UndoInsert.canUndo(snap)) return
+        val restored = UndoInsert.restoredField(snap)
+        if (writeFieldText(restored)) {
+            undoSnap = null
+            lastInserted = restored
+            clearPostStopChips()
+            Toast.makeText(this, R.string.flow_bubble_undone, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun pasteClipboardIntoField() {
+        val root = rootInActiveWindow
+        val node = resolveEditable(root, focusedEditable)
+        try {
+            root?.let {
+                @Suppress("DEPRECATION")
+                it.recycle()
+            }
+        } catch (_: Exception) {
+        }
+        if (node == null) {
+            Toast.makeText(this, R.string.flow_bubble_saved_in_app, Toast.LENGTH_SHORT).show()
+            return
+        }
+        try {
+            node.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+            val ok = node.performAction(AccessibilityNodeInfo.ACTION_PASTE)
+            if (!ok) {
+                Toast.makeText(this, R.string.flow_bubble_copied_clipboard, Toast.LENGTH_SHORT).show()
+            } else {
+                clearPostStopChips()
+            }
+        } finally {
+            @Suppress("DEPRECATION")
+            node.recycle()
+        }
+    }
+
+    fun useRawFromHistory(raw: String) {
+        val said = raw.trim()
+        if (said.isBlank()) return
+        val prefix = captureFieldPrefix()
+        val merged = UndoInsert.useRawMerged(prefix, said)
+        if (writeFieldText(merged)) {
+            prefs?.setLastSession(raw = said, clean = said)
+            Toast.makeText(this, R.string.restore_raw, Toast.LENGTH_SHORT).show()
+        } else {
+            copyTextToClipboard(said)
+            Toast.makeText(this, R.string.flow_bubble_copied_clipboard, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun writeFieldText(text: String): Boolean {
+        val root = rootInActiveWindow
+        val node = resolveEditable(root, focusedEditable)
+        try {
+            root?.let {
+                @Suppress("DEPRECATION")
+                it.recycle()
+            }
+        } catch (_: Exception) {
+        }
+        if (node == null) return false
+        return try {
+            setNodeText(node, text)
+        } finally {
+            @Suppress("DEPRECATION")
+            node.recycle()
+        }
+    }
+
+    private fun setNodeText(node: AccessibilityNodeInfo, text: String): Boolean {
+        val args = Bundle().apply {
+            putCharSequence(
+                AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
+                text
+            )
+        }
+        var ok = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+        if (!ok) {
+            node.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+            ok = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+        }
+        return ok
     }
 
     private fun onPulseTick() {
@@ -826,6 +1005,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             compactVisual = wantCompact
             applyVisualScale()
         }
+        refreshPostStopChips()
     }
 
     private fun setBubbleEmphasis(hasField: Boolean) {
@@ -843,6 +1023,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     private fun startListening() {
         if (stopInProgress) return
         if (listening) return
+        clearPostStopChips()
         if (prefs?.isSnoozed() == true) {
             prefs?.clearSnooze()
             refreshBubbleVisibility()
@@ -870,7 +1051,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         setListenChrome(0)
         setBubbleEmphasis(true)
 
-        val lang = LanguagePolicy.LOCKED
+        val lang = InsertPolish.language(prefs?.languageTag)
         val ear = app.currentEar()
         this.ear = ear
         ear.setListener(object : SpeechEngine.Listener {
@@ -1051,7 +1232,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             stopInProgress = false
 
             if (save && raw.isNotBlank()) {
-                val lang = LanguagePolicy.LOCKED
+                val lang = InsertPolish.language(prefs?.languageTag)
                 polishSession(raw, prefix) { result ->
                     val finalText = result.clean
                     if (BuildConfig.DEBUG) {
@@ -1061,9 +1242,10 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                         )
                     }
                     if (finalText.isNotBlank()) {
-                        commitSessionToField(finalText, prefix)
+                        val ok = commitSessionToField(finalText, prefix, result.raw)
                         prefs?.setLastSession(raw = result.raw, clean = finalText)
                         lastInteractionAt = SystemClock.elapsedRealtime()
+                        armPostStopChips(ok)
                         val wordCount = finalText.split(WORD_SPLIT)
                             .filter { it.isNotBlank() }.size
                         val retention = prefs?.retentionPolicy ?: "keep"
@@ -1150,12 +1332,13 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                     "level=${result.level} fieldOk=${finalText.isNotBlank()}"
             )
             if (finalText.isNotBlank()) {
-                commitSessionToField(finalText, prefix)
+                val ok = commitSessionToField(finalText, prefix, result.raw)
                 prefs?.setLastSession(raw = result.raw, clean = finalText)
                 lastInteractionAt = SystemClock.elapsedRealtime()
+                armPostStopChips(ok)
                 val wordCount = finalText.split(WORD_SPLIT).filter { it.isNotBlank() }.size
                 val retention = prefs?.retentionPolicy ?: "keep"
-                val lang = LanguagePolicy.LOCKED
+                val lang = InsertPolish.language(prefs?.languageTag)
                 scope.launch(Dispatchers.IO) {
                     runCatching {
                         app.dictations.saveDictation(
@@ -1227,7 +1410,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     /**
      * Same path for stopListening + debug inject:
      * dict → snippets → CleanupPipeline(level, style, custom) via [TextPostProcessor.polishSessionResult].
-     * Picked brain + [brainRewrite] when not none/on_phone. Field text only if Feature would be on.
+     * dict → snippets → CleanupPipeline(pref level) via [TextPostProcessor.polishSessionResult].
+     * Insert never LLM-rewrites; brain pick does not bump cleanup to High.
      */
     private fun polishSession(
         text: String,
@@ -1239,17 +1423,16 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             val snip = app.dictations.snippetMap()
             val prefLevel = prefs?.cleanupLevel ?: "medium"
             val earId = app.enginePrefs.earId
-            val brainId = app.enginePrefs.brainId
-            val picked = app.currentBrain()
-            val brainRewrite = Feature.HIGH_AI in FeatureAuto.of(earId, brainId)
+            val brainId = InsertPolish.brainIdForInsert(app.enginePrefs.brainId)
+            val brainRewrite = InsertPolish.brainRewriteOnInsert(app.enginePrefs.brainId)
             val fieldOn = FieldContext.on(brainRewrite)
             val surrounding = FieldContext.surrounding(fieldOn, surroundingField)
-            val brain = FieldContext.wrapBrain(picked, surrounding)
-            val level = if (FeatureGate.can(Feature.HIGH_AI, brainRewrite = brainRewrite)) {
-                CleanupLevel.HIGH
+            val brain = if (brainRewrite) {
+                FieldContext.wrapBrain(app.currentBrain(), surrounding)
             } else {
-                CleanupLevel.fromPref(prefLevel)
+                app.currentBrain()
             }
+            val level = InsertPolish.level(prefLevel)
             val appContext = AppContextEngine.resolveContext(
                 lastPackage,
                 null,
@@ -1272,7 +1455,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             )
             android.util.Log.i(
                 "OpenFlow.Cleanup",
-                "level=$level pref=$prefLevel style=$style lang=${LanguagePolicy.LOCKED} " +
+                "level=$level pref=$prefLevel style=$style lang=${InsertPolish.language(prefs?.languageTag)} " +
                     "brain=$brainId rewrite=$brainRewrite field=${surrounding.isNotEmpty()} " +
                     "rawLen=${text.length} cleanLen=${result.clean.length} " +
                     "corr=${result.corrections.size} " +
@@ -1282,8 +1465,9 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
     }
 
-    private fun commitSessionToField(finalText: String, prefix: String) {
-        if (finalText.isBlank()) return
+    private fun commitSessionToField(finalText: String, prefix: String, raw: String = ""): Boolean {
+        if (finalText.isBlank()) return false
+        val merged = FieldContext.afterPolish(prefix, finalText)
         val root = rootInActiveWindow
         val node = resolveEditable(root, focusedEditable)
         try {
@@ -1295,25 +1479,14 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
         if (node == null) {
             Toast.makeText(this, R.string.flow_bubble_saved_in_app, Toast.LENGTH_SHORT).show()
-            return
+            return false
         }
         try {
             if (!isUsableEditable(node)) {
                 Toast.makeText(this, R.string.flow_bubble_saved_in_app, Toast.LENGTH_SHORT).show()
-                return
+                return false
             }
-            val merged = FieldPolicy.mergeSession(prefix, finalText)
-            val args = Bundle().apply {
-                putCharSequence(
-                    AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
-                    merged
-                )
-            }
-            var ok = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
-            if (!ok) {
-                node.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
-                ok = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
-            }
+            val ok = setNodeText(node, merged)
             android.util.Log.i(
                 "OpenFlow.Bubble",
                 "setText ok=$ok mergedLen=${merged.length} class=${node.className}"
@@ -1322,18 +1495,16 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 lastInserted = merged
                 lastInsertAt = SystemClock.elapsedRealtime()
                 lastInsertPkg = node.packageName?.toString() ?: lastPackage
+                undoSnap = UndoInsert.afterInsert(
+                    previousField = prefix,
+                    merged = merged,
+                    raw = raw,
+                    clean = finalText,
+                )
             }
             if (!ok) {
-                // Wispr-style fallback: put on clipboard so user can paste.
-                try {
-                    val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                    cm.setPrimaryClip(
-                        android.content.ClipData.newPlainText("Open Flow", merged)
-                    )
-                    Toast.makeText(this, R.string.flow_bubble_copied_clipboard, Toast.LENGTH_SHORT).show()
-                } catch (_: Exception) {
-                    Toast.makeText(this, R.string.flow_bubble_saved_in_app, Toast.LENGTH_SHORT).show()
-                }
+                copyTextToClipboard(merged)
+                Toast.makeText(this, R.string.flow_bubble_copied_clipboard, Toast.LENGTH_SHORT).show()
             }
             focusedEditable?.let {
                 @Suppress("DEPRECATION")
@@ -1341,6 +1512,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             }
             @Suppress("DEPRECATION")
             focusedEditable = AccessibilityNodeInfo.obtain(node)
+            return ok
         } finally {
             @Suppress("DEPRECATION")
             node.recycle()
@@ -1427,10 +1599,44 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
             // Pulse WRAP_CONTENT was the grey veil. Idle-only; never on listen.
             pulseRing.visibility = View.GONE
+            bubbleChipCopy?.visibility = View.GONE
+            bubbleChipUndo?.visibility = View.GONE
+            bubbleChipPaste?.visibility = View.GONE
+        } else if (postStopActive()) {
+            cancel?.visibility = View.GONE
+            label.visibility = View.GONE
+            pulseRing.visibility = View.GONE
+            val bg = GradientDrawable().apply {
+                this.shape = GradientDrawable.RECTANGLE
+                cornerRadius = BubbleChrome.cornerPx("listen", density, p.bubbleRoundness)
+                setColor(fill)
+                setStroke(stroke, on)
+            }
+            root.background = bg
+            root.layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER
+            )
+            val padH = (8f * density).toInt()
+            val padV = (6f * density).toInt()
+            root.setPadding(padH, padV, padH, padV)
+            icon.visibility = View.VISIBLE
+            icon.setColorFilter(on)
+            icon.layoutParams = LinearLayout.LayoutParams(
+                (18f * density).toInt(),
+                (18f * density).toInt()
+            ).apply { gravity = Gravity.CENTER }
+            listOf(bubbleChipCopy, bubbleChipUndo, bubbleChipPaste).forEach { chip ->
+                chip?.setTextColor(on)
+            }
         } else {
             cancel?.visibility = View.GONE
             label.visibility = View.GONE
             pulseRing.visibility = View.GONE
+            bubbleChipCopy?.visibility = View.GONE
+            bubbleChipUndo?.visibility = View.GONE
+            bubbleChipPaste?.visibility = View.GONE
 
             val (w, h) = BubbleGeometry.overlaySizePx(listening = false, density = density, shape = shape)
             root.layoutParams = FrameLayout.LayoutParams(w, h, Gravity.CENTER)
@@ -1459,8 +1665,13 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         val params = bubbleParams ?: return
         val density = resources.displayMetrics.density
         val shape = FlowPrefs.normalizeBubbleShape(prefs?.bubbleShape.orEmpty())
-        val wide = listening
-        val (w, h) = BubbleGeometry.overlaySizePx(wide, density, shape)
+        val wide = listening || postStopActive()
+        val (w, h) = BubbleGeometry.overlaySizePx(
+            listening,
+            density,
+            shape,
+            chips = wide && !listening,
+        )
         params.width = if (w > 0) w else WindowManager.LayoutParams.WRAP_CONTENT
         params.height = if (h > 0) h else WindowManager.LayoutParams.WRAP_CONTENT
         val view = bubbleView ?: return

@@ -9,12 +9,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
@@ -54,10 +52,9 @@ fun OpenCard(
     val faceMod = Modifier
         .fillMaxWidth()
         .then(
-            if (onClick != null && !disabled) Modifier.defaultMinSize(minHeight = Dimen.TOUCH_TARGET)
+            if (onClick != null && !disabled) Modifier.defaultMinSize(minHeight = Dimen.MIN_TOUCH)
             else Modifier
         )
-        .graphicsLayer { clip = false }
         .background(color = faceColor, shape = shape)
         .border(BorderStroke(1.dp, borderColor), shape)
         .semantics {

@@ -6,9 +6,33 @@ import org.junit.Test
 class FieldContextTest {
 
     @Test
-    fun on_only_when_brain_rewrites() {
-        assertThat(FieldContext.on(brainRewrite = false)).isFalse()
+    fun on_always_for_local_context() {
+        assertThat(FieldContext.on(brainRewrite = false)).isTrue()
         assertThat(FieldContext.on(brainRewrite = true)).isTrue()
+    }
+
+    @Test
+    fun continue_lowers_first_when_field_open() {
+        assertThat(FieldContext.continueSpoken("Hey can we", "Meet at six"))
+            .isEqualTo("meet at six")
+    }
+
+    @Test
+    fun continue_keeps_cap_after_sentence_end() {
+        assertThat(FieldContext.continueSpoken("Hello.", "Meet at six"))
+            .isEqualTo("Meet at six")
+    }
+
+    @Test
+    fun after_polish_course_corrects_across_field() {
+        val out = FieldContext.afterPolish("meet at 5 pm", "actually 6 pm")
+        assertThat(out.lowercase()).contains("6")
+        assertThat(out.lowercase()).doesNotContain("5")
+    }
+
+    @Test
+    fun after_polish_empty_prefix_is_spoken() {
+        assertThat(FieldContext.afterPolish("", "hello there")).isEqualTo("hello there")
     }
 
     @Test

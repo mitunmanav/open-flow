@@ -61,5 +61,50 @@
             android:textColor="#FFF4EFE6"
             android:textSize="13sp"
             android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/bubble_chip_copy"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="4dp"
+            android:gravity="center"
+            android:minWidth="40dp"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:text="@string/flow_bubble_copy"
+            android:textColor="#FFF4EFE6"
+            android:textSize="12sp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/bubble_chip_undo"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="2dp"
+            android:gravity="center"
+            android:minWidth="40dp"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:text="@string/flow_bubble_undo"
+            android:textColor="#FFF4EFE6"
+            android:textSize="12sp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/bubble_chip_paste"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="2dp"
+            android:gravity="center"
+            android:minWidth="40dp"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:text="@string/flow_bubble_paste"
+            android:textColor="#FFF4EFE6"
+            android:textSize="12sp"
+            android:visibility="gone" />
     </LinearLayout>
 </FrameLayout>

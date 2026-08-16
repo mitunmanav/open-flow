@@ -33,6 +33,7 @@ fun OpenButton(
     modifier: Modifier = Modifier,
     variant: ButtonVariant = ButtonVariant.Filled,
     enabled: Boolean = true,
+    fill: Boolean = true,
     contentDescription: String? = null
 ) {
     val view = LocalView.current
@@ -55,7 +56,8 @@ fun OpenButton(
                 performClickHaptic(view)
                 onClick()
             },
-            modifier = modifier.fillMaxWidth().then(minTouch).then(semanticsMod),
+            modifier = modifier.then(if (fill) Modifier.fillMaxWidth() else Modifier)
+                .then(minTouch).then(semanticsMod),
             enabled = enabled,
             shape = shape,
             contentPadding = contentPad,
@@ -79,7 +81,8 @@ fun OpenButton(
                 performClickHaptic(view)
                 onClick()
             },
-            modifier = modifier.fillMaxWidth().then(minTouch).then(semanticsMod),
+            modifier = modifier.then(if (fill) Modifier.fillMaxWidth() else Modifier)
+                .then(minTouch).then(semanticsMod),
             enabled = enabled,
             shape = shape,
             contentPadding = contentPad,

@@ -22,7 +22,7 @@ class FlowPrefsFeatureMapTest {
         assertThat(p.retentionPolicy).isEqualTo("keep")
         assertThat(p.bubbleScale).isEqualTo(0.85f)
         assertThat(p.sttProfile).isEqualTo(SttTuning.PROFILE_BALANCED)
-        assertThat(p.sttTuning().preferFormattingQuality).isFalse()
+        assertThat(p.sttTuning().preferFormattingQuality).isTrue()
         assertThat(p.autoLearn).isTrue()
         assertThat(p.darkMode.value).isEqualTo("light")
         assertThat(p.seenHowTo).isFalse()
@@ -76,6 +76,15 @@ class FlowPrefsFeatureMapTest {
         p.bubbleScale = 1.1f
         assertThat(p.bubbleScale).isWithin(0.001f).of(1.1f)
         assertThat(store.getFloat("bubble_scale", 0f)).isWithin(0.001f).of(1.1f)
+    }
+
+    @Test
+    fun language_tag_roundtrip_catalog() {
+        val p = FlowPrefs(MemoryPrefsStore())
+        p.languageTag = "hi-IN"
+        assertThat(p.languageTag).isEqualTo("hi-IN")
+        p.languageTag = "en-IN"
+        assertThat(p.languageTag).isEqualTo("en-IN")
     }
 
     @Test

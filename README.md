@@ -40,7 +40,7 @@ Full write-up + sources: [docs/COMPARISON.md](docs/COMPARISON.md).
 | Audio can leave | **Yes, often** | Only if you pick cloud | No* | No* | No* | **Yes** on default server | **Yes** |
 | INTERNET in app | **Declared; off until opt-in** | Models / optional API | Model download | Model download | Model download | Yes | Yes |
 | Cleanup | Rule lists | Optional OpenAI | In-model | Weak | Weak | Server | Cloud LLM |
-| Languages | **en-US only** | Several | Many | 20+ | Many | Depends | Many |
+| Languages | Catalog (default en-US; en-IN, hi-IN, …) | Several | Many | 20+ | Many | Depends | Many |
 | License | MIT | Personal / permissive | **Not OSI** | GPL-3.0 | FOSS | Apache-2.0 | Closed |
 | On F-Droid | **No** | No | Their repo | **Yes** | **Yes** | **Yes** | No |
 | History + dict/snippets | **Yes** | Limited | Weak | No | No | No | Yes (their cloud) |

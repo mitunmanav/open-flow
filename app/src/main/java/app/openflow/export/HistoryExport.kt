@@ -8,7 +8,7 @@ import java.util.Locale
 /**
  * Pure on-device history export & search (markdown / plain text).
  * No I/O, no network — callers write/share the string.
- * Language always shown as en-US (product lock).
+ * Language shown from catalog via [LanguagePolicy.normalize].
  */
 object HistoryExport {
 
@@ -29,7 +29,7 @@ object HistoryExport {
         if (rows.isEmpty()) return "# Open Flow history"
         val body = rows.joinToString("\n\n") { row ->
             val stamp = stampFmt.format(Date(row.createdAtEpochMs))
-            val lang = LanguagePolicy.force(row.languageTag)
+            val lang = LanguagePolicy.normalize(row.languageTag)
             buildString {
                 append("### $stamp ($lang, ${row.wordCount} words")
                 if (row.durationMs > 0L) append(", ${row.durationMs}ms")
@@ -52,7 +52,7 @@ object HistoryExport {
                 val stamp = stampFmt.format(Date(row.createdAtEpochMs))
                 append(stamp)
                 append(" [")
-                append(LanguagePolicy.force(row.languageTag))
+                append(LanguagePolicy.normalize(row.languageTag))
                 append("]")
                 if (row.id.isNotBlank()) {
                     append(" id=")

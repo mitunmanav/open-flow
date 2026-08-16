@@ -1,14 +1,17 @@
 package app.openflow.ui
 
 import android.Manifest
+import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,6 +30,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
@@ -38,6 +42,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -88,6 +94,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -106,6 +113,7 @@ import app.openflow.data.SnippetEntity
 import app.openflow.export.HistoryExport
 import app.openflow.prefs.FlowPrefs
 import app.openflow.prefs.LayoutPrefs
+import app.openflow.text.PairImport
 import app.openflow.text.WritingStyle
 import app.openflow.ui.a11y.Dimen
 import app.openflow.ui.components.ButtonVariant
@@ -116,12 +124,14 @@ import app.openflow.ui.components.OpenChip
 import app.openflow.ui.components.OpenTextField
 import app.openflow.display.DisplayRefreshController
 import app.openflow.display.DisplayRefreshPolicy
+import app.openflow.stt.LanguagePolicy
 import app.openflow.stt.SttTuning
 import app.openflow.ui.engine.EngineSettingsScreen
 import app.openflow.ui.home.HistoryDays
 import app.openflow.ui.home.HistorySearchPolicy
 import app.openflow.ui.home.HomeBannerPolicy
 import app.openflow.ui.home.ModuleEditorVisibility
+import app.openflow.ui.home.UiScrollPolicy
 import app.openflow.ui.privacy.PrivacyHonesty
 import app.openflow.ui.setup.FirstRunPolicy
 import app.openflow.ui.setup.SetupWizard
@@ -1093,7 +1103,8 @@ private fun HomeHub(
                                         }
                                         app.dictations.updateDictationText(d.id, new)
                                     }
-                                }
+                                },
+                                onUseRaw = { raw -> useHistoryRaw(ctx, raw) }
                             )
                         }
                     }
@@ -1136,14 +1147,15 @@ private fun HistoryScreen(app: OpenFlowApp) {
     }
     val byId = remember(filtered) { filtered.associateBy { it.id } }
 
-    Column(
+    LazyColumn(
         Modifier
             .fillMaxSize()
             .background(SecUi.cream)
-            .padding(horizontal = Dimen.PAGE_PAD, vertical = Dimen.GAP)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(Dimen.GAP)
+            .padding(horizontal = Dimen.PAGE_PAD, vertical = Dimen.GAP),
+        verticalArrangement = Arrangement.spacedBy(Dimen.GAP),
+        contentPadding = PaddingValues(bottom = Dimen.GAP_LG)
     ) {
+        item(key = "history-hdr") {
         FlowRow(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1188,7 +1200,9 @@ private fun HistoryScreen(app: OpenFlowApp) {
                 }
             }
         }
+        }
 
+        item(key = "history-search") {
         OpenTextField(
             value = searchQuery,
             onValueChange = { searchQuery = it },
@@ -1201,8 +1215,10 @@ private fun HistoryScreen(app: OpenFlowApp) {
                 )
             }
         )
+        }
 
         if (filtered.isEmpty()) {
+            item(key = "history-empty") {
             EmptyState(
                 icon = Icons.Default.MicNone,
                 title = if (searchQuery.isBlank()) "No history yet" else "No matching results",
@@ -1213,16 +1229,24 @@ private fun HistoryScreen(app: OpenFlowApp) {
                 },
                 modifier = Modifier.testTag("history_empty")
             )
+            }
         } else {
             days.forEach { day ->
+                val firstId = day.rows.firstOrNull()?.id.orEmpty()
+                item(key = UiScrollPolicy.dayHeaderKey(day.label, firstId)) {
                 Text(
                     day.label,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                day.rows.forEach { row ->
-                    val d = byId[row.id] ?: return@forEach
+                }
+                items(
+                    items = day.rows,
+                    key = { UiScrollPolicy.historyRowKey(it.id) },
+                    contentType = { "hist" },
+                ) { row ->
+                    val d = byId[row.id] ?: return@items
                     DictationCard(
                         d = d,
                         onDelete = {
@@ -1254,12 +1278,12 @@ private fun HistoryScreen(app: OpenFlowApp) {
                                 }
                                 app.dictations.updateDictationText(d.id, new)
                             }
-                        }
+                        },
+                        onUseRaw = { raw -> useHistoryRaw(ctx, raw) }
                     )
                 }
             }
         }
-        Spacer(Modifier.height(Dimen.GAP_LG))
     }
 }
 
@@ -1269,7 +1293,8 @@ private fun DictationCard(
     d: DictationEntity,
     onDelete: () -> Unit,
     onShare: () -> Unit,
-    onSave: (oldText: String, newText: String) -> Unit
+    onSave: (oldText: String, newText: String) -> Unit,
+    onUseRaw: (String) -> Unit,
 ) {
     var showRaw by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf(false) }
@@ -1375,6 +1400,12 @@ private fun DictationCard(
                         onClick = { showRaw = !showRaw }
                     )
                     CopyButton(text = d.rawText, label = "Raw copy")
+                    OpenChip(
+                        label = "Use raw",
+                        isOn = false,
+                        onClick = { onUseRaw(d.rawText) },
+                        modifier = Modifier.testTag("history_use_raw"),
+                    )
                 }
             }
             if (hasRaw && showRaw) {
@@ -1440,34 +1471,134 @@ private fun CopyButton(text: String, label: String = "Copy") {
 }
 
 @Composable
+private fun PairImportBlock(
+    testPrefix: String,
+    onImport: suspend (String) -> PairImport.Outcome,
+) {
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var paste by remember { mutableStateOf("") }
+    val pick = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val text = runCatching {
+            ctx.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
+        }.getOrNull().orEmpty()
+        if (text.isBlank()) {
+            Toast.makeText(ctx, "Empty file", Toast.LENGTH_SHORT).show()
+            return@rememberLauncherForActivityResult
+        }
+        scope.launch {
+            val out = onImport(text)
+            Toast.makeText(
+                ctx,
+                "Added ${out.added} · skip ${out.skipped} · conflict ${out.conflicts}",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            "CSV: heard,replace — one pair per line",
+            style = MaterialTheme.typography.bodySmall,
+            color = SecUi.muted,
+            softWrap = true
+        )
+        OpenTextField(
+            value = paste,
+            onValueChange = { paste = it },
+            label = "Paste from,to",
+            placeholder = "wisper,Wispr",
+            singleLine = false,
+            minLines = 2,
+            modifier = Modifier.testTag("${testPrefix}_import_paste")
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OpenButton(
+                text = "File",
+                fill = false,
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("${testPrefix}_import_file"),
+                variant = ButtonVariant.Outlined,
+                onClick = { pick.launch("text/*") }
+            )
+            OpenButton(
+                text = "Paste",
+                fill = false,
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("${testPrefix}_import_paste_go"),
+                enabled = paste.isNotBlank(),
+                onClick = {
+                    scope.launch {
+                        val out = onImport(paste)
+                        Toast.makeText(
+                            ctx,
+                            "Added ${out.added} · skip ${out.skipped} · conflict ${out.conflicts}",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        if (out.added > 0) paste = ""
+                    }
+                }
+            )
+        }
+    }
+}
+
+private fun useHistoryRaw(ctx: Context, raw: String) {
+    val said = raw.trim()
+    if (said.isBlank()) return
+    val svc = FlowAccessibilityService.instance
+    if (svc != null) {
+        svc.useRawFromHistory(said)
+        return
+    }
+    try {
+        val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+        cm?.setPrimaryClip(ClipData.newPlainText("Open Flow", said))
+        Toast.makeText(ctx, ctx.getString(R.string.flow_bubble_copied_clipboard), Toast.LENGTH_SHORT).show()
+    } catch (_: Exception) {
+    }
+}
+
+@Composable
 private fun DictionaryTab(app: OpenFlowApp) {
     val words by app.dictations.observeDictionary().collectAsState(initial = emptyList())
     var word by remember { mutableStateOf("") }
     var repl by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
+    val ctx = LocalContext.current
 
-    Column(
+    LazyColumn(
         Modifier
             .fillMaxSize()
             .background(SecUi.cream)
-            .padding(horizontal = Dimen.PAGE_PAD, vertical = Dimen.GAP)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(Dimen.GAP)
+            .padding(horizontal = Dimen.PAGE_PAD, vertical = Dimen.GAP),
+        verticalArrangement = Arrangement.spacedBy(Dimen.GAP),
+        contentPadding = PaddingValues(bottom = Dimen.GAP_LG)
     ) {
-        Text(
-            "Dict",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = SecUi.charcoal,
-            softWrap = true
-        )
-        Text(
-            "One word. Local. Say it, insert the spelling you want.",
-            style = MaterialTheme.typography.bodySmall,
-            color = SecUi.muted,
-            softWrap = true
-        )
+        item(key = "dict-hdr") {
+            Column(verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)) {
+                Text(
+                    "Dict",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = SecUi.charcoal,
+                    softWrap = true
+                )
+                Text(
+                    "One word. Local. Say it, insert the spelling you want.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = SecUi.muted,
+                    softWrap = true
+                )
+            }
+        }
 
+        item(key = "dict-add") {
         OpenCard {
             Column(
                 Modifier
@@ -1503,24 +1634,43 @@ private fun DictionaryTab(app: OpenFlowApp) {
                     onClick = {
                         if (word.isNotBlank()) {
                             scope.launch {
-                                app.dictations.addWord(word.trim(), repl.ifBlank { word }.trim())
-                                word = ""
-                                repl = ""
+                                val ok = app.dictations.addWord(
+                                    word.trim(),
+                                    repl.ifBlank { word }.trim()
+                                )
+                                if (!ok) {
+                                    Toast.makeText(
+                                        ctx,
+                                        "That word is a snippet trigger",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                } else {
+                                    word = ""
+                                    repl = ""
+                                }
                             }
                         }
                     }
                 )
+                PairImportBlock(
+                    testPrefix = "dict",
+                    onImport = { app.dictations.importDictionary(it) }
+                )
             }
+        }
         }
 
         if (words.isEmpty()) {
+            item(key = "dict-empty") {
             EmptyState(
                 icon = Icons.Default.Tune,
                 title = "No Dict words",
                 subtitle = "Add a heard word and what to insert.",
                 modifier = Modifier.testTag("dict_empty")
             )
+            }
         } else {
+            item(key = "dict-clear") {
             OpenButton(
                 text = "Clear all learned",
                 modifier = Modifier.testTag("dict_clear_learned"),
@@ -1528,7 +1678,12 @@ private fun DictionaryTab(app: OpenFlowApp) {
                     scope.launch { app.dictations.clearLearned() }
                 }
             )
-            words.forEach { w: DictionaryWordEntity ->
+            }
+            items(
+                items = words,
+                key = { UiScrollPolicy.dictRowKey(it.id) },
+                contentType = { "dict" },
+            ) { w: DictionaryWordEntity ->
                 OpenCard {
                     Row(
                         Modifier
@@ -1572,7 +1727,6 @@ private fun DictionaryTab(app: OpenFlowApp) {
                 }
             }
         }
-        Spacer(Modifier.height(Dimen.GAP_LG))
     }
 }
 
@@ -1582,22 +1736,26 @@ private fun SnippetsTab(app: OpenFlowApp) {
     var trigger by remember { mutableStateOf("") }
     var body by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
+    val ctx = LocalContext.current
 
-    Column(
+    LazyColumn(
         Modifier
             .fillMaxSize()
             .background(SecUi.cream)
-            .padding(horizontal = Dimen.PAGE_PAD, vertical = Dimen.GAP)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(Dimen.GAP)
+            .padding(horizontal = Dimen.PAGE_PAD, vertical = Dimen.GAP),
+        verticalArrangement = Arrangement.spacedBy(Dimen.GAP),
+        contentPadding = PaddingValues(bottom = Dimen.GAP_LG)
     ) {
+        item(key = "snip-hdr") {
         Text(
             "Say a short trigger. Paste a whole block.",
             style = MaterialTheme.typography.bodySmall,
             color = SecUi.muted,
             softWrap = true
         )
+        }
 
+        item(key = "snip-add") {
         OpenCard {
             Column(
                 Modifier
@@ -1633,24 +1791,43 @@ private fun SnippetsTab(app: OpenFlowApp) {
                     onClick = {
                         if (trigger.isNotBlank() && body.isNotBlank()) {
                             scope.launch {
-                                app.dictations.addSnippet(trigger.trim(), body.trim())
-                                trigger = ""
-                                body = ""
+                                val ok = app.dictations.addSnippet(trigger.trim(), body.trim())
+                                if (!ok) {
+                                    Toast.makeText(
+                                        ctx,
+                                        "That trigger is a dictionary word",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                } else {
+                                    trigger = ""
+                                    body = ""
+                                }
                             }
                         }
                     }
                 )
+                PairImportBlock(
+                    testPrefix = "snippet",
+                    onImport = { app.dictations.importSnippets(it) }
+                )
             }
+        }
         }
 
         if (snippets.isEmpty()) {
+            item(key = "snip-empty") {
             EmptyState(
                 icon = Icons.Default.Tune,
                 title = "No voice snippets",
                 subtitle = "Create shortcuts for frequently typed addresses, emails, or templates."
             )
+            }
         } else {
-            snippets.forEach { s: SnippetEntity ->
+            items(
+                items = snippets,
+                key = { UiScrollPolicy.snippetRowKey(it.id) },
+                contentType = { "snip" },
+            ) { s: SnippetEntity ->
                 OpenCard {
                     Column(
                         Modifier.padding(Dimen.MIN_PADDING),
@@ -1693,7 +1870,6 @@ private fun SnippetsTab(app: OpenFlowApp) {
                 }
             }
         }
-        Spacer(Modifier.height(Dimen.GAP_LG))
     }
 }
 
@@ -2713,7 +2889,7 @@ private fun SettingsRow(title: String, subtitle: String, onClick: () -> Unit) {
             .fillMaxWidth()
             .heightIn(min = Dimen.MIN_TOUCH)
             .border(SecUi.hardBorder)
-            .clickable(onClick = onClick)
+            .clickable(role = Role.Button, onClick = onClick)
             .padding(Dimen.MIN_PADDING),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -2749,7 +2925,8 @@ private fun AppearanceSettings(prefs: FlowPrefs) {
     val skin by prefs.visualSkin.collectAsState()
     val context = LocalContext.current
     var refreshHz by remember { mutableIntStateOf(prefs.refreshHz) }
-    var sttProfile by remember { mutableStateOf(prefs.sttProfile) }
+        var sttProfile by remember { mutableStateOf(prefs.sttProfile) }
+        var languageTag by remember { mutableStateOf(prefs.languageTag) }
     val deviceModes = remember(context) {
         try {
             val d = if (android.os.Build.VERSION.SDK_INT >= 30) {
@@ -2934,6 +3111,42 @@ private fun AppearanceSettings(prefs: FlowPrefs) {
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+        }
+
+        OpenCard {
+            Column(
+                Modifier
+                    .padding(Dimen.MIN_PADDING)
+                    .wrapContentHeight(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text("Speech language", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, softWrap = true)
+                Text(
+                    "Used by system STT and cloud ears. Pick en-IN / hi-IN for Indian English or Hindi.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    softWrap = true
+                )
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    LanguagePolicy.SUPPORTED_LANGUAGES.forEach { opt ->
+                        OpenChip(
+                            label = opt.displayName,
+                            isOn = languageTag == opt.tag,
+                            modifier = Modifier.wrapContentHeight(),
+                            onClick = {
+                                languageTag = opt.tag
+                                prefs.languageTag = opt.tag
+                            }
+                        )
+                    }
+                }
             }
         }
         Spacer(Modifier.height(24.dp))

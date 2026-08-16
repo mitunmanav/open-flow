@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger
  */
 class SttEngine(
     private val context: Context,
-    private val preferOnDevice: Boolean = true,
+    private val preferOnDevice: Boolean = false,
     private val policy: ContinuousPolicy = ContinuousPolicy(),
     private val fallbackPolicy: OnDeviceFallbackPolicy = OnDeviceFallbackPolicy(),
     private val mainHandler: Handler = Handler(Looper.getMainLooper()),

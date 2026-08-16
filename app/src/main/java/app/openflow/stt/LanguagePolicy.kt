@@ -47,6 +47,12 @@ object LanguagePolicy {
         return found?.tag ?: DEFAULT_LANGUAGE
     }
 
-    /** Product lock compatibility: forces en-US. */
-    fun force(tag: String?): String = LOCKED
+    /** Product default when unset. Catalog langs are allowed. */
+    fun force(tag: String?): String = normalize(tag)
+
+    /** ISO 639-1 (or zh) for APIs that reject region tags. */
+    fun iso639(tag: String?): String {
+        val n = normalize(tag)
+        return n.substringBefore('-').lowercase().ifBlank { "en" }
+    }
 }

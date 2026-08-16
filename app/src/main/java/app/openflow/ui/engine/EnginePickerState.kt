@@ -18,6 +18,7 @@ data class FeatureChip(val id: String, val label: String, val lit: Boolean)
 data class EnginePickerState(
     val earId: String,
     val brainId: String,
+    val autoRoute: Boolean,
     val rewrite: Boolean,
     val commandMode: Boolean,
     val livePartials: Boolean,
@@ -165,7 +166,11 @@ data class EnginePickerState(
             else -> null
         }
 
-        fun of(earId: String = "system", brainId: String = "none"): EnginePickerState {
+        fun of(
+            earId: String = "system",
+            brainId: String = "none",
+            autoRoute: Boolean = false,
+        ): EnginePickerState {
             val ear = if (earId in knownEars) earId else "system"
             val brain = if (brainId in knownBrains) brainId else "none"
             val rewrite = brain in rewriteBrains
@@ -177,6 +182,7 @@ data class EnginePickerState(
             return EnginePickerState(
                 earId = ear,
                 brainId = brain,
+                autoRoute = autoRoute,
                 rewrite = rewrite,
                 commandMode = rewrite,
                 livePartials = livePartials,

@@ -6,6 +6,12 @@ import org.junit.Test
 class EnginePickerStateTest {
 
     @Test
+    fun auto_route_is_exposed_by_picker_state() {
+        assertThat(EnginePickerState.of(autoRoute = false).autoRoute).isFalse()
+        assertThat(EnginePickerState.of(autoRoute = true).autoRoute).isTrue()
+    }
+
+    @Test
     fun brain_none_high_and_command_off() {
         val s = EnginePickerState.of(earId = "system", brainId = "none")
         assertThat(s.rewrite).isFalse()
@@ -248,6 +254,10 @@ class EnginePickerStateTest {
         assertThat(src).contains("OpenDropdown")
         assertThat(src).contains("ear_dropdown")
         assertThat(src).contains("brain_dropdown")
+        assertThat(src).contains("Auto route")
+        assertThat(src).contains("auto_route_switch")
+        assertThat(src).contains("onAutoRoute")
+        assertThat(src).contains("Auto picks ear/brain; cloud only if keys saved.")
         assertThat(src).doesNotContain("EnginePickerState.ears")
         assertThat(src).doesNotContain("EnginePickerState.brains")
     }

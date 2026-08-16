@@ -502,6 +502,8 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
 interface PrefsStore {
     fun getString(key: String, default: String): String
     fun putString(key: String, value: String)
+    fun getBoolean(key: String, default: Boolean): Boolean
+    fun putBoolean(key: String, value: Boolean)
     fun getFloat(key: String, default: Float): Float
     fun putFloat(key: String, value: Float)
     fun getLong(key: String, default: Long): Long
@@ -514,6 +516,13 @@ class SharedPrefsStore(private val sp: SharedPreferences) : PrefsStore {
 
     override fun putString(key: String, value: String) {
         sp.edit().putString(key, value).apply()
+    }
+
+    override fun getBoolean(key: String, default: Boolean): Boolean =
+        sp.getBoolean(key, default)
+
+    override fun putBoolean(key: String, value: Boolean) {
+        sp.edit().putBoolean(key, value).apply()
     }
 
     override fun getFloat(key: String, default: Float): Float = sp.getFloat(key, default)
@@ -537,6 +546,13 @@ class MemoryPrefsStore : PrefsStore {
         map[key] as? String ?: default
 
     override fun putString(key: String, value: String) {
+        map[key] = value
+    }
+
+    override fun getBoolean(key: String, default: Boolean): Boolean =
+        map[key] as? Boolean ?: default
+
+    override fun putBoolean(key: String, value: Boolean) {
         map[key] = value
     }
 

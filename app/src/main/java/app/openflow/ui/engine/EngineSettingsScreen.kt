@@ -2,6 +2,7 @@ package app.openflow.ui.engine
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,6 +12,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -18,6 +20,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -33,12 +36,14 @@ import app.openflow.ui.components.OpenTextField
 fun EngineSettingsScreen(
     initialEar: String = "system",
     initialBrain: String = "none",
+    initialAutoRoute: Boolean = false,
     initialUrl: String = "",
     initialSarvamMode: String = "transcribe",
     initialKeyMask: String = "",
     initialEarKeyMask: String = "",
     initialBrainKeyMask: String = "",
     onPick: (ear: String, brain: String) -> Unit = { _, _ -> },
+    onAutoRoute: (Boolean) -> Unit = {},
     onSaveKey: (String) -> Unit = {},
     onSaveEarKey: (String) -> Unit = onSaveKey,
     onSaveBrainKey: (String) -> Unit = onSaveKey,
@@ -50,13 +55,14 @@ fun EngineSettingsScreen(
 ) {
     var ear by remember { mutableStateOf(initialEar) }
     var brain by remember { mutableStateOf(initialBrain) }
+    var autoRoute by remember { mutableStateOf(initialAutoRoute) }
     var url by remember { mutableStateOf(initialUrl) }
     var sarvamMode by remember { mutableStateOf(initialSarvamMode) }
     var earKeyDraft by remember { mutableStateOf("") }
     var brainKeyDraft by remember { mutableStateOf("") }
     var savedEarMask by remember { mutableStateOf(initialEarKeyMask.ifEmpty { initialKeyMask }) }
     var savedBrainMask by remember { mutableStateOf(initialBrainKeyMask.ifEmpty { initialKeyMask }) }
-    val state = EnginePickerState.of(ear, brain)
+    val state = EnginePickerState.of(ear, brain, autoRoute)
     val scheme = MaterialTheme.colorScheme
     val earOptions = remember { EnginePickerVisibility.visibleEars() }
     val brainOptions = remember(url) { EnginePickerVisibility.visibleBrains(url) }
@@ -96,6 +102,36 @@ fun EngineSettingsScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = scheme.onSurfaceVariant,
                     modifier = Modifier.testTag("engine_internet_honesty")
+                )
+            }
+        }
+
+        OpenCard(modifier = Modifier.fillMaxWidth().testTag("auto_route_card")) {
+            Row(
+                modifier = Modifier.padding(Dimen.MIN_PADDING),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Dimen.GAP)
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Auto route",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = scheme.onSurface
+                    )
+                    Text(
+                        text = "Auto picks ear/brain; cloud only if keys saved.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = scheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = state.autoRoute,
+                    onCheckedChange = {
+                        autoRoute = it
+                        onAutoRoute(it)
+                    },
+                    modifier = Modifier.testTag("auto_route_switch")
                 )
             }
         }

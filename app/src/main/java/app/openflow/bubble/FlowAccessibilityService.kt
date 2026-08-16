@@ -1500,38 +1500,19 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 } else {
                     app.currentBrain()
                 }
-                runCatching {
-                    TextPostProcessor.polishSessionResult(
-                        raw = text,
-                        style = style,
-                        level = level,
-                        custom = custom,
-                        dictionary = dict,
-                        snippets = snip,
-                        brain = brain,
-                        brainRewrite = brainRewrite,
-                        earId = app.enginePrefs.earId,
-                        brainId = manualBrainId,
-                        promptHint = null,
-                    )
-                }.getOrElse {
-                    providerHealth.recordFailure(manualBrainId)
-                    val local = TextPostProcessor.polishSessionResult(
-                        raw = text,
-                        style = style,
-                        level = level,
-                        custom = custom,
-                        dictionary = dict,
-                        snippets = snip,
-                        brain = NoAI,
-                        brainRewrite = false,
-                        earId = app.enginePrefs.earId,
-                        brainId = "none",
-                        promptHint = null,
-                    )
-                    val artifact = SessionArtifact(raw = local.raw, cleaned = local.clean)
-                    local.copy(clean = artifact.bestAvailable())
-                } to manualBrainId
+                TextPostProcessor.polishSessionResult(
+                    raw = text,
+                    style = style,
+                    level = level,
+                    custom = custom,
+                    dictionary = dict,
+                    snippets = snip,
+                    brain = brain,
+                    brainRewrite = brainRewrite,
+                    earId = app.enginePrefs.earId,
+                    brainId = manualBrainId,
+                    promptHint = null,
+                ) to manualBrainId
             }
             android.util.Log.i(
                 "OpenFlow.Cleanup",

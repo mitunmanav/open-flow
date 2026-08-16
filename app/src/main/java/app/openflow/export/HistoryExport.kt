@@ -37,8 +37,11 @@ object HistoryExport {
                 append(")")
                 if (row.id.isNotBlank()) append("\n\nid: ${row.id}")
                 append("\n\n")
-                append(row.text.trim())
-                if (includeRaw && row.rawText.isNotBlank() && row.rawText != row.text) {
+                val body = SharePayload.forRow(row.text, row.rawText)
+                append(body)
+                if (includeRaw && row.rawText.isNotBlank() &&
+                    row.text.trim().isNotEmpty() && row.rawText.trim() != row.text.trim()
+                ) {
                     append("\n\n> *Raw STT:* ${row.rawText.trim()}")
                 }
             }

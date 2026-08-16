@@ -81,6 +81,22 @@ class HistoryExportTest {
     }
 
     @Test
+    fun markdown_blankText_fallsBackToRawText() {
+        val md = HistoryExport.toMarkdown(
+            listOf(
+                HistoryExport.Row(
+                    createdAtEpochMs = 1L,
+                    text = "",
+                    rawText = "raw fallback",
+                )
+            )
+        )
+
+        assertThat(md).contains("raw fallback")
+        assertThat(md).doesNotContain("> *Raw STT:*")
+    }
+
+    @Test
     fun exports_all_today_fields() {
         val row = HistoryExport.Row(
             createdAtEpochMs = 1_700_000_000_000L,

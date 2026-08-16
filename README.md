@@ -68,9 +68,9 @@ Wispr is closed. Kõnele’s **default** server can send audio unencrypted. FUTO
 4. Grey switch: App info → **⋮ → Allow restricted settings**.
 5. Text field → tap bubble → speak → **tap again**.
 
-[Install](docs/INSTALL.md) · [Guide](docs/GUIDE.md) · [Launch checklist](docs/LAUNCH_CHECKLIST.md) · [Handoff](docs/HANDOFF.md)
+[Install](docs/INSTALL.md) · [Guide](docs/GUIDE.md) · [Launch checklist](docs/LAUNCH_CHECKLIST.md) · [Docs](docs/README.md)
 
-Copy from **History**. No copy chip on the bubble.
+After insert, short Copy / Undo chips on the bubble. Older text: **History**.
 
 ## Talk (Discussions) vs report (Issues)
 

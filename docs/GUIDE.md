@@ -1,6 +1,6 @@
 # How Open Flow works
 
-This is the user guide. No account. English only.
+This is the user guide. No account. Pick speech language in Settings.
 
 ## What it is
 
@@ -27,13 +27,14 @@ Full install: [INSTALL.md](INSTALL.md) · Phone GO list: [LAUNCH_CHECKLIST.md](L
 |--------|----------------|
 | Tap the bubble | Listening starts |
 | Speak | Words appear as you talk (if “speech on bubble” is on) |
-| Tap again | Listening stops. Text is cleaned, then inserted |
+| Tap again **or** tap Done | Listening stops. Text is cleaned, then inserted |
 | Hold the bubble | Talk only while you hold. Release inserts |
 | Tap X while listening | Throw away. Nothing is inserted |
+| End with “press enter” | Insert, then send (chat fields) |
 | Drag the bubble | Move it |
 | Drag to the bottom | Hide for 10 minutes. Shake the phone to bring it back |
 
-There is **no copy button on the bubble**. To copy old text, open Open Flow → **History**.
+After insert, **Copy / Undo / Paste** chips show for a few seconds. Old text: open Open Flow → **History**.
 
 ## What the app will not type into
 

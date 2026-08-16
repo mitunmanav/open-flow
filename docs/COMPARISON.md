@@ -13,7 +13,7 @@
 - Speech comes from the system **`SpeechRecognizer`**.
 - **INTERNET** is declared; Open Flow makes no network requests until the user opts into net ear/brain or model download.
 - Cleanup is **hand-written rules**, not a language model.
-- English only. MIT. No account.
+- Speech language catalog in Settings (default en-US). MIT. No account.
 
 **The hard truth about speech:**  
 Android’s own docs say the default recognizer is likely to stream audio to a remote service. Open Flow uses that default path. `createOnDeviceSpeechRecognizer()` is optional, not the default. **Declared-but-unused INTERNET does not mean your voice never leaves the device.**

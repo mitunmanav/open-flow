@@ -3,8 +3,10 @@
 ## Unreleased
 
 ### Added
+- Hub tabs: Home · Dictionary · Snippets · Style (Settings = gear).
+- Listen **Done** + trailing **Press Enter** (IME send) + dictionary A–Z / Newest / Oldest.
+- Wispr-style AI insert polish, HTTP 429 backoff, formatted on-phone STT hypothesis.
 - Wispr Android FOSS gaps: copy/undo/paste chips (~10s), local field context, dict/snippet file import, History Use raw.
-- Spec: `docs/process/specs/2026-08-16-wispr-android-desktop-map.md`.
 
 ### Changed
 - Bubble drag: touch slop + VelocityTracker fling snap; compact Copy/Undo chips; Dict import File/Paste row.

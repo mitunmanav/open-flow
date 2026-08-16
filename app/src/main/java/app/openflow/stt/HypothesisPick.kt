@@ -9,9 +9,16 @@ package app.openflow.stt
  */
 object HypothesisPick {
 
-    fun best(hypotheses: List<String>?, scores: FloatArray?): String {
+    fun best(
+        hypotheses: List<String>?,
+        scores: FloatArray?,
+        preferFormatted: Boolean = false,
+    ): String {
         val raw = hypotheses ?: return ""
         if (raw.isEmpty()) return ""
+        if (preferFormatted) {
+            return raw.firstOrNull { it.trim().isNotEmpty() }?.trim().orEmpty()
+        }
         if (scores != null && scores.size == raw.size) {
             var bestIdx = -1
             var bestScore = Float.NEGATIVE_INFINITY

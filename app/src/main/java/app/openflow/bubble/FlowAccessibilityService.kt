@@ -1409,9 +1409,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
     /**
      * Same path for stopListening + debug inject:
-     * dict → snippets → CleanupPipeline(level, style, custom) via [TextPostProcessor.polishSessionResult].
-     * dict → snippets → CleanupPipeline(pref level) via [TextPostProcessor.polishSessionResult].
-     * Insert never LLM-rewrites; brain pick does not bump cleanup to High.
+     * dict → snippets → CleanupPipeline(pref level) → optional brain (if picked) → dict again.
      */
     private fun polishSession(
         text: String,

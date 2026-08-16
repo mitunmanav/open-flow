@@ -1,6 +1,7 @@
 package app.openflow.ai.providers.host
 
 import app.openflow.BuildConfig
+import app.openflow.ai.BrainSystemPrompt
 import app.openflow.ai.TextAIProvider
 
 fun interface HostPost {
@@ -51,7 +52,7 @@ class LaptopBrain(
         val system = if (mode == "command") {
             "Follow the user instruction. Do not invent facts."
         } else {
-            "Clean this dictation. Do not invent facts."
+            BrainSystemPrompt.cleanup(mode)
         }
         return """{"model":${jsonStr(model)},"messages":[{"role":"system","content":${jsonStr(system)}},{"role":"user","content":${jsonStr(text)}}]}"""
     }

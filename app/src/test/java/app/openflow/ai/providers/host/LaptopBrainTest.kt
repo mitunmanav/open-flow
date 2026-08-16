@@ -37,7 +37,7 @@ class LaptopBrainTest {
         assertThat(seenUrl).isEqualTo("http://192.168.1.1:11434/v1/chat/completions")
         assertThat(seenJson).contains("llama3.2")
         assertThat(seenJson).contains("raw talk")
-        assertThat(seenJson).contains("Do not invent facts")
+        assertThat(seenJson.lowercase()).contains("do not invent facts")
     }
 
     @Test

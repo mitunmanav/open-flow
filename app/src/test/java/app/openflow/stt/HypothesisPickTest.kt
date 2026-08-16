@@ -59,6 +59,16 @@ class HypothesisPickTest {
     }
 
     @Test
+    fun formatting_pair_takes_first_not_higher_raw_score() {
+        val hyps = listOf("Hello, world.", "hello world")
+        val scores = floatArrayOf(0.40f, 0.99f)
+        assertThat(HypothesisPick.best(hyps, scores, preferFormatted = true))
+            .isEqualTo("Hello, world.")
+        assertThat(HypothesisPick.best(hyps, scores, preferFormatted = false))
+            .isEqualTo("hello world")
+    }
+
+    @Test
     fun joinParts_collapses_space() {
         assertThat(HypothesisPick.joinParts(listOf("  hello ", "", "world  ")))
             .isEqualTo("hello world")

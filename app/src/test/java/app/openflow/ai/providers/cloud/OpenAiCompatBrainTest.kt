@@ -61,6 +61,14 @@ class OpenAiCompatBrainTest {
     }
 
     @Test
+    fun cleanup_spell_hints_go_in_system_prompt() = runTest {
+        val http = FakeHttp()
+        brain(http = http).enhance("meet mike", "cleanup spell: mike→Mic")
+        assertThat(http.json).contains("Spell: mike→Mic")
+        assertThat(http.json).contains("meet mike")
+    }
+
+    @Test
     fun command_puts_instruction_in_system_and_user() = runTest {
         val http = FakeHttp()
         brain(http = http).enhance("make this shorter", "command")

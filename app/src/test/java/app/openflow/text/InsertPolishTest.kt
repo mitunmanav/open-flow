@@ -6,9 +6,20 @@ import org.junit.Test
 class InsertPolishTest {
 
     @Test
-    fun insert_never_requests_brain_rewrite() {
-        assertThat(InsertPolish.brainRewriteOnInsert("openai")).isFalse()
+    fun insert_requests_brain_rewrite_when_brain_picked() {
+        assertThat(InsertPolish.brainRewriteOnInsert("openai")).isTrue()
+        assertThat(InsertPolish.brainRewriteOnInsert("anthropic")).isTrue()
+        assertThat(InsertPolish.brainRewriteOnInsert("laptop")).isTrue()
+        assertThat(InsertPolish.brainRewriteOnInsert("custom")).isTrue()
+        assertThat(InsertPolish.brainRewriteOnInsert("GROK")).isTrue()
+    }
+
+    @Test
+    fun insert_skips_rewrite_for_none_and_on_phone_stub() {
         assertThat(InsertPolish.brainRewriteOnInsert("none")).isFalse()
+        assertThat(InsertPolish.brainRewriteOnInsert("on_phone")).isFalse()
+        assertThat(InsertPolish.brainRewriteOnInsert("")).isFalse()
+        assertThat(InsertPolish.brainRewriteOnInsert("   ")).isFalse()
     }
 
     @Test
@@ -27,8 +38,10 @@ class InsertPolishTest {
     }
 
     @Test
-    fun insert_brain_id_is_none_so_features_stay_local() {
-        assertThat(InsertPolish.brainIdForInsert("openai")).isEqualTo("none")
+    fun insert_brain_id_passes_through_rewrite_brains() {
+        assertThat(InsertPolish.brainIdForInsert("openai")).isEqualTo("openai")
+        assertThat(InsertPolish.brainIdForInsert("Anthropic")).isEqualTo("anthropic")
         assertThat(InsertPolish.brainIdForInsert("none")).isEqualTo("none")
+        assertThat(InsertPolish.brainIdForInsert("on_phone")).isEqualTo("none")
     }
 }

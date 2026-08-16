@@ -566,11 +566,7 @@ class SttEngine(
             // Quality = better punct, more latency; latency = snappier, weaker punct.
             // Default quality (see SttTuning.preferFormattingQuality).
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                val mode = if (t.preferFormattingQuality) {
-                    RecognizerIntent.FORMATTING_OPTIMIZE_QUALITY
-                } else {
-                    RecognizerIntent.FORMATTING_OPTIMIZE_LATENCY
-                }
+                val mode = SttIntentPolicy.formattingMode(t.preferFormattingQuality)
                 putExtra(RecognizerIntent.EXTRA_ENABLE_FORMATTING, mode)
                 putExtra(RecognizerIntent.EXTRA_HIDE_PARTIAL_TRAILING_PUNCTUATION, true)
                 putStringArrayListExtra(
@@ -590,7 +586,11 @@ class SttEngine(
     private fun extractBestText(bundle: Bundle?): String {
         val hyps = bundle?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
         val scores = bundle?.getFloatArray(SpeechRecognizer.CONFIDENCE_SCORES)
-        val picked = HypothesisPick.best(hyps, scores)
+        val picked = HypothesisPick.best(
+            hyps,
+            scores,
+            preferFormatted = SttIntentPolicy.preferFormatted(Build.VERSION.SDK_INT),
+        )
         if (picked.isNotEmpty()) return picked
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE || bundle == null) {

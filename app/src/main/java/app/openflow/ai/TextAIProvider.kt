@@ -3,8 +3,8 @@ package app.openflow.ai
 import app.openflow.engine.ModelCapability
 
 /**
- * Optional text enhancement hook. Product path uses [NoAI] only
- * (CleanupPipeline + VoiceCommands + styles — no model).
+ * Optional text enhancement hook. Default [NoAI].
+ * A picked brain runs on insert (Wispr-style polish). Empty key → identity.
  */
 interface TextAIProvider {
     val name: String

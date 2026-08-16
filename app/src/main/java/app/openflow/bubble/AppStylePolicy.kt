@@ -3,35 +3,30 @@ package app.openflow.bubble
 import app.openflow.text.WritingStyle
 
 /**
- * Local per-app category style (Wispr Android Style tab, no cloud).
- * Unknown packages keep the user's global fallback.
+ * Local per-app category style backed by [AppContextEngine].
  */
 object AppStylePolicy {
 
     fun category(packageName: String?): String {
-        val p = packageName.orEmpty().lowercase()
-        if (p.isBlank()) return "other"
-        if (personal.any { p.contains(it) }) return "personal"
-        if (email.any { p.contains(it) }) return "email"
-        if (work.any { p.contains(it) }) return "work"
-        return "other"
+        val ctx = AppContextEngine.detect(packageName, null)
+        return when (ctx.category) {
+            AppCategory.MESSAGING -> "personal"
+            AppCategory.EMAIL -> "email"
+            AppCategory.WORK_COLLAB -> "work"
+            AppCategory.DOCS_NOTES -> "notes"
+            AppCategory.DEV_TERMINAL -> "dev"
+            AppCategory.AI_SEARCH -> "search"
+            AppCategory.GENERAL -> "other"
+        }
     }
 
-    fun styleFor(packageName: String?, fallback: WritingStyle): WritingStyle =
-        when (category(packageName)) {
-            "personal" -> WritingStyle.CASUAL
-            "email", "work" -> WritingStyle.FORMAL
+    fun styleFor(packageName: String?, fallback: WritingStyle): WritingStyle {
+        val ctx = AppContextEngine.detect(packageName, null)
+        return when (ctx.category) {
+            AppCategory.MESSAGING -> WritingStyle.CASUAL
+            AppCategory.EMAIL, AppCategory.WORK_COLLAB -> WritingStyle.FORMAL
+            AppCategory.DEV_TERMINAL -> WritingStyle.CASUAL
             else -> fallback
         }
-
-    private val personal = listOf(
-        "whatsapp", "telegram", "org.telegram", "org.thoughtcrime.securesms",
-        "instagram", "sms", "messaging", "facebook.orca", "discord"
-    )
-    private val email = listOf(
-        "android.gm", "gmail", "k9", "outlook", "mail.android", "yahoo.mobile.client.android.mail"
-    )
-    private val work = listOf(
-        "slack", "teams", "linkedin", "skype", "webex"
-    )
+    }
 }

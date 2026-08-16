@@ -2,21 +2,22 @@ package app.openflow.ui.theme
 
 /**
  * Product skins.
- * **BRUTAL** = modern brutal already in repo (cream/charcoal/ink, hard borders).
- * **M3** = soft Material alternate only.
+ * **BRUTAL** = cream/charcoal/ink, hard borders (only shipped look).
+ * **M3** kept for shape math tests; prefs/UI always coerce to BRUTAL.
  */
 enum class VisualSkin(val storage: String) {
     BRUTAL("brutal"),
     M3("m3");
 
     companion object {
-        /** Ship look = existing modern brutal system. */
+        /** Ship look = modern brutal only. */
         val DEFAULT: VisualSkin = BRUTAL
 
+        /** Soft/M3 storage aliases heal to BRUTAL (Soft option removed). */
         fun fromStorage(value: String): VisualSkin =
             when (value.lowercase()) {
-                "m3", "material", "material3", "soft" -> M3
-                "brutal", "subtle_brutal", "subtle-brutal", "modern_brutal", "neo_brutal" -> BRUTAL
+                "brutal", "subtle_brutal", "subtle-brutal", "modern_brutal", "neo_brutal",
+                "m3", "material", "material3", "soft" -> BRUTAL
                 else -> DEFAULT
             }
     }

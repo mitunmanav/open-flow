@@ -139,12 +139,18 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
 
     private val _visualSkin = MutableStateFlow(
         VisualSkin.fromStorage(store.getString("visual_skin", defaultVisualSkinStorage()))
-    )
+    ).also {
+        // Soft removed — persist healed brutal so Appearance never re-reads soft.
+        store.putString("visual_skin", VisualSkin.BRUTAL.storage)
+        it.value = VisualSkin.BRUTAL
+    }
     val visualSkin: StateFlow<VisualSkin> = _visualSkin.asStateFlow()
 
     fun setVisualSkin(skin: VisualSkin) {
-        _visualSkin.value = skin
-        store.putString("visual_skin", skin.storage)
+        // Soft skin removed — product is Brutal only.
+        val forced = VisualSkin.BRUTAL
+        _visualSkin.value = forced
+        store.putString("visual_skin", forced.storage)
     }
 
     /** Drop 2: home module order + visibility encoding */

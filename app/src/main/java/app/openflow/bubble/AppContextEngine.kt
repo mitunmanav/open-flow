@@ -1,5 +1,6 @@
 package app.openflow.bubble
 
+import app.openflow.prefs.FlowPrefs
 import app.openflow.text.WritingStyle
 
 /**
@@ -44,8 +45,23 @@ enum class AppCategory(
         label = "General",
         defaultStyle = WritingStyle.CASUAL,
         promptGuideline = "Format clean, natural dictation."
-    )
+    );
+
+    companion object {
+        fun fromName(name: String, fallback: AppCategory = GENERAL): AppCategory =
+            values().firstOrNull { it.name.equals(name, ignoreCase = true) } ?: fallback
+    }
 }
+
+/**
+ * User-configured custom override for a specific application package.
+ */
+data class AppOverride(
+    val packageName: String,
+    val category: AppCategory,
+    val style: WritingStyle,
+    val customPrompt: String = ""
+)
 
 /**
  * Context descriptor for active app and focused field.
@@ -55,7 +71,8 @@ data class AppContext(
     val packageName: String,
     val hintText: String?,
     val defaultStyle: WritingStyle = category.defaultStyle,
-    val promptHint: String = category.promptGuideline
+    val promptHint: String = category.promptGuideline,
+    val isCustomOverride: Boolean = false
 )
 
 /**
@@ -121,6 +138,66 @@ object AppContextEngine {
             hintText = hintText,
             defaultStyle = category.defaultStyle,
             promptHint = category.promptGuideline
+        )
+    }
+
+    /**
+     * Resolves application context taking into account user preferences, category customizations,
+     * and explicit per-app package overrides.
+     */
+    fun resolveContext(
+        packageName: String?,
+        hintText: String? = null,
+        prefs: FlowPrefs? = null
+    ): AppContext {
+        val pkg = packageName.orEmpty().lowercase().trim()
+        if (prefs == null) {
+            return detect(packageName, hintText)
+        }
+
+        // If user disabled automatic app context detection, use global default writing style
+        if (!prefs.appContextEnabled) {
+            return AppContext(
+                category = AppCategory.GENERAL,
+                packageName = pkg,
+                hintText = hintText,
+                defaultStyle = prefs.style(),
+                promptHint = AppCategory.GENERAL.promptGuideline
+            )
+        }
+
+        // Check if user set a specific per-app override
+        val override = prefs.getAppOverride(pkg)
+        if (override != null) {
+            val prompt = if (override.customPrompt.isNotBlank()) {
+                override.customPrompt
+            } else {
+                override.category.promptGuideline
+            }
+            return AppContext(
+                category = override.category,
+                packageName = pkg,
+                hintText = hintText,
+                defaultStyle = override.style,
+                promptHint = prompt,
+                isCustomOverride = true
+            )
+        }
+
+        // Detect default category
+        val detected = detect(packageName, hintText)
+        val customStyle = prefs.getCategoryStyle(detected.category)
+        val userPrompt = prefs.getCategoryPrompt(detected.category).trim()
+
+        val blendedPrompt = if (userPrompt.isNotBlank()) {
+            "${detected.category.promptGuideline} Custom instructions: $userPrompt"
+        } else {
+            detected.category.promptGuideline
+        }
+
+        return detected.copy(
+            defaultStyle = customStyle,
+            promptHint = blendedPrompt
         )
     }
 }

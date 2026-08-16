@@ -54,6 +54,7 @@ object TextPostProcessor {
         earId: String = "system",
         brainId: String = "none",
         languages: Set<String> = emptySet(),
+        promptHint: String? = null,
     ): CleanupResult {
         val original = raw
         var t = raw
@@ -69,7 +70,8 @@ object TextPostProcessor {
         val highAi = brainRewrite || Feature.HIGH_AI in features
 
         var cleaned = if (level == CleanupLevel.HIGH && highAi && brain != NoAI) {
-            val enhanced = runBlocking { brain.enhance(result.clean, "cleanup") }
+            val systemContext = if (!promptHint.isNullOrBlank()) "cleanup: $promptHint" else "cleanup"
+            val enhanced = runBlocking { brain.enhance(result.clean, systemContext) }
             sanitizeBrainOutput(enhanced, result.clean)
         } else {
             result.clean

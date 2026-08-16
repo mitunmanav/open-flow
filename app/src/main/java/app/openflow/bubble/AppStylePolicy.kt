@@ -1,5 +1,6 @@
 package app.openflow.bubble
 
+import app.openflow.prefs.FlowPrefs
 import app.openflow.text.WritingStyle
 
 /**
@@ -7,8 +8,8 @@ import app.openflow.text.WritingStyle
  */
 object AppStylePolicy {
 
-    fun category(packageName: String?): String {
-        val ctx = AppContextEngine.detect(packageName, null)
+    fun category(packageName: String?, prefs: FlowPrefs? = null): String {
+        val ctx = AppContextEngine.resolveContext(packageName, null, prefs)
         return when (ctx.category) {
             AppCategory.MESSAGING -> "personal"
             AppCategory.EMAIL -> "email"
@@ -20,13 +21,12 @@ object AppStylePolicy {
         }
     }
 
-    fun styleFor(packageName: String?, fallback: WritingStyle): WritingStyle {
-        val ctx = AppContextEngine.detect(packageName, null)
-        return when (ctx.category) {
-            AppCategory.MESSAGING -> WritingStyle.CASUAL
-            AppCategory.EMAIL, AppCategory.WORK_COLLAB -> WritingStyle.FORMAL
-            AppCategory.DEV_TERMINAL -> WritingStyle.CASUAL
-            else -> fallback
+    fun styleFor(packageName: String?, fallback: WritingStyle, prefs: FlowPrefs? = null): WritingStyle {
+        val ctx = AppContextEngine.resolveContext(packageName, null, prefs)
+        return if (ctx.category == AppCategory.GENERAL && !ctx.isCustomOverride && (prefs == null || !prefs.appContextEnabled)) {
+            fallback
+        } else {
+            ctx.defaultStyle
         }
     }
 }

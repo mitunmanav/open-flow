@@ -1,5 +1,7 @@
 package app.openflow.bubble
 
+import app.openflow.prefs.FlowPrefs
+import app.openflow.prefs.MemoryPrefsStore
 import app.openflow.text.WritingStyle
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
@@ -115,5 +117,47 @@ class AppContextEngineTest {
     fun field_hint_refines_context() {
         val ctx = AppContextEngine.detect("com.unknown.app", "Search or type URL")
         assertThat(ctx.category).isEqualTo(AppCategory.AI_SEARCH)
+    }
+
+    @Test
+    fun resolveContext_respects_user_category_customizations() {
+        val prefs = FlowPrefs(MemoryPrefsStore())
+        prefs.setCategoryStyle(AppCategory.MESSAGING, WritingStyle.FORMAL)
+        prefs.setCategoryPrompt(AppCategory.MESSAGING, "Always write politely without slang.")
+
+        val ctx = AppContextEngine.resolveContext("com.whatsapp", null, prefs)
+        assertThat(ctx.category).isEqualTo(AppCategory.MESSAGING)
+        assertThat(ctx.defaultStyle).isEqualTo(WritingStyle.FORMAL)
+        assertThat(ctx.promptHint).contains("Always write politely without slang.")
+    }
+
+    @Test
+    fun resolveContext_respects_app_overrides() {
+        val prefs = FlowPrefs(MemoryPrefsStore())
+        prefs.saveAppOverride(
+            AppOverride(
+                packageName = "com.whatsapp",
+                category = AppCategory.DEV_TERMINAL,
+                style = WritingStyle.EXCITED,
+                customPrompt = "WhatsApp dev channel override"
+            )
+        )
+
+        val ctx = AppContextEngine.resolveContext("com.whatsapp", null, prefs)
+        assertThat(ctx.category).isEqualTo(AppCategory.DEV_TERMINAL)
+        assertThat(ctx.defaultStyle).isEqualTo(WritingStyle.EXCITED)
+        assertThat(ctx.promptHint).contains("WhatsApp dev channel override")
+        assertThat(ctx.isCustomOverride).isTrue()
+    }
+
+    @Test
+    fun resolveContext_falls_back_when_app_context_disabled() {
+        val prefs = FlowPrefs(MemoryPrefsStore())
+        prefs.appContextEnabled = false
+        prefs.styleName = WritingStyle.FORMAL.name
+
+        val ctx = AppContextEngine.resolveContext("com.whatsapp", null, prefs)
+        assertThat(ctx.category).isEqualTo(AppCategory.GENERAL)
+        assertThat(ctx.defaultStyle).isEqualTo(WritingStyle.FORMAL)
     }
 }

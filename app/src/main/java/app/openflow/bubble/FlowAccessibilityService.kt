@@ -1250,10 +1250,12 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             } else {
                 CleanupLevel.fromPref(prefLevel)
             }
-            val style = AppStylePolicy.styleFor(
+            val appContext = AppContextEngine.resolveContext(
                 lastPackage,
-                prefs?.style() ?: WritingStyle.CASUAL
+                null,
+                prefs
             )
+            val style = appContext.defaultStyle
             val custom = prefs?.customStyleConfig() ?: CustomStyleConfig()
             val result = TextPostProcessor.polishSessionResult(
                 raw = text,
@@ -1266,6 +1268,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 brainRewrite = brainRewrite,
                 earId = earId,
                 brainId = brainId,
+                promptHint = appContext.promptHint,
             )
             android.util.Log.i(
                 "OpenFlow.Cleanup",

@@ -2,6 +2,8 @@ package app.openflow.prefs
 
 import android.content.Context
 import android.content.SharedPreferences
+import app.openflow.bubble.AppCategory
+import app.openflow.bubble.AppOverride
 import app.openflow.bubble.BubbleChrome
 import app.openflow.stt.LanguagePolicy
 import app.openflow.stt.SttTuning
@@ -297,6 +299,53 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
             app.openflow.display.DisplayRefreshPolicy.normalizePreference(v).toString()
         )
 
+    var appContextEnabled: Boolean
+        get() = store.getString("app_context_enabled", "true") == "true"
+        set(v) = store.putString("app_context_enabled", if (v) "true" else "false")
+
+    fun getCategoryStyle(category: AppCategory): WritingStyle {
+        val raw = store.getString("cat_style_${category.name}", "")
+        return if (raw.isNotEmpty()) WritingStyle.fromPref(raw) else category.defaultStyle
+    }
+
+    fun setCategoryStyle(category: AppCategory, style: WritingStyle) {
+        store.putString("cat_style_${category.name}", style.name)
+    }
+
+    fun getCategoryPrompt(category: AppCategory): String {
+        return store.getString("cat_prompt_${category.name}", "")
+    }
+
+    fun setCategoryPrompt(category: AppCategory, prompt: String) {
+        store.putString("cat_prompt_${category.name}", prompt.trim())
+    }
+
+    fun getAppOverrides(): List<AppOverride> {
+        val raw = store.getString("app_overrides", "")
+        return parseAppOverrides(raw)
+    }
+
+    fun getAppOverride(packageName: String?): AppOverride? {
+        val pkg = packageName.orEmpty().lowercase().trim()
+        if (pkg.isEmpty()) return null
+        return getAppOverrides().firstOrNull { it.packageName.lowercase().trim() == pkg }
+    }
+
+    fun saveAppOverride(override: AppOverride) {
+        val current = getAppOverrides().filterNot {
+            it.packageName.equals(override.packageName, ignoreCase = true)
+        }.toMutableList()
+        current.add(override)
+        store.putString("app_overrides", encodeAppOverrides(current))
+    }
+
+    fun deleteAppOverride(packageName: String) {
+        val current = getAppOverrides().filterNot {
+            it.packageName.equals(packageName, ignoreCase = true)
+        }
+        store.putString("app_overrides", encodeAppOverrides(current))
+    }
+
     companion object {
         const val PREFS_NAME = "openflow_prefs"
 
@@ -332,6 +381,30 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
                 "keep", "wipe_24h", "never_store" -> value.lowercase()
                 else -> "keep"
             }
+
+        fun encodeAppOverrides(list: List<AppOverride>): String {
+            return list.joinToString("\n") { ov ->
+                val safePkg = ov.packageName.replace(";", "_").replace("\n", " ").trim()
+                val safeCat = ov.category.name
+                val safeStyle = ov.style.name
+                val safePrompt = ov.customPrompt.replace("\n", "\\n").replace(";", "\\;")
+                "$safePkg;$safeCat;$safeStyle;$safePrompt"
+            }
+        }
+
+        fun parseAppOverrides(raw: String): List<AppOverride> {
+            if (raw.isBlank()) return emptyList()
+            return raw.lines().mapNotNull { line ->
+                val parts = line.split(";")
+                if (parts.size >= 4) {
+                    val pkg = parts[0].trim()
+                    val cat = AppCategory.fromName(parts[1])
+                    val style = WritingStyle.fromPref(parts[2])
+                    val prompt = parts.drop(3).joinToString(";").replace("\\n", "\n").replace("\\;", ";")
+                    if (pkg.isNotEmpty()) AppOverride(pkg, cat, style, prompt) else null
+                } else null
+            }
+        }
     }
 }
 

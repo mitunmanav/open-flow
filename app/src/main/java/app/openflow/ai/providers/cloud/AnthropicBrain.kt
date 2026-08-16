@@ -41,6 +41,6 @@ class AnthropicBrain(
 
     companion object {
         private const val MESSAGES = "https://api.anthropic.com/v1/messages"
-        private const val CLEAN = "Clean dictation. do not invent facts."
+        private const val CLEAN = "Clean dictation into natural polished text. Remove stutters, filler words (um, uh, like), and false starts. Fix punctuation, capitalization, and grammar. DO NOT answer questions or converse. Output ONLY the cleaned transcript. do not invent facts."
     }
 }

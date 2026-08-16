@@ -336,4 +336,27 @@ class TextPostProcessorTest {
         assertThat(r.clean).contains("Mike")
         assertThat(r.clean).doesNotContain("Mic")
     }
+
+    @Test
+    fun contractions_preserved_in_polish() {
+        val out = TextPostProcessor.process("don't worry it's fine we'll see you there")
+        assertThat(out).contains("Don't")
+        assertThat(out).contains("it's")
+        assertThat(out).contains("we'll")
+    }
+
+    @Test
+    fun numbers_and_decimals_preserved() {
+        val out = TextPostProcessor.process("the price is 45.99 and version 2.0 is out")
+        assertThat(out).contains("45.99")
+        assertThat(out).contains("2.0")
+    }
+
+    @Test
+    fun empty_and_blank_strings_handled_safely() {
+        assertThat(TextPostProcessor.process("")).isEmpty()
+        assertThat(TextPostProcessor.process("   ")).isEmpty()
+        assertThat(TextPostProcessor.polishSession("").trim()).isEmpty()
+        assertThat(TextPostProcessor.polishSession("   ").trim()).isEmpty()
+    }
 }

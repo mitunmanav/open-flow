@@ -60,6 +60,7 @@ Thumbs.db
 
 # Local agent notes (not public)
 .grok/
+.agents/
 info/sessions/
 docs/REQUESTS.md
 docs/UI-QA.md

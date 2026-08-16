@@ -48,18 +48,19 @@ fun OpenChip(
     onClick: () -> Unit = {}
 ) {
     val scheme = MaterialTheme.colorScheme
+    val shape = MaterialTheme.shapes.small
     val bgColor = if (isOn) scheme.primary else scheme.surface
     val textColor = if (isOn) scheme.onPrimary else scheme.onSurface
 
-    val borderColor = scheme.outline
+    val borderColor = if (isOn) scheme.primary else scheme.outline.copy(alpha = 0.5f)
     val stateLabel = if (isOn) "$label, selected" else label
 
     Box(
         modifier = modifier
             .defaultMinSize(minHeight = Dimen.TOUCH_TARGET)
             .alpha(if (enabled || isOn) 1f else 0.38f)
-            .background(color = bgColor, shape = OpenShapes.Chip)
-            .border(BorderStroke(Dimen.BORDER, borderColor), OpenShapes.Chip)
+            .background(color = bgColor, shape = shape)
+            .border(BorderStroke(1.dp, borderColor), shape)
             .semantics {
                 contentDescription = stateLabel
                 role = Role.Checkbox

@@ -26,10 +26,13 @@ class OpenAiCompatBrain(
         val user = outbound
         val url = baseUrl.trimEnd('/') + "/chat/completions"
         val body = chatBody(model, system, user)
-        val headers = mapOf(
+        val headers = mutableMapOf(
             "Authorization" to "Bearer $key",
             "Content-Type" to "application/json",
         )
+        if (id == "sarvam" || baseUrl.contains("sarvam.ai")) {
+            headers["api-subscription-key"] = key
+        }
         return try {
             val raw = http.post(url, headers, body)
             ChatJson.firstString(raw, "content")?.takeIf { it.isNotBlank() } ?: text
@@ -45,10 +48,10 @@ class OpenAiCompatBrain(
         val m = ChatJson.escape(model)
         val s = ChatJson.escape(system)
         val u = ChatJson.escape(user)
-        return """{"model":"$m","messages":[{"role":"system","content":"$s"},{"role":"user","content":"$u"}]}"""
+        return """{"model":"$m","temperature":0.1,"messages":[{"role":"system","content":"$s"},{"role":"user","content":"$u"}]}"""
     }
 
     companion object {
-        private const val CLEAN = "Clean dictation. do not invent facts."
+        const val CLEAN = "Clean dictation into natural polished text. Remove stutters, filler words (um, uh, like), and false starts. Fix punctuation, capitalization, and grammar. DO NOT answer questions or converse. Output ONLY the cleaned transcript. do not invent facts."
     }
 }

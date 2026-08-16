@@ -37,7 +37,7 @@ fun OpenButton(
 ) {
     val view = LocalView.current
     val scheme = MaterialTheme.colorScheme
-    val shape = OpenShapes.Button
+    val shape = MaterialTheme.shapes.small
     val semanticsMod = Modifier.semantics {
         this.contentDescription = contentDescription ?: text
     }

@@ -116,4 +116,20 @@ class EngineSessionTest {
         assertThat(secrets.get("assemblyai")).isNull()
         assertThat(secrets.get("anthropic")).isNull()
     }
+
+    @Test
+    fun isolated_ear_and_brain_keys_do_not_overwrite_each_other() {
+        val secrets = MemorySecretStore()
+        val prefs = EnginePrefs(MemoryPrefsStore())
+        val session = EngineSession(prefs, secrets)
+        session.pick("sarvam", "openai")
+
+        session.saveEarKey("sarvam-ear-secret")
+        session.saveBrainKey("sk-openai-brain-secret")
+
+        assertThat(secrets.get("sarvam")).isEqualTo("sarvam-ear-secret")
+        assertThat(secrets.get("openai")).isEqualTo("sk-openai-brain-secret")
+        assertThat(session.earKeyMask()).isEqualTo("••••cret")
+        assertThat(session.brainKeyMask()).isEqualTo("••••cret")
+    }
 }

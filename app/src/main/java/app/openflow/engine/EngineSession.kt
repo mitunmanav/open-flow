@@ -22,6 +22,22 @@ class EngineSession(
         }
     }
 
+    fun saveEarKey(key: String) {
+        val value = key.trim()
+        val e = prefs.earId.trim().lowercase()
+        if (e in EAR_KEY_IDS) {
+            secrets.put(e, value)
+        }
+    }
+
+    fun saveBrainKey(key: String) {
+        val value = key.trim()
+        val b = prefs.brainId.trim().lowercase()
+        if (b in BRAIN_KEY_IDS) {
+            secrets.put(b, value)
+        }
+    }
+
     fun saveUrl(url: String) {
         prefs.customBaseUrl = url
     }
@@ -35,6 +51,20 @@ class EngineSession(
         val raw = keyIdsFor(prefs.earId, prefs.brainId)
             .firstNotNullOfOrNull { secrets.get(it) }
             .orEmpty()
+        return maskKey(raw)
+    }
+
+    fun earKeyMask(): String {
+        val e = prefs.earId.trim().lowercase()
+        if (e !in EAR_KEY_IDS) return ""
+        val raw = secrets.get(e).orEmpty()
+        return maskKey(raw)
+    }
+
+    fun brainKeyMask(): String {
+        val b = prefs.brainId.trim().lowercase()
+        if (b !in BRAIN_KEY_IDS) return ""
+        val raw = secrets.get(b).orEmpty()
         return maskKey(raw)
     }
 

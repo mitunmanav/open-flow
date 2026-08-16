@@ -36,20 +36,27 @@ fun EngineSettingsScreen(
     initialUrl: String = "",
     initialSarvamMode: String = "transcribe",
     initialKeyMask: String = "",
+    initialEarKeyMask: String = "",
+    initialBrainKeyMask: String = "",
     onPick: (ear: String, brain: String) -> Unit = { _, _ -> },
     onSaveKey: (String) -> Unit = {},
+    onSaveEarKey: (String) -> Unit = onSaveKey,
+    onSaveBrainKey: (String) -> Unit = onSaveKey,
     onSaveUrl: (String) -> Unit = {},
     onSarvamMode: (String) -> Unit = {},
     onKeyMask: () -> String = { "" },
+    onEarKeyMask: () -> String = onKeyMask,
+    onBrainKeyMask: () -> String = onKeyMask,
 ) {
     var ear by remember { mutableStateOf(initialEar) }
     var brain by remember { mutableStateOf(initialBrain) }
     var url by remember { mutableStateOf(initialUrl) }
     var sarvamMode by remember { mutableStateOf(initialSarvamMode) }
-    var keyDraft by remember { mutableStateOf("") }
-    var savedMask by remember { mutableStateOf(initialKeyMask) }
+    var earKeyDraft by remember { mutableStateOf("") }
+    var brainKeyDraft by remember { mutableStateOf("") }
+    var savedEarMask by remember { mutableStateOf(initialEarKeyMask.ifEmpty { initialKeyMask }) }
+    var savedBrainMask by remember { mutableStateOf(initialBrainKeyMask.ifEmpty { initialKeyMask }) }
     val state = EnginePickerState.of(ear, brain)
-    val keyWarn = EnginePickerState.missingKeyLine(state.needsKey, savedMask)
     val scheme = MaterialTheme.colorScheme
     val earOptions = remember { EnginePickerVisibility.visibleEars() }
     val brainOptions = remember(url) { EnginePickerVisibility.visibleBrains(url) }
@@ -93,6 +100,7 @@ fun EngineSettingsScreen(
             }
         }
 
+        // --- SPEECH-TO-TEXT SECTION ---
         OpenDropdown(
             label = stringResource(R.string.speech_ai_ear),
             selectedId = ear,
@@ -103,7 +111,7 @@ fun EngineSettingsScreen(
             onSelect = {
                 ear = it
                 onPick(it, brain)
-                savedMask = onKeyMask()
+                savedEarMask = onEarKeyMask()
             }
         )
 
@@ -113,28 +121,6 @@ fun EngineSettingsScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = scheme.error,
                 modifier = Modifier.testTag("engine_ear_disabled")
-            )
-        }
-
-        OpenDropdown(
-            label = stringResource(R.string.speech_ai_brain),
-            selectedId = brain,
-            options = brainOptions,
-            enabled = { EnginePickerVisibility.showBrain(it, url) },
-            groupOf = { brainGroup[it] },
-            testTag = "brain_dropdown",
-            onSelect = {
-                brain = it
-                onPick(ear, it)
-                savedMask = onKeyMask()
-            }
-        )
-        EnginePickerState.brainDisabledReason(brain, url)?.let { why ->
-            Text(
-                text = why,
-                style = MaterialTheme.typography.bodySmall,
-                color = scheme.error,
-                modifier = Modifier.testTag("engine_brain_disabled")
             )
         }
 
@@ -151,6 +137,129 @@ fun EngineSettingsScreen(
             )
         }
 
+        if (state.needsEarKey) {
+            OpenCard(modifier = Modifier.fillMaxWidth().testTag("engine_ear_key_card")) {
+                Column(
+                    Modifier.padding(Dimen.MIN_PADDING),
+                    verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+                ) {
+                    if (savedEarMask.isEmpty()) {
+                        Text(
+                            text = "Add API key for $ear speech recognition.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = scheme.error,
+                            modifier = Modifier.testTag("engine_key_needed")
+                        )
+                    }
+                    OpenTextField(
+                        value = earKeyDraft,
+                        onValueChange = { earKeyDraft = it },
+                        label = "$ear API Key",
+                        placeholder = savedEarMask.ifEmpty { "Paste $ear key" },
+                        contentDescription = "Speech API Key",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        modifier = Modifier.testTag("engine_key")
+                    )
+                    if (savedEarMask.isNotEmpty() && earKeyDraft.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.speech_ai_key_saved, savedEarMask),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = scheme.onSurfaceVariant,
+                            modifier = Modifier.testTag("engine_key_mask")
+                        )
+                    }
+                    OpenButton(
+                        text = "Save Speech Key",
+                        onClick = {
+                            val typed = earKeyDraft.trim()
+                            if (typed.isNotEmpty()) {
+                                onSaveEarKey(typed)
+                                savedEarMask = onEarKeyMask().ifEmpty {
+                                    EnginePickerState.maskKey(typed)
+                                }
+                                earKeyDraft = ""
+                            }
+                        },
+                        enabled = earKeyDraft.isNotBlank(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("engine_save_key")
+                    )
+                }
+            }
+        }
+
+        // --- BRAIN / FORMATTING SECTION ---
+        OpenDropdown(
+            label = stringResource(R.string.speech_ai_brain),
+            selectedId = brain,
+            options = brainOptions,
+            enabled = { EnginePickerVisibility.showBrain(it, url) },
+            groupOf = { brainGroup[it] },
+            testTag = "brain_dropdown",
+            onSelect = {
+                brain = it
+                onPick(ear, it)
+                savedBrainMask = onBrainKeyMask()
+            }
+        )
+        EnginePickerState.brainDisabledReason(brain, url)?.let { why ->
+            Text(
+                text = why,
+                style = MaterialTheme.typography.bodySmall,
+                color = scheme.error,
+                modifier = Modifier.testTag("engine_brain_disabled")
+            )
+        }
+
+        if (state.needsBrainKey) {
+            OpenCard(modifier = Modifier.fillMaxWidth().testTag("engine_brain_key_card")) {
+                Column(
+                    Modifier.padding(Dimen.MIN_PADDING),
+                    verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+                ) {
+                    if (savedBrainMask.isEmpty()) {
+                        Text(
+                            text = "Add API key for $brain formatting model.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = scheme.error
+                        )
+                    }
+                    OpenTextField(
+                        value = brainKeyDraft,
+                        onValueChange = { brainKeyDraft = it },
+                        label = "$brain API Key",
+                        placeholder = savedBrainMask.ifEmpty { "Paste $brain key" },
+                        contentDescription = "Brain API Key",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        modifier = Modifier.testTag("engine_brain_key")
+                    )
+                    if (savedBrainMask.isNotEmpty() && brainKeyDraft.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.speech_ai_key_saved, savedBrainMask),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = scheme.onSurfaceVariant
+                        )
+                    }
+                    OpenButton(
+                        text = "Save Brain Key",
+                        onClick = {
+                            val typed = brainKeyDraft.trim()
+                            if (typed.isNotEmpty()) {
+                                onSaveBrainKey(typed)
+                                savedBrainMask = onBrainKeyMask().ifEmpty {
+                                    EnginePickerState.maskKey(typed)
+                                }
+                                brainKeyDraft = ""
+                            }
+                        },
+                        enabled = brainKeyDraft.isNotBlank(),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        }
+
         val lit = state.chips.filter { it.lit }
         if (lit.isNotEmpty()) {
             Text(
@@ -159,60 +268,6 @@ fun EngineSettingsScreen(
                 color = scheme.onSurfaceVariant,
                 modifier = Modifier.testTag("engine_feature_chips")
             )
-        }
-
-        if (state.needsKey) {
-            OpenCard(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    Modifier.padding(Dimen.MIN_PADDING),
-                    verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
-                ) {
-                    if (keyWarn != null) {
-                        Text(
-                            text = keyWarn,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = scheme.error,
-                            modifier = Modifier.testTag("engine_key_needed")
-                        )
-                    }
-                    OpenTextField(
-                        value = keyDraft,
-                        onValueChange = { keyDraft = it },
-                        label = stringResource(R.string.speech_ai_key),
-                        placeholder = savedMask.ifEmpty {
-                            stringResource(R.string.speech_ai_key_hint)
-                        },
-                        contentDescription = stringResource(R.string.speech_ai_key),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        modifier = Modifier.testTag("engine_key")
-                    )
-                    if (savedMask.isNotEmpty() && keyDraft.isEmpty()) {
-                        Text(
-                            text = stringResource(R.string.speech_ai_key_saved, savedMask),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = scheme.onSurfaceVariant,
-                            modifier = Modifier.testTag("engine_key_mask")
-                        )
-                    }
-                    OpenButton(
-                        text = stringResource(R.string.speech_ai_save_key),
-                        onClick = {
-                            val typed = keyDraft.trim()
-                            if (typed.isNotEmpty()) {
-                                onSaveKey(typed)
-                                savedMask = onKeyMask().ifEmpty {
-                                    EnginePickerState.maskKey(typed)
-                                }
-                                keyDraft = ""
-                            }
-                        },
-                        enabled = keyDraft.isNotBlank(),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("engine_save_key")
-                    )
-                }
-            }
         }
 
         OpenTextField(

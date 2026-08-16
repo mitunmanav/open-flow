@@ -113,8 +113,10 @@ import app.openflow.bubble.BubbleChrome
 import app.openflow.bubble.FlowAccessibilityService
 import app.openflow.data.DictationEntity
 import app.openflow.data.DictionaryWordEntity
+import app.openflow.data.ProcessStatus
 import app.openflow.data.SnippetEntity
 import app.openflow.export.HistoryExport
+import app.openflow.help.HelpLinks
 import app.openflow.prefs.FlowPrefs
 import app.openflow.prefs.LayoutPrefs
 import app.openflow.text.PairImport
@@ -390,6 +392,30 @@ class MainActivity : ComponentActivity() {
                                 onPrivacy = { goTo(AppRoute.Privacy) },
                                 onHaptics = { goTo(AppRoute.Haptics) },
                                 onSounds = { goTo(AppRoute.Sounds) },
+                                onFeedback = {
+                                    startActivity(
+                                        Intent(
+                                            Intent.ACTION_VIEW,
+                                            android.net.Uri.parse(HelpLinks.DISCUSSIONS)
+                                        )
+                                    )
+                                },
+                                onReportIssue = {
+                                    startActivity(
+                                        Intent(
+                                            Intent.ACTION_VIEW,
+                                            android.net.Uri.parse(HelpLinks.ISSUES_NEW)
+                                        )
+                                    )
+                                },
+                                onReportSecurity = {
+                                    startActivity(
+                                        Intent(
+                                            Intent.ACTION_VIEW,
+                                            android.net.Uri.parse(HelpLinks.SECURITY_ADVISORY)
+                                        )
+                                    )
+                                },
                             )
                             AppRoute.SpeechAi -> {
                                 val session = app.engineSession
@@ -718,10 +744,15 @@ private fun DictationCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "$timeStr · ${d.wordCount}w",
+                    "$timeStr · ${d.wordCount}w" +
+                        if (ProcessStatus.isFailed(d.processStatus)) " · Fail" else "",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = SecUi.muted,
+                    color = if (ProcessStatus.isFailed(d.processStatus)) {
+                        SecUi.error
+                    } else {
+                        SecUi.muted
+                    },
                     softWrap = true,
                     modifier = Modifier.weight(1f)
                 )
@@ -1387,6 +1418,9 @@ private fun SettingsHub(
     onPrivacy: () -> Unit,
     onHaptics: () -> Unit,
     onSounds: () -> Unit,
+    onFeedback: () -> Unit,
+    onReportIssue: () -> Unit,
+    onReportSecurity: () -> Unit,
 ) {
     Column(
         Modifier
@@ -1410,6 +1444,21 @@ private fun SettingsHub(
         SettingsRow("Privacy & Retention", "Zero-cloud audit, auto-wipe policies", onPrivacy)
         SettingsRow("Haptics", "Off, Light, or Full tactile feedback", onHaptics)
         SettingsRow("Sounds", "Start / stop audio cues", onSounds)
+        SettingsRow(
+            "Share feedback",
+            "Ideas and questions on GitHub Discussions",
+            onFeedback,
+        )
+        SettingsRow(
+            "Report an issue",
+            "Bugs on GitHub Issues",
+            onReportIssue,
+        )
+        SettingsRow(
+            "Report a vulnerability",
+            "Private Security Advisories only — not a public issue",
+            onReportSecurity,
+        )
 
         Text(
             "Open Flow is free and open source (MIT). No trackers. No analytics.",

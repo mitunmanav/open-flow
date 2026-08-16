@@ -80,6 +80,41 @@ object DictationNotifier {
         }
     }
 
+    /** true only if posted. Processing failed; audio kept for bubble retry. */
+    fun notifyProcessFailed(ctx: Context): Boolean {
+        if (!canPost(ctx)) return false
+        return try {
+            val nm = ctx.getSystemService(NotificationManager::class.java) ?: return false
+            val openIntent = Intent(ctx, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            val pending = PendingIntent.getActivity(
+                ctx, 3, openIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val n = NotificationCompat.Builder(ctx, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_mic)
+                .setContentTitle("Open Flow")
+                .setContentText("Audio was saved locally. Processing failed. Retry from the bubble later.")
+                .setStyle(
+                    NotificationCompat.BigTextStyle().bigText(
+                        "Audio was saved locally. Processing failed. Retry from the bubble later."
+                    )
+                )
+                .setContentIntent(pending)
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .build()
+            nm.notify(NOTIF_ID + 2, n)
+            true
+        } catch (e: Exception) {
+            if (BuildConfig.DEBUG) {
+                android.util.Log.w("DictationNotifier", "notifyProcessFailed failed", e)
+            }
+            false
+        }
+    }
+
     /** true only if posted. false = no perm / fail. Never crash. */
     fun notifyServiceStopped(ctx: Context): Boolean {
         if (!canPost(ctx)) return false
@@ -119,6 +154,7 @@ object DictationNotifier {
         runCatching {
             nm.cancel(NOTIF_ID)
             nm.cancel(NOTIF_ID + 1)
+            nm.cancel(NOTIF_ID + 2)
         }
     }
 }

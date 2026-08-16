@@ -113,6 +113,9 @@ class UiPathTest {
             "insights_screen",
             "insights_tab_usage",
             "insights_tab_voice",
+            "insights_share",
+            "insights_share_text",
+            "insights_share_card",
         )
     }
 }

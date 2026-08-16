@@ -4,7 +4,7 @@ import android.content.Context
 import java.io.File
 
 /**
- * App-private storage manager for dictation session audio recordings (.m4a files).
+ * App-private storage manager for dictation session audio (.wav for retry).
  */
 class AudioFileManager(private val baseDir: File) {
 
@@ -12,12 +12,12 @@ class AudioFileManager(private val baseDir: File) {
 
     fun getAudioFile(sessionId: String): File {
         val safeId = sessionId.replace(Regex("[^a-zA-Z0-9_-]"), "_")
-        return File(baseDir, "$safeId.m4a")
+        return File(baseDir, "$safeId.wav")
     }
 
     fun hasAudio(sessionId: String): Boolean {
         val file = getAudioFile(sessionId)
-        return file.exists() && file.length() > 0
+        return file.exists() && file.length() > 44L
     }
 
     fun deleteAudio(sessionId: String): Boolean {
@@ -26,8 +26,8 @@ class AudioFileManager(private val baseDir: File) {
     }
 
     fun listAudioSessions(): List<String> {
-        return baseDir.listFiles { file -> file.isFile && file.name.endsWith(".m4a") }
-            ?.map { it.name.removeSuffix(".m4a") }
+        return baseDir.listFiles { file -> file.isFile && file.name.endsWith(".wav") }
+            ?.map { it.name.removeSuffix(".wav") }
             ?: emptyList()
     }
 

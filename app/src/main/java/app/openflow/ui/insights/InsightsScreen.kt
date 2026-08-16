@@ -27,20 +27,31 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.openflow.OpenFlowApp
 import app.openflow.data.VoiceProfileEntity
 import app.openflow.insights.InsightSession
+import app.openflow.insights.InsightShareCard
+import app.openflow.insights.InsightSharePayload
 import app.openflow.insights.InsightsAggregatePolicy
 import app.openflow.insights.VoiceProfileRefresh
 import app.openflow.ui.a11y.Dimen
+import app.openflow.ui.components.ButtonVariant
 import app.openflow.ui.components.OpenButton
 import app.openflow.ui.components.OpenCard
 import app.openflow.ui.components.OpenChip
 import app.openflow.ui.privacy.PrivacyHonesty
+import android.content.Intent
+import android.graphics.Bitmap
+import androidx.core.content.FileProvider
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
 import java.util.Locale
 import java.util.TimeZone
 
@@ -169,6 +180,8 @@ private fun UsagePane(
     sessions: List<InsightSession>,
     zone: TimeZone,
 ) {
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
     val wpm = InsightsAggregatePolicy.wordsPerMinute(sessions)
     val cleaned = InsightsAggregatePolicy.cleanedDeltaWords(sessions)
     val days = InsightsAggregatePolicy.dayWordCounts(
@@ -184,6 +197,73 @@ private fun UsagePane(
     Tile("WPM", String.format(Locale.US, "%.1f", wpm))
     Tile("Streak", "$streak d")
     Tile("Cleaned by rules", "$cleaned")
+
+    OpenCard(modifier = Modifier.testTag("insights_share")) {
+        Column(
+            Modifier.padding(Dimen.MIN_PADDING),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text("Share", fontWeight = FontWeight.Bold)
+            Text(
+                "Send your local stats as text or a card image.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            OpenButton(
+                text = "Share text",
+                onClick = {
+                    val body = InsightSharePayload.text(totalWords, totalSessions, streak, wpm)
+                    val send = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, body)
+                    }
+                    runCatching {
+                        ctx.startActivity(Intent.createChooser(send, "Share insights"))
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("insights_share_text"),
+            )
+            OpenButton(
+                text = "Share card image",
+                onClick = {
+                    scope.launch {
+                        val uri = withContext(Dispatchers.IO) {
+                            val bmp = InsightShareCard.render(
+                                totalWords = totalWords,
+                                totalSessions = totalSessions,
+                                streakDays = streak,
+                                wpm = wpm,
+                            )
+                            val dir = File(ctx.cacheDir, "share").apply { mkdirs() }
+                            val file = File(dir, "insight-card.png")
+                            FileOutputStream(file).use { out ->
+                                bmp.compress(Bitmap.CompressFormat.PNG, 100, out)
+                            }
+                            bmp.recycle()
+                            FileProvider.getUriForFile(
+                                ctx,
+                                "${ctx.packageName}.fileprovider",
+                                file,
+                            )
+                        }
+                        val send = Intent(Intent.ACTION_SEND).apply {
+                            type = "image/png"
+                            putExtra(Intent.EXTRA_STREAM, uri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        runCatching {
+                            ctx.startActivity(Intent.createChooser(send, "Share insight card"))
+                        }
+                    }
+                },
+                variant = ButtonVariant.Outlined,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("insights_share_card"),
+            )
+        }
+    }
 
     OpenCard(modifier = Modifier.testTag("insights_heatmap")) {
         Column(

@@ -21,9 +21,11 @@ class DictationRepositoryTest {
     @Test
     fun destructive_fallback_forbidden_and_version_matches() {
         assertThat(RoomOpenPolicy.ALLOW_DESTRUCTIVE_FALLBACK).isFalse()
-        assertThat(RoomOpenPolicy.VERSION).isEqualTo(6)
+        assertThat(RoomOpenPolicy.VERSION).isEqualTo(7)
         assertThat(OpenFlowMigrations.MIGRATION_5_6.startVersion).isEqualTo(5)
         assertThat(OpenFlowMigrations.MIGRATION_5_6.endVersion).isEqualTo(6)
+        assertThat(OpenFlowMigrations.MIGRATION_6_7.startVersion).isEqualTo(6)
+        assertThat(OpenFlowMigrations.MIGRATION_6_7.endVersion).isEqualTo(7)
     }
 
     @Test
@@ -315,13 +317,15 @@ class DictationRepositoryTest {
         val words = FakeDictionaryDao()
         val snips = FakeSnippetDao()
         val stats = FakeStatsDao()
+        val voice = FakeVoiceProfileDao()
         val repo = DictationRepository(
             db = trackingDb,
             dictationDao = dict,
             ftsDao = fts,
             dictionaryDao = words,
             snippetDao = snips,
-            statsDao = stats
+            statsDao = stats,
+            voiceProfileDao = voice,
         )
 
         val saved = repo.saveDictation("raw", "clean", 100L, "en-US")
@@ -357,13 +361,15 @@ class DictationRepositoryTest {
         val words = FakeDictionaryDao()
         val snips = FakeSnippetDao()
         val stats = FakeStatsDao()
+        val voice = FakeVoiceProfileDao()
         val repo = DictationRepository(
             db = PassthroughDb,
             dictationDao = dict,
             ftsDao = fts,
             dictionaryDao = words,
             snippetDao = snips,
-            statsDao = stats
+            statsDao = stats,
+            voiceProfileDao = voice,
         )
         return Harness(repo, dict, fts)
     }
@@ -509,5 +515,15 @@ private class FakeStatsDao : StatsDao {
 
     override suspend fun upsert(s: AppStatsEntity) {
         row = s
+    }
+}
+
+private class FakeVoiceProfileDao : VoiceProfileDao {
+    private var row: VoiceProfileEntity? = null
+
+    override suspend fun get(): VoiceProfileEntity? = row
+
+    override suspend fun upsert(row: VoiceProfileEntity) {
+        this.row = row
     }
 }

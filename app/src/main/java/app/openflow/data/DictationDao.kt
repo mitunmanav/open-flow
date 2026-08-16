@@ -104,3 +104,12 @@ interface StatsDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(s: AppStatsEntity)
 }
+
+@Dao
+interface VoiceProfileDao {
+    @Query("SELECT * FROM voice_profile WHERE id = 1")
+    suspend fun get(): VoiceProfileEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(row: VoiceProfileEntity)
+}

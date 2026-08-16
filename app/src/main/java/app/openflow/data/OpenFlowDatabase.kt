@@ -17,7 +17,8 @@ interface OpenFlowDb {
         DictationFtsEntity::class,
         DictionaryWordEntity::class,
         SnippetEntity::class,
-        AppStatsEntity::class
+        AppStatsEntity::class,
+        VoiceProfileEntity::class,
     ],
     version = RoomOpenPolicy.VERSION,
     exportSchema = false
@@ -28,6 +29,7 @@ abstract class OpenFlowDatabase : RoomDatabase(), OpenFlowDb {
     abstract fun dictionaryDao(): DictionaryDao
     abstract fun snippetDao(): SnippetDao
     abstract fun statsDao(): StatsDao
+    abstract fun voiceProfileDao(): VoiceProfileDao
 
     override suspend fun <R> transact(block: suspend () -> R): R = withTransaction(block)
 

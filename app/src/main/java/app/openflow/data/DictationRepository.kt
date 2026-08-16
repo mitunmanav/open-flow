@@ -14,7 +14,8 @@ class DictationRepository(
     private val ftsDao: DictationFtsDao,
     private val dictionaryDao: DictionaryDao,
     private val snippetDao: SnippetDao,
-    private val statsDao: StatsDao
+    private val statsDao: StatsDao,
+    private val voiceProfileDao: VoiceProfileDao,
 ) {
     fun observeDictations(): Flow<List<DictationEntity>> = dictationDao.observeAll()
 
@@ -49,7 +50,8 @@ class DictationRepository(
         cleanText: String,
         durationMs: Long,
         languageTag: String,
-        retentionPolicy: String = "keep"
+        retentionPolicy: String = "keep",
+        packageName: String = "",
     ): DictationEntity? {
         if (!RetentionPolicy.shouldPersist(retentionPolicy)) return null
         return db.transact {
@@ -65,7 +67,8 @@ class DictationRepository(
                 createdAtEpochMs = System.currentTimeMillis(),
                 durationMs = durationMs,
                 languageTag = languageTag,
-                wordCount = words
+                wordCount = words,
+                packageName = packageName.trim(),
             )
             dictationDao.upsert(e)
             indexFts(e)
@@ -223,6 +226,14 @@ class DictationRepository(
     suspend fun deleteSnippet(id: String) = snippetDao.delete(id)
 
     suspend fun stats(): AppStatsEntity = statsDao.get() ?: AppStatsEntity()
+
+    suspend fun allForInsights(): List<DictationEntity> = dictationDao.allOrdered()
+
+    suspend fun voiceProfile(): VoiceProfileEntity? = voiceProfileDao.get()
+
+    suspend fun saveVoiceProfile(e: VoiceProfileEntity) {
+        voiceProfileDao.upsert(e.copy(id = 1))
+    }
 
     private suspend fun indexFts(e: DictationEntity) {
         ftsDao.deleteBySessionId(e.id)

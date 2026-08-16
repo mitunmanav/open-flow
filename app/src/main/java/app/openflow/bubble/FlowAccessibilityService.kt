@@ -141,6 +141,10 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     private var compactVisual = false
     private var lastInteractionAt = 0L
     private var lastRms = 0f
+    private val dragCache = BubbleDragCache()
+    private var lastVisibilityRefreshAt = 0L
+    private var lastRmsBars: String = ""
+    private var lastRmsLabelAt = 0L
     /** Soft keyboard present (Wispr: bubble lives with field + keyboard). */
     private var imeVisible: Boolean = false
     /** TYPE_INPUT_METHOD height in px. 0 = IME down / unknown. Not written to prefs. */
@@ -175,7 +179,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     private val pulseTick = object : Runnable {
         override fun run() {
             onPulseTick()
-            mainHandler.postDelayed(this, 500L)
+            val delay = if (listening) 66L else 1000L
+            mainHandler.postDelayed(this, delay)
         }
     }
 
@@ -228,11 +233,11 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED
         ) {
             // Keyboard open/close → bubble show/hide (Wispr).
-            refreshBubbleVisibility()
+            refreshBubbleVisibility(force = false)
         }
         if (prefs?.isSnoozed() == true) return
         if (ActivePackageTracker.shouldIgnoreFocus(lastPackage)) {
-            refreshBubbleVisibility()
+            refreshBubbleVisibility(force = false)
             return
         }
         when (event.eventType) {
@@ -268,7 +273,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                             }
                             focusedEditable = null
                             searchFieldFocused = false
-                            refreshBubbleVisibility()
+                            refreshBubbleVisibility(force = false)
                         }
                     } finally {
                         @Suppress("DEPRECATION")
@@ -542,6 +547,9 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                     startY = prefs?.bubbleY ?: params.y
                     dragged = false
                     longPressFired = false
+                    val downW = v.width.takeIf { it > 0 } ?: v.measuredWidth.takeIf { it > 0 } ?: 96
+                    val downH = v.height.takeIf { it > 0 } ?: v.measuredHeight.takeIf { it > 0 } ?: 120
+                    dragCache.begin(downW, downH)
                     animatePress(v, pressed = true)
                     if (!listening) mainHandler.postDelayed(longPress, 420)
                     true
@@ -564,7 +572,10 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                     }
                     if (!BubbleMotion.shouldUpdateLayout(dragged)) return@setOnTouchListener true
                     val dm = resources.displayMetrics
-                    val h = v.height.takeIf { it > 0 } ?: v.measuredHeight.takeIf { it > 0 } ?: 120
+                    val h = dragCache.sizeOr(
+                        v.width.takeIf { it > 0 } ?: v.measuredWidth.takeIf { it > 0 } ?: 96,
+                        v.height.takeIf { it > 0 } ?: v.measuredHeight.takeIf { it > 0 } ?: 120,
+                    ).second
                     params.x = (startX - dx).coerceAtLeast(0)
                     val dragY = BubbleGeometry.clampVerticalOffset(
                         y = startY - dy,
@@ -590,7 +601,11 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                     velocityTracker?.recycle()
                     velocityTracker = null
                     val dm = resources.displayMetrics
-                    val h = v.height.takeIf { it > 0 } ?: v.measuredHeight.takeIf { it > 0 } ?: 120
+                    val h = dragCache.sizeOr(
+                        v.width.takeIf { it > 0 } ?: v.measuredWidth.takeIf { it > 0 } ?: 96,
+                        v.height.takeIf { it > 0 } ?: v.measuredHeight.takeIf { it > 0 } ?: 120,
+                    ).second
+                    dragCache.clear()
                     val upDy = (event.rawY - downRawY).toInt()
                     val savedY = BubbleGeometry.clampVerticalOffset(
                         y = startY - upDy,
@@ -775,7 +790,12 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
     }
 
-    private fun refreshBubbleVisibility() {
+    private fun refreshBubbleVisibility(force: Boolean = true) {
+        val now = SystemClock.elapsedRealtime()
+        if (!BubbleRedrawPolicy.shouldRefreshVisibility(lastVisibilityRefreshAt, now, force)) {
+            return
+        }
+        lastVisibilityRefreshAt = now
         refreshImeHeight()
         val snoozed = prefs?.isSnoozed() == true
         val activePkg = try {
@@ -1858,7 +1878,19 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             val bars = BubbleRms.bars(lastRms)
             val warn = SessionGuard.phase(elapsedSec * 1000L) == SessionPhase.WARN
             val suffix = if (warn) " wrap" else if (elapsedSec > 0) "  ${elapsedSec}s" else ""
-            bubbleLabel?.text = bars + suffix + cmd
+            val next = bars + suffix + cmd
+            val now = SystemClock.elapsedRealtime()
+            val allow = BubbleRedrawPolicy.shouldUpdateRmsLabel(
+                lastRmsBars,
+                bars,
+                lastRmsLabelAt,
+                now,
+            )
+            val prev = bubbleLabel?.text?.toString().orEmpty()
+            if (!allow && prev == next) return
+            lastRmsBars = bars
+            lastRmsLabelAt = now
+            bubbleLabel?.text = next
         }
     }
 

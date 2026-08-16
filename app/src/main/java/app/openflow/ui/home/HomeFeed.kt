@@ -36,7 +36,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -113,10 +112,10 @@ fun HomeFeed(
     Column(
         Modifier
             .fillMaxSize()
-            .padding(horizontal = Dimen.PAGE_PAD, vertical = Dimen.GAP)
+            .padding(horizontal = HomeFeedTokens.pagePadH, vertical = HomeFeedTokens.pagePadV)
             .verticalScroll(rememberScrollState())
             .testTag("home_hub"),
-        verticalArrangement = Arrangement.spacedBy(Dimen.GAP)
+        verticalArrangement = Arrangement.spacedBy(HomeFeedTokens.sectionGap)
     ) {
         if (!seenHowTo) {
             OpenCard(modifier = Modifier.testTag("home_howto")) {
@@ -124,7 +123,7 @@ fun HomeFeed(
                     Modifier
                         .padding(Dimen.MIN_PADDING)
                         .wrapContentHeight(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(HomeFeedTokens.cardInnerGap)
                 ) {
                     Text(
                         "How Open Flow works",
@@ -175,7 +174,7 @@ fun HomeFeed(
                 OpenCard(modifier = Modifier.testTag("home_banner_repair")) {
                     Column(
                         Modifier.padding(Dimen.MIN_PADDING),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                        verticalArrangement = Arrangement.spacedBy(HomeFeedTokens.cardInnerGap)
                     ) {
                         Text(
                             copy.title,
@@ -206,7 +205,7 @@ fun HomeFeed(
                 OpenCard(modifier = Modifier.testTag("home_banner_mic")) {
                     Column(
                         Modifier.padding(Dimen.MIN_PADDING),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                        verticalArrangement = Arrangement.spacedBy(HomeFeedTokens.cardInnerGap)
                     ) {
                         Text(
                             copy.title,
@@ -237,7 +236,7 @@ fun HomeFeed(
                 OpenCard(modifier = Modifier.testTag("home_banner_snooze")) {
                     Column(
                         Modifier.padding(Dimen.MIN_PADDING),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                        verticalArrangement = Arrangement.spacedBy(HomeFeedTokens.cardInnerGap)
                     ) {
                         Text(
                             copy.title,
@@ -266,7 +265,7 @@ fun HomeFeed(
         OpenCard(modifier = Modifier.testTag("home_stats")) {
             Column(
                 Modifier.padding(Dimen.MIN_PADDING),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(HomeFeedTokens.cardInnerGap)
             ) {
                 val pages = listOf(
                     "$words words" to "Words",
@@ -284,8 +283,8 @@ fun HomeFeed(
                         .testTag("home_stats_value")
                 )
                 FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(HomeFeedTokens.chipGap),
+                    verticalArrangement = Arrangement.spacedBy(HomeFeedTokens.chipGap),
                     modifier = Modifier.testTag("home_stats_pages")
                 ) {
                     pages.forEachIndexed { i, (_, label) ->
@@ -310,7 +309,7 @@ fun HomeFeed(
         OpenCard(modifier = Modifier.testTag("home_local_note")) {
             Column(
                 Modifier.padding(Dimen.MIN_PADDING),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(HomeFeedTokens.cardInnerGap)
             ) {
                 Text(
                     "Local note",

@@ -37,6 +37,10 @@ class EnginePrefs internal constructor(private val store: PrefsStore) {
         get() = normalizeSarvam(store.getString(KEY_SARVAM, DEFAULT_SARVAM))
         set(v) = store.putString(KEY_SARVAM, normalizeSarvam(v))
 
+    var autoRoute: Boolean
+        get() = store.getBoolean(KEY_AUTO, false)
+        set(v) = store.putBoolean(KEY_AUTO, v)
+
     companion object {
         const val PREFS_NAME = "openflow_engine"
         const val DEFAULT_EAR = "system"
@@ -49,6 +53,7 @@ class EnginePrefs internal constructor(private val store: PrefsStore) {
         private const val KEY_EAR_MODEL = "ear_model"
         private const val KEY_CUSTOM_URL = "custom_base_url"
         private const val KEY_SARVAM = "sarvam_mode"
+        private const val KEY_AUTO = "auto_route"
 
         fun normalizeSarvam(value: String): String =
             when (value.lowercase()) {

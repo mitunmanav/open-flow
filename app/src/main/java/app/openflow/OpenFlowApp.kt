@@ -85,7 +85,8 @@ class OpenFlowApp : Application(), ComponentCallbacks2 {
             database.dictationFtsDao(),
             database.dictionaryDao(),
             database.snippetDao(),
-            database.statsDao()
+            database.statsDao(),
+            database.voiceProfileDao(),
         )
     }
     val prefs by lazy { FlowPrefs(this) }

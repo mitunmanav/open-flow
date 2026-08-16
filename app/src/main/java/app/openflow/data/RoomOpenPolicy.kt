@@ -8,7 +8,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  * Missing Migration must fail loud — never wipe user history quietly.
  */
 object RoomOpenPolicy {
-    const val VERSION = 6
+    const val VERSION = 7
     const val ALLOW_DESTRUCTIVE_FALLBACK = false
 
     fun <T : RoomDatabase> applyTo(builder: RoomDatabase.Builder<T>): RoomDatabase.Builder<T> {
@@ -17,7 +17,8 @@ object RoomOpenPolicy {
         return builder
             .addMigrations(
                 OpenFlowMigrations.MIGRATION_4_5,
-                OpenFlowMigrations.MIGRATION_5_6
+                OpenFlowMigrations.MIGRATION_5_6,
+                OpenFlowMigrations.MIGRATION_6_7,
             )
             .addCallback(DestructiveMigrationBan)
     }

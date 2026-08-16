@@ -40,7 +40,7 @@ Full write-up + sources: [docs/COMPARISON.md](docs/COMPARISON.md).
 | Audio can leave | **Yes, often** | Only if you pick cloud | No* | No* | No* | **Yes** on default server | **Yes** |
 | INTERNET in app | **Declared; off until opt-in** | Models / optional API | Model download | Model download | Model download | Yes | Yes |
 | Cleanup | Rule lists | Optional OpenAI | In-model | Weak | Weak | Server | Cloud LLM |
-| Languages | **en-US only** | Several | Many | 20+ | Many | Depends | Many |
+| Languages | Catalog (default en-US; en-IN, hi-IN, …) | Several | Many | 20+ | Many | Depends | Many |
 | License | MIT | Personal / permissive | **Not OSI** | GPL-3.0 | FOSS | Apache-2.0 | Closed |
 | On F-Droid | **No** | No | Their repo | **Yes** | **Yes** | **Yes** | No |
 | History + dict/snippets | **Yes** | Limited | Weak | No | No | No | Yes (their cloud) |
@@ -68,9 +68,9 @@ Wispr is closed. Kõnele’s **default** server can send audio unencrypted. FUTO
 4. Grey switch: App info → **⋮ → Allow restricted settings**.
 5. Text field → tap bubble → speak → **tap again**.
 
-[Install](docs/INSTALL.md) · [Guide](docs/GUIDE.md) · [Launch checklist](docs/LAUNCH_CHECKLIST.md) · [Handoff](docs/HANDOFF.md)
+[Install](docs/INSTALL.md) · [Guide](docs/GUIDE.md) · [Launch checklist](docs/LAUNCH_CHECKLIST.md) · [Docs](docs/README.md)
 
-Copy from **History**. No copy chip on the bubble.
+After insert, short Copy / Undo chips on the bubble. Older text: **History**.
 
 ## Talk (Discussions) vs report (Issues)
 

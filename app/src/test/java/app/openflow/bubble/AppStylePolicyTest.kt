@@ -1,5 +1,8 @@
 package app.openflow.bubble
 
+import app.openflow.prefs.FlowPrefs
+import app.openflow.prefs.MemoryPrefsStore
+import app.openflow.text.StyleCategory
 import app.openflow.text.WritingStyle
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
@@ -32,5 +35,14 @@ class AppStylePolicyTest {
         assertThat(AppStylePolicy.category("app.openflow.debug")).isEqualTo("other")
         assertThat(AppStylePolicy.styleFor("app.openflow.debug", WritingStyle.EXCITED))
             .isEqualTo(WritingStyle.EXCITED)
+    }
+
+    @Test
+    fun hub_prefs_override_app_style() {
+        val prefs = FlowPrefs(MemoryPrefsStore())
+        prefs.setHubStyle(StyleCategory.PERSONAL, WritingStyle.FORMAL)
+
+        val style = AppStylePolicy.styleFor("com.whatsapp", WritingStyle.CASUAL, prefs)
+        assertThat(style).isEqualTo(WritingStyle.FORMAL)
     }
 }

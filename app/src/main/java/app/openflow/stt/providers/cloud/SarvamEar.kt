@@ -20,14 +20,14 @@ class SarvamEar(
             "&mode=$m" +
             "&language-code=$lang" +
             "&sample_rate=16000" +
-            "&input_audio_codec=pcm_s16le"
+            "&input_audio_codec=wav"
     }
 
     override fun authHeaders(key: String): Map<String, String> =
         mapOf("api-subscription-key" to key)
 
     override fun writeAudio(session: CloudSession, pcm: ByteArray) {
-        val b64 = Base64.getEncoder().encodeToString(pcm)
+        val b64 = Base64.getEncoder().encodeToString(WavPcm.wrapPcm16leMono(pcm))
         session.sendText(
             """{"audio":{"data":"$b64","sample_rate":"16000","encoding":"audio/wav"}}""",
         )

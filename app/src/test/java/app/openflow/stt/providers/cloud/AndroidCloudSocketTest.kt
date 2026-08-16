@@ -25,10 +25,12 @@ class AndroidCloudSocketTest {
     @Test
     fun allowed_url_opens_and_sends() {
         val fake = RecordingWs()
+        var listener: WebSocketListener? = null
         val socket = AndroidCloudSocket(
-            open = { req, _ ->
+            open = { req, l ->
                 fake.lastUrl = req.url.toString()
                 fake.lastAuth = req.header("Authorization")
+                listener = l
                 fake
             },
             allowUrl = { true },
@@ -40,6 +42,14 @@ class AndroidCloudSocketTest {
         assertThat(fake.lastUrl).contains("api.deepgram.com/v1/listen")
         assertThat(fake.lastAuth).isEqualTo("Token secret")
         session.send(byteArrayOf(1, 2))
+        assertThat(fake.sentBinary).isEqualTo(0)
+        val switching = Response.Builder()
+            .request(Request.Builder().url("wss://api.deepgram.com/v1/listen").build())
+            .protocol(okhttp3.Protocol.HTTP_1_1)
+            .code(101)
+            .message("Switching Protocols")
+            .build()
+        listener!!.onOpen(fake, switching)
         session.sendText("{\"type\":\"KeepAlive\"}")
         session.close()
         assertThat(fake.sentBinary).isEqualTo(1)

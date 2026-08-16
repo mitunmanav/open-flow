@@ -30,4 +30,27 @@ object OpenFlowMigrations {
             )
         }
     }
+
+    /** v6 → v7: packageName on dictations + voice_profile cache. */
+    val MIGRATION_6_7 = object : Migration(6, 7) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "ALTER TABLE `dictations` ADD COLUMN `packageName` TEXT NOT NULL DEFAULT ''"
+            )
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `voice_profile` (
+                  `id` INTEGER NOT NULL,
+                  `archetype` TEXT NOT NULL,
+                  `catchphrase` TEXT NOT NULL,
+                  `headline` TEXT NOT NULL,
+                  `generatedAtEpochMs` INTEGER NOT NULL,
+                  `provider` TEXT NOT NULL,
+                  `model` TEXT NOT NULL,
+                  PRIMARY KEY(`id`)
+                )
+                """.trimIndent()
+            )
+        }
+    }
 }

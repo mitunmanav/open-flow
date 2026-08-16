@@ -1,6 +1,6 @@
 # Install Open Flow
 
-Android 8+ (API 26). English only. **Debug-signed sideload is OK** for early launch.
+Android 8+ (API 26). Speech language in Settings (default en-US). **Debug-signed sideload is OK** for early launch.
 
 **INTERNET** is declared in the APK; **unused** until you pick a net ear/brain or download a model. The phone’s speech engine may still use Google — that is not an Open Flow upload.
 

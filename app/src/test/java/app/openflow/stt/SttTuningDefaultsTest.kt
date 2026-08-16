@@ -15,7 +15,7 @@ class SttTuningDefaultsTest {
         val t = SttTuning()
         assertThat(t.completeSilenceMs).isAtMost(1000L)
         assertThat(t.possiblyCompleteSilenceMs).isAtMost(600L)
-        assertThat(t.preferFormattingQuality).isFalse()
+        assertThat(t.preferFormattingQuality).isTrue()
     }
 
     @Test

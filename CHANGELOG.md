@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Hub tabs: Home · Dictionary · Snippets · Style (Settings = gear).
+- Listen **Done** + trailing **Press Enter** (IME send) + dictionary A–Z / Newest / Oldest.
+- Wispr-style AI insert polish, HTTP 429 backoff, formatted on-phone STT hypothesis.
+- Wispr Android FOSS gaps: copy/undo/paste chips (~10s), local field context, dict/snippet file import, History Use raw.
+
+### Changed
+- Bubble drag: touch slop + VelocityTracker fling snap; compact Copy/Undo chips; Dict import File/Paste row.
+- In-place UI: History/Dict/Snippets LazyColumn+keys; denser chips; no extra graphics layers.
+
+### Fixed
+- Cloud STT: queue WebSocket sends until the socket is open (no dropped `session.update` / first audio).
+- Insert no longer LLM-rewrites just because a brain is picked; uses Settings cleanup level.
+- Language catalog unlocked (`en-IN`, `hi-IN`, …). Settings → Speech language.
+- Sarvam: send real WAV bytes (not raw PCM labeled as WAV).
+- System ear: default SpeechRecognizer (not on-device-first). Balanced STT uses quality punctuation.
+
 ## 0.1.7 — 2026-08-16
 
 Text pipeline improvements and TDD fixes. Verified 757 PASS / 0 fail / 0 err / 0 skip unit tests. Main tip `152d663`. versionCode 8 · versionName 0.1.7.

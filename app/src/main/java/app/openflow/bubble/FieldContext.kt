@@ -1,20 +1,37 @@
 package app.openflow.bubble
 
 import app.openflow.ai.TextAIProvider
-import app.openflow.text.Feature
-import app.openflow.text.FeatureGate
+import app.openflow.text.CourseCorrector
 
 /**
- * Surrounding field text for polish / brain.enhance.
- * Only when [Feature.FIELD_CONTEXT] would be on. Never for analytics.
+ * Surrounding field text for local polish (continue + course).
+ * Always on for insert. [wrapBrain] stays opt-in (LLM). Never for analytics.
  */
 object FieldContext {
 
-    fun on(brainRewrite: Boolean): Boolean =
-        FeatureGate.can(Feature.FIELD_CONTEXT, brainRewrite = brainRewrite)
+    @Suppress("UNUSED_PARAMETER")
+    fun on(brainRewrite: Boolean): Boolean = true
 
     fun surrounding(on: Boolean, fieldText: String): String =
         if (!on) "" else fieldText.trim()
+
+    fun continueSpoken(field: String, spoken: String): String {
+        val f = field.trimEnd()
+        val s = spoken.trim()
+        if (f.isEmpty() || s.isEmpty()) return s
+        val end = f.last()
+        if (end in ".!?\n") return s
+        return s.replaceFirstChar { ch -> ch.lowercaseChar() }
+    }
+
+    /** Full field after local continue + course-correct across the prefix boundary. */
+    fun afterPolish(prefix: String, polishedSpoken: String): String {
+        val said = continueSpoken(prefix, polishedSpoken)
+        if (said.isEmpty()) return prefix
+        if (prefix.isBlank()) return said
+        val combined = FieldPolicy.mergeSession(prefix, said)
+        return CourseCorrector.apply(combined)
+    }
 
     fun enhanceInput(spoken: String, surrounding: String): String {
         val said = spoken.trim()

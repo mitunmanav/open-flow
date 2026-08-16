@@ -23,11 +23,12 @@ class DeepgramEarTest {
         val rec = RecListener()
         val ear = DeepgramEar(apiKey = { "dg-key" }, socket = sock)
         ear.setListener(rec)
-        ear.startContinuous("en-US")
+        ear.startContinuous("en-IN")
         assertThat(sock.url).isEqualTo(
             "wss://api.deepgram.com/v1/listen" +
-                "?model=nova-2&encoding=linear16&sample_rate=16000&channels=1&interim_results=true" +
-                "&language=en-US",
+                "?model=nova-2&encoding=linear16&sample_rate=16000&channels=1" +
+                "&interim_results=true&punctuate=true&smart_format=true" +
+                "&language=en-IN",
         )
         assertThat(sock.headers["Authorization"]).isEqualTo("Token dg-key")
         sock.push("""{"is_final":false,"channel":{"alternatives":[{"transcript":"hello"}]}}""")

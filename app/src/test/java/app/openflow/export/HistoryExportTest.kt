@@ -66,6 +66,37 @@ class HistoryExportTest {
     }
 
     @Test
+    fun share_blankText_fallsBackToRawText() {
+        val share = HistoryExport.shareText(
+            listOf(
+                HistoryExport.Row(
+                    createdAtEpochMs = 1L,
+                    text = " ",
+                    rawText = "raw fallback",
+                )
+            )
+        )
+
+        assertThat(share).contains("raw fallback")
+    }
+
+    @Test
+    fun markdown_blankText_fallsBackToRawText() {
+        val md = HistoryExport.toMarkdown(
+            listOf(
+                HistoryExport.Row(
+                    createdAtEpochMs = 1L,
+                    text = "",
+                    rawText = "raw fallback",
+                )
+            )
+        )
+
+        assertThat(md).contains("raw fallback")
+        assertThat(md).doesNotContain("> *Raw STT:*")
+    }
+
+    @Test
     fun exports_all_today_fields() {
         val row = HistoryExport.Row(
             createdAtEpochMs = 1_700_000_000_000L,
@@ -103,7 +134,7 @@ class HistoryExportTest {
     }
 
     @Test
-    fun non_english_tag_forced_to_en_us_in_output() {
+    fun catalog_lang_kept_in_export() {
         val md = HistoryExport.toMarkdown(
             listOf(
                 HistoryExport.Row(
@@ -114,7 +145,7 @@ class HistoryExportTest {
                 )
             )
         )
-        assertThat(md).contains("en-US")
-        assertThat(md).doesNotContain("fr-FR")
+        assertThat(md).contains("fr-FR")
+        assertThat(md).doesNotContain("(en-US,")
     }
 }

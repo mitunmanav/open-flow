@@ -39,11 +39,8 @@ data class SttTuning(
         const val DEFAULT_POSSIBLY_COMPLETE_SILENCE_MS = 480L
         const val DEFAULT_MAX_RESULTS = 3
 
-        /**
-         * Default latency formatting: partials/finals land faster.
-         * Accuracy for polish stays in on-device cleanup pipeline (PhraseMap, cleanup level).
-         */
-        const val DEFAULT_PREFER_FORMATTING_QUALITY = false
+        /** Default quality formatting (API 33+): better punctuation than latency mode. */
+        const val DEFAULT_PREFER_FORMATTING_QUALITY = true
 
         const val PROFILE_FAST = "fast"
         const val PROFILE_BALANCED = "balanced"

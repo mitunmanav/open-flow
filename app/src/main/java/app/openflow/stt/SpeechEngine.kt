@@ -4,7 +4,7 @@ import app.openflow.engine.ModelCapability
 
 /**
  * Provider abstraction for speech-to-text.
- * MVP: [AndroidSpeechEngine] wraps [SttEngine] (on-device prefer).
+ * MVP: [AndroidSpeechEngine] wraps [SttEngine] (default system recognizer).
  * Future: cloud or alternate engines can implement this without touching a11y/bubble.
  */
 interface SpeechEngine {

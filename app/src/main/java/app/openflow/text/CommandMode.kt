@@ -11,7 +11,9 @@ import java.util.Locale
 object CommandMode {
 
     private val bulletTriggers = listOf(
-        "make bullets", "make bullet points", "bullet points", "bullet list", "format as bullets", "make a bullet list"
+        "organize into bullets", "organise into bullets",
+        "make a list", "make bullets", "make bullet points", "bullet points", "bullet list",
+        "format as bullets", "make a bullet list"
     )
 
     private val numberTriggers = listOf(

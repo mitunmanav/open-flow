@@ -16,8 +16,8 @@ import kotlinx.coroutines.runBlocking
  *    - Medium: + false starts → [CourseCorrector] → lists → lightClarity
  *    - High: + hedges
  *    - then [StyleApplicator] / [SentenceFormat] / [WritingStyle]
- * 4. High + [FeatureAuto] HIGH_AI (or [brainRewrite]) → injected [TextAIProvider.enhance]
- *    after rules. Default [NoAI].
+ * 4. Non-RAW + [FeatureAuto] HIGH_AI (or [brainRewrite]) → injected [TextAIProvider.enhance]
+ *    after rules. Default [NoAI]. Dict re-applied after AI.
  * 5. Local & AI [CommandMode] semantic transforms.
  *
  * Empty in → empty out. Non-empty content must not vanish (except explicit clear).
@@ -54,6 +54,7 @@ object TextPostProcessor {
         earId: String = "system",
         brainId: String = "none",
         languages: Set<String> = emptySet(),
+        promptHint: String? = null,
     ): CleanupResult {
         val original = raw
         var t = raw
@@ -66,10 +67,17 @@ object TextPostProcessor {
         t = expandSnippets(t, snippets)
         val result = CleanupPipeline.run(t, level, style, custom)
         val features = FeatureAuto.of(earId, brainId, languages)
-        val highAi = brainRewrite || Feature.HIGH_AI in features
+        val useAi = brain != NoAI &&
+            level != CleanupLevel.RAW &&
+            (brainRewrite || Feature.HIGH_AI in features)
 
-        var cleaned = if (level == CleanupLevel.HIGH && highAi && brain != NoAI) {
-            val enhanced = runBlocking { brain.enhance(result.clean, "cleanup") }
+        var cleaned = if (useAi) {
+            val hints = LearnPrompt.utteranceHints(result.clean, dictionary)
+            val systemContext = buildString {
+                append(if (!promptHint.isNullOrBlank()) "cleanup: $promptHint" else "cleanup")
+                if (hints.isNotEmpty()) append(" spell: ").append(hints)
+            }
+            val enhanced = runBlocking { brain.enhance(result.clean, systemContext) }
             sanitizeBrainOutput(enhanced, result.clean)
         } else {
             result.clean
@@ -78,9 +86,16 @@ object TextPostProcessor {
         // Apply local voice command transforms (e.g. bullets, numbered list, case)
         cleaned = CommandMode.applyLocal(cleaned)
 
-        if (Feature.COMMAND in features && brain != NoAI) {
+        if (useAi && Feature.COMMAND in features) {
             cleaned = runBlocking { CommandMode.apply(cleaned, brainCommand = true, brain = brain) }
         }
+
+        cleaned = applyDictionary(
+            cleaned,
+            dictionary,
+            sides = LearnEngine.sideBags(),
+            autoKeys = LearnEngine.autoKeys(),
+        )
 
         return result.copy(raw = original.trim().ifEmpty { original }, clean = cleaned)
     }

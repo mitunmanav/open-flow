@@ -18,10 +18,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Book
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Settings
+import app.openflow.ui.a11y.OpenIcons
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -32,7 +29,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -55,17 +51,15 @@ private data class NavItem(
     val label: String,
     val contentDescription: String,
     val icon: ImageVector,
-) {
-    val testTag: String
-        get() = "nav_" + (route.navId ?: route.name.lowercase())
-}
+    val testTag: String,
+)
 
-/** Always-visible primary tabs. Stable list — do not rebuild per frame. */
+/** Wispr Android tabs: Home · Dictionary · Snippets · Style. */
 private val bottomItems = listOf(
-    NavItem(AppRoute.Home, "Home", "Home", Icons.Default.Home),
-    NavItem(AppRoute.History, "History", "History", Icons.Default.History),
-    NavItem(AppRoute.Dictionary, "Dict", "Dictionary", Icons.Default.Book),
-    NavItem(AppRoute.Settings, "Settings", "Settings", Icons.Default.Settings),
+    NavItem(AppRoute.Home, "Home", OpenIcons.HomeDesc, OpenIcons.Home, "nav_home"),
+    NavItem(AppRoute.Dictionary, "Dict", OpenIcons.BookDesc, OpenIcons.Book, "nav_dictionary"),
+    NavItem(AppRoute.Snippets, "Snips", OpenIcons.ShortTextDesc, OpenIcons.ShortText, "nav_snippets"),
+    NavItem(AppRoute.Style, "Style", OpenIcons.StyleDesc, OpenIcons.Style, "nav_style"),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -82,7 +76,7 @@ fun AppShell(
 
     val title = route.title
     val showBack = !route.isBottomBar() && route != AppRoute.Setup
-    val settingsSelected = remember(route) { route.isSettingsSubtree() }
+    val showSettingsGear = route.isBottomBar()
 
     // Theme-aware shell (light + dark readable)
     val scheme = MaterialTheme.colorScheme
@@ -117,6 +111,22 @@ fun AppShell(
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back",
+                                tint = onSurface
+                            )
+                        }
+                    }
+                },
+                actions = {
+                    if (showSettingsGear) {
+                        IconButton(
+                            onClick = { onNavigate(AppRoute.Settings) },
+                            modifier = Modifier
+                                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                                .testTag("nav_settings")
+                        ) {
+                            Icon(
+                                OpenIcons.Settings,
+                                contentDescription = OpenIcons.SettingsDesc,
                                 tint = onSurface
                             )
                         }
@@ -167,11 +177,7 @@ fun AppShell(
                             .selectableGroup()
                     ) {
                         bottomItems.forEach { item ->
-                            val selected = when {
-                                route == item.route -> true
-                                item.route == AppRoute.Settings && settingsSelected -> true
-                                else -> false
-                            }
+                            val selected = route == item.route
                             Column(
                                 modifier = Modifier
                                     .weight(1f)

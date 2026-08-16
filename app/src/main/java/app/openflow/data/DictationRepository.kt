@@ -3,6 +3,7 @@ package app.openflow.data
 import app.openflow.privacy.RetentionPolicy
 import app.openflow.text.LearnPair
 import app.openflow.text.LearnEngine
+import app.openflow.text.PairImport
 import kotlinx.coroutines.flow.Flow
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -13,7 +14,8 @@ class DictationRepository(
     private val ftsDao: DictationFtsDao,
     private val dictionaryDao: DictionaryDao,
     private val snippetDao: SnippetDao,
-    private val statsDao: StatsDao
+    private val statsDao: StatsDao,
+    private val voiceProfileDao: VoiceProfileDao,
 ) {
     fun observeDictations(): Flow<List<DictationEntity>> = dictationDao.observeAll()
 
@@ -48,7 +50,8 @@ class DictationRepository(
         cleanText: String,
         durationMs: Long,
         languageTag: String,
-        retentionPolicy: String = "keep"
+        retentionPolicy: String = "keep",
+        packageName: String = "",
     ): DictationEntity? {
         if (!RetentionPolicy.shouldPersist(retentionPolicy)) return null
         return db.transact {
@@ -64,7 +67,8 @@ class DictationRepository(
                 createdAtEpochMs = System.currentTimeMillis(),
                 durationMs = durationMs,
                 languageTag = languageTag,
-                wordCount = words
+                wordCount = words,
+                packageName = packageName.trim(),
             )
             dictationDao.upsert(e)
             indexFts(e)
@@ -131,8 +135,16 @@ class DictationRepository(
         }
     }
 
-    suspend fun addWord(word: String, replacement: String = word) {
+    /** @return false when [word] is already a snippet trigger. */
+    suspend fun addWord(word: String, replacement: String = word): Boolean {
         val w = word.trim()
+        if (w.isEmpty()) return false
+        val snip = snippetMap().keys
+        if (PairImport.decide(w, dictionaryMap().keys, snip, PairImport.Kind.DICT) ==
+            PairImport.Decision.CONFLICT
+        ) {
+            return false
+        }
         dictionaryDao.upsert(
             DictionaryWordEntity(
                 id = w,
@@ -142,6 +154,39 @@ class DictationRepository(
             )
         )
         LearnEngine.putManual(w)
+        return true
+    }
+
+    suspend fun importDictionary(text: String): PairImport.Outcome =
+        importPairs(text, PairImport.Kind.DICT)
+
+    suspend fun importSnippets(text: String): PairImport.Outcome =
+        importPairs(text, PairImport.Kind.SNIPPET)
+
+    private suspend fun importPairs(text: String, kind: PairImport.Kind): PairImport.Outcome {
+        val parsed = PairImport.parse(text)
+        var added = 0
+        var skipped = parsed.skipped
+        var conflicts = 0
+        val dict = dictionaryMap().keys.toMutableSet()
+        val snip = snippetMap().keys.toMutableSet()
+        for (row in parsed.rows) {
+            when (PairImport.decide(row.from, dict, snip, kind)) {
+                PairImport.Decision.ADD -> {
+                    if (kind == PairImport.Kind.DICT) {
+                        addWord(row.from, row.to)
+                        dict += row.from
+                    } else {
+                        addSnippet(row.from, row.to)
+                        snip += row.from
+                    }
+                    added++
+                }
+                PairImport.Decision.SKIP_DUP -> skipped++
+                PairImport.Decision.CONFLICT -> conflicts++
+            }
+        }
+        return PairImport.Outcome(added, skipped, conflicts)
     }
 
     suspend fun deleteWord(id: String) {
@@ -154,8 +199,19 @@ class DictationRepository(
         LearnEngine.clearAll()
     }
 
-    suspend fun addSnippet(trigger: String, body: String) {
+    /** @return false when [trigger] is already a dictionary word. */
+    suspend fun addSnippet(trigger: String, body: String): Boolean {
         val t = trigger.trim()
+        if (t.isEmpty() || body.isBlank()) return false
+        if (PairImport.decide(
+                t,
+                dictionaryMap().keys,
+                snippetMap().keys,
+                PairImport.Kind.SNIPPET
+            ) == PairImport.Decision.CONFLICT
+        ) {
+            return false
+        }
         snippetDao.upsert(
             SnippetEntity(
                 id = t,
@@ -164,11 +220,20 @@ class DictationRepository(
                 createdAtEpochMs = System.currentTimeMillis()
             )
         )
+        return true
     }
 
     suspend fun deleteSnippet(id: String) = snippetDao.delete(id)
 
     suspend fun stats(): AppStatsEntity = statsDao.get() ?: AppStatsEntity()
+
+    suspend fun allForInsights(): List<DictationEntity> = dictationDao.allOrdered()
+
+    suspend fun voiceProfile(): VoiceProfileEntity? = voiceProfileDao.get()
+
+    suspend fun saveVoiceProfile(e: VoiceProfileEntity) {
+        voiceProfileDao.upsert(e.copy(id = 1))
+    }
 
     private suspend fun indexFts(e: DictationEntity) {
         ftsDao.deleteBySessionId(e.id)

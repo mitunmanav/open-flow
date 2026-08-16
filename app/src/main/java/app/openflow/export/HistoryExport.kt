@@ -1,5 +1,6 @@
 package app.openflow.export
 
+import app.openflow.orchestrate.SharePayload
 import app.openflow.stt.LanguagePolicy
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -8,7 +9,7 @@ import java.util.Locale
 /**
  * Pure on-device history export & search (markdown / plain text).
  * No I/O, no network — callers write/share the string.
- * Language always shown as en-US (product lock).
+ * Language shown from catalog via [LanguagePolicy.normalize].
  */
 object HistoryExport {
 
@@ -29,15 +30,18 @@ object HistoryExport {
         if (rows.isEmpty()) return "# Open Flow history"
         val body = rows.joinToString("\n\n") { row ->
             val stamp = stampFmt.format(Date(row.createdAtEpochMs))
-            val lang = LanguagePolicy.force(row.languageTag)
+            val lang = LanguagePolicy.normalize(row.languageTag)
             buildString {
                 append("### $stamp ($lang, ${row.wordCount} words")
                 if (row.durationMs > 0L) append(", ${row.durationMs}ms")
                 append(")")
                 if (row.id.isNotBlank()) append("\n\nid: ${row.id}")
                 append("\n\n")
-                append(row.text.trim())
-                if (includeRaw && row.rawText.isNotBlank() && row.rawText != row.text) {
+                val body = SharePayload.forRow(row.text, row.rawText)
+                append(body)
+                if (includeRaw && row.rawText.isNotBlank() &&
+                    row.text.trim().isNotEmpty() && row.rawText.trim() != row.text.trim()
+                ) {
                     append("\n\n> *Raw STT:* ${row.rawText.trim()}")
                 }
             }
@@ -52,7 +56,7 @@ object HistoryExport {
                 val stamp = stampFmt.format(Date(row.createdAtEpochMs))
                 append(stamp)
                 append(" [")
-                append(LanguagePolicy.force(row.languageTag))
+                append(LanguagePolicy.normalize(row.languageTag))
                 append("]")
                 if (row.id.isNotBlank()) {
                     append(" id=")
@@ -64,7 +68,7 @@ object HistoryExport {
                     append("ms")
                 }
                 append("\n")
-                append(row.text.trim())
+                append(SharePayload.forRow(row.text, row.rawText))
             }
         }
     }

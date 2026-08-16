@@ -2,11 +2,13 @@
 
 Public product plan. Not a promise of dates.
 
-## Now — 0.1.5 (GitHub sideload)
+## Now — 0.1.7 (GitHub sideload)
 
 - Bubble + Accessibility insert. Not a keyboard.
-- Walkthrough, setup, History, dictionary, snippets.
-- Local cleanup rules + writing styles.
+- Hub: Home · Dictionary · Snippets · Style.
+- Listen: Cancel / Done. Trailing “press enter” sends.
+- Walkthrough, History, dictionary sort, snippets.
+- Local cleanup + optional BYOK brains.
 - Debug-signed APK on Releases.
 
 ## Next

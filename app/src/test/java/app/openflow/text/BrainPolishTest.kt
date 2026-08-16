@@ -3,9 +3,15 @@ package app.openflow.text
 import app.openflow.ai.TextAIProvider
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
+import org.junit.Before
 import org.junit.Test
 
 class BrainPolishTest {
+
+    @Before
+    fun resetLearn() {
+        LearnEngine.resetLearn()
+    }
 
     private class FakeBrain : TextAIProvider {
         override val name: String = "fake"
@@ -38,7 +44,7 @@ class BrainPolishTest {
     }
 
     @Test
-    fun light_does_not_call_brain() = runTest {
+    fun light_with_rewrite_calls_brain() = runTest {
         val fake = FakeBrain()
         TextPostProcessor.polishSessionResult(
             raw = sample,
@@ -46,7 +52,48 @@ class BrainPolishTest {
             brain = fake,
             brainRewrite = true,
         )
+        assertThat(fake.calls).isEqualTo(1)
+    }
+
+    @Test
+    fun medium_with_rewrite_calls_brain() = runTest {
+        val fake = FakeBrain()
+        TextPostProcessor.polishSessionResult(
+            raw = sample,
+            level = CleanupLevel.NORMAL,
+            brain = fake,
+            brainRewrite = true,
+        )
+        assertThat(fake.calls).isEqualTo(1)
+    }
+
+    @Test
+    fun raw_never_calls_brain() = runTest {
+        val fake = FakeBrain()
+        TextPostProcessor.polishSessionResult(
+            raw = sample,
+            level = CleanupLevel.RAW,
+            brain = fake,
+            brainRewrite = true,
+            brainId = "openai",
+        )
         assertThat(fake.calls).isEqualTo(0)
+    }
+
+    @Test
+    fun dict_reapplied_after_brain() = runTest {
+        val fake = object : TextAIProvider {
+            override val name: String = "fake"
+            override suspend fun enhance(text: String, mode: String): String = "meet mike later"
+        }
+        val out = TextPostProcessor.polishSessionResult(
+            raw = "meet mike later",
+            level = CleanupLevel.LIGHT,
+            dictionary = mapOf("mike" to "Mic"),
+            brain = fake,
+            brainRewrite = true,
+        )
+        assertThat(out.clean.lowercase()).isEqualTo("meet mic later")
     }
 
     @Test

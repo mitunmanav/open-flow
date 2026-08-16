@@ -17,6 +17,8 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -25,14 +27,16 @@ import android.os.SystemClock
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
+import android.view.VelocityTracker
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
 import android.view.animation.DecelerateInterpolator
-import android.view.animation.OvershootInterpolator
+import android.view.animation.PathInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -42,26 +46,34 @@ import androidx.core.content.ContextCompat
 import app.openflow.BuildConfig
 import app.openflow.OpenFlowApp
 import app.openflow.R
+import app.openflow.ai.NoAI
 import app.openflow.notify.DictationNotifier
+import app.openflow.orchestrate.BrainRouter
+import app.openflow.orchestrate.PipelineArtifactPolicy
+import app.openflow.orchestrate.ProviderHealth
+import app.openflow.orchestrate.RouteSignals
+import app.openflow.orchestrate.SessionArtifact
+import app.openflow.orchestrate.SttRouter
 import app.openflow.prefs.FlowPrefs
 import app.openflow.ui.HapticFeel
 import app.openflow.ui.theme.BubbleTint
 import app.openflow.runtime.TrimPolicy
 import app.openflow.stt.providers.cloud.CloudEar
 import app.openflow.stt.AndroidSpeechEngine
-import app.openflow.stt.LanguagePolicy
 import app.openflow.stt.MainThreadHop
 import app.openflow.stt.SpeechEngine
 import app.openflow.stt.SttBias
 import app.openflow.stt.SttEngine
-import app.openflow.text.CleanupLevel
 import app.openflow.text.CleanupResult
+import app.openflow.text.CleanupLevel
+import app.openflow.text.CommandMode
 import app.openflow.text.CustomStyleConfig
-import app.openflow.text.Feature
-import app.openflow.text.FeatureAuto
-import app.openflow.text.FeatureGate
+import app.openflow.text.InsertPolish
+import app.openflow.text.PressEnterPolicy
 import app.openflow.text.LearnEngine
 import app.openflow.text.TextPostProcessor
+import app.openflow.text.VoiceCommands
+import app.openflow.text.StyleResolvePolicy
 import app.openflow.text.WritingStyle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -88,11 +100,16 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     private var bubblePulseRing: View? = null
     private var bubbleCancel: ImageView? = null
     private var bubbleDone: ImageView? = null
+    private var bubbleChipCopy: TextView? = null
+    private var bubbleChipUndo: TextView? = null
+    private var bubbleChipPaste: TextView? = null
     private var bubbleParams: WindowManager.LayoutParams? = null
     private var snapAnimator: ValueAnimator? = null
 
     /** Live listen ear from [OpenFlowApp.currentEar]. Not a raw [SttEngine]. */
     private var ear: SpeechEngine? = null
+    private var sessionEarId: String = "system"
+    private val providerHealth = ProviderHealth()
     private var listening = false
     private var pushToTalk = false
     /** True while stopAndFlush waits for last final — blocks re-entrant stop/start. */
@@ -133,6 +150,9 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     private var lastInserted: String = ""
     private var lastInsertAt: Long = 0L
     private var lastInsertPkg: String? = null
+    private var undoSnap: UndoInsert.Snapshot? = null
+    private var postStopAt: Long = 0L
+    private var lastInsertOk: Boolean = false
 
     /** Debug-only: adb inject without mic (see companion ACTION_INJECT). */
     private val injectReceiver = object : BroadcastReceiver() {
@@ -435,11 +455,17 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         bubbleLabel = view.findViewById(R.id.bubble_label)
         bubblePulseRing = view.findViewById(R.id.bubble_pulse_ring)
         bubbleCancel = view.findViewById(R.id.bubble_cancel)
-        bubbleDone = null // Done/save icon removed — tap bubble to insert
+        bubbleDone = view.findViewById(R.id.bubble_done)
+        bubbleChipCopy = view.findViewById(R.id.bubble_chip_copy)
+        bubbleChipUndo = view.findViewById(R.id.bubble_chip_undo)
+        bubbleChipPaste = view.findViewById(R.id.bubble_chip_paste)
 
-        // Wispr: Cancel discards; tap bubble inserts.
+        // Wispr: Cancel discards; Done inserts; tap bubble also inserts.
         bubbleCancel?.setOnClickListener {
             if (listening || stopInProgress) stopListening(save = false)
+        }
+        bubbleDone?.setOnClickListener {
+            if (listening || stopInProgress) stopListening(save = true)
         }
 
         if (prefs == null) prefs = FlowPrefs(this)
@@ -452,7 +478,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.BOTTOM or Gravity.END
@@ -492,6 +519,9 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         var startY = 0
         var dragged = false
         var longPressFired = false
+        var lastVx = 0f
+        var velocityTracker: VelocityTracker? = null
+        val slop = ViewConfiguration.get(this).scaledTouchSlop
         val longPress = Runnable {
             longPressFired = true
             pushToTalk = true
@@ -500,23 +530,29 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
         view.setOnTouchListener { v, event ->
             // Parent OnTouch returns true — Cancel/Done clicks never fire. Hit-test in ACTION_UP.
-            when (event.action) {
+            when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
+                    snapAnimator?.cancel()
+                    velocityTracker?.recycle()
+                    velocityTracker = VelocityTracker.obtain().also { it.addMovement(event) }
+                    lastVx = 0f
                     downRawX = event.rawX
                     downRawY = event.rawY
                     startX = params.x
                     startY = prefs?.bubbleY ?: params.y
                     dragged = false
                     longPressFired = false
-                    // Smooth press-in (Wispr-like).
                     animatePress(v, pressed = true)
                     if (!listening) mainHandler.postDelayed(longPress, 420)
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
+                    velocityTracker?.addMovement(event)
+                    velocityTracker?.computeCurrentVelocity(1000)
+                    lastVx = velocityTracker?.xVelocity ?: 0f
                     val dx = (event.rawX - downRawX).toInt()
                     val dy = (event.rawY - downRawY).toInt()
-                    if (abs(dx) + abs(dy) > 14) {
+                    if (!dragged && BubbleMotion.passedSlop(dx, dy, slop)) {
                         dragged = true
                         draggingNow = true
                         lastInteractionAt = SystemClock.elapsedRealtime()
@@ -526,6 +562,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                         }
                         mainHandler.removeCallbacks(longPress)
                     }
+                    if (!BubbleMotion.shouldUpdateLayout(dragged)) return@setOnTouchListener true
                     val dm = resources.displayMetrics
                     val h = v.height.takeIf { it > 0 } ?: v.measuredHeight.takeIf { it > 0 } ?: 120
                     params.x = (startX - dx).coerceAtLeast(0)
@@ -535,7 +572,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                         bubbleHeightPx = h
                     )
                     params.y = BubbleGeometry.parkYAboveIme(dragY, imeHeightPx)
-                    if (dragY < 40 && dragged) {
+                    if (dragY < 40) {
                         bubbleLabel?.visibility = View.VISIBLE
                         bubbleLabel?.text = getString(R.string.flow_bubble_snooze_hint)
                     }
@@ -550,6 +587,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                     draggingNow = false
                     lastInteractionAt = SystemClock.elapsedRealtime()
                     animatePress(v, pressed = false)
+                    velocityTracker?.recycle()
+                    velocityTracker = null
                     val dm = resources.displayMetrics
                     val h = v.height.takeIf { it > 0 } ?: v.measuredHeight.takeIf { it > 0 } ?: 120
                     val upDy = (event.rawY - downRawY).toInt()
@@ -564,19 +603,22 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                         refreshBubbleVisibility()
                         return@setOnTouchListener true
                     }
-                    if (dragged && prefs?.bubbleEdgeSnap == true) {
-                        snapBubbleToEdge(v, params)
-                    }
-                    if (dragged) {
+                    val snapping = dragged && prefs?.bubbleEdgeSnap == true
+                    params.y = BubbleGeometry.parkYAboveIme(savedY, imeHeightPx)
+                    if (snapping) {
+                        snapBubbleToEdge(v, params, lastVx)
+                    } else if (dragged) {
                         prefs?.let {
                             it.bubbleX = params.x
                             it.bubbleY = savedY
                         }
-                        params.y = BubbleGeometry.parkYAboveIme(savedY, imeHeightPx)
                         try {
                             windowManager?.updateViewLayout(v, params)
                         } catch (_: Exception) {
                         }
+                    }
+                    if (dragged && snapping) {
+                        prefs?.bubbleY = savedY
                     }
                     when (
                         BubbleTapPolicy.action(
@@ -585,12 +627,18 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                             dragged = dragged,
                             longPressFired = longPressFired,
                             hitCancel = hitVisible(bubbleCancel, event.rawX, event.rawY),
-                            hitDone = hitVisible(bubbleDone, event.rawX, event.rawY)
+                            hitDone = hitVisible(bubbleDone, event.rawX, event.rawY),
+                            hitCopy = hitVisible(bubbleChipCopy, event.rawX, event.rawY),
+                            hitUndo = hitVisible(bubbleChipUndo, event.rawX, event.rawY),
+                            hitPaste = hitVisible(bubbleChipPaste, event.rawX, event.rawY),
                         )
                     ) {
                         BubbleTapPolicy.Action.START -> startListening()
                         BubbleTapPolicy.Action.STOP_SAVE -> stopListening(save = true)
                         BubbleTapPolicy.Action.STOP_DISCARD -> stopListening(save = false)
+                        BubbleTapPolicy.Action.COPY -> copyLastToClipboard()
+                        BubbleTapPolicy.Action.UNDO -> undoLastInsert()
+                        BubbleTapPolicy.Action.PASTE -> pasteClipboardIntoField()
                         BubbleTapPolicy.Action.NONE -> { }
                     }
                     pushToTalk = false
@@ -612,23 +660,33 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             .start()
     }
 
-    private fun snapBubbleToEdge(view: View, params: WindowManager.LayoutParams) {
+    private fun snapBubbleToEdge(
+        view: View,
+        params: WindowManager.LayoutParams,
+        vxPxPerSec: Float = 0f,
+    ) {
         val dm = resources.displayMetrics
         val w = view.width.takeIf { it > 0 } ?: view.measuredWidth.takeIf { it > 0 } ?: 120
-        val targetX = BubbleGeometry.snapOffsetFromEnd(
+        val targetX = BubbleMotion.snapX(
             x = params.x,
+            vxPxPerSec = vxPxPerSec,
             screenWidthPx = dm.widthPixels,
-            bubbleWidthPx = w
+            bubbleWidthPx = w,
         )
         snapAnimator?.cancel()
         val startX = params.x
+        prefs?.bubbleX = targetX
         if (startX == targetX) {
             hapticEvent(HapticFeel.Event.TAP)
+            try {
+                windowManager?.updateViewLayout(view, params)
+            } catch (_: Exception) {
+            }
             return
         }
         snapAnimator = ValueAnimator.ofInt(startX, targetX).apply {
-            duration = 240L
-            interpolator = OvershootInterpolator(0.9f)
+            duration = BubbleMotion.snapDurationMs(abs(targetX - startX), vxPxPerSec)
+            interpolator = PathInterpolator(0.22f, 1f, 0.36f, 1f)
             addUpdateListener { anim ->
                 params.x = anim.animatedValue as Int
                 try {
@@ -638,7 +696,6 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             }
             start()
         }
-        prefs?.bubbleX = targetX
         hapticEvent(HapticFeel.Event.TAP)
     }
 
@@ -658,6 +715,9 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         bubblePulseRing = null
         bubbleCancel = null
         bubbleDone = null
+        bubbleChipCopy = null
+        bubbleChipUndo = null
+        bubbleChipPaste = null
         bubbleParams = null
     }
 
@@ -786,12 +846,150 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             Toast.makeText(this, R.string.flow_bubble_saved_in_app, Toast.LENGTH_SHORT).show()
             return
         }
+        copyTextToClipboard(text)
+        Toast.makeText(this, R.string.flow_bubble_copied_clipboard, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun copyTextToClipboard(text: String) {
+        if (text.isBlank()) return
         try {
             val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
             cm.setPrimaryClip(android.content.ClipData.newPlainText("Open Flow", text))
-            Toast.makeText(this, R.string.flow_bubble_copied_clipboard, Toast.LENGTH_SHORT).show()
         } catch (_: Exception) {
         }
+    }
+
+    private fun postStopActive(): Boolean {
+        if (listening || postStopAt <= 0L) return false
+        val text = prefs?.lastSessionClean.orEmpty()
+        val s = PostStopChips.state(
+            elapsedMs = SystemClock.elapsedRealtime() - postStopAt,
+            hasSessionText = text.isNotBlank(),
+            insertOk = lastInsertOk,
+            canUndo = UndoInsert.canUndo(undoSnap),
+        )
+        return s.any
+    }
+
+    private fun armPostStopChips(insertOk: Boolean) {
+        lastInsertOk = insertOk
+        postStopAt = SystemClock.elapsedRealtime()
+        refreshPostStopChips()
+    }
+
+    private fun clearPostStopChips() {
+        postStopAt = 0L
+        bubbleChipCopy?.visibility = View.GONE
+        bubbleChipUndo?.visibility = View.GONE
+        bubbleChipPaste?.visibility = View.GONE
+        updateBubbleVisuals()
+    }
+
+    private fun refreshPostStopChips() {
+        if (listening) return
+        if (postStopAt > 0L && !PostStopChips.visible(SystemClock.elapsedRealtime() - postStopAt)) {
+            clearPostStopChips()
+            return
+        }
+        val text = prefs?.lastSessionClean.orEmpty()
+        val s = PostStopChips.state(
+            elapsedMs = if (postStopAt <= 0L) Long.MAX_VALUE else SystemClock.elapsedRealtime() - postStopAt,
+            hasSessionText = text.isNotBlank(),
+            insertOk = lastInsertOk,
+            canUndo = UndoInsert.canUndo(undoSnap),
+        )
+        bubbleChipCopy?.visibility = if (s.copy) View.VISIBLE else View.GONE
+        bubbleChipUndo?.visibility = if (s.undo) View.VISIBLE else View.GONE
+        bubbleChipPaste?.visibility = if (s.paste) View.VISIBLE else View.GONE
+        if (s.any) updateBubbleVisuals()
+    }
+
+    private fun undoLastInsert() {
+        val snap = undoSnap ?: return
+        if (!UndoInsert.canUndo(snap)) return
+        val restored = UndoInsert.restoredField(snap)
+        if (writeFieldText(restored)) {
+            undoSnap = null
+            lastInserted = restored
+            clearPostStopChips()
+            Toast.makeText(this, R.string.flow_bubble_undone, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun pasteClipboardIntoField() {
+        val root = rootInActiveWindow
+        val node = resolveEditable(root, focusedEditable)
+        try {
+            root?.let {
+                @Suppress("DEPRECATION")
+                it.recycle()
+            }
+        } catch (_: Exception) {
+        }
+        if (node == null) {
+            Toast.makeText(this, R.string.flow_bubble_saved_in_app, Toast.LENGTH_SHORT).show()
+            return
+        }
+        try {
+            node.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+            val ok = node.performAction(AccessibilityNodeInfo.ACTION_PASTE)
+            if (!ok) {
+                Toast.makeText(this, R.string.flow_bubble_copied_clipboard, Toast.LENGTH_SHORT).show()
+            } else {
+                clearPostStopChips()
+            }
+        } finally {
+            @Suppress("DEPRECATION")
+            node.recycle()
+        }
+    }
+
+    fun useRawFromHistory(raw: String) {
+        val said = raw.trim()
+        if (said.isBlank()) return
+        val prefix = captureFieldPrefix()
+        val merged = UndoInsert.useRawMerged(prefix, said)
+        if (writeFieldText(merged)) {
+            prefs?.setLastSession(raw = said, clean = said)
+            Toast.makeText(this, R.string.restore_raw, Toast.LENGTH_SHORT).show()
+        } else {
+            copyTextToClipboard(said)
+            Toast.makeText(this, R.string.flow_bubble_copied_clipboard, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun writeFieldText(text: String): Boolean {
+        val root = rootInActiveWindow
+        val node = resolveEditable(root, focusedEditable)
+        try {
+            root?.let {
+                @Suppress("DEPRECATION")
+                it.recycle()
+            }
+        } catch (_: Exception) {
+        }
+        if (node == null) return false
+        return try {
+            setNodeText(node, text)
+        } finally {
+            @Suppress("DEPRECATION")
+            node.recycle()
+        }
+    }
+
+    private fun setNodeText(node: AccessibilityNodeInfo, text: String): Boolean {
+        val args = Bundle().apply {
+            putCharSequence(
+                AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
+                text
+            )
+        }
+        var ok = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+        if (!ok) {
+            node.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+            ok = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+        }
+        return ok
     }
 
     private fun onPulseTick() {
@@ -826,6 +1024,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             compactVisual = wantCompact
             applyVisualScale()
         }
+        refreshPostStopChips()
     }
 
     private fun setBubbleEmphasis(hasField: Boolean) {
@@ -843,6 +1042,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     private fun startListening() {
         if (stopInProgress) return
         if (listening) return
+        clearPostStopChips()
         if (prefs?.isSnoozed() == true) {
             prefs?.clearSnooze()
             refreshBubbleVisibility()
@@ -870,8 +1070,16 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         setListenChrome(0)
         setBubbleEmphasis(true)
 
-        val lang = LanguagePolicy.LOCKED
-        val ear = app.currentEar()
+        val lang = InsertPolish.language(prefs?.languageTag)
+        val autoRoute = app.enginePrefs.autoRoute
+        val earPick = SttRouter.pick(
+            auto = autoRoute,
+            manualEarId = app.enginePrefs.earId,
+            signals = routeSignals(),
+            health = providerHealth,
+        )
+        sessionEarId = earPick.providerId
+        val ear = if (autoRoute) app.registry.ear(sessionEarId) else app.currentEar()
         this.ear = ear
         ear.setListener(object : SpeechEngine.Listener {
             /** Accept STT while this generation is active (including flush). */
@@ -917,6 +1125,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
             override fun onError(message: String, fatal: Boolean) = ui {
                 if (!live() && !fatal) return@ui
+                if (fatal) providerHealth.recordFailure(sessionEarId)
                 if (BuildConfig.DEBUG) {
                     android.util.Log.w("OpenFlow.Bubble", "ear error fatal=$fatal msg=$message")
                 }
@@ -959,6 +1168,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
             override fun onReady() = ui {
                 if (!live()) return@ui
+                providerHealth.recordSuccess(sessionEarId)
                 val elapsed = (SystemClock.elapsedRealtime() - listenStartedAt) / 1000
                 if (prefs?.bubbleShowText == true) {
                     val current = bubbleLabel?.text?.toString().orEmpty()
@@ -1022,6 +1232,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         hapticSaveOrDiscard(save)
         // Keep listenGeneration stable so onFinal during flush is accepted.
         val gen = listenGeneration
+        val routedEarId = sessionEarId
         val prefix = fieldPrefix
         val dur = SystemClock.elapsedRealtime() - listenStartedAt
         bubbleLabel?.text = "…"
@@ -1051,38 +1262,15 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             stopInProgress = false
 
             if (save && raw.isNotBlank()) {
-                val lang = LanguagePolicy.LOCKED
-                polishSession(raw, prefix) { result ->
-                    val finalText = result.clean
-                    if (BuildConfig.DEBUG) {
-                        android.util.Log.i(
-                            "OpenFlow.Bubble",
-                            "commit cleanLen=${finalText.length} prefixLen=${prefix.length}"
-                        )
-                    }
-                    if (finalText.isNotBlank()) {
-                        commitSessionToField(finalText, prefix)
-                        prefs?.setLastSession(raw = result.raw, clean = finalText)
-                        lastInteractionAt = SystemClock.elapsedRealtime()
-                        val wordCount = finalText.split(WORD_SPLIT)
-                            .filter { it.isNotBlank() }.size
-                        val retention = prefs?.retentionPolicy ?: "keep"
-                        scope.launch(Dispatchers.IO) {
-                            runCatching {
-                                app.dictations.saveDictation(
-                                    rawText = result.raw,
-                                    cleanText = finalText,
-                                    durationMs = dur,
-                                    languageTag = lang,
-                                    retentionPolicy = retention
-                                )
-                            }
-                        }
-                        DictationNotifier.notifyIfPermitted(
-                            this@FlowAccessibilityService,
-                            wordCount
-                        )
-                    }
+                val lang = InsertPolish.language(prefs?.languageTag)
+                polishSession(raw, prefix, routedEarId) { result ->
+                    finishPolishedInsert(
+                        result = result,
+                        prefix = prefix,
+                        dur = dur,
+                        lang = lang,
+                        logTag = "OpenFlow.Bubble",
+                    )
                 }
             } else if (save && raw.isBlank()) {
                 bubbleLabel?.text = BubbleLabelFormatter.idle()
@@ -1142,33 +1330,14 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
         val prefix = captureFieldPrefix()
         val dur = 0L
-        polishSession(text, prefix) { result ->
-            val finalText = result.clean
-            android.util.Log.i(
-                "OpenFlow.Inject",
-                "done cleanLen=${finalText.length} prefixLen=${prefix.length} " +
-                    "level=${result.level} fieldOk=${finalText.isNotBlank()}"
+        polishSession(text, prefix, sessionEarId) { result ->
+            finishPolishedInsert(
+                result = result,
+                prefix = prefix,
+                dur = dur,
+                lang = InsertPolish.language(prefs?.languageTag),
+                logTag = "OpenFlow.Inject",
             )
-            if (finalText.isNotBlank()) {
-                commitSessionToField(finalText, prefix)
-                prefs?.setLastSession(raw = result.raw, clean = finalText)
-                lastInteractionAt = SystemClock.elapsedRealtime()
-                val wordCount = finalText.split(WORD_SPLIT).filter { it.isNotBlank() }.size
-                val retention = prefs?.retentionPolicy ?: "keep"
-                val lang = LanguagePolicy.LOCKED
-                scope.launch(Dispatchers.IO) {
-                    runCatching {
-                        app.dictations.saveDictation(
-                            rawText = result.raw,
-                            cleanText = finalText,
-                            durationMs = dur,
-                            languageTag = lang,
-                            retentionPolicy = retention
-                        )
-                    }
-                }
-                DictationNotifier.notifyIfPermitted(this@FlowAccessibilityService, wordCount)
-            }
         }
     }
 
@@ -1224,53 +1393,131 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         copyReceiverRegistered = false
     }
 
+    private fun routeSignals(): RouteSignals {
+        val online = runCatching {
+            val manager = getSystemService(ConnectivityManager::class.java)
+            val capabilities = manager?.getNetworkCapabilities(manager.activeNetwork)
+            capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true &&
+                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+        }.getOrDefault(false)
+        fun keyed(ids: Set<String>): Set<String> = ids.filterTo(mutableSetOf()) { id ->
+            runCatching { app.secrets.get(id).orEmpty().isNotBlank() }.getOrDefault(false)
+        }
+        return RouteSignals(
+            online = online,
+            keyedEars = keyed(CLOUD_EAR_IDS),
+            keyedBrains = keyed(CLOUD_BRAIN_IDS),
+        )
+    }
+
+    private fun looksLikeCommand(text: String): Boolean =
+        CommandMode.applyLocal(text) != text || VoiceCommands.apply(text) != text
+
     /**
      * Same path for stopListening + debug inject:
-     * dict → snippets → CleanupPipeline(level, style, custom) via [TextPostProcessor.polishSessionResult].
-     * Picked brain + [brainRewrite] when not none/on_phone. Field text only if Feature would be on.
+     * dict → snippets → CleanupPipeline(pref level) → optional brain (if picked) → dict again.
      */
     private fun polishSession(
         text: String,
         surroundingField: String,
+        routedEarId: String,
         onDone: (CleanupResult) -> Unit,
     ) {
         scope.launch(Dispatchers.IO) {
             val dict = app.dictations.dictionaryMap()
             val snip = app.dictations.snippetMap()
             val prefLevel = prefs?.cleanupLevel ?: "medium"
-            val earId = app.enginePrefs.earId
-            val brainId = app.enginePrefs.brainId
-            val picked = app.currentBrain()
-            val brainRewrite = Feature.HIGH_AI in FeatureAuto.of(earId, brainId)
-            val fieldOn = FieldContext.on(brainRewrite)
-            val surrounding = FieldContext.surrounding(fieldOn, surroundingField)
-            val brain = FieldContext.wrapBrain(picked, surrounding)
-            val level = if (FeatureGate.can(Feature.HIGH_AI, brainRewrite = brainRewrite)) {
-                CleanupLevel.HIGH
+            val level = InsertPolish.level(prefLevel)
+            val p = prefs
+            val style = if (p != null) {
+                StyleResolvePolicy.resolve(
+                    lastPackage,
+                    p.getStyleAppAssignments(),
+                    p.hubStylesMap(),
+                )
             } else {
-                CleanupLevel.fromPref(prefLevel)
+                WritingStyle.CASUAL
             }
-            val style = AppStylePolicy.styleFor(
-                lastPackage,
-                prefs?.style() ?: WritingStyle.CASUAL
-            )
-            val custom = prefs?.customStyleConfig() ?: CustomStyleConfig()
-            val result = TextPostProcessor.polishSessionResult(
-                raw = text,
-                style = style,
-                level = level,
-                custom = custom,
-                dictionary = dict,
-                snippets = snip,
-                brain = brain,
-                brainRewrite = brainRewrite,
-                earId = earId,
-                brainId = brainId,
-            )
+            val custom = p?.customStyleConfig() ?: CustomStyleConfig()
+            val autoRoute = app.enginePrefs.autoRoute
+            val (result, brainId) = if (autoRoute) {
+                val local = TextPostProcessor.polishSessionResult(
+                    raw = text,
+                    style = style,
+                    level = level,
+                    custom = custom,
+                    dictionary = dict,
+                    snippets = snip,
+                    brain = NoAI,
+                    brainRewrite = false,
+                    earId = routedEarId,
+                    brainId = "none",
+                    promptHint = null,
+                )
+                val pickedBrain = if (level == CleanupLevel.RAW) {
+                    "none"
+                } else {
+                    BrainRouter.pick(
+                        auto = true,
+                        manualBrainId = app.enginePrefs.brainId,
+                        signals = routeSignals(),
+                        health = providerHealth,
+                        looksLikeCommand = looksLikeCommand(text),
+                        textLen = local.clean.length,
+                    ).providerId
+                }
+                val artifact = if (pickedBrain == "none") {
+                    SessionArtifact(raw = local.raw, cleaned = local.clean)
+                } else {
+                    val surrounding = FieldContext.surrounding(true, surroundingField)
+                    val brain = FieldContext.wrapBrain(app.registry.brain(pickedBrain), surrounding)
+                    PipelineArtifactPolicy.build(local.raw, local.clean) { cleaned ->
+                        brain.enhance(cleaned, "cleanup")
+                    }.let { built ->
+                        built.copy(
+                            ai = TextPostProcessor.applyDictionary(
+                                built.ai,
+                                dict,
+                                sides = LearnEngine.sideBags(),
+                                autoKeys = LearnEngine.autoKeys(),
+                            )
+                        )
+                    }.also { built ->
+                        if (built.ai.isBlank()) providerHealth.recordFailure(pickedBrain)
+                        else providerHealth.recordSuccess(pickedBrain)
+                    }
+                }
+                local.copy(raw = artifact.raw, clean = artifact.bestAvailable()) to pickedBrain
+            } else {
+                val manualBrainId = InsertPolish.brainIdForInsert(app.enginePrefs.brainId)
+                val brainRewrite = InsertPolish.brainRewriteOnInsert(app.enginePrefs.brainId)
+                val surrounding = FieldContext.surrounding(
+                    FieldContext.on(brainRewrite),
+                    surroundingField,
+                )
+                val brain = if (brainRewrite) {
+                    FieldContext.wrapBrain(app.currentBrain(), surrounding)
+                } else {
+                    app.currentBrain()
+                }
+                TextPostProcessor.polishSessionResult(
+                    raw = text,
+                    style = style,
+                    level = level,
+                    custom = custom,
+                    dictionary = dict,
+                    snippets = snip,
+                    brain = brain,
+                    brainRewrite = brainRewrite,
+                    earId = app.enginePrefs.earId,
+                    brainId = manualBrainId,
+                    promptHint = null,
+                ) to manualBrainId
+            }
             android.util.Log.i(
                 "OpenFlow.Cleanup",
-                "level=$level pref=$prefLevel style=$style lang=${LanguagePolicy.LOCKED} " +
-                    "brain=$brainId rewrite=$brainRewrite field=${surrounding.isNotEmpty()} " +
+                "level=$level pref=$prefLevel style=$style lang=${InsertPolish.language(prefs?.languageTag)} " +
+                    "brain=$brainId auto=$autoRoute field=${surroundingField.isNotEmpty()} " +
                     "rawLen=${text.length} cleanLen=${result.clean.length} " +
                     "corr=${result.corrections.size} " +
                     "changed=${text.trim() != result.clean.trim()}"
@@ -1279,8 +1526,74 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
     }
 
-    private fun commitSessionToField(finalText: String, prefix: String) {
-        if (finalText.isBlank()) return
+    private fun finishPolishedInsert(
+        result: CleanupResult,
+        prefix: String,
+        dur: Long,
+        lang: String,
+        logTag: String,
+    ) {
+        val pe = PressEnterPolicy.apply(result.clean)
+        val finalText = pe.text
+        android.util.Log.i(
+            logTag,
+            "commit cleanLen=${finalText.length} prefixLen=${prefix.length} " +
+                "submit=${pe.submit} level=${result.level}"
+        )
+        if (finalText.isNotBlank()) {
+            val ok = commitSessionToField(finalText, prefix, result.raw)
+            if (ok && pe.submit) submitAfterInsert()
+            prefs?.setLastSession(raw = result.raw, clean = finalText)
+            lastInteractionAt = SystemClock.elapsedRealtime()
+            armPostStopChips(ok)
+            val wordCount = finalText.split(WORD_SPLIT)
+                .filter { it.isNotBlank() }.size
+            val retention = prefs?.retentionPolicy ?: "keep"
+            scope.launch(Dispatchers.IO) {
+                runCatching {
+                    app.dictations.saveDictation(
+                        rawText = result.raw,
+                        cleanText = finalText,
+                        durationMs = dur,
+                        languageTag = lang,
+                        retentionPolicy = retention
+                    )
+                }
+            }
+            DictationNotifier.notifyIfPermitted(this@FlowAccessibilityService, wordCount)
+        } else if (pe.submit) {
+            submitAfterInsert()
+        }
+    }
+
+    private fun submitAfterInsert() {
+        val how = InsertSubmitPolicy.how(submit = true, api = Build.VERSION.SDK_INT)
+        if (how == InsertSubmitPolicy.How.NONE) return
+        val root = rootInActiveWindow
+        val node = resolveEditable(root, focusedEditable)
+        try {
+            try {
+                root?.let {
+                    @Suppress("DEPRECATION")
+                    it.recycle()
+                }
+            } catch (_: Exception) {
+            }
+            if (node == null) return
+            val action = InsertSubmitPolicy.actionId(how) ?: return
+            node.performAction(action)
+        } finally {
+            try {
+                @Suppress("DEPRECATION")
+                node?.recycle()
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    private fun commitSessionToField(finalText: String, prefix: String, raw: String = ""): Boolean {
+        if (finalText.isBlank()) return false
+        val merged = FieldContext.afterPolish(prefix, finalText)
         val root = rootInActiveWindow
         val node = resolveEditable(root, focusedEditable)
         try {
@@ -1292,25 +1605,14 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
         if (node == null) {
             Toast.makeText(this, R.string.flow_bubble_saved_in_app, Toast.LENGTH_SHORT).show()
-            return
+            return false
         }
         try {
             if (!isUsableEditable(node)) {
                 Toast.makeText(this, R.string.flow_bubble_saved_in_app, Toast.LENGTH_SHORT).show()
-                return
+                return false
             }
-            val merged = FieldPolicy.mergeSession(prefix, finalText)
-            val args = Bundle().apply {
-                putCharSequence(
-                    AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
-                    merged
-                )
-            }
-            var ok = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
-            if (!ok) {
-                node.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
-                ok = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
-            }
+            val ok = setNodeText(node, merged)
             android.util.Log.i(
                 "OpenFlow.Bubble",
                 "setText ok=$ok mergedLen=${merged.length} class=${node.className}"
@@ -1319,18 +1621,16 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 lastInserted = merged
                 lastInsertAt = SystemClock.elapsedRealtime()
                 lastInsertPkg = node.packageName?.toString() ?: lastPackage
+                undoSnap = UndoInsert.afterInsert(
+                    previousField = prefix,
+                    merged = merged,
+                    raw = raw,
+                    clean = finalText,
+                )
             }
             if (!ok) {
-                // Wispr-style fallback: put on clipboard so user can paste.
-                try {
-                    val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                    cm.setPrimaryClip(
-                        android.content.ClipData.newPlainText("Open Flow", merged)
-                    )
-                    Toast.makeText(this, R.string.flow_bubble_copied_clipboard, Toast.LENGTH_SHORT).show()
-                } catch (_: Exception) {
-                    Toast.makeText(this, R.string.flow_bubble_saved_in_app, Toast.LENGTH_SHORT).show()
-                }
+                copyTextToClipboard(merged)
+                Toast.makeText(this, R.string.flow_bubble_copied_clipboard, Toast.LENGTH_SHORT).show()
             }
             focusedEditable?.let {
                 @Suppress("DEPRECATION")
@@ -1338,6 +1638,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             }
             @Suppress("DEPRECATION")
             focusedEditable = AccessibilityNodeInfo.obtain(node)
+            return ok
         } finally {
             @Suppress("DEPRECATION")
             node.recycle()
@@ -1368,7 +1669,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     /**
      * Clean chrome:
      * - Idle: soft pill + charcoal/cream (tint prefs)
-     * - Listening: Cancel | status (tap bubble to insert; no Done icon)
+     * - Listening: Cancel | status | Done
      * Default shape: pill (product clean).
      */
     private fun updateBubbleVisuals() {
@@ -1410,6 +1711,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
             cancel?.visibility = View.VISIBLE
             cancel?.setColorFilter(on)
+            bubbleDone?.visibility = View.VISIBLE
+            bubbleDone?.setColorFilter(on)
             icon.visibility = View.VISIBLE
             icon.setColorFilter(on)
             icon.layoutParams = LinearLayout.LayoutParams(
@@ -1424,10 +1727,46 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
             // Pulse WRAP_CONTENT was the grey veil. Idle-only; never on listen.
             pulseRing.visibility = View.GONE
-        } else {
+            bubbleChipCopy?.visibility = View.GONE
+            bubbleChipUndo?.visibility = View.GONE
+            bubbleChipPaste?.visibility = View.GONE
+        } else if (postStopActive()) {
             cancel?.visibility = View.GONE
+            bubbleDone?.visibility = View.GONE
             label.visibility = View.GONE
             pulseRing.visibility = View.GONE
+            val bg = GradientDrawable().apply {
+                this.shape = GradientDrawable.RECTANGLE
+                cornerRadius = BubbleChrome.cornerPx("listen", density, p.bubbleRoundness)
+                setColor(fill)
+                setStroke(stroke, on)
+            }
+            root.background = bg
+            root.layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER
+            )
+            val padH = (8f * density).toInt()
+            val padV = (6f * density).toInt()
+            root.setPadding(padH, padV, padH, padV)
+            icon.visibility = View.VISIBLE
+            icon.setColorFilter(on)
+            icon.layoutParams = LinearLayout.LayoutParams(
+                (18f * density).toInt(),
+                (18f * density).toInt()
+            ).apply { gravity = Gravity.CENTER }
+            listOf(bubbleChipCopy, bubbleChipUndo, bubbleChipPaste).forEach { chip ->
+                chip?.setTextColor(on)
+            }
+        } else {
+            cancel?.visibility = View.GONE
+            bubbleDone?.visibility = View.GONE
+            label.visibility = View.GONE
+            pulseRing.visibility = View.GONE
+            bubbleChipCopy?.visibility = View.GONE
+            bubbleChipUndo?.visibility = View.GONE
+            bubbleChipPaste?.visibility = View.GONE
 
             val (w, h) = BubbleGeometry.overlaySizePx(listening = false, density = density, shape = shape)
             root.layoutParams = FrameLayout.LayoutParams(w, h, Gravity.CENTER)
@@ -1456,8 +1795,13 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         val params = bubbleParams ?: return
         val density = resources.displayMetrics.density
         val shape = FlowPrefs.normalizeBubbleShape(prefs?.bubbleShape.orEmpty())
-        val wide = listening
-        val (w, h) = BubbleGeometry.overlaySizePx(wide, density, shape)
+        val wide = listening || postStopActive()
+        val (w, h) = BubbleGeometry.overlaySizePx(
+            listening,
+            density,
+            shape,
+            chips = wide && !listening,
+        )
         params.width = if (w > 0) w else WindowManager.LayoutParams.WRAP_CONTENT
         params.height = if (h > 0) h else WindowManager.LayoutParams.WRAP_CONTENT
         val view = bubbleView ?: return
@@ -1531,6 +1875,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
     companion object {
         private val WORD_SPLIT = Regex("\\s+")
+        private val CLOUD_EAR_IDS = setOf("openai", "deepgram", "assemblyai", "sarvam")
+        private val CLOUD_BRAIN_IDS = setOf("openai", "anthropic", "grok", "gemini")
 
         /** Debug broadcast action (any build id; handler no-ops if not DEBUG). */
         const val ACTION_INJECT = "app.openflow.INJECT_DICTATION"

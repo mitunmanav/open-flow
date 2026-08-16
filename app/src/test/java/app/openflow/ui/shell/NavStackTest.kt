@@ -6,9 +6,41 @@ import org.junit.Test
 class NavStackTest {
 
     @Test
+    fun wispr_android_tabs_are_home_dict_snips_style() {
+        assertThat(BottomBarRoutes).containsExactly(
+            AppRoute.Home,
+            AppRoute.Dictionary,
+            AppRoute.Snippets,
+            AppRoute.Style,
+        ).inOrder()
+        assertThat(AppRoute.History.isBottomBar()).isFalse()
+        assertThat(AppRoute.Settings.isBottomBar()).isFalse()
+        assertThat(AppRoute.Snippets.isSettingsSubtree()).isFalse()
+        assertThat(AppRoute.Style.isSettingsSubtree()).isFalse()
+        assertThat(AppRoute.Settings.backTarget()).isEqualTo(AppRoute.Home)
+        assertThat(AppRoute.History.backTarget()).isEqualTo(AppRoute.Home)
+        assertThat(AppRoute.Snippets.backTarget()).isEqualTo(AppRoute.Snippets)
+        assertThat(AppRoute.Style.backTarget()).isEqualTo(AppRoute.Style)
+    }
+
+    @Test
     fun bottom_tab_replaces_stack() {
-        val s = NavStack.navigate(listOf(AppRoute.Home, AppRoute.Appearance), AppRoute.History)
-        assertThat(s).containsExactly(AppRoute.History)
+        val s = NavStack.navigate(listOf(AppRoute.Home, AppRoute.Appearance), AppRoute.Snippets)
+        assertThat(s).containsExactly(AppRoute.Snippets)
+    }
+
+    @Test
+    fun history_is_home_child_not_a_tab() {
+        val s = NavStack.navigate(listOf(AppRoute.Home), AppRoute.History)
+        assertThat(s).containsExactly(AppRoute.Home, AppRoute.History).inOrder()
+        assertThat(NavStack.goBack(s)).containsExactly(AppRoute.Home)
+    }
+
+    @Test
+    fun settings_gear_opens_hub_not_tab() {
+        val s = NavStack.navigate(listOf(AppRoute.Dictionary), AppRoute.Settings)
+        assertThat(s).containsExactly(AppRoute.Settings)
+        assertThat(NavStack.goBack(s)).containsExactly(AppRoute.Home)
     }
 
     @Test
@@ -86,7 +118,7 @@ class NavStackTest {
         assertThat(AppRoute.Appearance.backTarget()).isEqualTo(AppRoute.Settings)
         assertThat(AppRoute.Privacy.backTarget()).isEqualTo(AppRoute.Settings)
         assertThat(AppRoute.SpeechAi.backTarget()).isEqualTo(AppRoute.Settings)
-        assertThat(AppRoute.Settings.backTarget()).isEqualTo(AppRoute.Settings)
+        assertThat(AppRoute.Settings.backTarget()).isEqualTo(AppRoute.Home)
         assertThat(AppRoute.Home.backTarget()).isEqualTo(AppRoute.Home)
         assertThat(AppRoute.Dictionary.backTarget()).isEqualTo(AppRoute.Dictionary)
     }

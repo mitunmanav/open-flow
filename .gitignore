@@ -61,9 +61,6 @@ Thumbs.db
 # Local agent notes (not public)
 .grok/
 .agents/
-info/sessions/
-docs/REQUESTS.md
-docs/UI-QA.md
 dist/DESKTOP-FOLDER.txt
 
 # Local agent notes (optional machine state)
@@ -74,12 +71,10 @@ dist/DESKTOP-FOLDER.txt
 
 # Development / agent files (local only — not GitHub)
 AGENTS.md
-docs/AUDIT-*.md
 docs/BASELINE.md
 docs/FEATURES.md
 docs/HANDOFF.md
 docs/INDEX.md
-docs/MASTER-PLAN.md
 docs/PROCESS.md
 docs/SHIP.md
 docs/WISPR-SMALL-FEATURES-MAP.md

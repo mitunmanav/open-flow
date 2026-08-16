@@ -35,9 +35,14 @@ class AndroidCloudSocket(
         if (!allowUrl(url)) throw IOException("blocked url")
         val builder = Request.Builder().url(url)
         for ((k, v) in headers) builder.header(k, v)
+        lateinit var hold: HoldUntilOpenSession
         val ws = open(
             builder.build(),
             object : WebSocketListener() {
+                override fun onOpen(webSocket: WebSocket, response: Response) {
+                    hold.markOpen()
+                }
+
                 override fun onMessage(webSocket: WebSocket, text: String) {
                     onText(text)
                 }
@@ -50,7 +55,7 @@ class AndroidCloudSocket(
                 }
             },
         )
-        return object : CloudSession {
+        val inner = object : CloudSession {
             override fun send(bytes: ByteArray) {
                 if (bytes.isEmpty()) return
                 ws.send(bytes.toByteString())
@@ -64,6 +69,8 @@ class AndroidCloudSocket(
                 ws.close(1000, null)
             }
         }
+        hold = HoldUntilOpenSession(inner)
+        return hold
     }
 
     companion object {

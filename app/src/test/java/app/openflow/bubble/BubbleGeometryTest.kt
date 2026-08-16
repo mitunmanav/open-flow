@@ -125,10 +125,10 @@ class BubbleGeometryTest {
     }
 
     @Test
-    fun listen_is_220x48_regardless_of_shape() {
+    fun listen_is_264x48_regardless_of_shape() {
         for (shape in listOf("pill", "circle", "dot", "square")) {
             val (w, h) = BubbleGeometry.overlaySizePx(listening = true, density = 2f, shape = shape)
-            assertThat(w).isEqualTo(440)
+            assertThat(w).isEqualTo(528)
             assertThat(h).isEqualTo(96)
         }
     }
@@ -145,5 +145,19 @@ class BubbleGeometryTest {
         val d = BubbleGeometry.overlaySizePx(false, 2f, "dot")
         assertThat(d.first).isLessThan(c.first)
         assertThat(d.first).isEqualTo(d.second)
+    }
+
+    @Test
+    fun overlaySizePx_chips_uses_compact_bar() {
+        val idle = BubbleGeometry.overlaySizePx(listening = false, density = 2f, shape = "pill")
+        val chips = BubbleGeometry.overlaySizePx(
+            listening = false,
+            density = 2f,
+            shape = "pill",
+            chips = true,
+        )
+        assertThat(chips.second).isEqualTo(idle.second)
+        assertThat(chips.first).isGreaterThan(idle.first)
+        assertThat(chips.first).isAtMost((200f * 2f).toInt())
     }
 }

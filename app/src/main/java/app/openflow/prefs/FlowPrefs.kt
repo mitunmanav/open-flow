@@ -2,6 +2,8 @@ package app.openflow.prefs
 
 import android.content.Context
 import android.content.SharedPreferences
+import app.openflow.bubble.AppCategory
+import app.openflow.bubble.AppOverride
 import app.openflow.bubble.BubbleChrome
 import app.openflow.stt.LanguagePolicy
 import app.openflow.stt.SttTuning
@@ -10,6 +12,7 @@ import app.openflow.text.CleanupLevel
 import app.openflow.text.CustomStyleConfig
 import app.openflow.text.EndPunct
 import app.openflow.text.LearnEngine
+import app.openflow.text.StyleCategory
 import app.openflow.text.WritingStyle
 import app.openflow.ui.HapticFeel
 import app.openflow.ui.theme.BubbleTint
@@ -55,10 +58,10 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         set(v) = store.putString("bubble_mode", normalizeBubbleMode(v))
 
     var languageTag: String
-        get() = LanguagePolicy.force(
+        get() = LanguagePolicy.normalize(
             store.getString("language_tag", SttTuning.DEFAULT_LANGUAGE)
         )
-        set(v) = store.putString("language_tag", LanguagePolicy.force(v))
+        set(v) = store.putString("language_tag", LanguagePolicy.normalize(v))
 
     /** formal | casual | very_casual | excited | custom */
     var styleName: String
@@ -97,6 +100,11 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
     var seenHowTo: Boolean
         get() = store.getString("seen_how_to", "false") == "true"
         set(v) = store.putString("seen_how_to", if (v) "true" else "false")
+
+    /** Home local scratch note (device-only). */
+    var homeNote: String
+        get() = store.getString(KEY_HOME_NOTE, "")
+        set(v) = store.putString(KEY_HOME_NOTE, v)
 
     fun style(): WritingStyle = WritingStyle.fromPref(styleName)
 
@@ -297,8 +305,146 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
             app.openflow.display.DisplayRefreshPolicy.normalizePreference(v).toString()
         )
 
+    var appContextEnabled: Boolean
+        get() = store.getString("app_context_enabled", "true") == "true"
+        set(v) = store.putString("app_context_enabled", if (v) "true" else "false")
+
+    fun getCategoryStyle(category: AppCategory): WritingStyle {
+        val raw = store.getString("cat_style_${category.name}", "")
+        return if (raw.isNotEmpty()) WritingStyle.fromPref(raw) else category.defaultStyle
+    }
+
+    fun setCategoryStyle(category: AppCategory, style: WritingStyle) {
+        store.putString("cat_style_${category.name}", style.name)
+    }
+
+    fun getCategoryPrompt(category: AppCategory): String {
+        return store.getString("cat_prompt_${category.name}", "")
+    }
+
+    fun setCategoryPrompt(category: AppCategory, prompt: String) {
+        store.putString("cat_prompt_${category.name}", prompt.trim())
+    }
+
+    fun getAppOverrides(): List<AppOverride> {
+        val raw = store.getString("app_overrides", "")
+        return parseAppOverrides(raw)
+    }
+
+    fun getAppOverride(packageName: String?): AppOverride? {
+        val pkg = packageName.orEmpty().lowercase().trim()
+        if (pkg.isEmpty()) return null
+        return getAppOverrides().firstOrNull { it.packageName.lowercase().trim() == pkg }
+    }
+
+    fun saveAppOverride(override: AppOverride) {
+        val current = getAppOverrides().filterNot {
+            it.packageName.equals(override.packageName, ignoreCase = true)
+        }.toMutableList()
+        current.add(override)
+        store.putString("app_overrides", encodeAppOverrides(current))
+    }
+
+    fun deleteAppOverride(packageName: String) {
+        val current = getAppOverrides().filterNot {
+            it.packageName.equals(packageName, ignoreCase = true)
+        }
+        store.putString("app_overrides", encodeAppOverrides(current))
+    }
+
+    /** Wispr-shaped Style hub: per-category WritingStyle. */
+    fun getHubStyle(category: StyleCategory): WritingStyle {
+        migrateLegacyAppContextIfNeeded()
+        val raw = store.getString("hub_style_${category.name}", "")
+        val style = if (raw.isNotEmpty()) WritingStyle.fromPref(raw) else category.defaultStyle
+        return category.coerce(style)
+    }
+
+    fun setHubStyle(category: StyleCategory, style: WritingStyle) {
+        store.putString("hub_style_${category.name}", category.coerce(style).name)
+    }
+
+    fun hubStylesMap(): Map<StyleCategory, WritingStyle> =
+        StyleCategory.entries.associateWith { getHubStyle(it) }
+
+    fun getStyleAppAssignments(): Map<String, StyleCategory> {
+        migrateLegacyAppContextIfNeeded()
+        val raw = store.getString("style_app_assignments", "")
+        if (raw.isBlank()) return emptyMap()
+        return raw.lines().mapNotNull { line ->
+            val parts = line.split(";", limit = 2)
+            if (parts.size < 2) return@mapNotNull null
+            val pkg = parts[0].trim().lowercase()
+            if (pkg.isEmpty()) return@mapNotNull null
+            pkg to StyleCategory.fromName(parts[1])
+        }.toMap()
+    }
+
+    fun setStyleAppAssignment(packageName: String, category: StyleCategory) {
+        val pkg = packageName.trim().lowercase()
+        if (pkg.isEmpty()) return
+        val next = getStyleAppAssignments().toMutableMap()
+        next[pkg] = category
+        store.putString("style_app_assignments", encodeStyleAssignments(next))
+    }
+
+    fun removeStyleAppAssignment(packageName: String) {
+        val pkg = packageName.trim().lowercase()
+        val next = getStyleAppAssignments().toMutableMap()
+        next.remove(pkg)
+        store.putString("style_app_assignments", encodeStyleAssignments(next))
+    }
+
+    /**
+     * One-shot: old 7-cat AppContext → 4-cat Style hub.
+     * MESSAGING→PERSONAL, WORK_COLLAB→WORK, EMAIL→EMAIL, else OTHER.
+     */
+    fun migrateLegacyAppContextIfNeeded() {
+        if (store.getString("style_hub_migrated", "") == "1") return
+        val messaging = getCategoryStyle(AppCategory.MESSAGING)
+        val work = getCategoryStyle(AppCategory.WORK_COLLAB)
+        val email = getCategoryStyle(AppCategory.EMAIL)
+        val other = getCategoryStyle(AppCategory.GENERAL)
+
+        if (store.getString("hub_style_PERSONAL", "").isEmpty()) {
+            store.putString("hub_style_PERSONAL", StyleCategory.PERSONAL.coerce(messaging).name)
+        }
+        if (store.getString("hub_style_WORK", "").isEmpty()) {
+            store.putString("hub_style_WORK", StyleCategory.WORK.coerce(work).name)
+        }
+        if (store.getString("hub_style_EMAIL", "").isEmpty()) {
+            store.putString("hub_style_EMAIL", StyleCategory.EMAIL.coerce(email).name)
+        }
+        if (store.getString("hub_style_OTHER", "").isEmpty()) {
+            store.putString("hub_style_OTHER", StyleCategory.OTHER.coerce(other).name)
+        }
+
+        if (store.getString("style_app_assignments", "").isEmpty()) {
+            val mapped = getAppOverrides().associate { ov ->
+                val cat = when (ov.category) {
+                    AppCategory.MESSAGING -> StyleCategory.PERSONAL
+                    AppCategory.WORK_COLLAB -> StyleCategory.WORK
+                    AppCategory.EMAIL -> StyleCategory.EMAIL
+                    else -> StyleCategory.OTHER
+                }
+                ov.packageName.lowercase().trim() to cat
+            }.filterKeys { it.isNotEmpty() }
+            if (mapped.isNotEmpty()) {
+                store.putString("style_app_assignments", encodeStyleAssignments(mapped))
+            }
+        }
+
+        store.putString("style_hub_migrated", "1")
+    }
+
+    private fun encodeStyleAssignments(map: Map<String, StyleCategory>): String =
+        map.entries.joinToString("\n") { (pkg, cat) ->
+            "${pkg.replace(";", "_").replace("\n", " ")};${cat.name}"
+        }
+
     companion object {
         const val PREFS_NAME = "openflow_prefs"
+        private const val KEY_HOME_NOTE = "home_note"
 
         /** Product default: light brutal (not soft M3). */
         fun defaultVisualSkinStorage(): String = VisualSkin.BRUTAL.storage
@@ -332,12 +478,38 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
                 "keep", "wipe_24h", "never_store" -> value.lowercase()
                 else -> "keep"
             }
+
+        fun encodeAppOverrides(list: List<AppOverride>): String {
+            return list.joinToString("\n") { ov ->
+                val safePkg = ov.packageName.replace(";", "_").replace("\n", " ").trim()
+                val safeCat = ov.category.name
+                val safeStyle = ov.style.name
+                val safePrompt = ov.customPrompt.replace("\n", "\\n").replace(";", "\\;")
+                "$safePkg;$safeCat;$safeStyle;$safePrompt"
+            }
+        }
+
+        fun parseAppOverrides(raw: String): List<AppOverride> {
+            if (raw.isBlank()) return emptyList()
+            return raw.lines().mapNotNull { line ->
+                val parts = line.split(";")
+                if (parts.size >= 4) {
+                    val pkg = parts[0].trim()
+                    val cat = AppCategory.fromName(parts[1])
+                    val style = WritingStyle.fromPref(parts[2])
+                    val prompt = parts.drop(3).joinToString(";").replace("\\n", "\n").replace("\\;", ";")
+                    if (pkg.isNotEmpty()) AppOverride(pkg, cat, style, prompt) else null
+                } else null
+            }
+        }
     }
 }
 
 interface PrefsStore {
     fun getString(key: String, default: String): String
     fun putString(key: String, value: String)
+    fun getBoolean(key: String, default: Boolean): Boolean
+    fun putBoolean(key: String, value: Boolean)
     fun getFloat(key: String, default: Float): Float
     fun putFloat(key: String, value: Float)
     fun getLong(key: String, default: Long): Long
@@ -350,6 +522,13 @@ class SharedPrefsStore(private val sp: SharedPreferences) : PrefsStore {
 
     override fun putString(key: String, value: String) {
         sp.edit().putString(key, value).apply()
+    }
+
+    override fun getBoolean(key: String, default: Boolean): Boolean =
+        sp.getBoolean(key, default)
+
+    override fun putBoolean(key: String, value: Boolean) {
+        sp.edit().putBoolean(key, value).apply()
     }
 
     override fun getFloat(key: String, default: Float): Float = sp.getFloat(key, default)
@@ -373,6 +552,13 @@ class MemoryPrefsStore : PrefsStore {
         map[key] as? String ?: default
 
     override fun putString(key: String, value: String) {
+        map[key] = value
+    }
+
+    override fun getBoolean(key: String, default: Boolean): Boolean =
+        map[key] as? Boolean ?: default
+
+    override fun putBoolean(key: String, value: Boolean) {
         map[key] = value
     }
 

@@ -1,6 +1,7 @@
 package app.openflow.ai.providers.cloud
 
 import app.openflow.BuildConfig
+import app.openflow.ai.BrainSystemPrompt
 import app.openflow.ai.TextAIProvider
 
 class AnthropicBrain(
@@ -20,7 +21,7 @@ class AnthropicBrain(
         val key = apiKey().trim()
         if (key.isEmpty()) return text
         val outbound = CloudMinimize.forBrain(text).ifEmpty { text }
-        val system = if (mode == "command") outbound else CLEAN
+        val system = if (mode == "command") outbound else BrainSystemPrompt.cleanup(mode)
         val user = outbound
         val body = """{"model":"${ChatJson.escape(model)}","max_tokens":1024,"system":"${ChatJson.escape(system)}","messages":[{"role":"user","content":"${ChatJson.escape(user)}"}]}"""
         val headers = mapOf(
@@ -41,6 +42,5 @@ class AnthropicBrain(
 
     companion object {
         private const val MESSAGES = "https://api.anthropic.com/v1/messages"
-        private const val CLEAN = "Clean dictation into natural polished text. Remove stutters, filler words (um, uh, like), and false starts. Fix punctuation, capitalization, and grammar. DO NOT answer questions or converse. Output ONLY the cleaned transcript. do not invent facts."
     }
 }

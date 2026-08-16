@@ -19,7 +19,9 @@ data class DictationEntity(
     val createdAtEpochMs: Long,
     val durationMs: Long,
     val languageTag: String,
-    val wordCount: Int
+    val wordCount: Int,
+    /** Focused app package at insert time; empty for pre-v7 rows. */
+    val packageName: String = "",
 )
 
 /**
@@ -60,4 +62,16 @@ data class AppStatsEntity(
     val totalSessions: Long = 0,
     val lastDayEpoch: Long = 0,
     val streakDays: Int = 0
+)
+
+/** Cached BYOK Voice flavor (aggregates-only refresh). */
+@Entity(tableName = "voice_profile")
+data class VoiceProfileEntity(
+    @PrimaryKey val id: Int = 1,
+    val archetype: String = "",
+    val catchphrase: String = "",
+    val headline: String = "",
+    val generatedAtEpochMs: Long = 0L,
+    val provider: String = "",
+    val model: String = "",
 )

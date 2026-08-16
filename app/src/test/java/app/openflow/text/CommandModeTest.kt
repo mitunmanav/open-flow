@@ -68,4 +68,16 @@ class CommandModeTest {
         val out = CommandMode.applyLocal(input)
         assertThat(out).isEqualTo("just a regular sentence about things")
     }
+
+    @Test
+    fun organize_into_bullets_formats_items() = runTest {
+        val out = CommandMode.applyLocal("organize into bullets milk comma eggs")
+        assertThat(out).isEqualTo("• Milk\n• Eggs")
+    }
+
+    @Test
+    fun make_a_list_formats_items() = runTest {
+        val out = CommandMode.applyLocal("make a list milk comma eggs")
+        assertThat(out).isEqualTo("• Milk\n• Eggs")
+    }
 }

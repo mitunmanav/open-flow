@@ -16,6 +16,7 @@ object NavStack {
     /** Navigate to [dest]. Bottom tabs replace stack; sub-screens push. */
     fun navigate(stack: List<AppRoute>, dest: AppRoute): List<AppRoute> {
         if (dest.isBottomBar()) return listOf(dest)
+        if (dest == AppRoute.Settings) return listOf(AppRoute.Settings)
         val cur = current(stack)
         if (cur == dest) return stack.ifEmpty { listOf(AppRoute.Home) }
         var base = stack.ifEmpty { listOf(AppRoute.Home) }
@@ -31,8 +32,11 @@ object NavStack {
     fun canGoBack(stack: List<AppRoute>): Boolean {
         if (stack.size > 1) return true
         val cur = stack.singleOrNull() ?: return false
-        if (cur.isSettingsSubtree() && cur != AppRoute.Settings) return true
-        return cur.isBottomBar() && cur != AppRoute.Home
+        if (cur == AppRoute.Setup) return false
+        if (cur == AppRoute.Home) return false
+        if (cur.isSettingsSubtree()) return true
+        if (cur.isBottomBar()) return true
+        return true
     }
 
     fun goBack(stack: List<AppRoute>): List<AppRoute> {
@@ -41,14 +45,14 @@ object NavStack {
         if (cur != null && cur.isSettingsSubtree() && cur != AppRoute.Settings) {
             return listOf(AppRoute.Settings)
         }
-        if (cur != null && cur.isBottomBar() && cur != AppRoute.Home) {
+        if (cur != null && cur != AppRoute.Home && cur != AppRoute.Setup) {
             return listOf(AppRoute.Home)
         }
         return stack.ifEmpty { listOf(AppRoute.Home) }
     }
 
     fun openDeepLink(dest: AppRoute): List<AppRoute> = when {
-        dest.isBottomBar() -> listOf(dest)
+        dest.isBottomBar() || dest == AppRoute.Settings -> listOf(dest)
         dest.isSettingsSubtree() -> listOf(AppRoute.Settings, dest)
         else -> listOf(AppRoute.Home, dest)
     }

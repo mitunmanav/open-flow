@@ -60,6 +60,7 @@ private val bottomItems = listOf(
     NavItem(AppRoute.Dictionary, "Dict", OpenIcons.BookDesc, OpenIcons.Book, "nav_dictionary"),
     NavItem(AppRoute.Snippets, "Snips", OpenIcons.ShortTextDesc, OpenIcons.ShortText, "nav_snippets"),
     NavItem(AppRoute.Style, "Style", OpenIcons.StyleDesc, OpenIcons.Style, "nav_style"),
+    NavItem(AppRoute.Insights, "Insights", OpenIcons.InsightsDesc, OpenIcons.Insights, "nav_insights"),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)

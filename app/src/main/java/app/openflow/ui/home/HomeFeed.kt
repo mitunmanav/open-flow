@@ -63,6 +63,7 @@ fun HomeFeed(
     micOn: Boolean,
     onEnableBubble: () -> Unit,
     onMic: () -> Unit,
+    onOpenInsights: () -> Unit = {},
     dictationCard: @Composable (
         d: app.openflow.data.DictationEntity,
         onDelete: () -> Unit,
@@ -298,6 +299,13 @@ fun HomeFeed(
                 }
             }
         }
+
+        OpenChip(
+            label = "Open Insights",
+            isOn = false,
+            onClick = onOpenInsights,
+            modifier = Modifier.testTag("home_open_insights"),
+        )
 
         OpenCard(modifier = Modifier.testTag("home_local_note")) {
             Column(

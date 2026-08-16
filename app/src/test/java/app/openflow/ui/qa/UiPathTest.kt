@@ -20,6 +20,7 @@ class UiPathTest {
             AppRoute.Dictionary,
             AppRoute.Snippets,
             AppRoute.Style,
+            AppRoute.Insights,
             AppRoute.Settings,
             AppRoute.SpeechAi,
             AppRoute.Appearance,
@@ -106,6 +107,11 @@ class UiPathTest {
             "snippet_fab",
             "home_stats_pages",
             "home_banner_repair",
+            "home_open_insights",
+            "nav_insights",
+            "insights_screen",
+            "insights_tab_usage",
+            "insights_tab_voice",
         )
     }
 }

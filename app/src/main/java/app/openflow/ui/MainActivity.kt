@@ -139,6 +139,7 @@ import app.openflow.ui.home.HomeBannerPolicy
 import app.openflow.ui.home.HomeFeed
 import app.openflow.ui.home.ModuleEditorVisibility
 import app.openflow.ui.home.UiScrollPolicy
+import app.openflow.ui.insights.InsightsScreen
 import app.openflow.ui.privacy.PrivacyHonesty
 import app.openflow.ui.setup.FirstRunPolicy
 import app.openflow.ui.setup.SetupWizard
@@ -373,11 +374,16 @@ class MainActivity : ComponentActivity() {
                                     }
                                 },
                                 onMic = { micPermission.launch(Manifest.permission.RECORD_AUDIO) },
+                                onOpenInsights = { goTo(AppRoute.Insights) },
                             )
                             AppRoute.History -> HistoryScreen(app)
                             AppRoute.Dictionary -> DictionaryTab(app)
                             AppRoute.Snippets -> SnippetsTab(app)
                             AppRoute.Style -> StyleTab(app.prefs)
+                            AppRoute.Insights -> InsightsScreen(
+                                app = app,
+                                onOpenSpeechAi = { goTo(AppRoute.SpeechAi) },
+                            )
                             AppRoute.Settings -> SettingsHub(
                                 onSpeechAi = { goTo(AppRoute.SpeechAi) },
                                 onAppearance = { goTo(AppRoute.Appearance) },
@@ -489,6 +495,7 @@ private fun HomeHub(
     micOn: Boolean,
     onEnableBubble: () -> Unit,
     onMic: () -> Unit,
+    onOpenInsights: () -> Unit,
 ) {
     HomeFeed(
         app = app,
@@ -496,6 +503,7 @@ private fun HomeHub(
         micOn = micOn,
         onEnableBubble = onEnableBubble,
         onMic = onMic,
+        onOpenInsights = onOpenInsights,
         dictationCard = { d, onDelete, onShare, onSave, onUseRaw ->
             DictationCard(
                 d = d,

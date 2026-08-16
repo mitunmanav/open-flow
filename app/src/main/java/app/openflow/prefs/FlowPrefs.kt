@@ -2,6 +2,7 @@ package app.openflow.prefs
 
 import android.content.Context
 import android.content.SharedPreferences
+import app.openflow.bubble.BubbleChrome
 import app.openflow.stt.LanguagePolicy
 import app.openflow.stt.SttTuning
 import app.openflow.text.CapsMode
@@ -158,19 +159,24 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         get() = store.getString("bubble_show_text", "false") == "true"
         set(v) = store.putString("bubble_show_text", if (v) "true" else "false")
 
-    /** circle | pill | square | dot */
+    /** circle | pill | square | dot — default pill (clean edge bar) */
     var bubbleShape: String
-        get() = normalizeBubbleShape(store.getString("bubble_shape", "square"))
+        get() = normalizeBubbleShape(store.getString("bubble_shape", "pill"))
         set(v) = store.putString("bubble_shape", normalizeBubbleShape(v))
 
     var bubbleHaptics: Boolean
         get() = store.getString("bubble_haptics", "true") == "true"
         set(v) = store.putString("bubble_haptics", if (v) "true" else "false")
 
-    /** charcoal | cream | ink | stone */
+    /** charcoal | cream | ink | stone | sky | forest | coral | grape */
     var bubbleTint: String
         get() = BubbleTint.normalize(store.getString("bubble_tint", BubbleTint.CHARCOAL))
         set(v) = store.putString("bubble_tint", BubbleTint.normalize(v))
+
+    /** hard | soft | round — default soft for clean pill */
+    var bubbleRoundness: String
+        get() = BubbleChrome.normalizeRoundness(store.getString("bubble_roundness", BubbleChrome.ROUND_SOFT))
+        set(v) = store.putString("bubble_roundness", BubbleChrome.normalizeRoundness(v))
 
     /** off | light | full — off maps [bubbleHaptics] false */
     var hapticFeel: String
@@ -312,7 +318,7 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         fun normalizeBubbleShape(value: String): String =
             when (value) {
                 "circle", "pill", "square", "dot" -> value
-                else -> "square"
+                else -> "pill"
             }
 
         fun normalizeCleanupLevel(value: String): String =

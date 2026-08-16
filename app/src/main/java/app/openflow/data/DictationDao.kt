@@ -76,6 +76,9 @@ interface DictionaryDao {
 
     @Query("DELETE FROM dictionary_words WHERE id = :id")
     suspend fun delete(id: String)
+
+    @Query("DELETE FROM dictionary_words")
+    suspend fun deleteAll()
 }
 
 @Dao

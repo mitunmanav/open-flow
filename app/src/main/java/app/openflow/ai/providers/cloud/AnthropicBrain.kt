@@ -1,5 +1,6 @@
 package app.openflow.ai.providers.cloud
 
+import app.openflow.BuildConfig
 import app.openflow.ai.TextAIProvider
 
 class AnthropicBrain(
@@ -30,7 +31,10 @@ class AnthropicBrain(
         return try {
             val raw = http.post(MESSAGES, headers, body)
             ChatJson.firstString(raw, "text")?.takeIf { it.isNotBlank() } ?: text
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (BuildConfig.DEBUG) {
+                android.util.Log.w("AnthropicBrain", "enhance request failed, returning raw text", e)
+            }
             text
         }
     }

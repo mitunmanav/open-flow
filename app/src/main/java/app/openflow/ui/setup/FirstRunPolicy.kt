@@ -36,24 +36,24 @@ object FirstRunPolicy {
 
     fun copy(step: Step): StepCopy = when (step) {
         Step.A11Y -> StepCopy(
-            title = "Turn on the Flow Bubble",
-            body = "Accessibility lets Open Flow insert text in any app. Keep your keyboard.",
+            title = "Turn on Flow Bubble",
+            body = "Needed so we can type into other apps. Your keyboard stays.",
             primary = "Open Accessibility",
         )
         Step.MIC -> StepCopy(
-            title = "Allow the microphone",
+            title = "Allow microphone",
             body = PrivacyHonesty.SETUP_MIC,
             primary = "Allow microphone",
         )
         Step.BATTERY -> StepCopy(
-            title = "Keep the bubble alive",
-            body = "Optional. Stop the phone from killing Open Flow. Tap Skip if you want to finish now.",
+            title = "Stop the phone killing it",
+            body = "Optional. Skip if you want to finish now.",
             primary = "Battery settings",
             secondary = "Skip",
         )
         Step.DONE -> StepCopy(
-            title = "Setup complete",
-            body = "Focus a text field and tap the bubble.",
+            title = "You're set",
+            body = "Tap a text box, then the bubble.",
             primary = "Done",
         )
     }

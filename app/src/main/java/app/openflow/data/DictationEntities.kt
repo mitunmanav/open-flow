@@ -3,9 +3,13 @@ package app.openflow.data
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Fts4
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "dictations")
+@Entity(
+    tableName = "dictations",
+    indices = [Index("createdAtEpochMs")]
+)
 data class DictationEntity(
     @PrimaryKey val id: String,
     /** Clean / polished transcript (UI shows this). */

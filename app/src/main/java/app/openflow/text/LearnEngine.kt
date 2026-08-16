@@ -72,6 +72,11 @@ object LearnEngine {
         persist()
     }
 
+    fun clearAll() {
+        store = LearnSides()
+        persist()
+    }
+
     fun loadSides(raw: String) {
         store = decodeSides(raw)
     }

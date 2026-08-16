@@ -64,12 +64,15 @@ object TextPostProcessor {
         )
         t = expandSnippets(t, snippets)
         val result = CleanupPipeline.run(t, level, style, custom)
-        val highAi = brainRewrite ||
-            Feature.HIGH_AI in FeatureAuto.of(earId, brainId, languages)
-        val cleaned = if (level == CleanupLevel.HIGH && highAi) {
+        val features = FeatureAuto.of(earId, brainId, languages)
+        val highAi = brainRewrite || Feature.HIGH_AI in features
+        var cleaned = if (level == CleanupLevel.HIGH && highAi) {
             runBlocking { brain.enhance(result.clean, "cleanup") }
         } else {
             result.clean
+        }
+        if (Feature.COMMAND in features) {
+            cleaned = runBlocking { CommandMode.apply(cleaned, brainCommand = true, brain = brain) }
         }
         return result.copy(raw = original.trim().ifEmpty { original }, clean = cleaned)
     }

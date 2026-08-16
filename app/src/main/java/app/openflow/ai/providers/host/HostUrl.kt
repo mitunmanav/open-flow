@@ -35,8 +35,8 @@ object HostUrl {
         val host = uri.host?.trim().orEmpty().removePrefix("[").removeSuffix("]")
         if (host.isEmpty()) return false
         return when (scheme) {
-            "https" -> true
-            "http" -> isNscCleartextHost(host)
+            "https", "wss" -> true
+            "http", "ws" -> isNscCleartextHost(host)
             else -> false
         }
     }

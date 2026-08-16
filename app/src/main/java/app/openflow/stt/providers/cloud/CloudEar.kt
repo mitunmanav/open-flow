@@ -8,6 +8,7 @@ abstract class CloudEar(
     private val apiKey: () -> String,
     private val socket: CloudSocket,
     private val hasMic: () -> Boolean = { true },
+    private val pcm: PcmSource = PcmSource.None,
 ) : SpeechEngine {
 
     private var listener: SpeechEngine.Listener? = null
@@ -26,8 +27,13 @@ abstract class CloudEar(
     override fun startOnce(languageTag: String) = start(languageTag)
 
     override fun stop() {
-        session?.close()
+        pcm.stop()
+        val live = session
         session = null
+        if (live != null) {
+            runCatching { onSessionClose(live) }
+            live.close()
+        }
         listener?.onListeningChanged(false)
     }
 
@@ -53,16 +59,43 @@ abstract class CloudEar(
             return
         }
         try {
+            pcm.stop()
             session?.close()
-            session = socket.connect(connectUrl(languageTag), authHeaders(key)) { msg ->
-                val u = parse(msg) ?: return@connect
-                if (u.text.isBlank()) return@connect
-                if (u.final) listener?.onFinal(u.text) else listener?.onPartial(u.text)
+            val live = socket.connect(
+                url = connectUrl(languageTag),
+                headers = authHeaders(key),
+                onError = { err ->
+                    pcm.stop()
+                    session = null
+                    // Do not emit listening=false first — service treats that as end-of-utterance
+                    // and can stop before onError toast/log runs.
+                    listener?.onError(err, true)
+                },
+                onText = { msg ->
+                    val u = parse(msg) ?: return@connect
+                    if (u.text.isBlank()) return@connect
+                    if (u.final) listener?.onFinal(u.text) else listener?.onPartial(u.text)
+                },
+            )
+            session = live
+            onSessionOpen(live)
+            pcm.start { chunk ->
+                if (chunk.isNotEmpty()) writeAudio(live, chunk)
             }
             listener?.onReady()
             listener?.onListeningChanged(true)
         } catch (e: Exception) {
+            pcm.stop()
+            session = null
             listener?.onError(e.message ?: "cloud ear failed", true)
         }
     }
+
+    protected open fun writeAudio(session: CloudSession, pcm: ByteArray) {
+        session.send(pcm)
+    }
+
+    protected open fun onSessionOpen(session: CloudSession) = Unit
+
+    protected open fun onSessionClose(session: CloudSession) = Unit
 }

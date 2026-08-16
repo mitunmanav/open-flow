@@ -1,7 +1,5 @@
 package app.openflow.ui.components
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -21,12 +19,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -52,17 +48,8 @@ fun OpenChip(
     onClick: () -> Unit = {}
 ) {
     val scheme = MaterialTheme.colorScheme
-    val bgColor by animateColorAsState(
-        targetValue = if (isOn) scheme.primary else scheme.surface,
-        animationSpec = tween(100),
-        label = "chip_bg"
-    )
-
-    val textColor by animateColorAsState(
-        targetValue = if (isOn) scheme.onPrimary else scheme.onSurface,
-        animationSpec = tween(100),
-        label = "chip_text"
-    )
+    val bgColor = if (isOn) scheme.primary else scheme.surface
+    val textColor = if (isOn) scheme.onPrimary else scheme.onSurface
 
     val borderColor = scheme.outline
     val stateLabel = if (isOn) "$label, selected" else label
@@ -70,7 +57,6 @@ fun OpenChip(
     Box(
         modifier = modifier
             .defaultMinSize(minHeight = Dimen.TOUCH_TARGET)
-            .graphicsLayer { clip = false }
             .alpha(if (enabled || isOn) 1f else 0.38f)
             .background(color = bgColor, shape = OpenShapes.Chip)
             .border(BorderStroke(Dimen.BORDER, borderColor), OpenShapes.Chip)

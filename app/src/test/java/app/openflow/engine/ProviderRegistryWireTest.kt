@@ -12,9 +12,8 @@ import app.openflow.prefs.MemoryPrefsStore
 import app.openflow.secrets.MemorySecretStore
 import app.openflow.stt.SpeechEngine
 import app.openflow.stt.providers.cloud.AssemblyEar
-import app.openflow.stt.providers.cloud.CloudSession
-import app.openflow.stt.providers.cloud.CloudSocket
 import app.openflow.stt.providers.cloud.DeepgramEar
+import app.openflow.stt.providers.cloud.FailSoftSocket
 import app.openflow.stt.providers.cloud.OpenAiRealtimeEar
 import app.openflow.stt.providers.cloud.SarvamEar
 import app.openflow.stt.providers.host.LaptopEar
@@ -76,6 +75,13 @@ class ProviderRegistryWireTest {
     }
 
     @Test
+    fun stale_on_phone_brain_resolves_to_none() {
+        val wired = wired()
+        wired.prefs.brainId = "on_phone"
+        assertThat(AppEngineWire.currentBrain(wired.registry, wired.prefs)).isSameInstanceAs(NoAI)
+    }
+
+    @Test
     fun missing_key_still_builds_factory() {
         val wired = wired()
         assertThat(wired.secrets.get("openai")).isNull()
@@ -92,13 +98,7 @@ class ProviderRegistryWireTest {
             brainModel = "test-model"
         }
         val http = CloudHttp { _, _, _ -> "" }
-        val socket = CloudSocket { _, _, _ ->
-            object : CloudSession {
-                override fun send(bytes: ByteArray) {}
-                override fun sendText(text: String) {}
-                override fun close() {}
-            }
-        }
+        val socket = FailSoftSocket()
         AppEngineWire.install(registry, secrets, prefs, system, http, socket)
         return Wired(registry, secrets, prefs, system)
     }

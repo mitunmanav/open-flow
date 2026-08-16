@@ -133,24 +133,33 @@ class AndroidSecretStore(
     )
 
     private val wrapKey: SecretKey by lazy(master)
+    private val plainCache = java.util.concurrent.ConcurrentHashMap<String, String>()
 
     override fun put(id: String, key: String) {
         if (key.isEmpty()) {
+            plainCache.remove(id)
             prefs.putString(id, "")
             return
         }
         prefs.putString(id, AesGcmWrap.seal(wrapKey, key))
+        plainCache[id] = key
     }
 
     override fun get(id: String): String? {
+        plainCache[id]?.let { return it }
         val raw = prefs.getString(id, "")
         if (raw.isEmpty()) return null
-        AesGcmWrap.open(wrapKey, raw)?.let { return it }
+        AesGcmWrap.open(wrapKey, raw)?.let {
+            plainCache[id] = it
+            return it
+        }
         if (raw.startsWith(AesGcmWrap.PREFIX)) return null
+        plainCache[id] = raw
         return raw
     }
 
     override fun clear(id: String) {
+        plainCache.remove(id)
         prefs.putString(id, "")
     }
 

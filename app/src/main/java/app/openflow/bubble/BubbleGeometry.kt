@@ -71,20 +71,20 @@ object BubbleGeometry {
     fun overlaySizePx(
         listening: Boolean,
         density: Float,
-        shape: String = "square"
+        shape: String = "pill"
     ): Pair<Int, Int> {
-        val barH = (52f * density).toInt()
+        val barH = (48f * density).toInt()
         if (listening) {
-            return (240f * density).toInt() to barH
+            return (220f * density).toInt() to barH
         }
         return when (shape) {
-            "pill" -> (112f * density).toInt() to barH
+            "pill" -> (96f * density).toInt() to barH
             "dot" -> {
                 val side = (28f * density).toInt()
                 side to side
             }
             else -> {
-                val side = (52f * density).toInt()
+                val side = (48f * density).toInt()
                 side to side
             }
         }

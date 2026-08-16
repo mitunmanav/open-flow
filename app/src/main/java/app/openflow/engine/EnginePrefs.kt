@@ -52,7 +52,10 @@ class EnginePrefs internal constructor(private val store: PrefsStore) {
 
         fun normalizeSarvam(value: String): String =
             when (value.lowercase()) {
-                "transcribe", "translate", "mix", "roman" -> value.lowercase()
+                "transcribe", "translate", "verbatim", "translit", "codemix" -> value.lowercase()
+                // Old prefs from pre-v3 labels
+                "mix" -> "codemix"
+                "roman" -> "translit"
                 else -> DEFAULT_SARVAM
             }
 

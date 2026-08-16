@@ -14,7 +14,7 @@ object ProviderNotice {
             ear == EarId.ON_PHONE && brain == BrainId.NONE ->
                 "Audio stays on this phone."
             ear == EarId.SYSTEM && brain == BrainId.NONE ->
-                "On this phone. Phone STT may still use Google."
+                "On this phone. Phone speech may still use Google."
             else -> cloudLine(ear, brain)
         }
     }
@@ -28,7 +28,7 @@ object ProviderNotice {
             parts += "Text of this utterance goes to ${vendorName(brain.name)}."
         }
         return parts.joinToString(" ").ifEmpty {
-            "On this phone. Phone STT may still use Google."
+            "On this phone. Phone speech may still use Google."
         }
     }
 

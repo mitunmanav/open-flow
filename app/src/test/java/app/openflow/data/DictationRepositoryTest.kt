@@ -19,9 +19,11 @@ class DictationRepositoryTest {
     }
 
     @Test
-    fun destructive_fallback_forbidden_and_version_unbumped() {
+    fun destructive_fallback_forbidden_and_version_matches() {
         assertThat(RoomOpenPolicy.ALLOW_DESTRUCTIVE_FALLBACK).isFalse()
-        assertThat(RoomOpenPolicy.VERSION).isEqualTo(5)
+        assertThat(RoomOpenPolicy.VERSION).isEqualTo(6)
+        assertThat(OpenFlowMigrations.MIGRATION_5_6.startVersion).isEqualTo(5)
+        assertThat(OpenFlowMigrations.MIGRATION_5_6.endVersion).isEqualTo(6)
     }
 
     @Test
@@ -120,6 +122,19 @@ class DictationRepositoryTest {
         assertThat(pairs.map { it.from to it.to }).containsExactly("Mitton" to "Mitun")
         val words = f.repo.observeDictionary().first()
         assertThat(words.single { it.word == "Mitton" }.replacement).isEqualTo("Mitun")
+    }
+
+    @Test
+    fun clearLearned_wipes_dict_and_sides() = runTest {
+        val f = fakes()
+        f.repo.addWord("foo", "bar")
+        f.repo.learnFromEdit("Meet Mitton", "Meet Mitun")
+        assertThat(f.repo.dictionaryMap()).isNotEmpty()
+        assertThat(LearnEngine.autoKeys()).isNotEmpty()
+        f.repo.clearLearned()
+        assertThat(f.repo.dictionaryMap()).isEmpty()
+        assertThat(LearnEngine.autoKeys()).isEmpty()
+        assertThat(LearnEngine.sideBags()).isEmpty()
     }
 
     @Test
@@ -255,6 +270,46 @@ class DictationRepositoryTest {
         assertThat(f.repo.searchDictations("old")).isEmpty()
     }
 
+    @Test
+    fun operations_execute_inside_transactions() = runTest {
+        var txCount = 0
+        val trackingDb = object : OpenFlowDb {
+            override suspend fun <R> transact(block: suspend () -> R): R {
+                txCount++
+                return block()
+            }
+        }
+        val dict = FakeDictationDao()
+        val fts = FakeDictationFtsDao { dict.ids() }
+        val words = FakeDictionaryDao()
+        val snips = FakeSnippetDao()
+        val stats = FakeStatsDao()
+        val repo = DictationRepository(
+            db = trackingDb,
+            dictationDao = dict,
+            ftsDao = fts,
+            dictionaryDao = words,
+            snippetDao = snips,
+            statsDao = stats
+        )
+
+        val saved = repo.saveDictation("raw", "clean", 100L, "en-US")
+        assertThat(saved).isNotNull()
+        assertThat(txCount).isAtLeast(1)
+
+        val countBeforeUpdate = txCount
+        repo.updateDictationText(saved!!.id, "updated clean")
+        assertThat(txCount).isGreaterThan(countBeforeUpdate)
+
+        val countBeforeDelete = txCount
+        repo.deleteDictation(saved.id)
+        assertThat(txCount).isGreaterThan(countBeforeDelete)
+
+        val countBeforePurge = txCount
+        repo.purgeOnLaunch("wipe_24h")
+        assertThat(txCount).isGreaterThan(countBeforePurge)
+    }
+
     private fun row(id: String, text: String, createdAt: Long) = DictationEntity(
         id = id,
         text = text,
@@ -384,6 +439,11 @@ private class FakeDictionaryDao : DictionaryDao {
 
     override suspend fun delete(id: String) {
         items.remove(id)
+        publish()
+    }
+
+    override suspend fun deleteAll() {
+        items.clear()
         publish()
     }
 }

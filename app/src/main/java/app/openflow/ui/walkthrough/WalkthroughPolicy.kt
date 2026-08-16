@@ -23,24 +23,24 @@ object WalkthroughPolicy {
 
     fun copy(page: Page): PageCopy = when (page) {
         Page.WHAT -> PageCopy(
-            "What",
-            "Open Flow types what you say. Not a keyboard. Keep yours. English only.",
+            "Speak to type",
+            "Not a new keyboard. Yours stays. English for now.",
         )
         Page.TALK -> PageCopy(
-            "Talk",
-            "Tap bubble → speak → tap again. X throws away. Hold = talk while holding.",
+            "How to talk",
+            "Tap bubble, speak, tap again. X drops it. Hold to talk.",
         )
         Page.DICT_VS_SNIP -> PageCopy(
-            "Dict vs snippet",
-            "Dictionary changes one word. Snippet pastes a whole block.",
+            "Fixes vs shortcuts",
+            "Dictionary fixes one word. Snippets paste a whole line.",
         )
         Page.PRIVACY -> PageCopy(
             "Privacy",
             PrivacyHonesty.WALKTHROUGH,
         )
         Page.READY -> PageCopy(
-            "Ready",
-            "Focus a text field. Tap the bubble. You are ready.",
+            "Try it",
+            "Open a text box. Tap the bubble. That's it.",
         )
     }
 

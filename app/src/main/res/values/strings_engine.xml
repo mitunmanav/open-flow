@@ -1,22 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="speech_ai_title">Speech + AI</string>
-    <string name="speech_ai_ear">Ear (speech)</string>
-    <string name="speech_ai_brain">Brain (cleanup / Command)</string>
-    <string name="speech_ai_honesty_hint">INTERNET is declared. Unused until this pick uses the net. Pick says where this utterance goes.</string>
+    <string name="speech_ai_ear">Speech source</string>
+    <string name="speech_ai_brain">Text rewrite</string>
+    <string name="speech_ai_honesty_hint">INTERNET is declared. Unused until you pick a cloud or computer option. The card above says where this speech goes.</string>
     <string name="speech_ai_features">This pick turns on</string>
     <string name="speech_ai_key">API key</string>
     <string name="speech_ai_key_hint">Paste key. Saved key shows last 4 only.</string>
     <string name="speech_ai_key_saved">Saved key %1$s</string>
     <string name="speech_ai_save_key">Save key</string>
-    <string name="speech_ai_url">Laptop / custom URL</string>
+    <string name="speech_ai_url">Computer / custom URL</string>
     <string name="speech_ai_url_hint">http://192.168.1.1:11434/v1</string>
     <string name="speech_ai_sarvam_mode">Sarvam mode</string>
-    <string name="speech_ai_command_on">Command Mode — this brain can do it</string>
+    <string name="speech_ai_command_on">Voice commands work with this rewrite</string>
     <string name="speech_ai_chip_high_ai">High AI</string>
     <string name="speech_ai_chip_high_rules">High (rules)</string>
-    <string name="speech_ai_chip_command">Command</string>
-    <string name="speech_ai_chip_live">live partials</string>
+    <string name="speech_ai_chip_command">Commands</string>
+    <string name="speech_ai_chip_live">Live partials</string>
     <string name="speech_ai_chip_sarvam">Sarvam modes</string>
-    <string name="privacy_no_internet">INTERNET is declared. Unused until this pick uses the net. Phone STT may still send audio depending on the device.</string>
+    <string name="privacy_no_internet">INTERNET is declared. Unused until a cloud or computer pick. Phone speech may still send audio depending on the device.</string>
 </resources>

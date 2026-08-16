@@ -36,6 +36,16 @@ class BubbleLabelFormatterTest {
     }
 
     @Test
+    fun ear_error_maps_403_to_key_hint() {
+        assertThat(BubbleLabelFormatter.earError("cloud socket failed (403)"))
+            .isEqualTo("API key rejected — check Speech + AI")
+        assertThat(BubbleLabelFormatter.earError("cloud socket failed (401)"))
+            .isEqualTo("API key missing — open Speech + AI")
+        assertThat(BubbleLabelFormatter.earError("Silence timeout"))
+            .isEqualTo("Silence timeout")
+    }
+
+    @Test
     fun soft_cap_long_partial_keeps_tail() {
         val long = "a".repeat(100)
         val out = BubbleLabelFormatter.partial(long, maxChars = 40)

@@ -52,4 +52,14 @@ object NavStack {
         dest.isSettingsSubtree() -> listOf(AppRoute.Settings, dest)
         else -> listOf(AppRoute.Home, dest)
     }
+
+    val Saver: androidx.compose.runtime.saveable.Saver<List<AppRoute>, ArrayList<String>> =
+        androidx.compose.runtime.saveable.Saver(
+            save = { stack -> ArrayList(stack.map { it.name }) },
+            restore = { list ->
+                list.mapNotNull { name ->
+                    runCatching { AppRoute.valueOf(name) }.getOrNull()
+                }.ifEmpty { listOf(AppRoute.Home) }
+            }
+        )
 }

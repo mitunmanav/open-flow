@@ -2,7 +2,7 @@ package app.openflow.bubble
 
 /**
  * Minimal brutal chrome for the Flow Bubble overlay.
- * Cream / charcoal, hard edges, no soft Material zinc/indigo.
+ * Cream / charcoal, hard edges by default; roundness prefs softens corners.
  */
 object BubbleChrome {
     /** Charcoal face — matches [app.openflow.ui.theme.BrutalColors.Charcoal]. */
@@ -20,12 +20,44 @@ object BubbleChrome {
     /** Soft pulse tint (still monochrome). */
     const val PULSE = 0x33F4F1EA.toInt()
 
-    /** Hard-edge corner in px. Listen bar always hard. */
-    fun cornerPx(shape: String, density: Float): Float = when (shape) {
-        "circle", "dot" -> 999f * density
-        "pill" -> 12f * density
-        "listen", "square" -> 2f * density
-        else -> 2f * density
+    const val ROUND_HARD = "hard"
+    const val ROUND_SOFT = "soft"
+    const val ROUND_ROUND = "round"
+
+    fun normalizeRoundness(value: String): String = when (value.lowercase()) {
+        ROUND_SOFT, ROUND_ROUND -> value.lowercase()
+        else -> ROUND_HARD
+    }
+
+    /**
+     * Corner radius in px.
+     * [roundness] hard|soft|round scales square/pill/listen corners.
+     * Circle/dot stay fully round.
+     */
+    fun cornerPx(
+        shape: String,
+        density: Float,
+        roundness: String = ROUND_HARD,
+    ): Float {
+        val r = normalizeRoundness(roundness)
+        return when (shape) {
+            "circle", "dot" -> 999f * density
+            "pill" -> when (r) {
+                ROUND_ROUND -> 24f * density
+                ROUND_SOFT -> 16f * density
+                else -> 12f * density
+            }
+            "listen", "square" -> when (r) {
+                ROUND_ROUND -> 16f * density
+                ROUND_SOFT -> 8f * density
+                else -> 2f * density
+            }
+            else -> when (r) {
+                ROUND_ROUND -> 16f * density
+                ROUND_SOFT -> 8f * density
+                else -> 2f * density
+            }
+        }
     }
 
     fun strokePx(density: Float): Int =

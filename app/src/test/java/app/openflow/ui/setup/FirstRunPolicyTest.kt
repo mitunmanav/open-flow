@@ -58,7 +58,7 @@ class FirstRunPolicyTest {
     @Test
     fun battery_step_copy_makes_skip_clear() {
         val c = FirstRunPolicy.copy(FirstRunPolicy.Step.BATTERY)
-        assertThat(c.title).isEqualTo("Keep the bubble alive")
+        assertThat(c.title).isEqualTo("Stop the phone killing it")
         assertThat(c.body).contains("Optional")
         assertThat(c.body).contains("Skip")
         assertThat(c.primary).isEqualTo("Battery settings")
@@ -80,10 +80,24 @@ class FirstRunPolicyTest {
     @Test
     fun a11y_label_includes_step_and_title() {
         assertThat(FirstRunPolicy.a11yLabel(FirstRunPolicy.Step.A11Y))
-            .isEqualTo("Step 1 of 3. Turn on the Flow Bubble.")
+            .isEqualTo("Step 1 of 3. Turn on Flow Bubble.")
         assertThat(FirstRunPolicy.a11yLabel(FirstRunPolicy.Step.BATTERY))
             .contains("Optional")
         assertThat(FirstRunPolicy.a11yLabel(FirstRunPolicy.Step.BATTERY))
             .contains("Skip")
+    }
+
+    @Test
+    fun setupMic_primary_isAllowMicrophone() {
+        assertThat(FirstRunPolicy.copy(FirstRunPolicy.Step.MIC).primary)
+            .isEqualTo("Allow microphone")
+    }
+
+    @Test
+    fun primary_verbs_never_ok_or_continue_for_a11y_mic() {
+        val forbidden = setOf("OK", "Continue")
+        listOf(FirstRunPolicy.Step.A11Y, FirstRunPolicy.Step.MIC).forEach { step ->
+            assertThat(FirstRunPolicy.copy(step).primary).isNotIn(forbidden)
+        }
     }
 }

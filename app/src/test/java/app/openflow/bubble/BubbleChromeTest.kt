@@ -41,6 +41,15 @@ class BubbleChromeTest {
     }
 
     @Test
+    fun roundness_softens_square_and_pill() {
+        assertThat(BubbleChrome.cornerPx("square", 2f, BubbleChrome.ROUND_SOFT)).isEqualTo(16f)
+        assertThat(BubbleChrome.cornerPx("square", 2f, BubbleChrome.ROUND_ROUND)).isEqualTo(32f)
+        assertThat(BubbleChrome.cornerPx("pill", 2f, BubbleChrome.ROUND_HARD)).isEqualTo(24f)
+        assertThat(BubbleChrome.cornerPx("pill", 2f, BubbleChrome.ROUND_ROUND)).isEqualTo(48f)
+        assertThat(BubbleChrome.normalizeRoundness("weird")).isEqualTo(BubbleChrome.ROUND_HARD)
+    }
+
+    @Test
     fun stroke_width_is_bold() {
         assertThat(BubbleChrome.strokePx(density = 2f)).isEqualTo(4) // 2dp
     }

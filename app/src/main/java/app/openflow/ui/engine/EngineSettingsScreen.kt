@@ -2,10 +2,9 @@ package app.openflow.ui.engine
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -26,10 +25,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import app.openflow.R
 import app.openflow.ui.a11y.Dimen
 import app.openflow.ui.components.OpenButton
-import app.openflow.ui.components.OpenChip
+import app.openflow.ui.components.OpenCard
+import app.openflow.ui.components.OpenDropdown
 import app.openflow.ui.components.OpenTextField
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun EngineSettingsScreen(
     initialEar: String = "system",
@@ -52,6 +51,18 @@ fun EngineSettingsScreen(
     val state = EnginePickerState.of(ear, brain)
     val keyWarn = EnginePickerState.missingKeyLine(state.needsKey, savedMask)
     val scheme = MaterialTheme.colorScheme
+    val earOptions = remember { EnginePickerVisibility.visibleEars() }
+    val brainOptions = remember(url) { EnginePickerVisibility.visibleBrains(url) }
+    val earGroup = remember {
+        EnginePickerVisibility.visibleEarSections()
+            .flatMap { sec -> sec.items.map { it.id to sec.title } }
+            .toMap()
+    }
+    val brainGroup = remember(url) {
+        EnginePickerVisibility.visibleBrainSections(url)
+            .flatMap { sec -> sec.items.map { it.id to sec.title } }
+            .toMap()
+    }
 
     Column(
         Modifier
@@ -61,83 +72,64 @@ fun EngineSettingsScreen(
             .testTag("engine_settings"),
         verticalArrangement = Arrangement.spacedBy(Dimen.GAP)
     ) {
-        Text(
-            text = state.honesty,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = scheme.onSurface,
-            modifier = Modifier.testTag("engine_honesty")
-        )
-        Text(
-            text = stringResource(R.string.privacy_no_internet),
-            style = MaterialTheme.typography.bodySmall,
-            color = scheme.onSurfaceVariant,
-            modifier = Modifier.testTag("engine_internet_honesty")
-        )
-        Text(
-            text = stringResource(R.string.speech_ai_honesty_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = scheme.onSurfaceVariant
-        )
-
-        Text(
-            text = stringResource(R.string.speech_ai_ear),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold
-        )
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM),
-            verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
-        ) {
-            EnginePickerState.ears.forEach { preset ->
-                val on = EnginePickerState.earEnabled(preset.id)
-                OpenChip(
-                    label = preset.label,
-                    isOn = ear == preset.id,
-                    enabled = on,
-                    modifier = Modifier.testTag("ear_" + preset.id),
-                    onClick = {
-                        if (!on) return@OpenChip
-                        ear = preset.id
-                        onPick(preset.id, brain)
-                        savedMask = onKeyMask()
-                    }
+        OpenCard(modifier = Modifier.testTag("engine_honesty_card")) {
+            Column(
+                Modifier.padding(Dimen.MIN_PADDING),
+                verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+            ) {
+                Text(
+                    text = state.honesty,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = scheme.onSurface,
+                    modifier = Modifier.testTag("engine_honesty")
+                )
+                Text(
+                    text = stringResource(R.string.privacy_no_internet),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = scheme.onSurfaceVariant,
+                    modifier = Modifier.testTag("engine_internet_honesty")
                 )
             }
         }
-        Text(
-            text = EnginePickerState.STUB_EAR_REASON,
-            style = MaterialTheme.typography.bodySmall,
-            color = scheme.error,
-            modifier = Modifier.testTag("engine_ear_disabled")
+
+        OpenDropdown(
+            label = stringResource(R.string.speech_ai_ear),
+            selectedId = ear,
+            options = earOptions,
+            enabled = { EnginePickerVisibility.showEar(it) },
+            groupOf = { earGroup[it] },
+            testTag = "ear_dropdown",
+            onSelect = {
+                ear = it
+                onPick(it, brain)
+                savedMask = onKeyMask()
+            }
         )
 
-        Text(
-            text = stringResource(R.string.speech_ai_brain),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold
-        )
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM),
-            verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
-        ) {
-            EnginePickerState.brains.forEach { preset ->
-                val on = EnginePickerState.brainEnabled(preset.id, url)
-                OpenChip(
-                    label = preset.label,
-                    isOn = brain == preset.id,
-                    enabled = on,
-                    modifier = Modifier.testTag("brain_" + preset.id),
-                    onClick = {
-                        if (!on) return@OpenChip
-                        brain = preset.id
-                        onPick(ear, preset.id)
-                        savedMask = onKeyMask()
-                    }
-                )
-            }
+        EnginePickerState.earDisabledReason(ear)?.let { why ->
+            Text(
+                text = why,
+                style = MaterialTheme.typography.bodySmall,
+                color = scheme.error,
+                modifier = Modifier.testTag("engine_ear_disabled")
+            )
         }
-        EnginePickerState.brainDisabledReason("on_phone", url)?.let { why ->
+
+        OpenDropdown(
+            label = stringResource(R.string.speech_ai_brain),
+            selectedId = brain,
+            options = brainOptions,
+            enabled = { EnginePickerVisibility.showBrain(it, url) },
+            groupOf = { brainGroup[it] },
+            testTag = "brain_dropdown",
+            onSelect = {
+                brain = it
+                onPick(ear, it)
+                savedMask = onKeyMask()
+            }
+        )
+        EnginePickerState.brainDisabledReason(brain, url)?.let { why ->
             Text(
                 text = why,
                 style = MaterialTheme.typography.bodySmall,
@@ -145,102 +137,82 @@ fun EngineSettingsScreen(
                 modifier = Modifier.testTag("engine_brain_disabled")
             )
         }
-        if (!EnginePickerState.brainEnabled("laptop", url) ||
-            !EnginePickerState.brainEnabled("custom", url)
-        ) {
-            EnginePickerState.brainDisabledReason("laptop", url)?.let { why ->
-                Text(
-                    text = why,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = scheme.onSurfaceVariant,
-                    modifier = Modifier.testTag("engine_url_gate")
-                )
-            }
-        }
-
-        Text(
-            text = stringResource(R.string.speech_ai_features),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold
-        )
-        FlowRow(
-            modifier = Modifier.testTag("engine_feature_chips"),
-            horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM),
-            verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
-        ) {
-            state.chips.forEach { chip ->
-                OpenChip(
-                    label = chip.label,
-                    isOn = chip.lit,
-                    enabled = false,
-                    modifier = Modifier.testTag("engine_chip_" + chip.id)
-                )
-            }
-        }
 
         if (state.showSarvamMode) {
-            Text(
-                text = stringResource(R.string.speech_ai_sarvam_mode),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
-            )
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM),
-                verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
-            ) {
-                EnginePickerState.sarvamModes.forEach { preset ->
-                    OpenChip(
-                        label = preset.label,
-                        isOn = sarvamMode == preset.id,
-                        modifier = Modifier.testTag("sarvam_" + preset.id),
-                        onClick = {
-                            sarvamMode = preset.id
-                            onSarvamMode(preset.id)
-                        }
-                    )
+            OpenDropdown(
+                label = stringResource(R.string.speech_ai_sarvam_mode),
+                selectedId = sarvamMode,
+                options = EnginePickerState.sarvamModes,
+                testTag = "sarvam_dropdown",
+                onSelect = {
+                    sarvamMode = it
+                    onSarvamMode(it)
                 }
-            }
+            )
+        }
+
+        val lit = state.chips.filter { it.lit }
+        if (lit.isNotEmpty()) {
+            Text(
+                text = "On: " + lit.joinToString(" · ") { it.label },
+                style = MaterialTheme.typography.bodySmall,
+                color = scheme.onSurfaceVariant,
+                modifier = Modifier.testTag("engine_feature_chips")
+            )
         }
 
         if (state.needsKey) {
-            if (keyWarn != null) {
-                Text(
-                    text = keyWarn,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = scheme.error,
-                    modifier = Modifier.testTag("engine_key_needed")
-                )
-            }
-            OpenTextField(
-                value = keyDraft,
-                onValueChange = { keyDraft = it },
-                label = stringResource(R.string.speech_ai_key),
-                placeholder = savedMask.ifEmpty { stringResource(R.string.speech_ai_key_hint) },
-                contentDescription = stringResource(R.string.speech_ai_key),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                modifier = Modifier.testTag("engine_key")
-            )
-            if (savedMask.isNotEmpty() && keyDraft.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.speech_ai_key_saved, savedMask),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = scheme.onSurfaceVariant,
-                    modifier = Modifier.testTag("engine_key_mask")
-                )
-            }
-            OpenButton(
-                text = stringResource(R.string.speech_ai_save_key),
-                onClick = {
-                    val typed = keyDraft.trim()
-                    if (typed.isNotEmpty()) {
-                        onSaveKey(typed)
-                        savedMask = onKeyMask().ifEmpty { EnginePickerState.maskKey(typed) }
-                        keyDraft = ""
+            OpenCard(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    Modifier.padding(Dimen.MIN_PADDING),
+                    verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+                ) {
+                    if (keyWarn != null) {
+                        Text(
+                            text = keyWarn,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = scheme.error,
+                            modifier = Modifier.testTag("engine_key_needed")
+                        )
                     }
-                },
-                enabled = keyDraft.isNotBlank(),
-                modifier = Modifier.testTag("engine_save_key")
-            )
+                    OpenTextField(
+                        value = keyDraft,
+                        onValueChange = { keyDraft = it },
+                        label = stringResource(R.string.speech_ai_key),
+                        placeholder = savedMask.ifEmpty {
+                            stringResource(R.string.speech_ai_key_hint)
+                        },
+                        contentDescription = stringResource(R.string.speech_ai_key),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        modifier = Modifier.testTag("engine_key")
+                    )
+                    if (savedMask.isNotEmpty() && keyDraft.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.speech_ai_key_saved, savedMask),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = scheme.onSurfaceVariant,
+                            modifier = Modifier.testTag("engine_key_mask")
+                        )
+                    }
+                    OpenButton(
+                        text = stringResource(R.string.speech_ai_save_key),
+                        onClick = {
+                            val typed = keyDraft.trim()
+                            if (typed.isNotEmpty()) {
+                                onSaveKey(typed)
+                                savedMask = onKeyMask().ifEmpty {
+                                    EnginePickerState.maskKey(typed)
+                                }
+                                keyDraft = ""
+                            }
+                        },
+                        enabled = keyDraft.isNotBlank(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("engine_save_key")
+                    )
+                }
+            }
         }
 
         OpenTextField(
@@ -252,10 +224,8 @@ fun EngineSettingsScreen(
             label = stringResource(R.string.speech_ai_url),
             placeholder = stringResource(R.string.speech_ai_url_hint),
             contentDescription = stringResource(R.string.speech_ai_url),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
             modifier = Modifier.testTag("engine_url")
         )
-
         Spacer(Modifier.height(Dimen.GAP_LG))
     }
 }

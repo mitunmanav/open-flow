@@ -11,6 +11,7 @@ import android.os.Build
 import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import app.openflow.BuildConfig
 import app.openflow.R
 import app.openflow.bubble.FlowAccessibilityService
 import app.openflow.ui.MainActivity
@@ -33,7 +34,10 @@ object DictationNotifier {
             val nm = ctx.getSystemService(NotificationManager::class.java) ?: return false
             nm.createNotificationChannel(ch)
             true
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (BuildConfig.DEBUG) {
+                android.util.Log.w("DictationNotifier", "createChannel failed", e)
+            }
             false
         }
     }
@@ -68,7 +72,10 @@ object DictationNotifier {
                 .build()
             nm.notify(NOTIF_ID, n)
             true
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (BuildConfig.DEBUG) {
+                android.util.Log.w("DictationNotifier", "notifyIfPermitted failed", e)
+            }
             false
         }
     }
@@ -93,7 +100,10 @@ object DictationNotifier {
                 .build()
             nm.notify(NOTIF_ID + 1, n)
             true
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (BuildConfig.DEBUG) {
+                android.util.Log.w("DictationNotifier", "notifyServiceStopped failed", e)
+            }
             false
         }
     }
@@ -102,5 +112,13 @@ object DictationNotifier {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
         return ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
+    }
+
+    fun cancelAll(ctx: Context) {
+        val nm = ctx.getSystemService(NotificationManager::class.java) ?: return
+        runCatching {
+            nm.cancel(NOTIF_ID)
+            nm.cancel(NOTIF_ID + 1)
+        }
     }
 }

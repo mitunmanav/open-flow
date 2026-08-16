@@ -35,7 +35,7 @@ class HomeBannerPolicyTest {
     @Test
     fun repair_copy_points_to_accessibility() {
         val c = HomeBannerPolicy.copy(HomeBannerPolicy.Banner.REPAIR_A11Y)
-        assertThat(c.title).isEqualTo("Turn on the Flow Bubble")
+        assertThat(c.title).isEqualTo("Turn on Flow Bubble")
         assertThat(c.body).contains("Accessibility")
         assertThat(c.cta).isEqualTo("Open Accessibility")
         assertThat(c.a11yLabel).contains("Flow Bubble")
@@ -44,7 +44,7 @@ class HomeBannerPolicyTest {
     @Test
     fun mic_copy_clear() {
         val c = HomeBannerPolicy.copy(HomeBannerPolicy.Banner.ALLOW_MIC)
-        assertThat(c.title).isEqualTo("Allow the microphone")
+        assertThat(c.title).isEqualTo("Allow microphone")
         assertThat(c.cta).isEqualTo("Allow microphone")
         assertThat(c.body).contains("bubble")
     }
@@ -52,7 +52,7 @@ class HomeBannerPolicyTest {
     @Test
     fun snooze_copy_has_end_cta() {
         val c = HomeBannerPolicy.copy(HomeBannerPolicy.Banner.END_SNOOZE)
-        assertThat(c.title).isEqualTo("Bubble is snoozed")
+        assertThat(c.title).isEqualTo("Bubble snoozed")
         assertThat(c.cta).isEqualTo("End snooze")
         assertThat(c.body).isNull()
     }
@@ -63,5 +63,25 @@ class HomeBannerPolicyTest {
         assertThat(c.title).isEmpty()
         assertThat(c.cta).isNull()
         assertThat(c.body).isNull()
+    }
+
+    @Test
+    fun repairA11y_cta_isOpenAccessibility() {
+        assertThat(HomeBannerPolicy.copy(HomeBannerPolicy.Banner.REPAIR_A11Y).cta)
+            .isEqualTo("Open Accessibility")
+    }
+
+    @Test
+    fun cta_verbs_never_ok_or_continue_for_a11y_mic_snooze() {
+        val forbidden = setOf("OK", "Continue")
+        listOf(
+            HomeBannerPolicy.Banner.REPAIR_A11Y,
+            HomeBannerPolicy.Banner.ALLOW_MIC,
+            HomeBannerPolicy.Banner.END_SNOOZE,
+        ).forEach { banner ->
+            val cta = HomeBannerPolicy.copy(banner).cta
+            assertThat(cta).isNotNull()
+            assertThat(cta).isNotIn(forbidden)
+        }
     }
 }

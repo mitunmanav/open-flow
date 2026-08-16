@@ -19,22 +19,22 @@ object HomeBannerPolicy {
 
     fun copy(banner: Banner): BannerCopy = when (banner) {
         Banner.REPAIR_A11Y -> BannerCopy(
-            title = "Turn on the Flow Bubble",
-            body = "Repair: Open Flow is not in Accessibility. Tap Enable bubble, turn it ON, then return here.",
+            title = "Turn on Flow Bubble",
+            body = "Open Flow is off in Accessibility. Tap below, turn it on, come back.",
             cta = "Open Accessibility",
-            a11yLabel = "Turn on the Flow Bubble. Open Accessibility.",
+            a11yLabel = "Turn on Flow Bubble. Open Accessibility.",
         )
         Banner.ALLOW_MIC -> BannerCopy(
-            title = "Allow the microphone",
-            body = "Allow the microphone, then focus a field and tap the bubble.",
+            title = "Allow microphone",
+            body = "Allow mic, then tap a text box and the bubble.",
             cta = "Allow microphone",
-            a11yLabel = "Allow the microphone.",
+            a11yLabel = "Allow microphone.",
         )
         Banner.END_SNOOZE -> BannerCopy(
-            title = "Bubble is snoozed",
+            title = "Bubble snoozed",
             body = null,
             cta = "End snooze",
-            a11yLabel = "Bubble is snoozed. End snooze.",
+            a11yLabel = "Bubble snoozed. End snooze.",
         )
         Banner.NONE -> BannerCopy(
             title = "",

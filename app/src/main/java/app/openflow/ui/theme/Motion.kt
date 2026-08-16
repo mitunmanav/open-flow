@@ -7,15 +7,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 
 /**
- * Snappy motion. Short ms. No soft flourish.
+ * Snappy motion. Short ms. Ease for smoothness without soft flourish.
  * Respect system animator scale (0 = reduced motion → skip).
  */
 object Motion {
-    const val TAB_SWITCH_MS = 90
-    const val CHIP_COLOR_MS = 80
-    const val ENTER_MS = 100
-    const val EXIT_MS = 80
-    const val FADE_MS = 60
+    const val TAB_SWITCH_MS = 120
+    const val CHIP_COLOR_MS = 90
+    const val ENTER_MS = 140
+    const val EXIT_MS = 100
+    const val FADE_MS = 80
 
     fun shouldAnimate(context: Context): Boolean = animatorScale(context) > 0f
 

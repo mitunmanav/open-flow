@@ -76,7 +76,8 @@ object BubbleGeometry {
     ): Pair<Int, Int> {
         val barH = (48f * density).toInt()
         if (listening) {
-            return (220f * density).toInt() to barH
+            // Cancel | waveform | Done — Wispr Android listen chrome
+            return (264f * density).toInt() to barH
         }
         if (chips) {
             return (196f * density).toInt() to barH

@@ -125,10 +125,10 @@ class BubbleGeometryTest {
     }
 
     @Test
-    fun listen_is_220x48_regardless_of_shape() {
+    fun listen_is_264x48_regardless_of_shape() {
         for (shape in listOf("pill", "circle", "dot", "square")) {
             val (w, h) = BubbleGeometry.overlaySizePx(listening = true, density = 2f, shape = shape)
-            assertThat(w).isEqualTo(440)
+            assertThat(w).isEqualTo(528)
             assertThat(h).isEqualTo(96)
         }
     }

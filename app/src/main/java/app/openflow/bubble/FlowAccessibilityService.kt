@@ -58,6 +58,7 @@ import app.openflow.stt.SttEngine
 import app.openflow.text.CleanupResult
 import app.openflow.text.CustomStyleConfig
 import app.openflow.text.InsertPolish
+import app.openflow.text.PressEnterPolicy
 import app.openflow.text.LearnEngine
 import app.openflow.text.TextPostProcessor
 import app.openflow.text.WritingStyle
@@ -439,14 +440,17 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         bubbleLabel = view.findViewById(R.id.bubble_label)
         bubblePulseRing = view.findViewById(R.id.bubble_pulse_ring)
         bubbleCancel = view.findViewById(R.id.bubble_cancel)
-        bubbleDone = null // Done/save icon removed — tap bubble to insert
+        bubbleDone = view.findViewById(R.id.bubble_done)
         bubbleChipCopy = view.findViewById(R.id.bubble_chip_copy)
         bubbleChipUndo = view.findViewById(R.id.bubble_chip_undo)
         bubbleChipPaste = view.findViewById(R.id.bubble_chip_paste)
 
-        // Wispr: Cancel discards; tap bubble inserts.
+        // Wispr: Cancel discards; Done inserts; tap bubble also inserts.
         bubbleCancel?.setOnClickListener {
             if (listening || stopInProgress) stopListening(save = false)
+        }
+        bubbleDone?.setOnClickListener {
+            if (listening || stopInProgress) stopListening(save = true)
         }
 
         if (prefs == null) prefs = FlowPrefs(this)
@@ -1234,37 +1238,13 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             if (save && raw.isNotBlank()) {
                 val lang = InsertPolish.language(prefs?.languageTag)
                 polishSession(raw, prefix) { result ->
-                    val finalText = result.clean
-                    if (BuildConfig.DEBUG) {
-                        android.util.Log.i(
-                            "OpenFlow.Bubble",
-                            "commit cleanLen=${finalText.length} prefixLen=${prefix.length}"
-                        )
-                    }
-                    if (finalText.isNotBlank()) {
-                        val ok = commitSessionToField(finalText, prefix, result.raw)
-                        prefs?.setLastSession(raw = result.raw, clean = finalText)
-                        lastInteractionAt = SystemClock.elapsedRealtime()
-                        armPostStopChips(ok)
-                        val wordCount = finalText.split(WORD_SPLIT)
-                            .filter { it.isNotBlank() }.size
-                        val retention = prefs?.retentionPolicy ?: "keep"
-                        scope.launch(Dispatchers.IO) {
-                            runCatching {
-                                app.dictations.saveDictation(
-                                    rawText = result.raw,
-                                    cleanText = finalText,
-                                    durationMs = dur,
-                                    languageTag = lang,
-                                    retentionPolicy = retention
-                                )
-                            }
-                        }
-                        DictationNotifier.notifyIfPermitted(
-                            this@FlowAccessibilityService,
-                            wordCount
-                        )
-                    }
+                    finishPolishedInsert(
+                        result = result,
+                        prefix = prefix,
+                        dur = dur,
+                        lang = lang,
+                        logTag = "OpenFlow.Bubble",
+                    )
                 }
             } else if (save && raw.isBlank()) {
                 bubbleLabel?.text = BubbleLabelFormatter.idle()
@@ -1325,33 +1305,13 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         val prefix = captureFieldPrefix()
         val dur = 0L
         polishSession(text, prefix) { result ->
-            val finalText = result.clean
-            android.util.Log.i(
-                "OpenFlow.Inject",
-                "done cleanLen=${finalText.length} prefixLen=${prefix.length} " +
-                    "level=${result.level} fieldOk=${finalText.isNotBlank()}"
+            finishPolishedInsert(
+                result = result,
+                prefix = prefix,
+                dur = dur,
+                lang = InsertPolish.language(prefs?.languageTag),
+                logTag = "OpenFlow.Inject",
             )
-            if (finalText.isNotBlank()) {
-                val ok = commitSessionToField(finalText, prefix, result.raw)
-                prefs?.setLastSession(raw = result.raw, clean = finalText)
-                lastInteractionAt = SystemClock.elapsedRealtime()
-                armPostStopChips(ok)
-                val wordCount = finalText.split(WORD_SPLIT).filter { it.isNotBlank() }.size
-                val retention = prefs?.retentionPolicy ?: "keep"
-                val lang = InsertPolish.language(prefs?.languageTag)
-                scope.launch(Dispatchers.IO) {
-                    runCatching {
-                        app.dictations.saveDictation(
-                            rawText = result.raw,
-                            cleanText = finalText,
-                            durationMs = dur,
-                            languageTag = lang,
-                            retentionPolicy = retention
-                        )
-                    }
-                }
-                DictationNotifier.notifyIfPermitted(this@FlowAccessibilityService, wordCount)
-            }
         }
     }
 
@@ -1463,6 +1423,71 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
     }
 
+    private fun finishPolishedInsert(
+        result: CleanupResult,
+        prefix: String,
+        dur: Long,
+        lang: String,
+        logTag: String,
+    ) {
+        val pe = PressEnterPolicy.apply(result.clean)
+        val finalText = pe.text
+        android.util.Log.i(
+            logTag,
+            "commit cleanLen=${finalText.length} prefixLen=${prefix.length} " +
+                "submit=${pe.submit} level=${result.level}"
+        )
+        if (finalText.isNotBlank()) {
+            val ok = commitSessionToField(finalText, prefix, result.raw)
+            if (ok && pe.submit) submitAfterInsert()
+            prefs?.setLastSession(raw = result.raw, clean = finalText)
+            lastInteractionAt = SystemClock.elapsedRealtime()
+            armPostStopChips(ok)
+            val wordCount = finalText.split(WORD_SPLIT)
+                .filter { it.isNotBlank() }.size
+            val retention = prefs?.retentionPolicy ?: "keep"
+            scope.launch(Dispatchers.IO) {
+                runCatching {
+                    app.dictations.saveDictation(
+                        rawText = result.raw,
+                        cleanText = finalText,
+                        durationMs = dur,
+                        languageTag = lang,
+                        retentionPolicy = retention
+                    )
+                }
+            }
+            DictationNotifier.notifyIfPermitted(this@FlowAccessibilityService, wordCount)
+        } else if (pe.submit) {
+            submitAfterInsert()
+        }
+    }
+
+    private fun submitAfterInsert() {
+        val how = InsertSubmitPolicy.how(submit = true, api = Build.VERSION.SDK_INT)
+        if (how == InsertSubmitPolicy.How.NONE) return
+        val root = rootInActiveWindow
+        val node = resolveEditable(root, focusedEditable)
+        try {
+            try {
+                root?.let {
+                    @Suppress("DEPRECATION")
+                    it.recycle()
+                }
+            } catch (_: Exception) {
+            }
+            if (node == null) return
+            val action = InsertSubmitPolicy.actionId(how) ?: return
+            node.performAction(action)
+        } finally {
+            try {
+                @Suppress("DEPRECATION")
+                node?.recycle()
+            } catch (_: Exception) {
+            }
+        }
+    }
+
     private fun commitSessionToField(finalText: String, prefix: String, raw: String = ""): Boolean {
         if (finalText.isBlank()) return false
         val merged = FieldContext.afterPolish(prefix, finalText)
@@ -1541,7 +1566,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     /**
      * Clean chrome:
      * - Idle: soft pill + charcoal/cream (tint prefs)
-     * - Listening: Cancel | status (tap bubble to insert; no Done icon)
+     * - Listening: Cancel | status | Done
      * Default shape: pill (product clean).
      */
     private fun updateBubbleVisuals() {
@@ -1583,6 +1608,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
             cancel?.visibility = View.VISIBLE
             cancel?.setColorFilter(on)
+            bubbleDone?.visibility = View.VISIBLE
+            bubbleDone?.setColorFilter(on)
             icon.visibility = View.VISIBLE
             icon.setColorFilter(on)
             icon.layoutParams = LinearLayout.LayoutParams(
@@ -1602,6 +1629,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             bubbleChipPaste?.visibility = View.GONE
         } else if (postStopActive()) {
             cancel?.visibility = View.GONE
+            bubbleDone?.visibility = View.GONE
             label.visibility = View.GONE
             pulseRing.visibility = View.GONE
             val bg = GradientDrawable().apply {
@@ -1630,6 +1658,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             }
         } else {
             cancel?.visibility = View.GONE
+            bubbleDone?.visibility = View.GONE
             label.visibility = View.GONE
             pulseRing.visibility = View.GONE
             bubbleChipCopy?.visibility = View.GONE

@@ -131,6 +131,7 @@ import app.openflow.display.DisplayRefreshPolicy
 import app.openflow.stt.LanguagePolicy
 import app.openflow.stt.SttTuning
 import app.openflow.ui.engine.EngineSettingsScreen
+import app.openflow.ui.home.DictListPolicy
 import app.openflow.ui.home.HubListPolicy
 import app.openflow.ui.home.HistoryDays
 import app.openflow.ui.home.HistorySearchPolicy
@@ -1592,17 +1593,21 @@ private fun useHistoryRaw(ctx: Context, raw: String) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DictionaryTab(app: OpenFlowApp) {
     val words by app.dictations.observeDictionary().collectAsState(initial = emptyList())
     var query by rememberSaveable { mutableStateOf("") }
+    var dictSort by rememberSaveable { mutableStateOf(DictListPolicy.Sort.ALPHA.name) }
     var showAdd by rememberSaveable { mutableStateOf(false) }
     var word by rememberSaveable { mutableStateOf("") }
     var repl by rememberSaveable { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val ctx = LocalContext.current
-    val shown = remember(words, query) {
-        words.filter { HubListPolicy.matches(query, it.word, it.replacement) }
+    val sort = DictListPolicy.fromPref(dictSort)
+    val shown = remember(words, query, sort) {
+        val filtered = words.filter { HubListPolicy.matches(query, it.word, it.replacement) }
+        DictListPolicy.apply(filtered, sort, { it.createdAtEpochMs }, { it.word })
     }
 
     Box(Modifier.fillMaxSize().background(SecUi.cream)) {
@@ -1627,6 +1632,33 @@ private fun DictionaryTab(app: OpenFlowApp) {
                     },
                     modifier = Modifier.testTag("dict_search")
                 )
+            }
+
+            item(key = "dict-sort") {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(Dimen.GAP),
+                    verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM),
+                    modifier = Modifier.testTag("dict_sort")
+                ) {
+                    OpenChip(
+                        label = "A–Z",
+                        isOn = sort == DictListPolicy.Sort.ALPHA,
+                        modifier = Modifier.testTag("dict_sort_alpha"),
+                        onClick = { dictSort = DictListPolicy.Sort.ALPHA.name }
+                    )
+                    OpenChip(
+                        label = "Newest",
+                        isOn = sort == DictListPolicy.Sort.NEWEST,
+                        modifier = Modifier.testTag("dict_sort_newest"),
+                        onClick = { dictSort = DictListPolicy.Sort.NEWEST.name }
+                    )
+                    OpenChip(
+                        label = "Oldest",
+                        isOn = sort == DictListPolicy.Sort.OLDEST,
+                        modifier = Modifier.testTag("dict_sort_oldest"),
+                        onClick = { dictSort = DictListPolicy.Sort.OLDEST.name }
+                    )
+                }
             }
 
             if (shown.isEmpty()) {

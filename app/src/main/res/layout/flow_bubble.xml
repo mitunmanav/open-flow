@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Clean Flow Bubble: idle pill mic; listening = Cancel | status (tap bubble to save) -->
+<!-- Clean Flow Bubble: idle pill mic; listening = Cancel | status | Done -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/bubble_container"
     android:layout_width="wrap_content"
@@ -60,6 +60,18 @@
             android:text="@string/flow_bubble_idle"
             android:textColor="#FFF4EFE6"
             android:textSize="13sp"
+            android:visibility="gone" />
+
+        <ImageView
+            android:id="@+id/bubble_done"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_gravity="center_vertical"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/flow_bubble_done"
+            android:padding="10dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_done"
             android:visibility="gone" />
 
         <TextView

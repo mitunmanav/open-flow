@@ -293,7 +293,9 @@ object CourseCorrector {
             return afterWords.size in 1..2 && looksLikeSlot(afterWords)
         }
         return marker == "instead" ||
-            marker == "rather" ||
+            marker.contains("rather") ||
+            marker.contains("change") ||
+            marker.contains("make that") ||
             marker.contains("i mean") ||
             marker.contains("i meant") ||
             marker == "sorry" ||

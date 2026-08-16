@@ -270,4 +270,92 @@ class CleanupPipelineTest {
         assertThat(clean).doesNotContain("period")
         assertThat(clean).doesNotContain("wait")
     }
+    @Test
+    fun triple_filler_collapses_to_content() {
+        val r = CleanupPipeline.run("um um um hello world")
+        val clean = r.clean.lowercase()
+        assertThat(clean).contains("hello")
+        assertThat(clean).contains("world")
+        assertThat(clean).doesNotContain("um")
+    }
+
+    @Test
+    fun filler_between_words_single_space() {
+        val r = CleanupPipeline.run("I uh want pizza")
+        assertThat(r.clean.replace(Regex("[.!?]$"), "")).isEqualTo("I want pizza")
+    }
+
+    @Test
+    fun keepContent_recovers_real_words_from_aggressive_cleanup() {
+        // Sentence with only discourse openers + real content
+        val r = CleanupPipeline.run("well okay so send it", CleanupLevel.NORMAL)
+        val clean = r.clean.lowercase()
+        // "well", "okay", "so" are all clarity openers stripped at Medium
+        // but "send it" must survive
+        assertThat(clean).contains("send")
+    }
+
+    @Test
+    fun high_hedges_preserve_sentence_structure() {
+        val r = CleanupPipeline.run(
+            "Due to the fact that we're late, I think that we should hurry",
+            CleanupLevel.HIGH
+        )
+        val clean = r.clean
+        assertThat(clean.lowercase()).contains("because")
+        assertThat(clean.lowercase()).contains("we should hurry")
+        assertThat(clean.lowercase()).doesNotContain("due to the fact")
+        assertThat(clean.lowercase()).doesNotContain("i think that")
+        // No double commas or broken spacing
+        assertThat(clean).doesNotContain(",,")
+        assertThat(clean).doesNotContain("  ")
+    }
+
+    @Test
+    fun repeated_phrase_collapsed() {
+        val r = CleanupPipeline.run("I want to I want to go")
+        val clean = r.clean.lowercase()
+        assertThat(clean).contains("i want to go")
+        // Should not have duplicate phrase
+        assertThat(clean.indexOf("i want to")).isEqualTo(clean.lastIndexOf("i want to"))
+    }
+
+    @Test
+    fun mixed_fillers_all_stripped() {
+        val r = CleanupPipeline.run("um I uh think erm we should mhm go")
+        val clean = r.clean.lowercase()
+        assertThat(clean).doesNotContain("um")
+        assertThat(clean).doesNotContain("uh")
+        assertThat(clean).doesNotContain("erm")
+        assertThat(clean).doesNotContain("mhm")
+        assertThat(clean).contains("think")
+        assertThat(clean).contains("go")
+    }
+
+    @Test
+    fun spoken_number_list_formats() {
+        val r = CleanupPipeline.run(
+            "number one eggs number two milk number three bread",
+            CleanupLevel.NORMAL
+        )
+        assertThat(r.clean).contains("1. ")
+        assertThat(r.clean).contains("2. ")
+        assertThat(r.clean).contains("3. ")
+        assertThat(r.clean).contains("\n")
+    }
+
+    @Test
+    fun style_applies_after_cleanup() {
+        val r = CleanupPipeline.run(
+            "um well i think we should um go",
+            CleanupLevel.HIGH,
+            WritingStyle.FORMAL
+        )
+        val clean = r.clean
+        // Fillers gone
+        assertThat(clean.lowercase()).doesNotContain("um")
+        // Formal: sentence case + period
+        assertThat(clean.first().isUpperCase()).isTrue()
+        assertThat(clean.trimEnd().last()).isEqualTo('.')
+    }
 }

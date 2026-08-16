@@ -50,13 +50,14 @@ class ReleaseLogGateTest {
     }
 
     private fun projectRoot(): File {
-        var dir = File(System.getProperty("user.dir")).canonicalFile
+        val userDir = System.getProperty("user.dir") ?: "."
+        var dir = File(userDir).canonicalFile
         repeat(8) {
             if (File(dir, "app/src/main/java/app/openflow/OpenFlowApp.kt").isFile) return dir
             if (File(dir, "src/main/java/app/openflow/OpenFlowApp.kt").isFile) return dir.parentFile
             dir = dir.parentFile ?: return@repeat
         }
-        error("open-flow root not found from ${System.getProperty("user.dir")}")
+        error("open-flow root not found from $userDir")
     }
 
     @Test

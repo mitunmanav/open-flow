@@ -5,7 +5,8 @@ import java.io.File
 /** Locates ui source from Gradle cwd (app/ or repo root). JVM only. */
 internal object UiSourceScan {
     fun projectRoot(): File {
-        var dir = File(System.getProperty("user.dir")).canonicalFile
+        val userDir = System.getProperty("user.dir") ?: "."
+        var dir = File(userDir).canonicalFile
         repeat(8) {
             if (File(dir, "app/src/main/java/app/openflow/ui/shell/AppRoute.kt").isFile) {
                 return dir
@@ -15,7 +16,7 @@ internal object UiSourceScan {
             }
             dir = dir.parentFile ?: return@repeat
         }
-        error("open-flow root not found from ${System.getProperty("user.dir")}")
+        error("open-flow root not found from $userDir")
     }
 
     fun uiKtText(): String {

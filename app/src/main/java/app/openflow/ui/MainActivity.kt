@@ -1117,8 +1117,8 @@ private fun HistoryScreen(app: OpenFlowApp) {
             app.dictations.searchDictations(searchQuery)
         }
     }
-    val nowMs = System.currentTimeMillis()
     val days = remember(filtered) {
+        val nowMs = System.currentTimeMillis()
         HistoryDays.group(
             filtered.map { HistoryDays.Row(it.id, it.createdAtEpochMs, it.text) },
             nowMs = nowMs,

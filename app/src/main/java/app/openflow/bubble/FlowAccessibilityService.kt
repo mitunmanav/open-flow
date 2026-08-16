@@ -61,6 +61,7 @@ import app.openflow.text.InsertPolish
 import app.openflow.text.PressEnterPolicy
 import app.openflow.text.LearnEngine
 import app.openflow.text.TextPostProcessor
+import app.openflow.text.StyleResolvePolicy
 import app.openflow.text.WritingStyle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -1391,13 +1392,17 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 app.currentBrain()
             }
             val level = InsertPolish.level(prefLevel)
-            val appContext = AppContextEngine.resolveContext(
-                lastPackage,
-                null,
-                prefs
-            )
-            val style = appContext.defaultStyle
-            val custom = prefs?.customStyleConfig() ?: CustomStyleConfig()
+            val p = prefs
+            val style = if (p != null) {
+                StyleResolvePolicy.resolve(
+                    lastPackage,
+                    p.getStyleAppAssignments(),
+                    p.hubStylesMap(),
+                )
+            } else {
+                WritingStyle.CASUAL
+            }
+            val custom = p?.customStyleConfig() ?: CustomStyleConfig()
             val result = TextPostProcessor.polishSessionResult(
                 raw = text,
                 style = style,
@@ -1409,7 +1414,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 brainRewrite = brainRewrite,
                 earId = earId,
                 brainId = brainId,
-                promptHint = appContext.promptHint,
+                promptHint = null,
             )
             android.util.Log.i(
                 "OpenFlow.Cleanup",

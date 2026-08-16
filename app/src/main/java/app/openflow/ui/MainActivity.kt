@@ -150,8 +150,6 @@ import app.openflow.ui.shell.NavStack
 import app.openflow.ui.theme.BubbleTint
 import app.openflow.ui.theme.Motion
 import app.openflow.ui.theme.OpenFlowTheme
-import app.openflow.ui.theme.VisualSkin
-import app.openflow.ui.theme.VisualSkin.*
 import app.openflow.ui.theme.rememberMotionMs
 import app.openflow.ui.theme.rememberShouldAnimate
 import app.openflow.ui.walkthrough.WalkthroughPager
@@ -390,6 +388,7 @@ class MainActivity : ComponentActivity() {
                                 onBubble = { goTo(AppRoute.BubbleSettings) },
                                 onCleanup = { goTo(AppRoute.Cleanup) },
                                 onPrivacy = { goTo(AppRoute.Privacy) },
+                                onHaptics = { goTo(AppRoute.Haptics) },
                                 onSounds = { goTo(AppRoute.Sounds) },
                             )
                             AppRoute.SpeechAi -> {
@@ -422,6 +421,7 @@ class MainActivity : ComponentActivity() {
                                     FlowAccessibilityService.instance?.applyPrefsVisual()
                                 }
                             )
+                            AppRoute.Haptics -> HapticsSettings(app.prefs)
                             AppRoute.Cleanup -> CleanupSettings(app.prefs)
                             AppRoute.Privacy -> PrivacySettings(app.prefs)
                             AppRoute.Sounds -> SoundsSettings(app.prefs)
@@ -1385,6 +1385,7 @@ private fun SettingsHub(
     onBubble: () -> Unit,
     onCleanup: () -> Unit,
     onPrivacy: () -> Unit,
+    onHaptics: () -> Unit,
     onSounds: () -> Unit,
 ) {
     Column(
@@ -1403,11 +1404,12 @@ private fun SettingsHub(
         )
 
         SettingsRow("Speech + AI", "Pick speech and rewrite. Where audio and text go.", onSpeechAi)
-        SettingsRow("Flow Bubble & Gestures", "Shape, size, opacity, edge magnetic snap", onBubble)
+        SettingsRow("Flow Bubble", "Size, look, and feel of the floating bubble", onBubble)
         SettingsRow("Cleanup Pipeline", "Filler words, course corrections, lists", onCleanup)
-        SettingsRow("Appearance", "Dark / light theme, visual skins", onAppearance)
+        SettingsRow("Appearance", "Dark / light theme and display refresh", onAppearance)
         SettingsRow("Privacy & Retention", "Zero-cloud audit, auto-wipe policies", onPrivacy)
-        SettingsRow("Haptics & Feedback", "Tactile clicks and audio feedback", onSounds)
+        SettingsRow("Haptics", "Off, Light, or Full tactile feedback", onHaptics)
+        SettingsRow("Sounds", "Start / stop audio cues", onSounds)
 
         Text(
             "Open Flow is free and open source (MIT). No trackers. No analytics.",
@@ -1610,9 +1612,9 @@ private fun PrivacySettings(prefs: FlowPrefs) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SoundsSettings(prefs: FlowPrefs) {
-    var sounds by remember { mutableStateOf(prefs.bubbleSounds) }
+private fun HapticsSettings(prefs: FlowPrefs) {
     var feel by remember { mutableStateOf(prefs.hapticFeel) }
+    val view = LocalView.current
 
     Column(
         Modifier
@@ -1623,55 +1625,21 @@ private fun SoundsSettings(prefs: FlowPrefs) {
         verticalArrangement = Arrangement.spacedBy(Dimen.GAP)
     ) {
         Text(
-            "Haptic and audio cues during dictation.",
+            "How strong vibration feels when you tap, save, or cancel on the bubble.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             softWrap = true
         )
-
-        OpenCard {
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(Dimen.MIN_PADDING)
-                    .heightIn(min = Dimen.MIN_TOUCH),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        "Start / Stop Audio Cue",
-                        style = MaterialTheme.typography.titleSmall,
-                        softWrap = true
-                    )
-                    Text(
-                        "Play subtle tone when starting dictation",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        softWrap = true
-                    )
-                }
-                OpenChip(
-                    label = if (sounds) "ON" else "OFF",
-                    isOn = sounds,
-                    onClick = {
-                        sounds = !sounds
-                        prefs.bubbleSounds = sounds
-                    }
-                )
-            }
-        }
-
         OpenCard {
             Column(
                 Modifier
                     .padding(Dimen.MIN_PADDING)
                     .wrapContentHeight(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
             ) {
-                Text("Tactile Haptics", style = MaterialTheme.typography.titleSmall, softWrap = true)
+                Text("Strength", style = MaterialTheme.typography.titleSmall, softWrap = true)
                 Text(
-                    "Off / Light (tick) / Full (confirm, reject, click).",
+                    "Off = none. Light = tick. Full = tap, save, and cancel patterns.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     softWrap = true
@@ -1699,6 +1667,73 @@ private fun SoundsSettings(prefs: FlowPrefs) {
                         )
                     }
                 }
+                OpenButton(
+                    text = "Test",
+                    onClick = {
+                        val c = HapticFeel.constantFor(feel, HapticFeel.Event.TAP) ?: return@OpenButton
+                        view.performHapticFeedback(c)
+                    },
+                    variant = ButtonVariant.Outlined,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("haptics_test")
+                )
+            }
+        }
+        Spacer(Modifier.height(Dimen.GAP_LG))
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SoundsSettings(prefs: FlowPrefs) {
+    var sounds by remember { mutableStateOf(prefs.bubbleSounds) }
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(SecUi.cream)
+            .padding(horizontal = Dimen.PAGE_PAD, vertical = Dimen.GAP)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(Dimen.GAP)
+    ) {
+        Text(
+            "Audio cues when dictation starts or stops.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            softWrap = true
+        )
+
+        OpenCard {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(Dimen.MIN_PADDING)
+                    .heightIn(min = Dimen.MIN_TOUCH),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "Start / Stop Audio Cue",
+                        style = MaterialTheme.typography.titleSmall,
+                        softWrap = true
+                    )
+                    Text(
+                        "Play a short tone when dictation starts or stops",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        softWrap = true
+                    )
+                }
+                OpenChip(
+                    label = if (sounds) "ON" else "OFF",
+                    isOn = sounds,
+                    onClick = {
+                        sounds = !sounds
+                        prefs.bubbleSounds = sounds
+                    }
+                )
             }
         }
         Spacer(Modifier.height(24.dp))
@@ -1889,7 +1924,6 @@ private fun SettingsRow(title: String, subtitle: String, onClick: () -> Unit) {
 @Composable
 private fun AppearanceSettings(prefs: FlowPrefs) {
     val dark by prefs.darkMode.collectAsState()
-    val skin by prefs.visualSkin.collectAsState()
     val context = LocalContext.current
     var refreshHz by remember { mutableIntStateOf(prefs.refreshHz) }
         var sttProfile by remember { mutableStateOf(prefs.sttProfile) }
@@ -1957,39 +1991,6 @@ private fun AppearanceSettings(prefs: FlowPrefs) {
                             isOn = dark == v,
                             modifier = Modifier.wrapContentHeight(),
                             onClick = { prefs.setDarkMode(v) }
-                        )
-                    }
-                }
-            }
-        }
-
-        OpenCard {
-            Column(
-                Modifier
-                    .padding(Dimen.MIN_PADDING)
-                    .wrapContentHeight(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Text("Visual skin", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, softWrap = true)
-                Text(
-                    "Brutal = hard borders, high contrast. Soft = rounded Material look.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    softWrap = true
-                )
-                FlowRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .wrapContentHeight(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    listOf(BRUTAL to "Brutal", M3 to "Soft").forEach { (v, label) ->
-                        OpenChip(
-                            label = label,
-                            isOn = skin == v,
-                            modifier = Modifier.wrapContentHeight(),
-                            onClick = { prefs.setVisualSkin(v) }
                         )
                     }
                 }
@@ -2142,19 +2143,85 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(Dimen.GAP)
     ) {
         Text(
-            "Morph the shape, size, and interaction physics of your floating bubble.",
+            "Size, look, and feel of the floating bubble. Changes apply live.",
             style = MaterialTheme.typography.bodySmall,
             color = SecUi.muted,
             softWrap = true
         )
         Text(
-            "Live preview",
+            "Size",
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.SemiBold,
             color = SecUi.charcoal,
             softWrap = true
         )
+        OpenCard {
+            Column(
+                Modifier.padding(Dimen.MIN_PADDING),
+                verticalArrangement = Arrangement.spacedBy(Dimen.GAP)
+            ) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Scale", style = MaterialTheme.typography.bodyMedium, color = SecUi.charcoal)
+                    Text(
+                        "${(scale * 100).toInt()}%",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = SecUi.ink
+                    )
+                }
+                Slider(
+                    value = scale,
+                    onValueChange = { scale = it },
+                    onValueChangeFinished = {
+                        prefs.bubbleScale = scale
+                        onApplyBubble()
+                    },
+                    valueRange = 0.7f..1.2f,
+                    colors = SliderDefaults.colors(
+                        thumbColor = SecUi.charcoal,
+                        activeTrackColor = SecUi.charcoal,
+                        inactiveTrackColor = SecUi.stone
+                    )
+                )
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Opacity", style = MaterialTheme.typography.bodyMedium, color = SecUi.charcoal)
+                    Text(
+                        "${(opacity * 100).toInt()}%",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = SecUi.ink
+                    )
+                }
+                Slider(
+                    value = opacity,
+                    onValueChange = { opacity = it },
+                    onValueChangeFinished = {
+                        prefs.bubbleOpacity = opacity
+                        onApplyBubble()
+                    },
+                    valueRange = 0.3f..1f,
+                    colors = SliderDefaults.colors(
+                        thumbColor = SecUi.charcoal,
+                        activeTrackColor = SecUi.charcoal,
+                        inactiveTrackColor = SecUi.stone
+                    )
+                )
+            }
+        }
 
+        Text(
+            "Look",
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = SecUi.charcoal,
+            softWrap = true
+        )
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -2211,7 +2278,7 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
             ) {
                 Text(
-                    "Overlay Shape",
+                    "Shape",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = SecUi.charcoal
@@ -2300,7 +2367,7 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                     color = SecUi.charcoal
                 )
                 Text(
-                    "Hard = brutal. Soft / Round = friendlier pill edges.",
+                    "Hard = sharp. Soft / Round = softer pill edges.",
                     style = MaterialTheme.typography.bodySmall,
                     color = SecUi.muted
                 )
@@ -2335,84 +2402,51 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
         }
 
         OpenCard {
-            Column(
-                Modifier.padding(Dimen.MIN_PADDING),
-                verticalArrangement = Arrangement.spacedBy(Dimen.GAP)
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(Dimen.MIN_PADDING),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    "Dimensions & Transparency",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = SecUi.charcoal
-                )
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Scale", style = MaterialTheme.typography.bodyMedium, color = SecUi.charcoal)
+                Column(Modifier.weight(1f)) {
                     Text(
-                        "${(scale * 100).toInt()}%",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = SecUi.ink
+                        "Show text on bubble",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = SecUi.charcoal,
+                        softWrap = true
+                    )
+                    Text(
+                        "Show live words on the bubble while listening",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = SecUi.muted,
+                        softWrap = true
                     )
                 }
-                Slider(
-                    value = scale,
-                    onValueChange = { scale = it },
-                    onValueChangeFinished = {
-                        prefs.bubbleScale = scale
+                OpenChip(
+                    label = if (showText) "ON" else "OFF",
+                    isOn = showText,
+                    onClick = {
+                        showText = !showText
+                        prefs.bubbleShowText = showText
                         onApplyBubble()
-                    },
-                    valueRange = 0.7f..1.2f,
-                    colors = SliderDefaults.colors(
-                        thumbColor = SecUi.charcoal,
-                        activeTrackColor = SecUi.charcoal,
-                        inactiveTrackColor = SecUi.stone
-                    )
-                )
-
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Opacity", style = MaterialTheme.typography.bodyMedium, color = SecUi.charcoal)
-                    Text(
-                        "${(opacity * 100).toInt()}%",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = SecUi.ink
-                    )
-                }
-                Slider(
-                    value = opacity,
-                    onValueChange = { opacity = it },
-                    onValueChangeFinished = {
-                        prefs.bubbleOpacity = opacity
-                        onApplyBubble()
-                    },
-                    valueRange = 0.3f..1f,
-                    colors = SliderDefaults.colors(
-                        thumbColor = SecUi.charcoal,
-                        activeTrackColor = SecUi.charcoal,
-                        inactiveTrackColor = SecUi.stone
-                    )
+                    }
                 )
             }
         }
 
+        Text(
+            "Feel",
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = SecUi.charcoal,
+            softWrap = true
+        )
         OpenCard {
             Column(
                 Modifier.padding(Dimen.MIN_PADDING),
                 verticalArrangement = Arrangement.spacedBy(Dimen.GAP)
             ) {
-                Text(
-                    "Interactions",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = SecUi.charcoal
-                )
-
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -2420,43 +2454,13 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                 ) {
                     Column(Modifier.weight(1f)) {
                         Text(
-                            "Live Speech Caption",
+                            "Snap to edge",
                             style = MaterialTheme.typography.bodyMedium,
                             color = SecUi.charcoal,
                             softWrap = true
                         )
                         Text(
-                            "Display transcribed words directly on the bubble",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = SecUi.muted,
-                            softWrap = true
-                        )
-                    }
-                    OpenChip(
-                        label = if (showText) "ON" else "OFF",
-                        isOn = showText,
-                        onClick = {
-                            showText = !showText
-                            prefs.bubbleShowText = showText
-                            onApplyBubble()
-                        }
-                    )
-                }
-
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            "Magnetic Edge Snapping",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = SecUi.charcoal,
-                            softWrap = true
-                        )
-                        Text(
-                            "Snap bubble seamlessly to nearest screen edge on release",
+                            "On release, snap to the nearest left or right edge",
                             style = MaterialTheme.typography.bodySmall,
                             color = SecUi.muted,
                             softWrap = true
@@ -2472,7 +2476,6 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                         }
                     )
                 }
-
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -2480,13 +2483,13 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                 ) {
                     Column(Modifier.weight(1f)) {
                         Text(
-                            "Active Recording Pulse",
+                            "Recording pulse",
                             style = MaterialTheme.typography.bodyMedium,
                             color = SecUi.charcoal,
                             softWrap = true
                         )
                         Text(
-                            "Pulse glowing outer ring and scale dynamically to voice RMS volume",
+                            "Pulse with voice volume while recording",
                             style = MaterialTheme.typography.bodySmall,
                             color = SecUi.muted,
                             softWrap = true
@@ -2502,15 +2505,14 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                         }
                     )
                 }
-
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        "Tactile Haptics",
+                        "Haptics",
                         style = MaterialTheme.typography.bodyMedium,
                         color = SecUi.charcoal
                     )
                     Text(
-                        "Off / Light / Full on tap, save, cancel.",
+                        "Same setting as Settings → Haptics.",
                         style = MaterialTheme.typography.bodySmall,
                         color = SecUi.muted
                     )

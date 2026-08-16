@@ -43,10 +43,10 @@ class SkinShapesTest {
     }
 
     @Test
-    fun from_storage_soft_aliases_are_m3_only() {
-        assertThat(VisualSkin.fromStorage("m3")).isEqualTo(VisualSkin.M3)
-        assertThat(VisualSkin.fromStorage("soft")).isEqualTo(VisualSkin.M3)
-        assertThat(VisualSkin.fromStorage("material3")).isEqualTo(VisualSkin.M3)
+    fun from_storage_soft_aliases_heal_to_brutal() {
+        assertThat(VisualSkin.fromStorage("m3")).isEqualTo(VisualSkin.BRUTAL)
+        assertThat(VisualSkin.fromStorage("soft")).isEqualTo(VisualSkin.BRUTAL)
+        assertThat(VisualSkin.fromStorage("material3")).isEqualTo(VisualSkin.BRUTAL)
         assertThat(VisualSkin.fromStorage("brutal")).isEqualTo(VisualSkin.BRUTAL)
         assertThat(VisualSkin.fromStorage("weird")).isEqualTo(VisualSkin.DEFAULT)
     }

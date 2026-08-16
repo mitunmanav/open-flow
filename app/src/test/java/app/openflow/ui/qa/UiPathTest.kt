@@ -25,6 +25,7 @@ class UiPathTest {
             AppRoute.SpeechAi,
             AppRoute.Appearance,
             AppRoute.BubbleSettings,
+            AppRoute.Haptics,
             AppRoute.HomeModules,
             AppRoute.Cleanup,
             AppRoute.Privacy,

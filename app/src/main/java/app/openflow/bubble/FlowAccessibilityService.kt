@@ -47,7 +47,11 @@ import app.openflow.BuildConfig
 import app.openflow.OpenFlowApp
 import app.openflow.R
 import app.openflow.ai.NoAI
+import app.openflow.audio.AudioFileManager
+import app.openflow.audio.SessionAudioCapture
+import app.openflow.data.ProcessStatus
 import app.openflow.notify.DictationNotifier
+import java.util.UUID
 import app.openflow.orchestrate.BrainRouter
 import app.openflow.orchestrate.PipelineArtifactPolicy
 import app.openflow.orchestrate.ProviderHealth
@@ -117,6 +121,12 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     private var focusedEditable: AccessibilityNodeInfo? = null
     private var searchFieldFocused = false
     private var listenStartedAt = 0L
+    /** Wall-clock listen start — stored as dictation createdAt. */
+    private var listenStartedWallMs = 0L
+    private var sessionId: String = ""
+    private var retrySessionId: String? = null
+    private val sessionAudio = SessionAudioCapture()
+    private val audioFiles by lazy { AudioFileManager(this) }
     private val serviceJob = SupervisorJob()
     private val scope = CoroutineScope(serviceJob + Dispatchers.Main.immediate)
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -1082,9 +1092,14 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         lastPartial = ""
         fieldPrefix = captureFieldPrefix()
         listenStartedAt = SystemClock.elapsedRealtime()
+        listenStartedWallMs = System.currentTimeMillis()
+        sessionId = retrySessionId ?: UUID.randomUUID().toString()
         lastInteractionAt = listenStartedAt
         setListeningAwake(true)
         val gen = ++listenGeneration
+        if (retrySessionId == null) {
+            sessionAudio.start()
+        }
 
         updateBubbleVisuals()
         setListenChrome(0)
@@ -1293,6 +1308,10 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                     )
                 }
             } else if (save && raw.isBlank()) {
+                persistFailedSession(dur)
+                bubbleLabel?.text = "Fail · tap to retry"
+            } else {
+                sessionAudio.stopAndDiscard()
                 bubbleLabel?.text = BubbleLabelFormatter.idle()
             }
             updateBubbleVisuals()
@@ -1437,6 +1456,31 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
      * Same path for stopListening + debug inject:
      * dict → snippets → CleanupPipeline(pref level) → optional brain (if picked) → dict again.
      */
+    private fun persistFailedSession(dur: Long) {
+        val sid = sessionId.ifBlank { UUID.randomUUID().toString() }
+        val wall = if (listenStartedWallMs > 0L) listenStartedWallMs else System.currentTimeMillis()
+        val lang = InsertPolish.language(prefs?.languageTag)
+        val retention = prefs?.retentionPolicy ?: "keep"
+        scope.launch(Dispatchers.IO) {
+            runCatching {
+                sessionAudio.stopAndWrite(audioFiles.getAudioFile(sid))
+                app.dictations.saveDictation(
+                    rawText = "",
+                    cleanText = "",
+                    durationMs = dur,
+                    languageTag = lang,
+                    retentionPolicy = retention,
+                    packageName = lastPackage.orEmpty(),
+                    createdAtEpochMs = wall,
+                    processStatus = ProcessStatus.FAILED,
+                    id = sid,
+                )
+                retrySessionId = sid
+                DictationNotifier.notifyProcessFailed(this@FlowAccessibilityService)
+            }
+        }
+    }
+
     private fun polishSession(
         text: String,
         surroundingField: String,
@@ -1571,14 +1615,31 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             val retention = prefs?.retentionPolicy ?: "keep"
             scope.launch(Dispatchers.IO) {
                 runCatching {
-                    app.dictations.saveDictation(
-                        rawText = result.raw,
-                        cleanText = finalText,
-                        durationMs = dur,
-                        languageTag = lang,
-                        retentionPolicy = retention,
-                        packageName = lastPackage.orEmpty(),
-                    )
+                    val sid = sessionId
+                    val wasRetry = retrySessionId != null
+                    if (!wasRetry) {
+                        sessionAudio.stopAndWrite(audioFiles.getAudioFile(sid))
+                    }
+                    if (wasRetry) {
+                        app.dictations.markDictationOk(
+                            id = sid,
+                            rawText = result.raw,
+                            cleanText = finalText,
+                        )
+                    } else {
+                        app.dictations.saveDictation(
+                            rawText = result.raw,
+                            cleanText = finalText,
+                            durationMs = dur,
+                            languageTag = lang,
+                            retentionPolicy = retention,
+                            packageName = lastPackage.orEmpty(),
+                            createdAtEpochMs = listenStartedWallMs,
+                            processStatus = ProcessStatus.OK,
+                            id = sid,
+                        )
+                    }
+                    retrySessionId = null
                 }
             }
             DictationNotifier.notifyIfPermitted(this@FlowAccessibilityService, wordCount)

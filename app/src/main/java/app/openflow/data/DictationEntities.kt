@@ -22,6 +22,8 @@ data class DictationEntity(
     val wordCount: Int,
     /** Focused app package at insert time; empty for pre-v7 rows. */
     val packageName: String = "",
+    /** [ProcessStatus.OK] or [ProcessStatus.FAILED]. Pre-v8 rows treat as ok. */
+    val processStatus: String = ProcessStatus.OK,
 )
 
 /**

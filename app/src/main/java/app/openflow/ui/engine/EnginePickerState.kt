@@ -147,6 +147,12 @@ data class EnginePickerState(
 
         const val STUB_EAR_REASON = "Not ready yet — use Phone speech or a cloud option with a key"
 
+        /** Shown on ear/brain pickers when [autoRoute] is ON — still editable for Manual fallback. */
+        const val OVERRIDE_MANUAL_FALLBACK = "Override (Manual fallback)"
+
+        fun manualFallbackHint(autoRoute: Boolean): String? =
+            if (autoRoute) OVERRIDE_MANUAL_FALLBACK else null
+
         fun earEnabled(id: String): Boolean = EarGate.live(id)
 
         fun earDisabledReason(id: String): String? =

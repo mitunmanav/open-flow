@@ -137,6 +137,14 @@ fun EngineSettingsScreen(
         }
 
         // --- SPEECH-TO-TEXT SECTION ---
+        EnginePickerState.manualFallbackHint(state.autoRoute)?.let { hint ->
+            Text(
+                text = hint,
+                style = MaterialTheme.typography.bodySmall,
+                color = scheme.onSurfaceVariant,
+                modifier = Modifier.testTag("ear_override_hint")
+            )
+        }
         OpenDropdown(
             label = stringResource(R.string.speech_ai_ear),
             selectedId = ear,
@@ -226,6 +234,14 @@ fun EngineSettingsScreen(
         }
 
         // --- BRAIN / FORMATTING SECTION ---
+        EnginePickerState.manualFallbackHint(state.autoRoute)?.let { hint ->
+            Text(
+                text = hint,
+                style = MaterialTheme.typography.bodySmall,
+                color = scheme.onSurfaceVariant,
+                modifier = Modifier.testTag("brain_override_hint")
+            )
+        }
         OpenDropdown(
             label = stringResource(R.string.speech_ai_brain),
             selectedId = brain,

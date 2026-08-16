@@ -9,6 +9,9 @@ class EnginePickerStateTest {
     fun auto_route_is_exposed_by_picker_state() {
         assertThat(EnginePickerState.of(autoRoute = false).autoRoute).isFalse()
         assertThat(EnginePickerState.of(autoRoute = true).autoRoute).isTrue()
+        assertThat(EnginePickerState.manualFallbackHint(autoRoute = false)).isNull()
+        assertThat(EnginePickerState.manualFallbackHint(autoRoute = true))
+            .isEqualTo(EnginePickerState.OVERRIDE_MANUAL_FALLBACK)
     }
 
     @Test
@@ -258,6 +261,9 @@ class EnginePickerStateTest {
         assertThat(src).contains("auto_route_switch")
         assertThat(src).contains("onAutoRoute")
         assertThat(src).contains("Auto picks ear/brain; cloud only if keys saved.")
+        assertThat(src).contains("manualFallbackHint")
+        assertThat(src).contains("ear_override_hint")
+        assertThat(src).contains("brain_override_hint")
         assertThat(src).doesNotContain("EnginePickerState.ears")
         assertThat(src).doesNotContain("EnginePickerState.brains")
     }

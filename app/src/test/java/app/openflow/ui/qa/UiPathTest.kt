@@ -99,6 +99,10 @@ class UiPathTest {
             "engine_feature_chips",
             "engine_honesty",
             "engine_ear_disabled",
+            "nav_settings",
+            "nav_snippets",
+            "dict_fab",
+            "snippet_fab",
             "home_link_speech_ai",
         )
     }

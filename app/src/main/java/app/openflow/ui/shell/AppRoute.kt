@@ -17,17 +17,19 @@ enum class AppRoute(val title: String, val navId: String? = null) {
     Setup("Set up", "setup"),
 }
 
-/** Bottom bar primary destinations. */
+/**
+ * Wispr Android hub tabs: Home · Dictionary · Snippets · Style.
+ * History lives on Home. Settings is the gear, not a tab.
+ */
 val BottomBarRoutes = listOf(
     AppRoute.Home,
-    AppRoute.History,
     AppRoute.Dictionary,
-    AppRoute.Settings,
+    AppRoute.Snippets,
+    AppRoute.Style,
 )
 
 /**
- * Settings hub + every settings child.
- * Bottom nav keeps Settings selected; Back returns to Settings.
+ * Settings hub + settings children. Dict/Snips/Style are tabs, not settings.
  */
 val SettingsSubtreeRoutes = setOf(
     AppRoute.Settings,
@@ -37,8 +39,6 @@ val SettingsSubtreeRoutes = setOf(
     AppRoute.Cleanup,
     AppRoute.Privacy,
     AppRoute.Sounds,
-    AppRoute.Snippets,
-    AppRoute.Style,
     AppRoute.HomeModules,
 )
 
@@ -49,6 +49,7 @@ fun AppRoute.isSettingsSubtree(): Boolean = this in SettingsSubtreeRoutes
 /** Toolbar / system Back target. Root tabs return self (Back disabled there). */
 fun AppRoute.backTarget(): AppRoute = when {
     isBottomBar() -> this
+    this == AppRoute.Settings -> AppRoute.Home
     isSettingsSubtree() -> AppRoute.Settings
     else -> AppRoute.Home
 }

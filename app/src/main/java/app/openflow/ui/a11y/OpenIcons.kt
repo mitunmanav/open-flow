@@ -31,7 +31,7 @@ object OpenIcons {
     const val BookDesc = "Dictionary tab"
     const val ShortTextDesc = "Snippets tab"
     const val StyleDesc = "Style tab"
-    const val SettingsDesc = "Settings tab"
+    const val SettingsDesc = "Settings"
     const val CopyDesc = "Copy to clipboard"
     const val DeleteDesc = "Delete item"
     const val ShareDesc = "Share"

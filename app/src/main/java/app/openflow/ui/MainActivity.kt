@@ -50,6 +50,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
@@ -60,6 +61,7 @@ import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -88,6 +90,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
@@ -98,6 +101,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
@@ -127,6 +131,7 @@ import app.openflow.display.DisplayRefreshPolicy
 import app.openflow.stt.LanguagePolicy
 import app.openflow.stt.SttTuning
 import app.openflow.ui.engine.EngineSettingsScreen
+import app.openflow.ui.home.HubListPolicy
 import app.openflow.ui.home.HistoryDays
 import app.openflow.ui.home.HistorySearchPolicy
 import app.openflow.ui.home.HomeBannerPolicy
@@ -368,7 +373,6 @@ class MainActivity : ComponentActivity() {
                                     }
                                 },
                                 onMic = { micPermission.launch(Manifest.permission.RECORD_AUDIO) },
-                                onOpenHistory = { goTo(AppRoute.History) },
                                 onOpenBubbleSettings = { goTo(AppRoute.BubbleSettings) },
                                 onOpenAppearance = { goTo(AppRoute.Appearance) },
                                 onOpenCleanup = { goTo(AppRoute.Cleanup) },
@@ -393,9 +397,6 @@ class MainActivity : ComponentActivity() {
                             AppRoute.Style -> StyleTab(app.prefs)
                             AppRoute.Settings -> SettingsHub(
                                 onSpeechAi = { goTo(AppRoute.SpeechAi) },
-                                onDictionary = { goTo(AppRoute.Dictionary) },
-                                onSnippets = { goTo(AppRoute.Snippets) },
-                                onStyle = { goTo(AppRoute.Style) },
                                 onAppearance = { goTo(AppRoute.Appearance) },
                                 onBubble = { goTo(AppRoute.BubbleSettings) },
                                 onCleanup = { goTo(AppRoute.Cleanup) },
@@ -504,7 +505,6 @@ private fun HomeHub(
     micOn: Boolean,
     onEnableBubble: () -> Unit,
     onMic: () -> Unit,
-    onOpenHistory: () -> Unit,
     onOpenBubbleSettings: () -> Unit,
     onOpenAppearance: () -> Unit,
     onOpenCleanup: () -> Unit,
@@ -512,11 +512,10 @@ private fun HomeHub(
     onOpenSpeechAi: () -> Unit,
     onBattery: () -> Unit
 ) {
-    val dictations by app.dictations.observeRecentDictations(3).collectAsState(initial = emptyList())
+    val dictations by app.dictations.observeDictations().collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
     val ctx = LocalContext.current
     var statsText by remember { mutableStateOf("…") }
-    var sessionCount by remember { mutableIntStateOf(0) }
     var localNote by rememberSaveable { mutableStateOf("") }
     var cleanup by remember { mutableStateOf(app.prefs.cleanupLevel) }
     var showText by remember { mutableStateOf(app.prefs.bubbleShowText) }
@@ -524,6 +523,7 @@ private fun HomeHub(
     var lastRaw by remember { mutableStateOf(app.prefs.lastRawText) }
     var snoozed by remember { mutableStateOf(app.prefs.isSnoozed()) }
     var seenHowTo by remember { mutableStateOf(app.prefs.seenHowTo) }
+    var homeSearch by rememberSaveable { mutableStateOf("") }
     val owner = LocalLifecycleOwner.current
     DisposableEffect(owner) {
         val obs = LifecycleEventObserver { _, e ->
@@ -534,7 +534,6 @@ private fun HomeHub(
                 scope.launch {
                     val s = app.dictations.stats()
                     statsText = "${s.totalWords} words · ${s.totalSessions} sessions · ${s.streakDays}d streak"
-                    sessionCount = s.totalSessions.toInt()
                 }
             }
         }
@@ -542,7 +541,6 @@ private fun HomeHub(
         scope.launch {
             val s = app.dictations.stats()
             statsText = "${s.totalWords} words · ${s.totalSessions} sessions · ${s.streakDays}d streak"
-            sessionCount = s.totalSessions.toInt()
         }
         onDispose { owner.lifecycle.removeObserver(obs) }
     }
@@ -1042,7 +1040,7 @@ private fun HomeHub(
                     ) {
                         Column(Modifier.weight(1f)) {
                             Text(
-                                "Recent",
+                                "History",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 softWrap = true
@@ -1054,58 +1052,88 @@ private fun HomeHub(
                                 softWrap = true
                             )
                         }
-                        OpenButton(
-                            text = "All ($sessionCount)",
-                            onClick = onOpenHistory,
-                            variant = ButtonVariant.Text,
-                            modifier = Modifier.testTag("home_history_all")
-                        )
                     }
                 }
                 "recent" -> {
-                    if (dictations.isEmpty()) {
+                    OpenTextField(
+                        value = homeSearch,
+                        onValueChange = { homeSearch = it },
+                        placeholder = "Search transcripts…",
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = null,
+                                tint = SecUi.muted
+                            )
+                        },
+                        modifier = Modifier.testTag("home_history_search")
+                    )
+                    val shown = dictations.filter {
+                        HubListPolicy.matches(homeSearch, it.text, it.rawText)
+                    }
+                    if (shown.isEmpty()) {
                         EmptyState(
                             icon = Icons.Default.MicNone,
-                            title = "No dictations yet",
-                            subtitle = "Use the floating bubble in any app to build private history.",
+                            title = if (homeSearch.isBlank()) "No dictations yet" else "No matching results",
+                            subtitle = if (homeSearch.isBlank()) {
+                                "Use the floating bubble in any app to build private history."
+                            } else {
+                                "Try a different search keyword."
+                            },
                             modifier = Modifier.testTag("home_recent_empty")
                         )
                     } else {
-                        dictations.forEach { d: DictationEntity ->
-                            DictationCard(
-                                d = d,
-                                onDelete = {
-                                    scope.launch { app.dictations.deleteDictation(d.id) }
-                                },
-                                onShare = {
-                                    val rows = listOf(
-                                        HistoryExport.Row(
-                                            d.createdAtEpochMs,
-                                            d.text,
-                                            d.languageTag,
-                                            d.wordCount
-                                        )
-                                    )
-                                    val shareText = HistoryExport.shareText(rows)
-                                    val send = Intent(Intent.ACTION_SEND).apply {
-                                        type = "text/plain"
-                                        putExtra(Intent.EXTRA_TEXT, shareText)
-                                    }
-                                    try {
-                                        ctx.startActivity(Intent.createChooser(send, "Share dictation"))
-                                    } catch (_: Exception) {
-                                    }
-                                },
-                                onSave = { old, new ->
-                                    scope.launch {
-                                        if (app.prefs.autoLearn) {
-                                            app.dictations.learnFromEdit(old, new)
-                                        }
-                                        app.dictations.updateDictationText(d.id, new)
-                                    }
-                                },
-                                onUseRaw = { raw -> useHistoryRaw(ctx, raw) }
+                        val nowMs = System.currentTimeMillis()
+                        val days = HistoryDays.group(
+                            shown.map { HistoryDays.Row(it.id, it.createdAtEpochMs, it.text) },
+                            nowMs = nowMs,
+                            zoneOffsetMs = TimeZone.getDefault().getOffset(nowMs).toLong()
+                        )
+                        val byId = shown.associateBy { it.id }
+                        days.forEach { day ->
+                            Text(
+                                day.label,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
+                            day.rows.forEach { row ->
+                                val d = byId[row.id] ?: return@forEach
+                                DictationCard(
+                                    d = d,
+                                    onDelete = {
+                                        scope.launch { app.dictations.deleteDictation(d.id) }
+                                    },
+                                    onShare = {
+                                        val rows = listOf(
+                                            HistoryExport.Row(
+                                                d.createdAtEpochMs,
+                                                d.text,
+                                                d.languageTag,
+                                                d.wordCount
+                                            )
+                                        )
+                                        val shareText = HistoryExport.shareText(rows)
+                                        val send = Intent(Intent.ACTION_SEND).apply {
+                                            type = "text/plain"
+                                            putExtra(Intent.EXTRA_TEXT, shareText)
+                                        }
+                                        try {
+                                            ctx.startActivity(Intent.createChooser(send, "Share dictation"))
+                                        } catch (_: Exception) {
+                                        }
+                                    },
+                                    onSave = { old, new ->
+                                        scope.launch {
+                                            if (app.prefs.autoLearn) {
+                                                app.dictations.learnFromEdit(old, new)
+                                            }
+                                            app.dictations.updateDictationText(d.id, new)
+                                        }
+                                    },
+                                    onUseRaw = { raw -> useHistoryRaw(ctx, raw) }
+                                )
+                            }
                         }
                     }
                 }
@@ -1567,162 +1595,192 @@ private fun useHistoryRaw(ctx: Context, raw: String) {
 @Composable
 private fun DictionaryTab(app: OpenFlowApp) {
     val words by app.dictations.observeDictionary().collectAsState(initial = emptyList())
-    var word by remember { mutableStateOf("") }
-    var repl by remember { mutableStateOf("") }
+    var query by rememberSaveable { mutableStateOf("") }
+    var showAdd by rememberSaveable { mutableStateOf(false) }
+    var word by rememberSaveable { mutableStateOf("") }
+    var repl by rememberSaveable { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val ctx = LocalContext.current
+    val shown = remember(words, query) {
+        words.filter { HubListPolicy.matches(query, it.word, it.replacement) }
+    }
 
-    LazyColumn(
-        Modifier
-            .fillMaxSize()
-            .background(SecUi.cream)
-            .padding(horizontal = Dimen.PAGE_PAD, vertical = Dimen.GAP),
-        verticalArrangement = Arrangement.spacedBy(Dimen.GAP),
-        contentPadding = PaddingValues(bottom = Dimen.GAP_LG)
-    ) {
-        item(key = "dict-hdr") {
-            Column(verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)) {
-                Text(
-                    "Dict",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = SecUi.charcoal,
-                    softWrap = true
-                )
-                Text(
-                    "One word. Local. Say it, insert the spelling you want.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = SecUi.muted,
-                    softWrap = true
+    Box(Modifier.fillMaxSize().background(SecUi.cream)) {
+        LazyColumn(
+            Modifier
+                .fillMaxSize()
+                .padding(horizontal = Dimen.PAGE_PAD, vertical = Dimen.GAP),
+            verticalArrangement = Arrangement.spacedBy(Dimen.GAP),
+            contentPadding = PaddingValues(bottom = 88.dp)
+        ) {
+            item(key = "dict-search") {
+                OpenTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    placeholder = "Search dictionary…",
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = null,
+                            tint = SecUi.muted
+                        )
+                    },
+                    modifier = Modifier.testTag("dict_search")
                 )
             }
-        }
 
-        item(key = "dict-add") {
-        OpenCard {
-            Column(
-                Modifier
-                    .padding(Dimen.MIN_PADDING)
-                    .wrapContentHeight(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Text(
-                    "Add to Dict",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = SecUi.charcoal,
-                    softWrap = true
-                )
-                OpenTextField(
-                    value = word,
-                    onValueChange = { word = it },
-                    label = "Heard word",
-                    placeholder = "Heard word / mistake (e.g. Wisper)",
-                    modifier = Modifier.testTag("dict_word")
-                )
-                OpenTextField(
-                    value = repl,
-                    onValueChange = { repl = it },
-                    label = "Replace with",
-                    placeholder = "Replace with (e.g. Wispr)",
-                    modifier = Modifier.testTag("dict_repl")
-                )
-                OpenButton(
-                    text = "Save word",
-                    modifier = Modifier.testTag("dict_save_word"),
-                    enabled = word.isNotBlank(),
-                    onClick = {
-                        if (word.isNotBlank()) {
-                            scope.launch {
-                                val ok = app.dictations.addWord(
-                                    word.trim(),
-                                    repl.ifBlank { word }.trim()
+            if (shown.isEmpty()) {
+                item(key = "dict-empty") {
+                    EmptyState(
+                        icon = Icons.Default.Tune,
+                        title = if (query.isBlank()) "No Dict words" else "No matching results",
+                        subtitle = if (query.isBlank()) {
+                            "Tap + to add a heard word and what to insert."
+                        } else {
+                            "Try a different search keyword."
+                        },
+                        modifier = Modifier.testTag("dict_empty")
+                    )
+                }
+            } else {
+                if (query.isBlank()) {
+                    item(key = "dict-clear") {
+                        OpenButton(
+                            text = "Clear all learned",
+                            modifier = Modifier.testTag("dict_clear_learned"),
+                            onClick = {
+                                scope.launch { app.dictations.clearLearned() }
+                            }
+                        )
+                    }
+                }
+                items(
+                    items = shown,
+                    key = { UiScrollPolicy.dictRowKey(it.id) },
+                    contentType = { "dict" },
+                ) { w: DictionaryWordEntity ->
+                    OpenCard {
+                        Row(
+                            Modifier
+                                .padding(Dimen.MIN_PADDING)
+                                .fillMaxWidth()
+                                .heightIn(min = Dimen.MIN_TOUCH),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    w.word,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = SecUi.charcoal,
+                                    softWrap = true
                                 )
-                                if (!ok) {
-                                    Toast.makeText(
-                                        ctx,
-                                        "That word is a snippet trigger",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                } else {
-                                    word = ""
-                                    repl = ""
-                                }
+                                Text(
+                                    "→ ${w.replacement}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = SecUi.ink,
+                                    softWrap = true
+                                )
+                            }
+                            IconButton(
+                                onClick = {
+                                    scope.launch { app.dictations.deleteWord(w.id) }
+                                },
+                                modifier = Modifier
+                                    .size(Dimen.MIN_TOUCH)
+                                    .testTag("dict_delete")
+                            ) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = "Delete",
+                                    tint = SecUi.error,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
                         }
                     }
-                )
-                PairImportBlock(
-                    testPrefix = "dict",
-                    onImport = { app.dictations.importDictionary(it) }
-                )
-            }
-        }
-        }
-
-        if (words.isEmpty()) {
-            item(key = "dict-empty") {
-            EmptyState(
-                icon = Icons.Default.Tune,
-                title = "No Dict words",
-                subtitle = "Add a heard word and what to insert.",
-                modifier = Modifier.testTag("dict_empty")
-            )
-            }
-        } else {
-            item(key = "dict-clear") {
-            OpenButton(
-                text = "Clear all learned",
-                modifier = Modifier.testTag("dict_clear_learned"),
-                onClick = {
-                    scope.launch { app.dictations.clearLearned() }
                 }
-            )
             }
-            items(
-                items = words,
-                key = { UiScrollPolicy.dictRowKey(it.id) },
-                contentType = { "dict" },
-            ) { w: DictionaryWordEntity ->
+        }
+        FloatingActionButton(
+            onClick = { showAdd = true },
+            shape = RectangleShape,
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+                .testTag("dict_fab")
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Add dictionary word")
+        }
+        if (showAdd) {
+            Dialog(onDismissRequest = { showAdd = false }) {
                 OpenCard {
-                    Row(
+                    Column(
                         Modifier
                             .padding(Dimen.MIN_PADDING)
-                            .fillMaxWidth()
-                            .heightIn(min = Dimen.MIN_TOUCH),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .wrapContentHeight(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Column(Modifier.weight(1f)) {
-                            Text(
-                                w.word,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = SecUi.charcoal,
-                                softWrap = true
-                            )
-                            Text(
-                                "→ ${w.replacement}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = SecUi.ink,
-                                softWrap = true
-                            )
-                        }
-                        IconButton(
+                        Text(
+                            "Add to Dict",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = SecUi.charcoal,
+                            softWrap = true
+                        )
+                        OpenTextField(
+                            value = word,
+                            onValueChange = { word = it },
+                            label = "Heard word",
+                            placeholder = "Heard word / mistake (e.g. Wisper)",
+                            modifier = Modifier.testTag("dict_word")
+                        )
+                        OpenTextField(
+                            value = repl,
+                            onValueChange = { repl = it },
+                            label = "Replace with",
+                            placeholder = "Replace with (e.g. Wispr)",
+                            modifier = Modifier.testTag("dict_repl")
+                        )
+                        OpenButton(
+                            text = "Save word",
+                            modifier = Modifier.testTag("dict_save_word"),
+                            enabled = word.isNotBlank(),
                             onClick = {
-                                scope.launch { app.dictations.deleteWord(w.id) }
-                            },
-                            modifier = Modifier
-                                .size(Dimen.MIN_TOUCH)
-                                .testTag("dict_delete")
-                        ) {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = "Delete",
-                                tint = SecUi.error,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
+                                if (word.isNotBlank()) {
+                                    scope.launch {
+                                        val ok = app.dictations.addWord(
+                                            word.trim(),
+                                            repl.ifBlank { word }.trim()
+                                        )
+                                        if (!ok) {
+                                            Toast.makeText(
+                                                ctx,
+                                                "That word is a snippet trigger",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        } else {
+                                            word = ""
+                                            repl = ""
+                                            showAdd = false
+                                        }
+                                    }
+                                }
+                            }
+                        )
+                        PairImportBlock(
+                            testPrefix = "dict",
+                            onImport = { app.dictations.importDictionary(it) }
+                        )
+                        OpenButton(
+                            text = "Close",
+                            variant = ButtonVariant.Outlined,
+                            onClick = { showAdd = false },
+                            modifier = Modifier.testTag("dict_add_close")
+                        )
                     }
                 }
             }
@@ -1733,138 +1791,175 @@ private fun DictionaryTab(app: OpenFlowApp) {
 @Composable
 private fun SnippetsTab(app: OpenFlowApp) {
     val snippets by app.dictations.observeSnippets().collectAsState(initial = emptyList())
-    var trigger by remember { mutableStateOf("") }
-    var body by remember { mutableStateOf("") }
+    var query by rememberSaveable { mutableStateOf("") }
+    var showAdd by rememberSaveable { mutableStateOf(false) }
+    var trigger by rememberSaveable { mutableStateOf("") }
+    var body by rememberSaveable { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val ctx = LocalContext.current
+    val shown = remember(snippets, query) {
+        snippets.filter { HubListPolicy.matches(query, it.trigger, it.body) }
+    }
 
-    LazyColumn(
-        Modifier
-            .fillMaxSize()
-            .background(SecUi.cream)
-            .padding(horizontal = Dimen.PAGE_PAD, vertical = Dimen.GAP),
-        verticalArrangement = Arrangement.spacedBy(Dimen.GAP),
-        contentPadding = PaddingValues(bottom = Dimen.GAP_LG)
-    ) {
-        item(key = "snip-hdr") {
-        Text(
-            "Say a short trigger. Paste a whole block.",
-            style = MaterialTheme.typography.bodySmall,
-            color = SecUi.muted,
-            softWrap = true
-        )
-        }
+    Box(Modifier.fillMaxSize().background(SecUi.cream)) {
+        LazyColumn(
+            Modifier
+                .fillMaxSize()
+                .padding(horizontal = Dimen.PAGE_PAD, vertical = Dimen.GAP),
+            verticalArrangement = Arrangement.spacedBy(Dimen.GAP),
+            contentPadding = PaddingValues(bottom = 88.dp)
+        ) {
+            item(key = "snip-search") {
+                OpenTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    placeholder = "Search snippets…",
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Search,
+                            contentDescription = null,
+                            tint = SecUi.muted
+                        )
+                    },
+                    modifier = Modifier.testTag("snippet_search")
+                )
+            }
 
-        item(key = "snip-add") {
-        OpenCard {
-            Column(
-                Modifier
-                    .padding(Dimen.MIN_PADDING)
-                    .wrapContentHeight(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Text(
-                    "New snippet",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = SecUi.charcoal,
-                    softWrap = true
-                )
-                OpenTextField(
-                    value = trigger,
-                    onValueChange = { trigger = it },
-                    label = "Trigger",
-                    placeholder = "Trigger (e.g. my address, email sig)"
-                )
-                OpenTextField(
-                    value = body,
-                    onValueChange = { body = it },
-                    label = "Paste block",
-                    placeholder = "Expansion text…",
-                    singleLine = false,
-                    minLines = 3
-                )
-                OpenButton(
-                    text = "Add snippet",
-                    modifier = Modifier.testTag("snippet_add"),
-                    enabled = trigger.isNotBlank() && body.isNotBlank(),
-                    onClick = {
-                        if (trigger.isNotBlank() && body.isNotBlank()) {
-                            scope.launch {
-                                val ok = app.dictations.addSnippet(trigger.trim(), body.trim())
-                                if (!ok) {
-                                    Toast.makeText(
-                                        ctx,
-                                        "That trigger is a dictionary word",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                } else {
-                                    trigger = ""
-                                    body = ""
+            if (shown.isEmpty()) {
+                item(key = "snip-empty") {
+                    EmptyState(
+                        icon = Icons.Default.Tune,
+                        title = if (query.isBlank()) "No voice snippets" else "No matching results",
+                        subtitle = if (query.isBlank()) {
+                            "Tap + to add a trigger and paste block."
+                        } else {
+                            "Try a different search keyword."
+                        }
+                    )
+                }
+            } else {
+                items(
+                    items = shown,
+                    key = { UiScrollPolicy.snippetRowKey(it.id) },
+                    contentType = { "snip" },
+                ) { s: SnippetEntity ->
+                    OpenCard {
+                        Column(
+                            Modifier.padding(Dimen.MIN_PADDING),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = Dimen.MIN_TOUCH),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "Trigger: \"${s.trigger}\"",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = SecUi.charcoal,
+                                    softWrap = true,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                IconButton(
+                                    onClick = { scope.launch { app.dictations.deleteSnippet(s.id) } },
+                                    modifier = Modifier.size(Dimen.MIN_TOUCH)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = "Delete",
+                                        tint = SecUi.error,
+                                        modifier = Modifier.size(20.dp)
+                                    )
                                 }
                             }
+                            Text(
+                                if (s.body.length > 200) "${s.body.take(200)}…" else s.body,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = SecUi.muted,
+                                softWrap = true
+                            )
                         }
                     }
-                )
-                PairImportBlock(
-                    testPrefix = "snippet",
-                    onImport = { app.dictations.importSnippets(it) }
-                )
+                }
             }
         }
+        FloatingActionButton(
+            onClick = { showAdd = true },
+            shape = RectangleShape,
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+                .testTag("snippet_fab")
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Add snippet")
         }
-
-        if (snippets.isEmpty()) {
-            item(key = "snip-empty") {
-            EmptyState(
-                icon = Icons.Default.Tune,
-                title = "No voice snippets",
-                subtitle = "Create shortcuts for frequently typed addresses, emails, or templates."
-            )
-            }
-        } else {
-            items(
-                items = snippets,
-                key = { UiScrollPolicy.snippetRowKey(it.id) },
-                contentType = { "snip" },
-            ) { s: SnippetEntity ->
+        if (showAdd) {
+            Dialog(onDismissRequest = { showAdd = false }) {
                 OpenCard {
                     Column(
-                        Modifier.padding(Dimen.MIN_PADDING),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                        Modifier
+                            .padding(Dimen.MIN_PADDING)
+                            .wrapContentHeight(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = Dimen.MIN_TOUCH),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                "Trigger: \"${s.trigger}\"",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = SecUi.charcoal,
-                                softWrap = true,
-                                modifier = Modifier.weight(1f)
-                            )
-                            IconButton(
-                                onClick = { scope.launch { app.dictations.deleteSnippet(s.id) } },
-                                modifier = Modifier.size(Dimen.MIN_TOUCH)
-                            ) {
-                                Icon(
-                                    Icons.Default.Delete,
-                                    contentDescription = "Delete",
-                                    tint = SecUi.error,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
                         Text(
-                            if (s.body.length > 200) "${s.body.take(200)}…" else s.body,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = SecUi.muted,
+                            "New snippet",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = SecUi.charcoal,
                             softWrap = true
+                        )
+                        OpenTextField(
+                            value = trigger,
+                            onValueChange = { trigger = it },
+                            label = "Trigger",
+                            placeholder = "Trigger (e.g. my address, email sig)"
+                        )
+                        OpenTextField(
+                            value = body,
+                            onValueChange = { body = it },
+                            label = "Paste block",
+                            placeholder = "Expansion text…",
+                            singleLine = false,
+                            minLines = 3
+                        )
+                        OpenButton(
+                            text = "Add snippet",
+                            modifier = Modifier.testTag("snippet_add"),
+                            enabled = trigger.isNotBlank() && body.isNotBlank(),
+                            onClick = {
+                                if (trigger.isNotBlank() && body.isNotBlank()) {
+                                    scope.launch {
+                                        val ok = app.dictations.addSnippet(trigger.trim(), body.trim())
+                                        if (!ok) {
+                                            Toast.makeText(
+                                                ctx,
+                                                "That trigger is a dictionary word",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        } else {
+                                            trigger = ""
+                                            body = ""
+                                            showAdd = false
+                                        }
+                                    }
+                                }
+                            }
+                        )
+                        PairImportBlock(
+                            testPrefix = "snippet",
+                            onImport = { app.dictations.importSnippets(it) }
+                        )
+                        OpenButton(
+                            text = "Close",
+                            variant = ButtonVariant.Outlined,
+                            onClick = { showAdd = false },
+                            modifier = Modifier.testTag("snippet_add_close")
                         )
                     }
                 }
@@ -2406,9 +2501,6 @@ private fun AppContextCustomizer(prefs: FlowPrefs) {
 @Composable
 private fun SettingsHub(
     onSpeechAi: () -> Unit,
-    onDictionary: () -> Unit,
-    onSnippets: () -> Unit,
-    onStyle: () -> Unit,
     onAppearance: () -> Unit,
     onBubble: () -> Unit,
     onCleanup: () -> Unit,
@@ -2434,9 +2526,6 @@ private fun SettingsHub(
         SettingsRow("Speech + AI", "Pick speech and rewrite. Where audio and text go.", onSpeechAi)
         SettingsRow("Flow Bubble & Gestures", "Shape, size, opacity, edge magnetic snap", onBubble)
         SettingsRow("Cleanup Pipeline", "Filler words, course corrections, lists", onCleanup)
-        SettingsRow("Writing Style", "Casual, formal, concise persona", onStyle)
-        SettingsRow("Dict", "One word. Local spelling, acronyms, auto-learn from fixes", onDictionary)
-        SettingsRow("Voice Snippets", "Trigger phrases → text expansion", onSnippets)
         SettingsRow("Appearance", "Dark / light theme, visual skins", onAppearance)
         SettingsRow("Privacy & Retention", "Zero-cloud audit, auto-wipe policies", onPrivacy)
         SettingsRow("Haptics & Feedback", "Tactile clicks and audio feedback", onSounds)

@@ -1556,7 +1556,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                         cleanText = finalText,
                         durationMs = dur,
                         languageTag = lang,
-                        retentionPolicy = retention
+                        retentionPolicy = retention,
+                        packageName = lastPackage.orEmpty(),
                     )
                 }
             }

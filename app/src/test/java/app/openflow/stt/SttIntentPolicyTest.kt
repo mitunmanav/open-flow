@@ -19,4 +19,18 @@ class SttIntentPolicyTest {
         assertThat(SttIntentPolicy.formattingMode(preferQuality = false))
             .isEqualTo(SttIntentPolicy.LATENCY)
     }
+
+    @Test
+    fun bias_extras_from_api_33() {
+        assertThat(SttIntentPolicy.includeBiasing(32)).isFalse()
+        assertThat(SttIntentPolicy.includeBiasing(33)).isTrue()
+        assertThat(SttIntentPolicy.includeBiasing(36)).isTrue()
+    }
+
+    @Test
+    fun language_extra_uses_catalog() {
+        assertThat(SttIntentPolicy.languageTag(null)).isEqualTo(LanguagePolicy.DEFAULT_LANGUAGE)
+        assertThat(SttIntentPolicy.languageTag("en-IN")).isEqualTo("en-IN")
+        assertThat(SttIntentPolicy.languageTag("nope")).isEqualTo(LanguagePolicy.DEFAULT_LANGUAGE)
+    }
 }

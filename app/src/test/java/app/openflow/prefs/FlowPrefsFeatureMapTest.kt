@@ -23,6 +23,7 @@ class FlowPrefsFeatureMapTest {
         assertThat(p.bubbleScale).isEqualTo(0.85f)
         assertThat(p.sttProfile).isEqualTo(SttTuning.PROFILE_BALANCED)
         assertThat(p.sttTuning().preferFormattingQuality).isTrue()
+        assertThat(p.preferOnDevice).isFalse()
         assertThat(p.autoLearn).isTrue()
         assertThat(p.darkMode.value).isEqualTo("light")
         assertThat(p.seenHowTo).isFalse()
@@ -96,5 +97,17 @@ class FlowPrefsFeatureMapTest {
         assertThat(p.sttTuning().preferFormattingQuality).isTrue()
         p.sttProfile = "nope"
         assertThat(p.sttProfile).isEqualTo(SttTuning.PROFILE_BALANCED)
+    }
+
+    @Test
+    fun prefer_on_device_roundtrip_default_off() {
+        val store = MemoryPrefsStore()
+        val p = FlowPrefs(store)
+        assertThat(p.preferOnDevice).isFalse()
+        p.preferOnDevice = true
+        assertThat(p.preferOnDevice).isTrue()
+        assertThat(store.getString("prefer_on_device", "")).isEqualTo("true")
+        p.preferOnDevice = false
+        assertThat(p.preferOnDevice).isFalse()
     }
 }

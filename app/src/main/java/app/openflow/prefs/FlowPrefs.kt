@@ -299,6 +299,15 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
     fun sttTuning(): SttTuning = SttTuning.forProfile(sttProfile)
 
     /**
+     * Prefer [android.speech.SpeechRecognizer.createOnDeviceSpeechRecognizer] when the OS pack exists.
+     * Default off — system recognizer may still send audio.
+     * Live-read on each listen.
+     */
+    var preferOnDevice: Boolean
+        get() = store.getString("prefer_on_device", "false") == "true"
+        set(v) = store.putString("prefer_on_device", if (v) "true" else "false")
+
+    /**
      * Preferred UI refresh Hz: 60 | 90 | 120 | 144.
      * Best-effort via display modes; device may clamp.
      */

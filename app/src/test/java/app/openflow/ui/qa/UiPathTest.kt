@@ -116,6 +116,9 @@ class UiPathTest {
             "insights_share",
             "insights_share_text",
             "insights_share_card",
+            "on_device_off",
+            "on_device_on",
+            "on_device_honesty",
         )
     }
 }

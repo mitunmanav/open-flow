@@ -131,6 +131,7 @@ import app.openflow.ui.components.OpenTextField
 import app.openflow.display.DisplayRefreshController
 import app.openflow.display.DisplayRefreshPolicy
 import app.openflow.stt.LanguagePolicy
+import app.openflow.stt.OnDeviceSpeechPolicy
 import app.openflow.stt.SttTuning
 import app.openflow.ui.engine.EngineSettingsScreen
 import app.openflow.ui.home.DictListPolicy
@@ -1976,6 +1977,7 @@ private fun AppearanceSettings(prefs: FlowPrefs) {
     val context = LocalContext.current
     var refreshHz by remember { mutableIntStateOf(prefs.refreshHz) }
         var sttProfile by remember { mutableStateOf(prefs.sttProfile) }
+        var preferOnDevice by remember { mutableStateOf(prefs.preferOnDevice) }
         var languageTag by remember { mutableStateOf(prefs.languageTag) }
     val deviceModes = remember(context) {
         try {
@@ -2125,6 +2127,64 @@ private fun AppearanceSettings(prefs: FlowPrefs) {
                 }
                 Text(
                     "Applies on next listen.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        OpenCard {
+            Column(
+                Modifier
+                    .padding(Dimen.MIN_PADDING)
+                    .wrapContentHeight(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    "On-device speech",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    softWrap = true
+                )
+                Text(
+                    OnDeviceSpeechPolicy.honesty(preferOnDevice),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    softWrap = true,
+                    modifier = Modifier.testTag("on_device_honesty")
+                )
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OpenChip(
+                        label = "Off",
+                        isOn = !preferOnDevice,
+                        modifier = Modifier
+                            .wrapContentHeight()
+                            .testTag("on_device_off"),
+                        onClick = {
+                            preferOnDevice = false
+                            prefs.preferOnDevice = false
+                        }
+                    )
+                    OpenChip(
+                        label = "On",
+                        isOn = preferOnDevice,
+                        modifier = Modifier
+                            .wrapContentHeight()
+                            .testTag("on_device_on"),
+                        onClick = {
+                            preferOnDevice = true
+                            prefs.preferOnDevice = true
+                        }
+                    )
+                }
+                Text(
+                    "Applies on next listen. Whisper-on-phone is later.",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

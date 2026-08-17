@@ -1446,6 +1446,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             online = online,
             keyedEars = keyed(CLOUD_EAR_IDS),
             keyedBrains = keyed(CLOUD_BRAIN_IDS),
+            preferOnDevice = prefs?.preferOnDevice == true,
         )
     }
 

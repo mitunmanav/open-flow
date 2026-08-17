@@ -13,4 +13,8 @@ object SttIntentPolicy {
 
     fun formattingMode(preferQuality: Boolean): String =
         if (preferQuality) QUALITY else LATENCY
+
+    fun includeBiasing(api: Int): Boolean = api >= FORMATTING_API
+
+    fun languageTag(raw: String?): String = LanguagePolicy.force(raw)
 }

@@ -1,5 +1,7 @@
 package app.openflow.ui.privacy
 
+import app.openflow.stt.OnDeviceSpeechPolicy
+
 /** Honest launch copy. Brain enhance can POST this utterance — never claim it never leaves. */
 object PrivacyHonesty {
     const val HOME_FOOTER =
@@ -19,4 +21,8 @@ object PrivacyHonesty {
 
     const val WALKTHROUGH =
         "Phone speech may use Google. A rewrite you pick can POST this line. History stays here. Wipe anytime. No Open Flow server."
+
+    const val ON_DEVICE_OFF = OnDeviceSpeechPolicy.HONESTY_OFF
+
+    const val ON_DEVICE_ON = OnDeviceSpeechPolicy.HONESTY_ON
 }

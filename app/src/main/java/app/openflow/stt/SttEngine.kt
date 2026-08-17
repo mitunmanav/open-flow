@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger
  */
 class SttEngine(
     private val context: Context,
-    private val preferOnDevice: Boolean = false,
+    private var preferOnDevice: Boolean = false,
     private val policy: ContinuousPolicy = ContinuousPolicy(),
     private val fallbackPolicy: OnDeviceFallbackPolicy = OnDeviceFallbackPolicy(),
     private val mainHandler: Handler = Handler(Looper.getMainLooper()),
@@ -72,6 +72,7 @@ class SttEngine(
     private var forceOfflineOnly: Boolean = preferOnDevice
     private var usedOnDeviceFactory: Boolean = false
     private var offlineFallbackUsed: Boolean = false
+    private var lastPreferOnDevice: Boolean? = null
 
     /** Non-null while [stopAndFlush] waits for onResults/onError. */
     private var flushCallback: (() -> Unit)? = null
@@ -279,8 +280,12 @@ class SttEngine(
             inFlight.set(false)
         }
         val n = sessionCount.incrementAndGet()
+        refreshOnDeviceFromPrefs()
+        val prefChanged = lastPreferOnDevice != null && lastPreferOnDevice != preferOnDevice
+        lastPreferOnDevice = preferOnDevice
         val needNew = forceRecreate ||
             recognizer == null ||
+            prefChanged ||
             policy.shouldRecreateRecognizer(n)
         if (needNew) {
             destroyInternal()
@@ -480,6 +485,7 @@ class SttEngine(
     }
 
     private fun createRecognizer(): SpeechRecognizer? {
+        refreshOnDeviceFromPrefs()
         if (!SpeechRecognizer.isRecognitionAvailable(context)) return null
         // Prefer on-device factory when available (API 31+) and still trying offline path
         val onDeviceOk = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
@@ -530,8 +536,25 @@ class SttEngine(
         return tuning
     }
 
+    /** Live on-device factory pref. Same cadence as [refreshTuning]. */
+    private fun refreshOnDeviceFromPrefs() {
+        val live = runCatching { FlowPrefs(context).preferOnDevice }.getOrElse { e ->
+            rememberError("on-device prefs: ${e.message ?: e.javaClass.simpleName}")
+            null
+        }
+        if (live != null) {
+            if (live && !preferOnDevice) {
+                offlineFallbackUsed = false
+            }
+            preferOnDevice = live
+        }
+        val flags = OnDeviceSpeechPolicy.flags(preferOnDevice, offlineFallbackUsed)
+        preferOnDevice = flags.preferOnDevice
+        forceOfflineOnly = flags.forceOfflineOnly
+    }
+
     private fun buildIntent(languageTag: String, t: SttTuning = tuning): Intent {
-        val lang = LanguagePolicy.force(languageTag)
+        val lang = SttIntentPolicy.languageTag(languageTag)
         return Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(
                 RecognizerIntent.EXTRA_LANGUAGE_MODEL,
@@ -565,15 +588,17 @@ class SttEngine(
             // API 33+: auto punct / capitalization.
             // Quality = better punct, more latency; latency = snappier, weaker punct.
             // Default quality (see SttTuning.preferFormattingQuality).
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (SttIntentPolicy.preferFormatted(Build.VERSION.SDK_INT)) {
                 val mode = SttIntentPolicy.formattingMode(t.preferFormattingQuality)
                 putExtra(RecognizerIntent.EXTRA_ENABLE_FORMATTING, mode)
                 putExtra(RecognizerIntent.EXTRA_HIDE_PARTIAL_TRAILING_PUNCTUATION, true)
-                putStringArrayListExtra(
-                    RecognizerIntent.EXTRA_BIASING_STRINGS,
-                    ArrayList(biasing)
-                )
-                putExtra(RecognizerIntent.EXTRA_ENABLE_BIASING_DEVICE_CONTEXT, true)
+                if (SttIntentPolicy.includeBiasing(Build.VERSION.SDK_INT)) {
+                    putStringArrayListExtra(
+                        RecognizerIntent.EXTRA_BIASING_STRINGS,
+                        ArrayList(biasing)
+                    )
+                    putExtra(RecognizerIntent.EXTRA_ENABLE_BIASING_DEVICE_CONTEXT, true)
+                }
                 putExtra(RecognizerIntent.EXTRA_MASK_OFFENSIVE_WORDS, false)
             }
         }

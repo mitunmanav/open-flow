@@ -22,6 +22,25 @@ class SttRouterTest {
     }
 
     @Test
+    fun auto_prefer_on_device_still_local_first() {
+        val signals =
+            RouteSignals(
+                online = true,
+                keyedEars = setOf("openai"),
+                keyedBrains = emptySet(),
+                preferOnDevice = true,
+            )
+        val result =
+            SttRouter.pick(
+                auto = true,
+                manualEarId = "system",
+                signals = signals,
+                health = ProviderHealth(),
+            )
+        assertThat(result).isEqualTo(RouteExplain("system", "local-first"))
+    }
+
+    @Test
     fun auto_offline_picks_system() {
         val result =
             SttRouter.pick(

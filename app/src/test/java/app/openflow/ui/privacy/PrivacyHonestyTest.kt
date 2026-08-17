@@ -20,6 +20,14 @@ class PrivacyHonestyTest {
     }
 
     @Test
+    fun on_device_toggle_copy_is_honest() {
+        assertThat(PrivacyHonesty.ON_DEVICE_OFF.lowercase()).contains("may")
+        assertThat(PrivacyHonesty.ON_DEVICE_OFF.lowercase()).contains("google")
+        assertThat(PrivacyHonesty.ON_DEVICE_ON.lowercase()).contains("on-device")
+        assertThat(PrivacyHonesty.ON_DEVICE_ON.lowercase()).doesNotContain("never")
+    }
+
+    @Test
     fun insights_voice_admits_counts_not_never() {
         assertThat(PrivacyHonesty.INSIGHTS_VOICE.lowercase()).contains("counts")
         assertThat(PrivacyHonesty.INSIGHTS_VOICE.lowercase()).doesNotContain("never")

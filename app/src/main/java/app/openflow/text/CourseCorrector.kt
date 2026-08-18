@@ -31,7 +31,7 @@ object CourseCorrector {
      * marks a correction (", no," / ". No,").
      */
     private val markerRegex = Regex(
-        """(?i)(?:(?:,\s*|\s+|^)(?:scratch\s+that|on\s+second\s+thought|change\s+(?:that\s+)?to|make\s+that|forget\s+that|forget\s+it|never\s+mind|wait\s+no|no\s+wait|or\s+wait|or\s+rather|i\s+meant|i\s+mean|hang\s+on|hold\s+on|actually|instead|rather|sorry|correction)\s*,?\s+|(?:,\s*|\.\s+|!\s+|\?\s+|^\s*)(?:no|wait)\s*,\s+)"""
+        """(?i)(?:(?:,\s*|\s+|^)(?:scratch\s+that|strike\s+that|on\s+second\s+thought|change\s+(?:that\s+)?to|make\s+that|forget\s+that|forget\s+it|never\s+mind|wait\s+no|no\s+wait|or\s+wait|or\s+rather|no\s+i\s+meant|wait\s+i\s+meant|i\s+meant\s+to\s+say|i\s+meant|i\s+mean|hang\s+on|hold\s+on|actually|instead|rather|sorry|correction)\s*,?\s+|(?:,\s*|\.\s+|!\s+|\?\s+|^\s*)(?:no|wait)\s*,\s+)"""
     )
 
     private val timePattern = Regex(
@@ -77,6 +77,8 @@ object CourseCorrector {
         }
         t = normalizeSpaces(t)
         t = applyFrameRestate(t)
+        t = applyNotSwap(t)
+        t = applyCommaName(t)
         return CourseCorrectResult(t, corrections)
     }
 
@@ -279,6 +281,7 @@ object CourseCorrector {
 
     private fun isRestart(marker: String): Boolean =
         marker.contains("scratch") ||
+            marker.contains("strike") ||
             marker.contains("never mind") ||
             marker.contains("forget") ||
             marker.contains("second thought")
@@ -425,5 +428,29 @@ object CourseCorrector {
         val neu = m.groupValues[4]
         if (old.equals(neu, ignoreCase = true)) return t
         return t.replaceRange(m.range, m.groupValues[1] + neu)
+    }
+
+    private val notSwap = Regex(
+        """\b(send it to|meet at|call)\s+([A-Z][a-z]+)(\s+(?:II|III|IV))?(\s+not\s+)([A-Z][a-z]+)(\s+(?:II|III|IV))?"""
+    )
+    private val commaName = Regex(
+        """\b(send it to|meet)\s+([A-Z][a-z]+),\s+([A-Z][a-z]+)\b"""
+    )
+
+    internal fun applyNotSwap(t: String): String {
+        val m = notSwap.find(t) ?: return t
+        val verb = m.groupValues[1]
+        val leftRoman = m.groupValues[3]
+        val right = m.groupValues[5]
+        val rightRoman = m.groupValues[6]
+        val keepRoman = rightRoman.ifBlank { leftRoman }
+        return t.replaceRange(m.range, "$verb $right$keepRoman")
+    }
+
+    internal fun applyCommaName(t: String): String {
+        val m = commaName.find(t) ?: return t
+        val after = t.substring(m.range.last + 1)
+        if (after.startsWith(",")) return t
+        return t.replaceRange(m.range, "${m.groupValues[1]} ${m.groupValues[3]}")
     }
 }

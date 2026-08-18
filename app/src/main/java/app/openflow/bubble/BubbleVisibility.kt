@@ -3,27 +3,26 @@ package app.openflow.bubble
 /**
  * Wispr-style bubble show rules (pure).
  *
- * Android Flow Bubble appears when an editable field is in play;
- * optional IME gate matches "sits above keyboard" behavior.
+ * Keyboard open + editable field: stay visible even if snoozed.
+ * Own app UI hides the overlay unless listening / must-stay.
  */
 object BubbleVisibility {
 
-    /**
-     * @param snoozed user drag-to-bottom snooze
-     * @param bankHide package denylist (banks etc.)
-     * @param hasEditable focused usable text field
-     * @param imeVisible soft keyboard window present (optional; if unknown pass true)
-     * @param alwaysShow when true (debug/settings), show even without field
-     */
     fun shouldShow(
         snoozed: Boolean,
         bankHide: Boolean,
         hasEditable: Boolean,
         imeVisible: Boolean = true,
-        alwaysShow: Boolean = false
+        alwaysShow: Boolean = false,
+        listening: Boolean = false,
+        insideOwnApp: Boolean = false,
+        mustStay: Boolean = false,
     ): Boolean {
-        if (snoozed || bankHide) return false
-        if (alwaysShow) return true
+        if (bankHide) return false
+        if (insideOwnApp && !listening && !mustStay && !alwaysShow) return false
+        if (listening || mustStay || alwaysShow) return true
+        if (imeVisible && hasEditable) return true
+        if (snoozed) return false
         return hasEditable && imeVisible
     }
 }

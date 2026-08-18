@@ -36,7 +36,7 @@ class HomeBannerPolicyTest {
     fun repair_copy_points_to_accessibility() {
         val c = HomeBannerPolicy.copy(HomeBannerPolicy.Banner.REPAIR_A11Y)
         assertThat(c.title).isEqualTo("Turn on Flow Bubble")
-        assertThat(c.body).contains("Accessibility")
+        assertThat(c.body).isEqualTo("Open Accessibility, enable Open Flow, then return.")
         assertThat(c.cta).isEqualTo("Open Accessibility")
         assertThat(c.a11yLabel).contains("Flow Bubble")
     }

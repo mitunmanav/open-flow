@@ -6,7 +6,9 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
+import android.os.PowerManager
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -45,6 +47,7 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -72,6 +75,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.produceState
@@ -99,6 +103,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -110,6 +115,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import app.openflow.R
 import app.openflow.OpenFlowApp
 import app.openflow.bubble.BubbleChrome
+import app.openflow.bubble.BubbleIconPolicy
+import app.openflow.bubble.BubbleScaleSteps
 import app.openflow.bubble.FlowAccessibilityService
 import app.openflow.data.DictationEntity
 import app.openflow.data.DictionaryWordEntity
@@ -147,6 +154,7 @@ import app.openflow.ui.home.ModuleEditorVisibility
 import app.openflow.ui.home.UiScrollPolicy
 import app.openflow.ui.insights.InsightsScreen
 import app.openflow.ui.privacy.PrivacyHonesty
+import app.openflow.ui.setup.BatteryExemption
 import app.openflow.ui.setup.FirstRunPolicy
 import app.openflow.ui.setup.SetupWizard
 import app.openflow.ui.style.StyleHubScreen
@@ -154,6 +162,7 @@ import app.openflow.ui.shell.AppRoute
 import app.openflow.ui.shell.AppShell
 import app.openflow.ui.shell.NavStack
 import app.openflow.ui.theme.BubbleTint
+import app.openflow.ui.theme.HexColor
 import app.openflow.ui.theme.Motion
 import app.openflow.ui.theme.OpenFlowTheme
 import app.openflow.ui.theme.rememberMotionMs
@@ -218,7 +227,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             val darkMode by app.prefs.darkMode.collectAsState()
             val skin by app.prefs.visualSkin.collectAsState()
-            OpenFlowTheme(darkMode = darkMode, skin = skin) {
+            val palette by app.prefs.appearance.collectAsState()
+            var tapPick by remember { mutableStateOf(app.prefs.hapticPick(HapticFeel.Event.TAP)) }
+            CompositionLocalProvider(LocalHapticTap provides tapPick) {
+            OpenFlowTheme(darkMode = darkMode, skin = skin, palette = palette) {
                 val scheme = MaterialTheme.colorScheme
                 val isDark = scheme.background.luminance() < 0.5f
                 val view = LocalView.current
@@ -453,7 +465,7 @@ class MainActivity : ComponentActivity() {
                                     FlowAccessibilityService.instance?.applyPrefsVisual()
                                 }
                             )
-                            AppRoute.Haptics -> HapticsSettings(app.prefs)
+                            AppRoute.Haptics -> HapticsSettings(app.prefs) { tapPick = it }
                             AppRoute.Cleanup -> CleanupSettings(app.prefs)
                             AppRoute.Privacy -> PrivacySettings(app.prefs)
                             AppRoute.Sounds -> SoundsSettings(app.prefs)
@@ -494,13 +506,24 @@ class MainActivity : ComponentActivity() {
                                 onMic = { micPermission.launch(Manifest.permission.RECORD_AUDIO) },
                                 onBattery = {
                                     app.prefs.setupBatterySeen = true
+                                    val ignoring = try {
+                                        val pm = getSystemService(PowerManager::class.java)
+                                        pm.isIgnoringBatteryOptimizations(packageName)
+                                    } catch (_: Exception) {
+                                        false
+                                    }
+                                    val batteryIntent = Intent(BatteryExemption.action(ignoring)).setData(
+                                        Uri.parse(BatteryExemption.dataUri(packageName))
+                                    )
                                     try {
-                                        startActivity(
-                                            Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-                                        )
+                                        startActivity(batteryIntent)
                                     } catch (_: Exception) {
                                         try {
-                                            startActivity(Intent(Settings.ACTION_SETTINGS))
+                                            startActivity(
+                                                Intent(BatteryExemption.fallbackAction()).setData(
+                                                    Uri.parse(BatteryExemption.dataUri(packageName))
+                                                )
+                                            )
                                         } catch (_: Exception) {
                                         }
                                     }
@@ -514,6 +537,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 }
+            }
             }
         }
     }
@@ -1638,7 +1662,7 @@ private fun CleanupSettings(prefs: FlowPrefs) {
 
         // Match Wispr Auto Cleanup copy; rules are local FOSS (no cloud AI).
         listOf(
-            "none" to ("None" to "Exact speech — zero edits (Wispr None)."),
+            "none" to ("None" to "Exact speech — zero edits."),
             "light" to ("Light" to "Fillers + grammar: um/uh, repeats, spoken punct commands."),
             "medium" to ("Medium" to "Light + course-correct, false starts, lists, light clarity openers."),
             "high" to ("High" to "Medium + brevity hedges/wordiness (rules). Style still controls tone.")
@@ -1809,9 +1833,25 @@ private fun PrivacySettings(prefs: FlowPrefs) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun HapticsSettings(prefs: FlowPrefs) {
-    var feel by remember { mutableStateOf(prefs.hapticFeel) }
+private fun HapticsSettings(prefs: FlowPrefs, onTapPick: (String) -> Unit) {
+    var picks by remember {
+        mutableStateOf(HapticFeel.Event.entries.associateWith { prefs.hapticPick(it) })
+    }
     val view = LocalView.current
+    val pickChips = listOf(
+        HapticPick.OFF to "Off",
+        HapticPick.TICK to "Tick",
+        HapticPick.CLICK to "Click",
+        HapticPick.CONFIRM to "Confirm",
+        HapticPick.REJECT to "Reject",
+    )
+    val rows = listOf(
+        HapticFeel.Event.TAP to "Tap",
+        HapticFeel.Event.SAVE to "Save",
+        HapticFeel.Event.CANCEL to "Cancel",
+        HapticFeel.Event.ERROR to "Error",
+        HapticFeel.Event.LISTEN to "Listen",
+    )
 
     Column(
         Modifier
@@ -1822,61 +1862,70 @@ private fun HapticsSettings(prefs: FlowPrefs) {
         verticalArrangement = Arrangement.spacedBy(Dimen.GAP)
     ) {
         Text(
-            "How strong vibration feels when you tap, save, or cancel on the bubble.",
+            "Pick a feel for each bubble action. Off = none.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             softWrap = true
         )
-        OpenCard {
-            Column(
-                Modifier
-                    .padding(Dimen.MIN_PADDING)
-                    .wrapContentHeight(),
-                verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
-            ) {
-                Text("Strength", style = MaterialTheme.typography.titleSmall, softWrap = true)
-                Text(
-                    "Off = none. Light = tick. Full = tap, save, and cancel patterns.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    softWrap = true
-                )
-                FlowRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
+        rows.forEach { (event, label) ->
+            OpenCard {
+                Column(
+                    Modifier
+                        .padding(Dimen.MIN_PADDING)
                         .wrapContentHeight(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
                 ) {
-                    listOf(
-                        HapticFeel.OFF to "Off",
-                        HapticFeel.LIGHT to "Light",
-                        HapticFeel.FULL to "Full"
-                    ).forEach { (id, label) ->
-                        OpenChip(
-                            label = label,
-                            isOn = feel == id,
-                            modifier = Modifier.wrapContentHeight(),
-                            onClick = {
-                                feel = id
-                                prefs.hapticFeel = id
-                            }
-                        )
+                    Text(label, style = MaterialTheme.typography.titleSmall, softWrap = true)
+                    FlowRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .wrapContentHeight(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        pickChips.forEach { (id, chip) ->
+                            OpenChip(
+                                label = chip,
+                                isOn = picks[event] == id,
+                                modifier = Modifier.wrapContentHeight(),
+                                onClick = {
+                                    picks = picks + (event to id)
+                                    prefs.setHapticPick(event, id)
+                                    if (event == HapticFeel.Event.TAP) onTapPick(id)
+                                }
+                            )
+                        }
                     }
+                    OpenButton(
+                        text = "Test",
+                        onClick = {
+                            val c = HapticPick.constant(picks[event] ?: HapticPick.CLICK)
+                                ?: return@OpenButton
+                            view.performHapticFeedback(c)
+                        },
+                        variant = ButtonVariant.Outlined,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(
+                                if (event == HapticFeel.Event.TAP) Modifier.testTag("haptics_test")
+                                else Modifier
+                            )
+                    )
                 }
-                OpenButton(
-                    text = "Test",
-                    onClick = {
-                        val c = HapticFeel.constantFor(feel, HapticFeel.Event.TAP) ?: return@OpenButton
-                        view.performHapticFeedback(c)
-                    },
-                    variant = ButtonVariant.Outlined,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("haptics_test")
-                )
             }
         }
+        OpenButton(
+            text = "Reset",
+            onClick = {
+                prefs.resetHaptics()
+                picks = HapticFeel.Event.entries.associateWith { prefs.hapticPick(it) }
+                onTapPick(picks.getValue(HapticFeel.Event.TAP))
+            },
+            variant = ButtonVariant.Outlined,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("haptics_reset")
+        )
         Spacer(Modifier.height(Dimen.GAP_LG))
     }
 }
@@ -2117,15 +2166,72 @@ private fun SettingsRow(title: String, subtitle: String, onClick: () -> Unit) {
     }
 }
 
+@Composable
+private fun AppearanceColorRow(
+    label: String,
+    hex: String,
+    argb: Int,
+    onHex: (String) -> Unit,
+    tag: String? = null,
+) {
+    Row(
+        Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+    ) {
+        OpenTextField(
+            value = hex,
+            onValueChange = onHex,
+            label = label,
+            placeholder = "#RRGGBB",
+            modifier = Modifier
+                .weight(1f)
+                .then(if (tag != null) Modifier.testTag(tag) else Modifier),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
+        )
+        Box(
+            Modifier
+                .size(32.dp)
+                .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), RectangleShape)
+                .background(Color(argb))
+        )
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun AppearanceSettings(prefs: FlowPrefs) {
     val dark by prefs.darkMode.collectAsState()
+    val pal by prefs.appearance.collectAsState()
     val context = LocalContext.current
     var refreshHz by remember { mutableIntStateOf(prefs.refreshHz) }
         var sttProfile by remember { mutableStateOf(prefs.sttProfile) }
         var preferOnDevice by remember { mutableStateOf(prefs.preferOnDevice) }
         var languageTag by remember { mutableStateOf(prefs.languageTag) }
+    var bgHex by remember {
+        mutableStateOf(prefs.colorBg.ifEmpty { HexColor.format(pal.backgroundArgb) })
+    }
+    var cardsHex by remember {
+        mutableStateOf(prefs.colorCards.ifEmpty { HexColor.format(pal.cardsArgb) })
+    }
+    var textHex by remember {
+        mutableStateOf(prefs.colorText.ifEmpty { HexColor.format(pal.textArgb) })
+    }
+    var accentHex by remember {
+        mutableStateOf(prefs.colorAccent.ifEmpty { HexColor.format(pal.accentArgb) })
+    }
+    var borderHex by remember {
+        mutableStateOf(prefs.colorBorder.ifEmpty { HexColor.format(pal.borderArgb) })
+    }
+    var idleHex by remember {
+        mutableStateOf(prefs.colorBubbleIdle.ifEmpty { HexColor.format(pal.bubbleIdleArgb) })
+    }
+    var listenHex by remember {
+        mutableStateOf(prefs.colorBubbleListen.ifEmpty { HexColor.format(pal.bubbleListenArgb) })
+    }
+    var bubbleTextHex by remember {
+        mutableStateOf(prefs.colorBubbleText.ifEmpty { HexColor.format(pal.bubbleTextArgb) })
+    }
     val deviceModes = remember(context) {
         try {
             val d = if (android.os.Build.VERSION.SDK_INT >= 30) {
@@ -2161,6 +2267,124 @@ private fun AppearanceSettings(prefs: FlowPrefs) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             softWrap = true
         )
+
+        OpenCard {
+            Column(
+                Modifier
+                    .padding(Dimen.MIN_PADDING)
+                    .wrapContentHeight(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    "Colors",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    softWrap = true
+                )
+                Text(
+                    "Hex #RRGGBB or #AARRGGBB. Empty uses factory.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    softWrap = true
+                )
+                AppearanceColorRow(
+                    label = "Background",
+                    hex = bgHex,
+                    argb = pal.backgroundArgb,
+                    tag = "appearance_color_bg",
+                    onHex = {
+                        bgHex = it
+                        prefs.colorBg = it
+                    }
+                )
+                AppearanceColorRow(
+                    label = "Cards",
+                    hex = cardsHex,
+                    argb = pal.cardsArgb,
+                    onHex = {
+                        cardsHex = it
+                        prefs.colorCards = it
+                    }
+                )
+                AppearanceColorRow(
+                    label = "Text",
+                    hex = textHex,
+                    argb = pal.textArgb,
+                    onHex = {
+                        textHex = it
+                        prefs.colorText = it
+                    }
+                )
+                AppearanceColorRow(
+                    label = "Accent",
+                    hex = accentHex,
+                    argb = pal.accentArgb,
+                    onHex = {
+                        accentHex = it
+                        prefs.colorAccent = it
+                    }
+                )
+                AppearanceColorRow(
+                    label = "Border",
+                    hex = borderHex,
+                    argb = pal.borderArgb,
+                    onHex = {
+                        borderHex = it
+                        prefs.colorBorder = it
+                    }
+                )
+                AppearanceColorRow(
+                    label = "Bubble idle",
+                    hex = idleHex,
+                    argb = pal.bubbleIdleArgb,
+                    onHex = {
+                        idleHex = it
+                        prefs.colorBubbleIdle = it
+                        FlowAccessibilityService.instance?.applyPrefsVisual()
+                    }
+                )
+                AppearanceColorRow(
+                    label = "Bubble listen",
+                    hex = listenHex,
+                    argb = pal.bubbleListenArgb,
+                    onHex = {
+                        listenHex = it
+                        prefs.colorBubbleListen = it
+                        FlowAccessibilityService.instance?.applyPrefsVisual()
+                    }
+                )
+                AppearanceColorRow(
+                    label = "Bubble text",
+                    hex = bubbleTextHex,
+                    argb = pal.bubbleTextArgb,
+                    onHex = {
+                        bubbleTextHex = it
+                        prefs.colorBubbleText = it
+                        FlowAccessibilityService.instance?.applyPrefsVisual()
+                    }
+                )
+                OpenButton(
+                    text = "Reset colors",
+                    onClick = {
+                        prefs.resetAppearanceColors()
+                        val p = prefs.palette()
+                        bgHex = HexColor.format(p.backgroundArgb)
+                        cardsHex = HexColor.format(p.cardsArgb)
+                        textHex = HexColor.format(p.textArgb)
+                        accentHex = HexColor.format(p.accentArgb)
+                        borderHex = HexColor.format(p.borderArgb)
+                        idleHex = HexColor.format(p.bubbleIdleArgb)
+                        listenHex = HexColor.format(p.bubbleListenArgb)
+                        bubbleTextHex = HexColor.format(p.bubbleTextArgb)
+                        FlowAccessibilityService.instance?.applyPrefsVisual()
+                    },
+                    variant = ButtonVariant.Outlined,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("appearance_reset")
+                )
+            }
+        }
 
         OpenCard {
             Column(
@@ -2380,15 +2604,38 @@ private fun AppearanceSettings(prefs: FlowPrefs) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
-    var scale by remember { mutableFloatStateOf(prefs.bubbleScale) }
+    val pal by prefs.appearance.collectAsState()
+    val ctx = LocalContext.current
+    var scale by remember { mutableFloatStateOf(BubbleScaleSteps.nearest(prefs.bubbleScale)) }
     var opacity by remember { mutableFloatStateOf(prefs.bubbleOpacity) }
     var shape by remember { mutableStateOf(prefs.bubbleShape) }
     var showText by remember { mutableStateOf(prefs.bubbleShowText) }
     var snap by remember { mutableStateOf(prefs.bubbleEdgeSnap) }
-    var feel by remember { mutableStateOf(prefs.hapticFeel) }
     var pulse by remember { mutableStateOf(prefs.bubblePulse) }
     var tint by remember { mutableStateOf(prefs.bubbleTint) }
     var roundness by remember { mutableStateOf(prefs.bubbleRoundness) }
+    var roundPct by remember { mutableIntStateOf(prefs.bubbleRoundPct) }
+    var showCancel by remember { mutableStateOf(prefs.bubbleShowCancel) }
+    var showDone by remember { mutableStateOf(prefs.bubbleShowDone) }
+    var shrinkIdle by remember { mutableStateOf(prefs.bubbleShrinkIdle) }
+    var shrinkDot by remember { mutableStateOf(prefs.bubbleShrinkDot) }
+    var shrinkSearch by remember { mutableStateOf(prefs.bubbleShrinkSearch) }
+    var iconUri by remember { mutableStateOf(prefs.bubbleIconUri) }
+    val pickIcon = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        try {
+            ctx.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+        } catch (_: Exception) {
+        }
+        prefs.bubbleIconUri = uri.toString()
+        iconUri = uri.toString()
+        onApplyBubble()
+    }
 
     Column(
         Modifier
@@ -2416,31 +2663,35 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                 Modifier.padding(Dimen.MIN_PADDING),
                 verticalArrangement = Arrangement.spacedBy(Dimen.GAP)
             ) {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight(),
+                    horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM),
+                    verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
                 ) {
-                    Text("Scale", style = MaterialTheme.typography.bodyMedium, color = SecUi.charcoal)
-                    Text(
-                        "${(scale * 100).toInt()}%",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = SecUi.ink
-                    )
+                    BubbleScaleSteps.STEPS.forEach { step ->
+                        val pct = (step * 100).toInt()
+                        OpenChip(
+                            label = "$pct%",
+                            isOn = BubbleScaleSteps.nearest(scale) == step,
+                            modifier = Modifier.wrapContentHeight(),
+                            onClick = {
+                                scale = step
+                                prefs.bubbleScale = step
+                                onApplyBubble()
+                            }
+                        )
+                    }
                 }
-                Slider(
-                    value = scale,
-                    onValueChange = { scale = it },
-                    onValueChangeFinished = {
-                        prefs.bubbleScale = scale
+                OpenButton(
+                    text = "Reset size",
+                    onClick = {
+                        prefs.resetBubbleScale()
+                        scale = prefs.bubbleScale
                         onApplyBubble()
                     },
-                    valueRange = 0.7f..1.2f,
-                    colors = SliderDefaults.colors(
-                        thumbColor = SecUi.charcoal,
-                        activeTrackColor = SecUi.charcoal,
-                        inactiveTrackColor = SecUi.stone
-                    )
+                    variant = ButtonVariant.Outlined
                 )
                 Row(
                     Modifier.fillMaxWidth(),
@@ -2459,9 +2710,10 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                     onValueChange = { opacity = it },
                     onValueChangeFinished = {
                         prefs.bubbleOpacity = opacity
+                        opacity = prefs.bubbleOpacity
                         onApplyBubble()
                     },
-                    valueRange = 0.3f..1f,
+                    valueRange = 0.20f..1f,
                     colors = SliderDefaults.colors(
                         thumbColor = SecUi.charcoal,
                         activeTrackColor = SecUi.charcoal,
@@ -2484,22 +2736,18 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                 .heightIn(min = 120.dp)
                 .padding(vertical = Dimen.GAP_SM)
                 .border(SecUi.hardBorder)
-                .background(Color(BubbleTint.previewStageArgb(tint)))
+                .background(
+                    Color(
+                        if (Color(pal.bubbleIdleArgb).luminance() > 0.5f) 0xFF1A1A18.toInt()
+                        else 0xFFF4EFE6.toInt()
+                    )
+                )
                 .testTag("bubble_preview"),
             contentAlignment = Alignment.Center
         ) {
             val previewShape = when {
                 shape == "circle" || shape == "dot" -> CircleShape
-                shape == "pill" -> when (roundness) {
-                    BubbleChrome.ROUND_ROUND -> RoundedCornerShape(50)
-                    BubbleChrome.ROUND_SOFT -> RoundedCornerShape(16.dp)
-                    else -> RoundedCornerShape(12.dp)
-                }
-                else -> when (roundness) {
-                    BubbleChrome.ROUND_ROUND -> RoundedCornerShape(16.dp)
-                    BubbleChrome.ROUND_SOFT -> RoundedCornerShape(8.dp)
-                    else -> RoundedCornerShape(2.dp)
-                }
+                else -> RoundedCornerShape(percent = roundPct.coerceIn(0, 100))
             }
             val baseW = when (shape) {
                 "dot" -> 22.dp
@@ -2512,13 +2760,13 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                 modifier = Modifier
                     .size(baseW * scale, baseH * scale)
                     .graphicsLayer { alpha = opacity }
-                    .background(Color(BubbleTint.argb(tint)), previewShape),
+                    .background(Color(pal.bubbleIdleArgb), previewShape),
                 contentAlignment = Alignment.Center
             ) {
                 if (showText && shape != "dot") {
                     Text(
                         "Hi",
-                        color = Color(BubbleTint.onArgb(tint)),
+                        color = Color(pal.bubbleTextArgb),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -2649,11 +2897,39 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                             onClick = {
                                 roundness = id
                                 prefs.bubbleRoundness = id
+                                roundPct = BubbleChrome.pctFromLegacy(id)
+                                prefs.bubbleRoundPct = roundPct
                                 onApplyBubble()
                             }
                         )
                     }
                 }
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Roundness", style = MaterialTheme.typography.bodyMedium, color = SecUi.charcoal)
+                    Text(
+                        "$roundPct%",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = SecUi.ink
+                    )
+                }
+                Slider(
+                    value = roundPct.toFloat(),
+                    onValueChange = { roundPct = it.toInt() },
+                    onValueChangeFinished = {
+                        prefs.bubbleRoundPct = roundPct
+                        onApplyBubble()
+                    },
+                    valueRange = 0f..100f,
+                    colors = SliderDefaults.colors(
+                        thumbColor = SecUi.charcoal,
+                        activeTrackColor = SecUi.charcoal,
+                        inactiveTrackColor = SecUi.stone
+                    )
+                )
             }
         }
 
@@ -2687,6 +2963,135 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                         prefs.bubbleShowText = showText
                         onApplyBubble()
                     }
+                )
+            }
+        }
+
+        OpenCard {
+            Column(
+                Modifier.padding(Dimen.MIN_PADDING),
+                verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+            ) {
+                Text(
+                    "Listen buttons",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = SecUi.charcoal
+                )
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight(),
+                    horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM),
+                    verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+                ) {
+                    OpenChip(
+                        label = "Show Cancel",
+                        isOn = showCancel,
+                        modifier = Modifier.wrapContentHeight(),
+                        onClick = {
+                            showCancel = !showCancel
+                            prefs.bubbleShowCancel = showCancel
+                            onApplyBubble()
+                        }
+                    )
+                    OpenChip(
+                        label = "Show Done",
+                        isOn = showDone,
+                        modifier = Modifier.wrapContentHeight(),
+                        onClick = {
+                            showDone = !showDone
+                            prefs.bubbleShowDone = showDone
+                            onApplyBubble()
+                        }
+                    )
+                }
+            }
+        }
+
+        OpenCard {
+            Column(
+                Modifier.padding(Dimen.MIN_PADDING),
+                verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+            ) {
+                Text(
+                    "Shrink when idle",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = SecUi.charcoal
+                )
+                OpenChip(
+                    label = if (shrinkIdle) "ON" else "OFF",
+                    isOn = shrinkIdle,
+                    onClick = {
+                        shrinkIdle = !shrinkIdle
+                        prefs.bubbleShrinkIdle = shrinkIdle
+                        onApplyBubble()
+                    }
+                )
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight(),
+                    horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM),
+                    verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+                ) {
+                    OpenChip(
+                        label = "Dot",
+                        isOn = shrinkDot,
+                        enabled = shrinkIdle,
+                        modifier = Modifier.wrapContentHeight(),
+                        onClick = {
+                            shrinkDot = !shrinkDot
+                            prefs.bubbleShrinkDot = shrinkDot
+                            onApplyBubble()
+                        }
+                    )
+                    OpenChip(
+                        label = "Search",
+                        isOn = shrinkSearch,
+                        enabled = shrinkIdle,
+                        modifier = Modifier.wrapContentHeight(),
+                        onClick = {
+                            shrinkSearch = !shrinkSearch
+                            prefs.bubbleShrinkSearch = shrinkSearch
+                            onApplyBubble()
+                        }
+                    )
+                }
+            }
+        }
+
+        OpenCard {
+            Column(
+                Modifier.padding(Dimen.MIN_PADDING),
+                verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+            ) {
+                Text(
+                    "Custom icon",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = SecUi.charcoal
+                )
+                Text(
+                    if (BubbleIconPolicy.validUri(iconUri)) "Custom image set" else "Default mic",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = SecUi.muted
+                )
+                OpenButton(
+                    text = "Pick image",
+                    onClick = { pickIcon.launch(arrayOf("image/*")) },
+                    variant = ButtonVariant.Outlined
+                )
+                OpenButton(
+                    text = "Clear icon",
+                    onClick = {
+                        prefs.bubbleIconUri = ""
+                        iconUri = ""
+                        onApplyBubble()
+                    },
+                    variant = ButtonVariant.Text,
+                    enabled = BubbleIconPolicy.validUri(iconUri)
                 )
             }
         }
@@ -2760,42 +3165,6 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                             onApplyBubble()
                         }
                     )
-                }
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        "Haptics",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = SecUi.charcoal
-                    )
-                    Text(
-                        "Same setting as Settings → Haptics.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = SecUi.muted
-                    )
-                    FlowRow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .wrapContentHeight(),
-                        horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM),
-                        verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
-                    ) {
-                        listOf(
-                            HapticFeel.OFF to "Off",
-                            HapticFeel.LIGHT to "Light",
-                            HapticFeel.FULL to "Full"
-                        ).forEach { (id, label) ->
-                            OpenChip(
-                                label = label,
-                                isOn = feel == id,
-                                modifier = Modifier.wrapContentHeight(),
-                                onClick = {
-                                    feel = id
-                                    prefs.hapticFeel = id
-                                    onApplyBubble()
-                                }
-                            )
-                        }
-                    }
                 }
             }
         }

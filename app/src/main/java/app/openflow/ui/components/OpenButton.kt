@@ -1,7 +1,5 @@
 package app.openflow.ui.components
 
-import android.os.Build
-import android.view.HapticFeedbackConstants
 import android.view.View
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.PaddingValues
@@ -22,6 +20,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.openflow.ui.a11y.Dimen
 import app.openflow.ui.a11y.OpenShapes
+import app.openflow.ui.HapticPick
+import app.openflow.ui.LocalHapticTap
 
 enum class ButtonVariant { Filled, Outlined, Text }
 
@@ -37,6 +37,7 @@ fun OpenButton(
     contentDescription: String? = null
 ) {
     val view = LocalView.current
+    val tapConst = HapticPick.constant(LocalHapticTap.current)
     val scheme = MaterialTheme.colorScheme
     val shape = MaterialTheme.shapes.small
     val semanticsMod = Modifier.semantics {
@@ -53,7 +54,7 @@ fun OpenButton(
     when (variant) {
         ButtonVariant.Filled -> Button(
             onClick = {
-                performClickHaptic(view)
+                performClickHaptic(view, tapConst)
                 onClick()
             },
             modifier = modifier.then(if (fill) Modifier.fillMaxWidth() else Modifier)
@@ -78,7 +79,7 @@ fun OpenButton(
 
         ButtonVariant.Outlined -> OutlinedButton(
             onClick = {
-                performClickHaptic(view)
+                performClickHaptic(view, tapConst)
                 onClick()
             },
             modifier = modifier.then(if (fill) Modifier.fillMaxWidth() else Modifier)
@@ -99,7 +100,7 @@ fun OpenButton(
 
         ButtonVariant.Text -> TextButton(
             onClick = {
-                performClickHaptic(view)
+                performClickHaptic(view, tapConst)
                 onClick()
             },
             modifier = modifier.then(minTouch).then(semanticsMod),
@@ -114,10 +115,7 @@ fun OpenButton(
     }
 }
 
-private fun performClickHaptic(view: View) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-    } else {
-        view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-    }
+private fun performClickHaptic(view: View, constant: Int?) {
+    if (constant == null) return
+    view.performHapticFeedback(constant)
 }

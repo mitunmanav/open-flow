@@ -29,34 +29,29 @@ object BubbleChrome {
         else -> ROUND_HARD
     }
 
-    /**
-     * Corner radius in px.
-     * [roundness] hard|soft|round scales square/pill/listen corners.
-     * Circle/dot stay fully round.
-     */
+    fun pctFromLegacy(roundness: String): Int {
+        val n = roundness.trim().lowercase()
+        return when (n) {
+            ROUND_HARD -> 0
+            ROUND_SOFT -> 50
+            ROUND_ROUND -> 100
+            else -> n.toIntOrNull()?.coerceIn(0, 100) ?: 50
+        }
+    }
+
     fun cornerPx(
         shape: String,
         density: Float,
         roundness: String = ROUND_HARD,
-    ): Float {
-        val r = normalizeRoundness(roundness)
+    ): Float = cornerPx(shape, density, pctFromLegacy(roundness))
+
+    fun cornerPx(shape: String, density: Float, pct: Int): Float {
+        val t = pct.coerceIn(0, 100) / 100f
         return when (shape) {
             "circle", "dot" -> 999f * density
-            "pill" -> when (r) {
-                ROUND_ROUND -> 24f * density
-                ROUND_SOFT -> 16f * density
-                else -> 12f * density
-            }
-            "listen", "square" -> when (r) {
-                ROUND_ROUND -> 16f * density
-                ROUND_SOFT -> 8f * density
-                else -> 2f * density
-            }
-            else -> when (r) {
-                ROUND_ROUND -> 16f * density
-                ROUND_SOFT -> 8f * density
-                else -> 2f * density
-            }
+            "pill" -> (12f + (24f - 12f) * t) * density
+            "listen", "square" -> (2f + (16f - 2f) * t) * density
+            else -> (2f + (16f - 2f) * t) * density
         }
     }
 

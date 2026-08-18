@@ -46,9 +46,9 @@ object FirstRunPolicy {
             primary = "Allow microphone",
         )
         Step.BATTERY -> StepCopy(
-            title = "Stop the phone killing it",
-            body = "Optional. Skip if you want to finish now.",
-            primary = "Battery settings",
+            title = "Keep Open Flow running",
+            body = "Optional. Stops the phone from closing Open Flow. Skip is allowed.",
+            primary = "Open battery setting",
             secondary = "Skip",
         )
         Step.DONE -> StepCopy(

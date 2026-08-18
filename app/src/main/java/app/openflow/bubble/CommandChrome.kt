@@ -1,8 +1,9 @@
 package app.openflow.bubble
 
-/** Command row on the bubble. Visible only when command is enabled. */
+/** Command row on the bubble. Commands still run; suffix is never shown. */
 object CommandChrome {
     fun visible(commandEnabled: Boolean): Boolean = commandEnabled
 
-    fun suffix(commandEnabled: Boolean): String = if (commandEnabled) " cmd" else ""
+    @Suppress("UNUSED_PARAMETER")
+    fun suffix(commandEnabled: Boolean): String = ""
 }

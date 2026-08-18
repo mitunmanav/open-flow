@@ -85,6 +85,9 @@ class UiPathTest {
             "home_note_field",
             "home_history_search",
             "bubble_preview",
+            "appearance_reset",
+            "appearance_color_bg",
+            "haptics_reset",
             "dict_word",
             "privacy_auto_learn",
         )

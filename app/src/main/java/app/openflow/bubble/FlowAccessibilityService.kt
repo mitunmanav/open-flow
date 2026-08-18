@@ -57,7 +57,7 @@ import app.openflow.orchestrate.RouteSignals
 import app.openflow.orchestrate.SttRouter
 import app.openflow.prefs.FlowPrefs
 import app.openflow.ui.HapticFeel
-import app.openflow.ui.theme.BubbleTint
+import app.openflow.ui.HapticPick
 import app.openflow.runtime.TrimPolicy
 import app.openflow.stt.providers.cloud.CloudEar
 import app.openflow.stt.AndroidSpeechEngine
@@ -620,10 +620,17 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                         bubbleHeightPx = h
                     )
                     if (dragged && savedY < 40) {
-                        prefs?.snoozeMinutes(10)
-                        Toast.makeText(this, R.string.flow_bubble_snoozed, Toast.LENGTH_SHORT).show()
-                        refreshBubbleVisibility()
-                        return@setOnTouchListener true
+                        if (BubbleSnoozePolicy.canSnooze(
+                                imeVisible = imeVisible,
+                                listening = listening,
+                                repairShowing = micRepairShowing(),
+                            )
+                        ) {
+                            prefs?.snoozeMinutes(10)
+                            Toast.makeText(this, R.string.flow_bubble_snoozed, Toast.LENGTH_SHORT).show()
+                            refreshBubbleVisibility()
+                            return@setOnTouchListener true
+                        }
                     }
                     val snapping = dragged && prefs?.bubbleEdgeSnap == true
                     params.y = BubbleGeometry.parkYAboveIme(savedY, imeHeightPx)
@@ -813,15 +820,17 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         lastPackage = ActivePackageTracker.remember(lastPackage, activePkg)
         val bankHide = PackagePolicy.shouldHideBubble(lastPackage)
         val hasField = focusedEditable != null
-        // Wispr: show on text field. Keep visible while listening even if focus blips.
-        // Soft IME gate: if IME never reported, still show on field (OEM variance).
         val imeGate = if (imeVisible) true else hasField || listening
+        val micRepair = micRepairShowing()
         val show = BubbleVisibility.shouldShow(
             snoozed = snoozed,
             bankHide = bankHide,
             hasEditable = hasField || listening,
             imeVisible = imeGate,
-            alwaysShow = listening
+            alwaysShow = listening,
+            listening = listening,
+            insideOwnApp = PackagePolicy.isOwnApp(lastPackage),
+            mustStay = micRepair,
         )
         bubbleView?.visibility = if (show) View.VISIBLE else View.GONE
         if (snoozed) registerShake() else unregisterShake()
@@ -847,18 +856,25 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
     private fun effectiveScale(): Float {
         val p = prefs ?: return 0.9f
-        val mode = if (compactVisual && !listening) {
-            "compact"
-        } else {
-            FlowPrefs.normalizeBubbleMode(p.bubbleMode)
-        }
+        if (listening) return p.bubbleScale
+        val mode = BubbleShrinkPolicy.idleMode(p.bubbleShrinkIdle, p.bubbleShrinkDot)
         val modeMul = when (mode) {
             "compact" -> 0.75f
             "dot" -> 0.55f
             else -> 1f
         }
-        val searchMul = if (searchFieldFocused && !listening) 0.72f else 1f
+        val searchMul = BubbleShrinkPolicy.searchMul(
+            masterOn = p.bubbleShrinkIdle,
+            shrinkSearch = p.bubbleShrinkSearch,
+            searchFocused = searchFieldFocused,
+            listening = listening,
+        )
         return p.bubbleScale * modeMul * searchMul
+    }
+
+    private fun micRepairShowing(): Boolean {
+        val t = bubbleLabel?.text?.toString().orEmpty()
+        return t == BubbleLabelFormatter.needMic() || t == getString(R.string.flow_bubble_need_mic)
     }
 
     private fun applyVisualScale() {
@@ -1081,10 +1097,12 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         if (!micOk) {
             bubbleLabel?.text = getString(R.string.flow_bubble_need_mic)
             listening = false
+            refreshBubbleVisibility()
             return
         }
         listening = true
         compactVisual = false
+        hapticEvent(HapticFeel.Event.LISTEN)
         sessionBuffer = StringBuilder()
         lastPartial = ""
         fieldPrefix = captureFieldPrefix()
@@ -1180,6 +1198,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 }
                 bubbleLabel?.text = shown
                 if (!mic && !soft) {
+                    hapticEvent(HapticFeel.Event.ERROR)
                     Toast.makeText(
                         this@FlowAccessibilityService,
                         shown,
@@ -1730,13 +1749,14 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             else -> 48f
         }
         val stroke = BubbleChrome.strokePx(density)
-        val fill = BubbleTint.argb(p.bubbleTint)
-        val on = BubbleTint.onArgb(p.bubbleTint)
+        val pal = p.palette()
+        val fill = if (listening) pal.bubbleListenArgb else pal.bubbleIdleArgb
+        val on = pal.bubbleTextArgb
 
         if (listening) {
             val bg = GradientDrawable().apply {
                 this.shape = GradientDrawable.RECTANGLE
-                cornerRadius = BubbleChrome.cornerPx("listen", density, p.bubbleRoundness)
+                cornerRadius = BubbleChrome.cornerPx("listen", density, p.bubbleRoundPct)
                 setColor(fill)
                 setStroke(stroke, on)
             }
@@ -1750,9 +1770,9 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             val padV = (6f * density).toInt()
             root.setPadding(padH, padV, padH, padV)
 
-            cancel?.visibility = View.VISIBLE
+            cancel?.visibility = if (p.bubbleShowCancel) View.VISIBLE else View.GONE
             cancel?.setColorFilter(on)
-            bubbleDone?.visibility = View.VISIBLE
+            bubbleDone?.visibility = if (p.bubbleShowDone) View.VISIBLE else View.GONE
             bubbleDone?.setColorFilter(on)
             icon.visibility = View.VISIBLE
             icon.setColorFilter(on)
@@ -1778,7 +1798,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             pulseRing.visibility = View.GONE
             val bg = GradientDrawable().apply {
                 this.shape = GradientDrawable.RECTANGLE
-                cornerRadius = BubbleChrome.cornerPx("listen", density, p.bubbleRoundness)
+                cornerRadius = BubbleChrome.cornerPx("listen", density, p.bubbleRoundPct)
                 setColor(fill)
                 setStroke(stroke, on)
             }
@@ -1816,7 +1836,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             root.background = GradientDrawable().apply {
                 this.shape = if (useOval) GradientDrawable.OVAL else GradientDrawable.RECTANGLE
                 if (!useOval) {
-                    cornerRadius = BubbleChrome.cornerPx(shape, density, p.bubbleRoundness)
+                    cornerRadius = BubbleChrome.cornerPx(shape, density, p.bubbleRoundPct)
                 }
                 setColor(fill)
                 setStroke(stroke, on)
@@ -1828,7 +1848,23 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 gravity = Gravity.CENTER
             }
         }
+        applyBubbleIcon(icon, p.bubbleIconUri, on)
         applyOverlayWindowSize()
+    }
+
+    private fun applyBubbleIcon(icon: ImageView, uri: String, on: Int) {
+        if (!BubbleIconPolicy.validUri(uri)) {
+            icon.setImageResource(R.drawable.ic_mic)
+            icon.setColorFilter(on)
+            return
+        }
+        try {
+            icon.setImageURI(android.net.Uri.parse(uri))
+            if (icon.drawable == null) icon.setImageResource(R.drawable.ic_mic)
+        } catch (_: Exception) {
+            icon.setImageResource(R.drawable.ic_mic)
+        }
+        icon.setColorFilter(on)
     }
 
     /** Pin overlay window. WRAP_CONTENT measures against the screen. */
@@ -1864,7 +1900,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     }
 
     private fun hapticEvent(event: HapticFeel.Event) {
-        val constant = HapticFeel.constantFor(prefs?.hapticFeel ?: HapticFeel.FULL, event) ?: return
+        val pick = prefs?.hapticPick(event) ?: HapticPick.CLICK
+        val constant = HapticPick.constant(pick) ?: return
         bubbleView?.performHapticFeedback(constant)
     }
 
@@ -1896,8 +1933,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             bubbleLabel?.text = BubbleLabelFormatter.listening(elapsedSec) + cmd
         } else {
             val bars = BubbleRms.bars(lastRms)
-            val warn = SessionGuard.phase(elapsedSec * 1000L) == SessionPhase.WARN
-            val suffix = if (warn) " wrap" else if (elapsedSec > 0) "  ${elapsedSec}s" else ""
+            val suffix = if (elapsedSec > 0) "  ${elapsedSec}s" else ""
             val next = bars + suffix + cmd
             val now = SystemClock.elapsedRealtime()
             val allow = BubbleRedrawPolicy.shouldUpdateRmsLabel(

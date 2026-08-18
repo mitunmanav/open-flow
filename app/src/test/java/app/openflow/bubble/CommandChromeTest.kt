@@ -12,8 +12,8 @@ class CommandChromeTest {
     }
 
     @Test
-    fun suffix_only_when_command_enabled() {
+    fun suffix_always_empty() {
         assertThat(CommandChrome.suffix(commandEnabled = false)).isEmpty()
-        assertThat(CommandChrome.suffix(commandEnabled = true)).isEqualTo(" cmd")
+        assertThat(CommandChrome.suffix(commandEnabled = true)).isEmpty()
     }
 }

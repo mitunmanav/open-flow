@@ -42,7 +42,7 @@ class BubbleChromeTest {
 
     @Test
     fun roundness_softens_square_and_pill() {
-        assertThat(BubbleChrome.cornerPx("square", 2f, BubbleChrome.ROUND_SOFT)).isEqualTo(16f)
+        assertThat(BubbleChrome.cornerPx("square", 2f, BubbleChrome.ROUND_SOFT)).isEqualTo(18f)
         assertThat(BubbleChrome.cornerPx("square", 2f, BubbleChrome.ROUND_ROUND)).isEqualTo(32f)
         assertThat(BubbleChrome.cornerPx("pill", 2f, BubbleChrome.ROUND_HARD)).isEqualTo(24f)
         assertThat(BubbleChrome.cornerPx("pill", 2f, BubbleChrome.ROUND_ROUND)).isEqualTo(48f)

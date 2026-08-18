@@ -39,7 +39,7 @@
     <string name="restore_raw">Restore raw</string>
     <string name="no_field_saved_in_app">No focused field — result saved in app. Copy when ready.</string>
     <string name="listening">Listening…</string>
-    <string name="partial">Hearing…</string>
+    <string name="partial">Listening</string>
     <string name="enable_flow_bubble">1. Enable Flow Bubble</string>
     <string name="grant_mic">2. Grant microphone</string>
     <string name="how_it_works">Speak as long as you want. OS STT pauses every few seconds of silence — we auto-restart so dictation continues until you tap the bubble again.</string>
@@ -64,7 +64,7 @@
     <string name="no_dictations">No dictations yet. Use the bubble, then stop to save.</string>
     <string name="words_format">%d words</string>
     <string name="delete">Delete</string>
-    <string name="dictionary_title">Dict — teach one word (local)</string>
+    <string name="dictionary_title">Teach one word (local)</string>
     <string name="word_phrase">Heard word</string>
     <string name="replace_with">Replace with (optional)</string>
     <string name="add">Add</string>
@@ -74,7 +74,7 @@
     <string name="body_placeholder">Body</string>
     <string name="add_snippet">Add snippet</string>
     <string name="style_title">Writing style (local post-process)</string>
-    <string name="settings_title">Flow Bubble (Wispr parity)</string>
+    <string name="settings_title">Bubble look</string>
     <string name="size_format">Size %d%%</string>
     <string name="opacity_format">Opacity %d%%</string>
     <string name="stt_language_label">STT language tag e.g. en-US, hi-IN</string>

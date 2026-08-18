@@ -24,8 +24,8 @@ object PostStopChips {
             return State(copy = false, undo = false, paste = false)
         }
         return State(
-            copy = true,
-            undo = insertOk && canUndo,
+            copy = false,
+            undo = false,
             paste = !insertOk,
         )
     }

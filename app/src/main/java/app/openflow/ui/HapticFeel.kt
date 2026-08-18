@@ -15,7 +15,7 @@ object HapticFeel {
     const val CONFIRM = 16
     const val REJECT = 17
 
-    enum class Event { TAP, SAVE, CANCEL }
+    enum class Event { TAP, SAVE, CANCEL, ERROR, LISTEN }
 
     fun normalize(value: String): String = when (value.lowercase()) {
         OFF, LIGHT, FULL -> value.lowercase()
@@ -30,6 +30,8 @@ object HapticFeel {
             Event.TAP -> CONTEXT_CLICK
             Event.SAVE -> CONFIRM
             Event.CANCEL -> REJECT
+            Event.ERROR -> REJECT
+            Event.LISTEN -> CLOCK_TICK
         }
     }
 }

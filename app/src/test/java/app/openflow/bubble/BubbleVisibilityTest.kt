@@ -6,13 +6,25 @@ import org.junit.Test
 class BubbleVisibilityTest {
 
     @Test
-    fun hide_when_snoozed() {
+    fun ime_open_ignores_snooze() {
         assertThat(
             BubbleVisibility.shouldShow(
                 snoozed = true,
                 bankHide = false,
                 hasEditable = true,
                 imeVisible = true
+            )
+        ).isTrue()
+    }
+
+    @Test
+    fun snooze_hides_when_ime_closed() {
+        assertThat(
+            BubbleVisibility.shouldShow(
+                snoozed = true,
+                bankHide = false,
+                hasEditable = true,
+                imeVisible = false
             )
         ).isFalse()
     }
@@ -74,6 +86,33 @@ class BubbleVisibilityTest {
                 hasEditable = false,
                 imeVisible = false,
                 alwaysShow = true
+            )
+        ).isTrue()
+    }
+
+    @Test
+    fun hide_inside_own_app() {
+        assertThat(
+            BubbleVisibility.shouldShow(
+                snoozed = false,
+                bankHide = false,
+                hasEditable = true,
+                imeVisible = true,
+                insideOwnApp = true
+            )
+        ).isFalse()
+    }
+
+    @Test
+    fun listening_shows_inside_own_app() {
+        assertThat(
+            BubbleVisibility.shouldShow(
+                snoozed = false,
+                bankHide = false,
+                hasEditable = false,
+                imeVisible = false,
+                listening = true,
+                insideOwnApp = true
             )
         ).isTrue()
     }

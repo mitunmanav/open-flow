@@ -55,4 +55,9 @@ object PackagePolicy {
         if (p in exact) return true
         return tokens.any { p.contains(it) }
     }
+
+    fun isOwnApp(packageName: String?): Boolean {
+        val p = packageName.orEmpty()
+        return p == "app.openflow" || p.startsWith("app.openflow.")
+    }
 }

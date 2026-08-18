@@ -8,7 +8,9 @@ object BubbleLabelFormatter {
     fun idle(): String = "Tap"
 
     fun listening(elapsedSec: Long): String =
-        if (elapsedSec > 0) "Hearing ${elapsedSec}s" else "Hearing…"
+        if (elapsedSec > 0) "Listening ${elapsedSec}s" else "Listening"
+
+    fun transcribeFail(): String = "Could not transcribe. Saved in the app."
 
     fun partial(text: String, elapsedSec: Long = 0L, maxChars: Int = 80): String {
         val t = text.trim()

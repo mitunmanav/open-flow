@@ -2,6 +2,12 @@ package app.openflow.text
 
 import app.openflow.ai.NoAI
 import app.openflow.ai.TextAIProvider
+import app.openflow.orchestrate.AiWhen
+import app.openflow.orchestrate.BrainHop
+import app.openflow.orchestrate.BrainHopAsk
+import app.openflow.orchestrate.PipelineArtifactPolicy
+import app.openflow.orchestrate.RouteMode
+import app.openflow.orchestrate.RouteSignals
 import kotlinx.coroutines.runBlocking
 
 /**
@@ -99,6 +105,116 @@ object TextPostProcessor {
         )
 
         return result.copy(raw = original.trim().ifEmpty { original }, clean = cleaned)
+    }
+
+    fun polishRouted(
+        raw: String,
+        style: WritingStyle = WritingStyle.CASUAL,
+        level: CleanupLevel = CleanupLevel.NORMAL,
+        custom: CustomStyleConfig = CustomStyleConfig(),
+        dictionary: Map<String, String> = emptyMap(),
+        snippets: Map<String, String> = emptyMap(),
+        brain: TextAIProvider = NoAI,
+        earId: String = "system",
+        brainId: String = "none",
+        languages: Set<String> = emptySet(),
+        promptHint: String? = null,
+        messaging: Boolean = false,
+        mode: RouteMode = RouteMode.LOCAL_THEN_AI,
+        aiWhen: AiWhen = AiWhen.EVERY,
+        signals: RouteSignals = RouteSignals(false, emptySet(), emptySet()),
+        looksLikeCommand: Boolean = false,
+        onBrainOutcome: (providerId: String, ok: Boolean) -> Unit = { _, _ -> },
+    ): CleanupResult {
+        val original = raw
+        val sides = LearnEngine.sideBags()
+        val autoKeys = LearnEngine.autoKeys()
+        val vocab = expandSnippets(
+            applyDictionary(raw, dictionary, sides, autoKeys),
+            snippets,
+        )
+        val rawLevel = level == CleanupLevel.RAW
+
+        fun localRules(): CleanupResult =
+            polishSessionResult(
+                raw = raw,
+                style = style,
+                level = level,
+                custom = custom,
+                dictionary = dictionary,
+                snippets = snippets,
+                brain = NoAI,
+                brainRewrite = false,
+                earId = earId,
+                brainId = "none",
+                languages = languages,
+                promptHint = promptHint,
+                messaging = messaging,
+            )
+
+        fun hopAsk(cleaned: String, textLen: Int): BrainHopAsk =
+            BrainHopAsk(
+                mode = mode,
+                aiWhen = aiWhen,
+                brainId = brainId,
+                signals = signals,
+                looksLikeCommand = looksLikeCommand,
+                textLen = textLen,
+                cleaned = cleaned,
+                levelRaw = rawLevel,
+            )
+
+        fun contextFor(text: String): String {
+            val hints = LearnPrompt.utteranceHints(text, dictionary)
+            return buildString {
+                append(if (!promptHint.isNullOrBlank()) "cleanup: $promptHint" else "cleanup")
+                if (hints.isNotEmpty()) append(" spell: ").append(hints)
+            }
+        }
+
+        fun afterBrain(text: String): String {
+            var cleaned = applyDictionary(text, dictionary, sides, autoKeys)
+            cleaned = CommandMode.applyLocal(cleaned)
+            return cleaned
+        }
+
+        if (rawLevel || mode == RouteMode.LOCAL_ONLY) {
+            return localRules()
+        }
+
+        if (mode == RouteMode.AI_FIRST) {
+            val hop = BrainHop.pick(hopAsk(vocab, vocab.length))
+            if (hop.providerId != "none") {
+                val artifact = runBlocking {
+                    PipelineArtifactPolicy.build(original, vocab) { t ->
+                        brain.enhance(t, contextFor(t))
+                    }
+                }
+                val ok = artifact.ai.isNotBlank()
+                onBrainOutcome(hop.providerId, ok)
+                if (ok) {
+                    return CleanupResult(
+                        raw = original.trim().ifEmpty { original },
+                        clean = afterBrain(artifact.bestAvailable()),
+                        level = level,
+                    )
+                }
+            }
+            return localRules()
+        }
+
+        val local = localRules()
+        val hop = BrainHop.pick(hopAsk(local.clean, local.clean.length))
+        if (hop.providerId == "none") return local
+        val artifact = runBlocking {
+            PipelineArtifactPolicy.build(local.raw, local.clean) { t ->
+                brain.enhance(t, contextFor(t))
+            }
+        }
+        val ok = artifact.ai.isNotBlank()
+        onBrainOutcome(hop.providerId, ok)
+        if (!ok) return local
+        return local.copy(clean = afterBrain(artifact.bestAvailable()))
     }
 
     private fun sanitizeBrainOutput(aiOutput: String, fallback: String): String {

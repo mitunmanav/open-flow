@@ -52,11 +52,8 @@ import app.openflow.audio.SessionAudioCapture
 import app.openflow.data.ProcessStatus
 import app.openflow.notify.DictationNotifier
 import java.util.UUID
-import app.openflow.orchestrate.BrainRouter
-import app.openflow.orchestrate.PipelineArtifactPolicy
 import app.openflow.orchestrate.ProviderHealth
 import app.openflow.orchestrate.RouteSignals
-import app.openflow.orchestrate.SessionArtifact
 import app.openflow.orchestrate.SttRouter
 import app.openflow.prefs.FlowPrefs
 import app.openflow.ui.HapticFeel
@@ -69,7 +66,6 @@ import app.openflow.stt.SpeechEngine
 import app.openflow.stt.SttBias
 import app.openflow.stt.SttEngine
 import app.openflow.text.CleanupResult
-import app.openflow.text.CleanupLevel
 import app.openflow.text.CommandMode
 import app.openflow.text.CustomStyleConfig
 import app.openflow.text.InsertPolish
@@ -1107,15 +1103,14 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         setBubbleEmphasis(true)
 
         val lang = InsertPolish.language(prefs?.languageTag)
-        val autoRoute = app.enginePrefs.autoRoute
         val earPick = SttRouter.pick(
-            auto = autoRoute,
+            auto = false,
             manualEarId = app.enginePrefs.earId,
             signals = routeSignals(),
             health = providerHealth,
         )
         sessionEarId = earPick.providerId
-        val ear = if (autoRoute) app.registry.ear(sessionEarId) else app.currentEar()
+        val ear = app.currentEar()
         this.ear = ear
         ear.setListener(object : SpeechEngine.Listener {
             /** Accept STT while this generation is active (including flush). */
@@ -1510,87 +1505,42 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 WritingStyle.CASUAL
             }
             val custom = p?.customStyleConfig() ?: CustomStyleConfig()
-            val autoRoute = app.enginePrefs.autoRoute
-            val (result, brainId) = if (autoRoute) {
-                val local = TextPostProcessor.polishSessionResult(
-                    raw = text,
-                    style = style,
-                    level = level,
-                    custom = custom,
-                    dictionary = dict,
-                    snippets = snip,
-                    brain = NoAI,
-                    brainRewrite = false,
-                    earId = routedEarId,
-                    brainId = "none",
-                    promptHint = null,
-                    messaging = messaging,
-                )
-                val pickedBrain = if (level == CleanupLevel.RAW) {
-                    "none"
-                } else {
-                    BrainRouter.pick(
-                        auto = true,
-                        manualBrainId = app.enginePrefs.brainId,
-                        signals = routeSignals(),
-                        health = providerHealth,
-                        looksLikeCommand = looksLikeCommand(text),
-                        textLen = local.clean.length,
-                    ).providerId
-                }
-                val artifact = if (pickedBrain == "none") {
-                    SessionArtifact(raw = local.raw, cleaned = local.clean)
-                } else {
-                    val surrounding = FieldContext.surrounding(true, surroundingField)
-                    val brain = FieldContext.wrapBrain(app.registry.brain(pickedBrain), surrounding)
-                    PipelineArtifactPolicy.build(local.raw, local.clean) { cleaned ->
-                        brain.enhance(cleaned, "cleanup")
-                    }.let { built ->
-                        built.copy(
-                            ai = TextPostProcessor.applyDictionary(
-                                built.ai,
-                                dict,
-                                sides = LearnEngine.sideBags(),
-                                autoKeys = LearnEngine.autoKeys(),
-                            )
-                        )
-                    }.also { built ->
-                        if (built.ai.isBlank()) providerHealth.recordFailure(pickedBrain)
-                        else providerHealth.recordSuccess(pickedBrain)
-                    }
-                }
-                local.copy(raw = artifact.raw, clean = artifact.bestAvailable()) to pickedBrain
+            val mode = app.enginePrefs.routeMode
+            val rewrite = InsertPolish.brainRewriteOnInsert(app.enginePrefs.brainId)
+            val surrounding = FieldContext.surrounding(
+                FieldContext.on(rewrite),
+                surroundingField,
+            )
+            val brain = if (rewrite) {
+                FieldContext.wrapBrain(app.registry.brain(app.enginePrefs.brainId), surrounding)
             } else {
-                val manualBrainId = InsertPolish.brainIdForInsert(app.enginePrefs.brainId)
-                val brainRewrite = InsertPolish.brainRewriteOnInsert(app.enginePrefs.brainId)
-                val surrounding = FieldContext.surrounding(
-                    FieldContext.on(brainRewrite),
-                    surroundingField,
-                )
-                val brain = if (brainRewrite) {
-                    FieldContext.wrapBrain(app.currentBrain(), surrounding)
-                } else {
-                    app.currentBrain()
-                }
-                TextPostProcessor.polishSessionResult(
-                    raw = text,
-                    style = style,
-                    level = level,
-                    custom = custom,
-                    dictionary = dict,
-                    snippets = snip,
-                    brain = brain,
-                    brainRewrite = brainRewrite,
-                    earId = app.enginePrefs.earId,
-                    brainId = manualBrainId,
-                    promptHint = null,
-                    messaging = messaging,
-                ) to manualBrainId
+                NoAI
             }
+            val result = TextPostProcessor.polishRouted(
+                raw = text,
+                style = style,
+                level = level,
+                custom = custom,
+                dictionary = dict,
+                snippets = snip,
+                brain = brain,
+                earId = routedEarId,
+                brainId = app.enginePrefs.brainId,
+                promptHint = null,
+                messaging = messaging,
+                mode = mode,
+                aiWhen = app.enginePrefs.aiWhen,
+                signals = routeSignals(),
+                looksLikeCommand = looksLikeCommand(text),
+                onBrainOutcome = { id, ok ->
+                    if (ok) providerHealth.recordSuccess(id) else providerHealth.recordFailure(id)
+                },
+            )
+            val brainId = app.enginePrefs.brainId
             android.util.Log.i(
                 "OpenFlow.Cleanup",
                 "level=$level pref=$prefLevel style=$style lang=${InsertPolish.language(prefs?.languageTag)} " +
-                    "brain=$brainId auto=$autoRoute field=${surroundingField.isNotEmpty()} " +
+                    "brain=$brainId mode=$mode field=${surroundingField.isNotEmpty()} " +
                     "rawLen=${text.length} cleanLen=${result.clean.length} " +
                     "corr=${result.corrections.size} " +
                     "changed=${text.trim() != result.clean.trim()}"

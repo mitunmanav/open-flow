@@ -59,7 +59,7 @@ class BrainRouterTest {
                 looksLikeCommand = false,
                 textLen = 100,
             )
-        assertThat(result).isEqualTo(RouteExplain("openai", "manual"))
+        assertThat(result).isEqualTo(RouteExplain("none", "local-only"))
     }
 
     @Test
@@ -81,13 +81,13 @@ class BrainRouterTest {
         val result =
             BrainRouter.pick(
                 auto = true,
-                manualBrainId = "none",
+                manualBrainId = "openai",
                 signals = onlineOpenAiBrain,
                 health = ProviderHealth(),
                 looksLikeCommand = false,
                 textLen = 40,
             )
-        assertThat(result).isEqualTo(RouteExplain("openai", "cloud-keyed"))
+        assertThat(result).isEqualTo(RouteExplain("openai", "user-brain"))
     }
 
     @Test
@@ -117,13 +117,13 @@ class BrainRouterTest {
         val result =
             BrainRouter.pick(
                 auto = true,
-                manualBrainId = "none",
+                manualBrainId = "openai",
                 signals = signals,
                 health = health,
                 looksLikeCommand = false,
                 textLen = 50,
             )
-        assertThat(result).isEqualTo(RouteExplain("anthropic", "cloud-keyed"))
+        assertThat(result).isEqualTo(RouteExplain("openai", "user-brain"))
     }
 
     @Test
@@ -165,13 +165,13 @@ class BrainRouterTest {
         val result =
             BrainRouter.pick(
                 auto = true,
-                manualBrainId = "none",
+                manualBrainId = "anthropic",
                 signals = signals,
                 health = ProviderHealth(),
                 looksLikeCommand = false,
                 textLen = 50,
             )
-        assertThat(result).isEqualTo(RouteExplain("anthropic", "cloud-keyed"))
+        assertThat(result).isEqualTo(RouteExplain("anthropic", "user-brain"))
         assertThat(result.providerId).isNotEqualTo("openai")
     }
 }

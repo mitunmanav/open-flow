@@ -2,6 +2,8 @@ package app.openflow.ui.engine
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,7 +14,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -25,25 +26,32 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
 import app.openflow.R
+import app.openflow.orchestrate.AiWhen
+import app.openflow.orchestrate.RouteMode
 import app.openflow.ui.a11y.Dimen
 import app.openflow.ui.components.OpenButton
 import app.openflow.ui.components.OpenCard
+import app.openflow.ui.components.OpenChip
 import app.openflow.ui.components.OpenDropdown
 import app.openflow.ui.components.OpenTextField
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun EngineSettingsScreen(
     initialEar: String = "system",
     initialBrain: String = "none",
-    initialAutoRoute: Boolean = false,
+    initialRouteMode: RouteMode = RouteMode.LOCAL_THEN_AI,
+    initialAiWhen: AiWhen = AiWhen.EVERY,
     initialUrl: String = "",
     initialSarvamMode: String = "transcribe",
     initialKeyMask: String = "",
     initialEarKeyMask: String = "",
     initialBrainKeyMask: String = "",
     onPick: (ear: String, brain: String) -> Unit = { _, _ -> },
-    onAutoRoute: (Boolean) -> Unit = {},
+    onRouteMode: (RouteMode) -> Unit = {},
+    onAiWhen: (AiWhen) -> Unit = {},
     onSaveKey: (String) -> Unit = {},
     onSaveEarKey: (String) -> Unit = onSaveKey,
     onSaveBrainKey: (String) -> Unit = onSaveKey,
@@ -55,14 +63,15 @@ fun EngineSettingsScreen(
 ) {
     var ear by remember { mutableStateOf(initialEar) }
     var brain by remember { mutableStateOf(initialBrain) }
-    var autoRoute by remember { mutableStateOf(initialAutoRoute) }
+    var routeMode by remember { mutableStateOf(initialRouteMode) }
+    var aiWhen by remember { mutableStateOf(initialAiWhen) }
     var url by remember { mutableStateOf(initialUrl) }
     var sarvamMode by remember { mutableStateOf(initialSarvamMode) }
     var earKeyDraft by remember { mutableStateOf("") }
     var brainKeyDraft by remember { mutableStateOf("") }
     var savedEarMask by remember { mutableStateOf(initialEarKeyMask.ifEmpty { initialKeyMask }) }
     var savedBrainMask by remember { mutableStateOf(initialBrainKeyMask.ifEmpty { initialKeyMask }) }
-    val state = EnginePickerState.of(ear, brain, autoRoute)
+    val state = EnginePickerState.of(ear, brain, routeMode = routeMode)
     val scheme = MaterialTheme.colorScheme
     val earOptions = remember { EnginePickerVisibility.visibleEars() }
     val brainOptions = remember(url) { EnginePickerVisibility.visibleBrains(url) }
@@ -106,33 +115,79 @@ fun EngineSettingsScreen(
             }
         }
 
-        OpenCard(modifier = Modifier.fillMaxWidth().testTag("auto_route_card")) {
-            Row(
-                modifier = Modifier.padding(Dimen.MIN_PADDING),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(Dimen.GAP)
+        OpenCard(modifier = Modifier.fillMaxWidth().testTag("route_mode_card")) {
+            Column(
+                Modifier.padding(Dimen.MIN_PADDING),
+                verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Auto route",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = scheme.onSurface
+                Text(
+                    text = "Rewrite path",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = scheme.onSurface
+                )
+                Text(
+                    text = "Speech stays your ear pick. Cloud rewrite only if a key is saved.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = scheme.onSurfaceVariant
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OpenChip(
+                        label = "Local only",
+                        isOn = routeMode == RouteMode.LOCAL_ONLY,
+                        modifier = Modifier.testTag("route_local_only"),
+                        onClick = {
+                            routeMode = RouteMode.LOCAL_ONLY
+                            onRouteMode(RouteMode.LOCAL_ONLY)
+                        }
                     )
-                    Text(
-                        text = "Auto picks ear/brain; cloud only if keys saved.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = scheme.onSurfaceVariant
+                    OpenChip(
+                        label = "Local then AI",
+                        isOn = routeMode == RouteMode.LOCAL_THEN_AI,
+                        modifier = Modifier.testTag("route_local_then_ai"),
+                        onClick = {
+                            routeMode = RouteMode.LOCAL_THEN_AI
+                            onRouteMode(RouteMode.LOCAL_THEN_AI)
+                        }
+                    )
+                    OpenChip(
+                        label = "AI first",
+                        isOn = routeMode == RouteMode.AI_FIRST,
+                        modifier = Modifier.testTag("route_ai_first"),
+                        onClick = {
+                            routeMode = RouteMode.AI_FIRST
+                            onRouteMode(RouteMode.AI_FIRST)
+                        }
                     )
                 }
-                Switch(
-                    checked = state.autoRoute,
-                    onCheckedChange = {
-                        autoRoute = it
-                        onAutoRoute(it)
-                    },
-                    modifier = Modifier.testTag("auto_route_switch")
-                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OpenChip(
+                        label = "Every",
+                        isOn = aiWhen == AiWhen.EVERY,
+                        enabled = routeMode == RouteMode.LOCAL_THEN_AI,
+                        modifier = Modifier.testTag("ai_when_every"),
+                        onClick = {
+                            aiWhen = AiWhen.EVERY
+                            onAiWhen(AiWhen.EVERY)
+                        }
+                    )
+                    OpenChip(
+                        label = "Miss only",
+                        isOn = aiWhen == AiWhen.MISS_ONLY,
+                        enabled = routeMode == RouteMode.LOCAL_THEN_AI,
+                        modifier = Modifier.testTag("ai_when_miss"),
+                        onClick = {
+                            aiWhen = AiWhen.MISS_ONLY
+                            onAiWhen(AiWhen.MISS_ONLY)
+                        }
+                    )
+                }
             }
         }
 

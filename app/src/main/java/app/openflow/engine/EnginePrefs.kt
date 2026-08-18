@@ -1,6 +1,8 @@
 package app.openflow.engine
 
 import android.content.Context
+import app.openflow.orchestrate.AiWhen
+import app.openflow.orchestrate.RouteMode
 import app.openflow.prefs.PrefsStore
 import app.openflow.prefs.SharedPrefsStore
 
@@ -38,8 +40,27 @@ class EnginePrefs internal constructor(private val store: PrefsStore) {
         set(v) = store.putString(KEY_SARVAM, normalizeSarvam(v))
 
     var autoRoute: Boolean
-        get() = store.getBoolean(KEY_AUTO, false)
-        set(v) = store.putBoolean(KEY_AUTO, v)
+        get() = routeMode != RouteMode.LOCAL_ONLY
+        set(v) {
+            routeMode = if (v) RouteMode.LOCAL_THEN_AI else RouteMode.LOCAL_ONLY
+        }
+
+    var routeMode: RouteMode
+        get() {
+            val raw = store.getString(KEY_ROUTE, "")
+            if (raw.isNotEmpty()) return RouteMode.fromPref(raw)
+            val migrated = RouteMode.fromLegacy(
+                store.getBoolean(KEY_AUTO, true),
+                brainId,
+            )
+            store.putString(KEY_ROUTE, migrated.pref)
+            return migrated
+        }
+        set(v) = store.putString(KEY_ROUTE, v.pref)
+
+    var aiWhen: AiWhen
+        get() = AiWhen.fromPref(store.getString(KEY_AI_WHEN, AiWhen.EVERY.pref))
+        set(v) = store.putString(KEY_AI_WHEN, v.pref)
 
     companion object {
         const val PREFS_NAME = "openflow_engine"
@@ -54,6 +75,8 @@ class EnginePrefs internal constructor(private val store: PrefsStore) {
         private const val KEY_CUSTOM_URL = "custom_base_url"
         private const val KEY_SARVAM = "sarvam_mode"
         private const val KEY_AUTO = "auto_route"
+        private const val KEY_ROUTE = "route_mode"
+        private const val KEY_AI_WHEN = "ai_when"
 
         fun normalizeSarvam(value: String): String =
             when (value.lowercase()) {

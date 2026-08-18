@@ -2,6 +2,7 @@ package app.openflow.ui.engine
 
 import app.openflow.ai.providers.host.HostUrl
 import app.openflow.engine.EarGate
+import app.openflow.orchestrate.RouteMode
 
 /**
  * Pure picker view-model. String ids only — no engine/ import (f31 owns types).
@@ -176,6 +177,7 @@ data class EnginePickerState(
             earId: String = "system",
             brainId: String = "none",
             autoRoute: Boolean = false,
+            routeMode: RouteMode? = null,
         ): EnginePickerState {
             val ear = if (earId in knownEars) earId else "system"
             val brain = if (brainId in knownBrains) brainId else "none"
@@ -185,10 +187,11 @@ data class EnginePickerState(
             val kind = pathKind(ear, brain)
             val earKey = ear in keyEars
             val brainKey = brain in keyBrains
+            val mode = routeMode ?: if (autoRoute) RouteMode.LOCAL_THEN_AI else RouteMode.LOCAL_ONLY
             return EnginePickerState(
                 earId = ear,
                 brainId = brain,
-                autoRoute = autoRoute,
+                autoRoute = mode != RouteMode.LOCAL_ONLY,
                 rewrite = rewrite,
                 commandMode = rewrite,
                 livePartials = livePartials,

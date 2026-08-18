@@ -93,19 +93,27 @@ class SitePagesTest {
     fun index_hero_downloads_apk_without_card_grid() {
         val index = File(UiSourceScan.projectRoot(), "docs/index.html").readText()
         assertThat(index).contains("class=\"hero\"")
-        assertThat(index).contains("class=\"demo\"")
+        assertThat(index).contains("class=\"demo kb\"")
         assertThat(index).contains("open-flow-0.1.7-debug.apk")
         assertThat(index).doesNotContain("class=\"card\"")
         assertThat(index).doesNotContain("class=\"grid\"")
+        assertThat(index).doesNotContain("class=\"field\"")
+        assertThat(index.lowercase()).doesNotContain("notes")
     }
 
     @Test
-    fun site_css_is_not_cream_card_template() {
+    fun site_css_is_not_ai_landing_template() {
         val css = File(UiSourceScan.projectRoot(), "docs/site.css").readText()
         assertThat(css).doesNotContain("#f4efe6")
-        assertThat(css).contains("--scrim")
+        assertThat(css).doesNotContain("#0f1c22")
+        assertThat(css).doesNotContain("#e8a54b")
+        assertThat(css).doesNotContain("Sora")
+        assertThat(css).doesNotContain("Atkinson")
+        assertThat(css).doesNotContain("radial-gradient")
+        assertThat(css).contains("--desk")
+        assertThat(css).contains(".kb")
+        assertThat(css).contains("Big Shoulders")
+        assertThat(css).contains("Noto Sans")
         assertThat(css).contains("prefers-reduced-motion")
-        assertThat(css).contains("Sora")
-        assertThat(css).contains("Atkinson")
     }
 }

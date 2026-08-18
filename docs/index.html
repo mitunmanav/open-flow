@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="site.css">
 </head>
 <body>
+<a class="skip" href="#main">Skip to text</a>
 <header>
   <div class="wrap">
     <a class="brand" href="index.html"><img src="icon.svg" width="36" height="36" alt="">Open Flow</a>
@@ -25,79 +26,70 @@
     </nav>
   </div>
 </header>
-<main class="wrap">
-  <h1>Speak. It types.<br>Keep your keyboard.</h1>
-  <p class="lede">A free Android app. A small bubble floats over the app you are already in. Tap, talk, tap again. Words go into that field.</p>
-  <p class="muted">Not a keyboard. MIT. No account. No ads. You pick the speech language in the app.</p>
-
-  <h2 class="rule">What this is for</h2>
-  <p>We do not win on speech accuracy. This app keeps <strong>your keyboard</strong> and stores <strong>your words on this phone</strong>.</p>
-  <div class="grid">
-    <div class="card">
-      <h3>Always there</h3>
-      <p>Bubble over your keyboard. You do not switch keyboards.</p>
+<section class="hero">
+  <div class="wrap">
+    <h1>Speak.<br>It types.</h1>
+    <p class="lede">Keep Gboard. A bubble sits on the app you already have open. Tap, talk, tap again.</p>
+    <div class="demo">
+      <div class="field">
+        <p class="label">Notes</p>
+        <p class="typed">Meet you at 6. Don't forget milk.</p>
+      </div>
+      <div class="bubble" aria-hidden="true">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="9" y="4" width="6" height="10" rx="3" fill="#e8eee9"/>
+          <path d="M7 11a5 5 0 0 0 10 0" fill="none" stroke="#e8eee9" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M12 16v3" fill="none" stroke="#e8eee9" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </div>
     </div>
-    <div class="card">
-      <h3>Your archive</h3>
-      <p>History, dictionary, snippets — on this phone.</p>
+    <div class="row">
+      <a class="btn" href="https://github.com/mitunmanav/open-flow/releases/download/v0.1.7/open-flow-0.1.7-debug.apk">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 11l5 5 5-5M5 21h14"/></svg>
+        Download 0.1.7 APK
+      </a>
+      <a class="btn ghost" href="install.html">Install help</a>
     </div>
-    <div class="card">
-      <h3>Your rules</h3>
-      <p>Keep, wipe in 24 hours, or never save. No account.</p>
-    </div>
-    <div class="card">
-      <h3>Open source</h3>
-      <p>MIT. No ads. INTERNET is declared; unused until you pick a cloud path.</p>
-    </div>
+    <p class="muted">Sideload. Debug-signed. Not Play. Custom bubble, speak edits, Insights. <a href="https://github.com/mitunmanav/open-flow/blob/main/CHANGELOG.md">What changed</a>.</p>
   </div>
+</section>
+<main class="wrap" id="main">
+  <h2>How you use it</h2>
+  <ol class="steps">
+    <li>Install the APK. Turn on Accessibility. Allow the mic.</li>
+    <li>Open a normal text field — not a password or bank app.</li>
+    <li>Tap the bubble → speak → tap again. Words go in that field.</li>
+  </ol>
+  <p><a href="guide.html">Guide</a> · <a href="install.html">If Accessibility is grey</a></p>
+
+  <h2>What stays on this phone</h2>
+  <dl class="facts">
+    <div>
+      <dt>Keyboard</dt>
+      <dd>We sit on top. We do not replace Gboard.</dd>
+    </div>
+    <div>
+      <dt>History</dt>
+      <dd>Search, copy, share, JSON export. Copy lives here — not on the bubble.</dd>
+    </div>
+    <div>
+      <dt>Edits</dt>
+      <dd>“Strike that”, “X not Y”, lists, caps. Rules run on the phone.</dd>
+    </div>
+    <div>
+      <dt>Retention</dt>
+      <dd>Keep, wipe in 24 hours, or never save. No account. MIT. No ads.</dd>
+    </div>
+  </dl>
 
   <div class="honest">
     <strong>Honest.</strong> INTERNET is declared. Open Flow does not use the network until you pick a cloud path or a model download.
     Speech still uses the phone’s system recognizer. On many phones that is Google, and audio <em>can</em> leave the device.
-    Need “voice never leaves this phone”? Use a local Whisper or Vosk app — not this one.
+    Need voice to stay on this phone? Use a local Whisper or Vosk app — not this one, yet.
     <a href="compare.html">Compare</a>.
   </div>
 
-  <div class="row">
-    <a class="btn" href="https://github.com/mitunmanav/open-flow/releases/latest">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 11l5 5 5-5M5 21h14"/></svg>
-      Download APK
-    </a>
-    <a class="btn ghost" href="install.html">Install help</a>
-    <a class="btn ghost" href="https://github.com/mitunmanav/open-flow/discussions">Talk</a>
-  </div>
-  <p class="muted">Latest: 0.1.7. Custom bubble, speak edits, Insights. <a href="https://github.com/mitunmanav/open-flow/blob/main/CHANGELOG.md">What changed</a>.</p>
-
-  <h2 class="rule">What you get</h2>
-  <div class="grid">
-    <div class="card">
-      <h3>Bubble</h3>
-      <p>Tap, tap again, or hold. X throws away. Drag to move. Stays while the keyboard is up.</p>
-    </div>
-    <div class="card">
-      <h3>Keep your keyboard</h3>
-      <p>We do not replace Gboard. We sit on top.</p>
-    </div>
-    <div class="card">
-      <h3>History</h3>
-      <p>Search, copy, share. Copy lives here — not on the bubble.</p>
-    </div>
-    <div class="card">
-      <h3>Cleanup + style</h3>
-      <p>Rules on the phone. Not a cloud model.</p>
-    </div>
-  </div>
-
-  <h2 class="rule">How you use it</h2>
-  <ol class="steps">
-    <li>Install the APK from Releases.</li>
-    <li>Turn on Accessibility. Allow the mic.</li>
-    <li>Open a normal text field (not a password or bank app).</li>
-    <li>Tap the bubble → speak → tap again.</li>
-  </ol>
-  <p><a href="guide.html">Guide</a> · <a href="privacy.html">Privacy</a> · <a href="report.html">Report a bug</a></p>
-
-  <h2 class="rule">What it is not</h2>
+  <h2>What it is not</h2>
   <ul>
     <li>Not Wispr Flow (closed, cloud).</li>
     <li>Not an on-device Whisper model.</li>

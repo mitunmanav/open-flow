@@ -62,6 +62,13 @@ class SitePagesTest {
             "game-changer",
             "delve",
             "utilize",
+            "elevate",
+            "revolutionize",
+            "next-gen",
+            "effortless",
+            "crafted",
+            "supercharge",
+            "reimagine",
         )
         pages.forEach { f ->
             val low = f.readText().lowercase()
@@ -80,5 +87,25 @@ class SitePagesTest {
         assertThat(index).contains("internet is declared")
         assertThat(privacy).contains("internet is declared")
         assertThat(index).doesNotContain("ime")
+    }
+
+    @Test
+    fun index_hero_downloads_apk_without_card_grid() {
+        val index = File(UiSourceScan.projectRoot(), "docs/index.html").readText()
+        assertThat(index).contains("class=\"hero\"")
+        assertThat(index).contains("class=\"demo\"")
+        assertThat(index).contains("open-flow-0.1.7-debug.apk")
+        assertThat(index).doesNotContain("class=\"card\"")
+        assertThat(index).doesNotContain("class=\"grid\"")
+    }
+
+    @Test
+    fun site_css_is_not_cream_card_template() {
+        val css = File(UiSourceScan.projectRoot(), "docs/site.css").readText()
+        assertThat(css).doesNotContain("#f4efe6")
+        assertThat(css).contains("--scrim")
+        assertThat(css).contains("prefers-reduced-motion")
+        assertThat(css).contains("Sora")
+        assertThat(css).contains("Atkinson")
     }
 }

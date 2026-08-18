@@ -14,10 +14,9 @@
     <nav>
       <a href="index.html">Home</a>
       <a href="install.html">Install</a>
-      <a href="architecture.html">Architecture</a>
-      <a href="roadmap.html" aria-current="page">Roadmap</a>
-      <a href="compare.html">Compare</a>
-      <a href="https://github.com/mitunmanav/open-flow/discussions">Discuss</a>
+      <a href="guide.html">Guide</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="https://github.com/mitunmanav/open-flow/discussions">Talk</a>
     </nav>
   </div>
 </header>
@@ -27,9 +26,10 @@
 
   <h2>Now (0.1.7)</h2>
   <ul>
-    <li>Bubble + Accessibility insert. Not a keyboard.</li>
+    <li>Bubble + Accessibility insert. Not a keyboard. Stays while the keyboard is up.</li>
     <li>Home · Dictionary · Snippets · Style. Listen Done. Press enter to send.</li>
-    <li>History, dictionary sort, snippets, cleanup levels, styles.</li>
+    <li>History copy/share. Cleanup levels. Optional cloud you pick.</li>
+    <li>INTERNET is declared; unused until you pick a cloud path.</li>
     <li>Debug-signed APK on GitHub Releases.</li>
   </ul>
 
@@ -37,8 +37,8 @@
   <ul>
     <li>A real <strong>release keystore</strong> (this APK is debug-signed).</li>
     <li>Install path tested from <strong>Files</strong> (Restricted Settings), not only USB.</li>
-    <li>Optional <strong>on-device model</strong> (Whisper / Vosk / similar). Until then, audio privacy is not fully ours.</li>
-    <li>F-Droid metadata when the signed build is reproducible enough.</li>
+    <li>Optional <strong>on-device model</strong>. Until then, audio privacy is not fully ours.</li>
+    <li>F-Droid when the signed build is clean enough.</li>
   </ul>
 
   <h2>Later, only if we mean it</h2>
@@ -52,13 +52,24 @@
   <ul>
     <li>Becoming a keyboard.</li>
     <li>Accounts, ads, analytics.</li>
-    <li>Adding INTERNET “just in case.”</li>
-    <li>Pretending we are Wispr.</li>
+    <li>Stripping declared INTERNET (it stays unused until you pick a cloud path).</li>
+    <li>Calling this a Wispr clone.</li>
   </ul>
 
   <p>Talk about this in <a href="https://github.com/mitunmanav/open-flow/discussions">Discussions</a>.</p>
   <p>Also: <a href="ROADMAP.md">ROADMAP.md</a></p>
 </main>
-<footer><div class="wrap"><span><img src="icon.svg" alt=""> Open Flow · MIT</span></div></footer>
+<footer>
+  <div class="wrap">
+    <span><img src="icon.svg" alt=""> Open Flow · MIT</span>
+    <span>
+      <a href="compare.html">Compare</a> ·
+      <a href="architecture.html">How it is built</a> ·
+      <a href="roadmap.html">Roadmap</a> ·
+      <a href="report.html">Report a bug</a> ·
+      <a href="https://github.com/mitunmanav/open-flow">GitHub</a>
+    </span>
+  </div>
+</footer>
 </body>
 </html>

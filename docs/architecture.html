@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Architecture — Open Flow</title>
+  <title>How it is built — Open Flow</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="site.css">
   <style>
@@ -41,18 +41,17 @@
       <a href="index.html">Home</a>
       <a href="install.html">Install</a>
       <a href="guide.html">Guide</a>
-      <a href="architecture.html" aria-current="page">Architecture</a>
-      <a href="roadmap.html">Roadmap</a>
-      <a href="compare.html">Compare</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="https://github.com/mitunmanav/open-flow/discussions">Talk</a>
     </nav>
   </div>
 </header>
 <main class="wrap">
-  <h1>Architecture</h1>
-  <p class="lede">Keep the user’s keyboard. A bubble owned by Accessibility listens, polishes words on the phone, and inserts them. Not an IME.</p>
+  <h1>How it is built</h1>
+  <p class="lede">Keep the user’s keyboard. A bubble owned by Accessibility listens, tidies words on the phone, and inserts them. Not a keyboard.</p>
 
   <h2 class="rule">1. Where it sits</h2>
-  <p class="muted">The speech engine is outside our process. Declared-but-unused INTERNET is not the same as “audio never leaves.”</p>
+  <p class="muted">The speech engine is outside our process. INTERNET is declared. That is not the same as “audio never leaves.”</p>
   <div class="flow">
     <div class="box fill"><strong>You</strong><span>Tap the bubble. Speak.</span></div>
     <div class="arrow">↓</div>
@@ -60,45 +59,52 @@
     <div class="arrow">↓</div>
     <div class="box"><strong>Open Flow</strong><span>Bubble + app. Accessibility overlay. Insert only.</span></div>
     <div class="arrow">↓</div>
-    <div class="box"><strong>System SpeechRecognizer</strong><span>On-device if the phone has it. Often still Google. May leave the device.</span></div>
+    <div class="box"><strong>Phone speech</strong><span>On-device if the phone has it. Often still Google. May leave the device.</span></div>
   </div>
 
   <h2 class="rule">2. One dictation</h2>
   <div class="pipe">
     <div class="box fill"><strong>1 · Tap</strong><span>Start listening</span></div>
-    <div class="box"><strong>2 · Speak</strong><span>System STT</span></div>
+    <div class="box"><strong>2 · Speak</strong><span>Phone speech engine</span></div>
     <div class="box"><strong>3 · Tap again</strong><span>Or hold-to-talk, then release</span></div>
-    <div class="box"><strong>4 · Polish</strong><span>Dictionary → snippet → cleanup → style</span></div>
+    <div class="box"><strong>4 · Cleanup</strong><span>Dictionary → snippet → rules → style</span></div>
     <div class="box"><strong>5 · Insert</strong><span>Into the focused field</span></div>
     <div class="box"><strong>6 · History</strong><span>Saved on this phone, unless you chose never</span></div>
   </div>
-  <p class="muted">X while listening throws the words away. Drag down hides the bubble for 10 minutes.</p>
+  <p class="muted">X while listening throws the words away. The bubble stays while the keyboard is up.</p>
 
-  <h2 class="rule">3. Polish pipeline</h2>
+  <h2 class="rule">3. Cleanup on the phone</h2>
   <p>All on the phone. No language model. Style runs last.</p>
   <table>
     <tr><th>Step</th><th>What it does</th></tr>
-    <tr><td>Raw STT</td><td>Whatever the phone recognizer returned</td></tr>
+    <tr><td>Raw speech</td><td>Whatever the phone recognizer returned</td></tr>
     <tr><td>Dictionary</td><td>One word → another word</td></tr>
     <tr><td>Snippet</td><td>Exact trigger → a whole block</td></tr>
     <tr><td>Cleanup</td><td>None / Light / Medium / High (rules)</td></tr>
     <tr><td>Style</td><td>Formal / Casual / Very casual / Excited / Custom</td></tr>
   </table>
 
-  <h2 class="rule">4. Main modules</h2>
+  <h2 class="rule">4. Main pieces</h2>
   <table>
-    <tr><th>Module</th><th>Job</th></tr>
-    <tr><td>App UI</td><td>Walkthrough, setup, Home, History, Dictionary, Settings</td></tr>
+    <tr><th>Piece</th><th>Job</th></tr>
+    <tr><td>App screens</td><td>Walkthrough, setup, Home, History, Dictionary, Settings</td></tr>
     <tr><td>Accessibility service</td><td>Bubble, field detect, listen, insert</td></tr>
-    <tr><td>STT engine</td><td>System SpeechRecognizer. Fast / Balanced / Accurate</td></tr>
+    <tr><td>Speech</td><td>Phone SpeechRecognizer. Fast / Balanced / Accurate</td></tr>
     <tr><td>Room database</td><td>History, dictionary, snippets — on this phone</td></tr>
-    <tr><td>Policies</td><td>Hide on banks. Skip passwords.</td></tr>
+    <tr><td>Hide rules</td><td>Hide on banks. Skip passwords.</td></tr>
   </table>
   <p><a href="https://github.com/mitunmanav/open-flow">Source on GitHub</a></p>
 </main>
 <footer>
   <div class="wrap">
     <span><img src="icon.svg" alt=""> Open Flow · MIT</span>
+    <span>
+      <a href="compare.html">Compare</a> ·
+      <a href="architecture.html">How it is built</a> ·
+      <a href="roadmap.html">Roadmap</a> ·
+      <a href="report.html">Report a bug</a> ·
+      <a href="https://github.com/mitunmanav/open-flow">GitHub</a>
+    </span>
   </div>
 </footer>
 </body>

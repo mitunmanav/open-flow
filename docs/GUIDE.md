@@ -31,10 +31,9 @@ Full install: [INSTALL.md](INSTALL.md).
 | Hold the bubble | Talk only while you hold. Release inserts |
 | Tap X while listening | Throw away. Nothing is inserted |
 | End with “press enter” | Insert, then send (chat fields) |
-| Drag the bubble | Move it |
-| Drag to the bottom | Hide for 10 minutes. Shake the phone to bring it back |
+| Drag the bubble | Move it. While the keyboard is up, the bubble stays on screen |
 
-After insert, **Copy / Undo / Paste** chips show for a few seconds. Old text: open Open Flow → **History**.
+Copy lives in **History**, not on the bubble. Open Open Flow → **History** → Copy or Share.
 
 ## What the app will not type into
 
@@ -86,11 +85,10 @@ More: [PRIVACY.md](PRIVACY.md).
 
 Check, in order:
 
-1. Are you in a normal text field (not a password)?
+1. Are you in a normal text field (not a password or bank app)?
 2. Is the keyboard up?
-3. Did you snooze it (drag down)?
-4. Is Accessibility still on? (Force-stop turns it off.)
-5. Is the microphone allowed?
+3. Is Accessibility still on? (Force-stop turns it off.)
+4. Is the microphone allowed?
 
 ## Settings worth knowing
 

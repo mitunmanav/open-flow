@@ -169,4 +169,26 @@ class VoiceCommandsTest {
         val r = CleanupPipeline.run("hello period", CleanupLevel.RAW)
         assertThat(r.clean.lowercase()).contains("period")
     }
+
+    @Test
+    fun new_aliases_map() {
+        val out = VoiceCommands.apply(
+            "a fullstop b semi colon c three dots d open square bracket x close square bracket"
+        )
+        assertThat(out).contains(".")
+        assertThat(out).contains(";")
+        assertThat(out).contains("...")
+        assertThat(out).contains("[")
+        assertThat(out).contains("]")
+        assertThat(out.lowercase()).doesNotContain("fullstop")
+        assertThat(out.lowercase()).doesNotContain("semi colon")
+    }
+
+    @Test
+    fun dot_becomes_period_unless_tld() {
+        assertThat(VoiceCommands.apply("end dot")).contains(".")
+        val keep = VoiceCommands.apply("site dot com")
+        assertThat(keep.lowercase()).contains("dot")
+        assertThat(keep).doesNotContain(".")
+    }
 }

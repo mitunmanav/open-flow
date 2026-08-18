@@ -345,6 +345,19 @@ class CleanupPipelineTest {
     }
 
     @Test
+    fun first_second_list_formats() {
+        val r = CleanupPipeline.run(
+            "My top goals this week are first finish the report second send the presentation",
+            CleanupLevel.NORMAL
+        )
+        assertThat(r.clean).contains("1. ")
+        assertThat(r.clean).contains("2. ")
+        assertThat(r.clean.lowercase()).contains("finish the report")
+        assertThat(r.clean.lowercase()).contains("send the presentation")
+        assertThat(r.clean).contains("\n")
+    }
+
+    @Test
     fun style_applies_after_cleanup() {
         val r = CleanupPipeline.run(
             "um well i think we should um go",

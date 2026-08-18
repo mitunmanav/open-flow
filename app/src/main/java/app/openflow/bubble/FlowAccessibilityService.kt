@@ -141,6 +141,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     /** Field text snapshot at listen start — session rewrite base. */
     private var fieldPrefix: String = ""
     private var lastPackage: String? = null
+    @Volatile private var lastKeepCap: Set<String> = emptySet()
     private var sensorManager: SensorManager? = null
     private var accelerometer: Sensor? = null
     private val shakeDetector = ShakeDetector()
@@ -1491,6 +1492,11 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         scope.launch(Dispatchers.IO) {
             val dict = app.dictations.dictionaryMap()
             val snip = app.dictations.snippetMap()
+            lastKeepCap = dict.keys
+            val messaging = run {
+                val cat = AppContextEngine.detect(lastPackage).category
+                cat == AppCategory.MESSAGING || cat == AppCategory.WORK_COLLAB
+            }
             val prefLevel = prefs?.cleanupLevel ?: "medium"
             val level = InsertPolish.level(prefLevel)
             val p = prefs
@@ -1518,6 +1524,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                     earId = routedEarId,
                     brainId = "none",
                     promptHint = null,
+                    messaging = messaging,
                 )
                 val pickedBrain = if (level == CleanupLevel.RAW) {
                     "none"
@@ -1577,6 +1584,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                     earId = app.enginePrefs.earId,
                     brainId = manualBrainId,
                     promptHint = null,
+                    messaging = messaging,
                 ) to manualBrainId
             }
             android.util.Log.i(
@@ -1676,7 +1684,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
     private fun commitSessionToField(finalText: String, prefix: String, raw: String = ""): Boolean {
         if (finalText.isBlank()) return false
-        val merged = FieldContext.afterPolish(prefix, finalText)
+        val merged = FieldContext.afterPolish(prefix, finalText, lastKeepCap)
         val root = rootInActiveWindow
         val node = resolveEditable(root, focusedEditable)
         try {

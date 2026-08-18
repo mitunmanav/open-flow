@@ -272,4 +272,28 @@ class CourseCorrectorTest {
         val out = CourseCorrector.apply("actually send the report")
         assertThat(out.lowercase()).contains("send the report")
     }
+
+    @Test
+    fun ellipsis_restate_same_frame() {
+        val out = CourseCorrector.apply(
+            "I wanted to buy a record as a gift… as a present"
+        )
+        assertThat(out.lowercase()).contains("present")
+        assertThat(out.lowercase()).doesNotContain("gift")
+        assertThat(out.lowercase()).contains("record")
+    }
+
+    @Test
+    fun ellipsis_restate_dots() {
+        val out = CourseCorrector.apply("as a gift... as a present")
+        assertThat(out.lowercase()).contains("present")
+        assertThat(out.lowercase()).doesNotContain("gift")
+    }
+
+    @Test
+    fun actually_not_correction_stays() {
+        val out = CourseCorrector.apply("I actually enjoyed the movie")
+        assertThat(out.lowercase()).contains("actually")
+        assertThat(out.lowercase()).contains("enjoyed")
+    }
 }

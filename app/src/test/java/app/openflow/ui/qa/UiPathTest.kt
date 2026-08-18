@@ -29,6 +29,8 @@ class UiPathTest {
             AppRoute.HomeModules,
             AppRoute.Cleanup,
             AppRoute.Privacy,
+            AppRoute.PrivacyPolicy,
+            AppRoute.Terms,
             AppRoute.Sounds,
             AppRoute.Setup,
         )
@@ -90,6 +92,8 @@ class UiPathTest {
             "haptics_reset",
             "dict_word",
             "privacy_auto_learn",
+            "legal_privacy",
+            "legal_terms",
         )
 
         val PATH_TAGS = listOf(
@@ -123,6 +127,11 @@ class UiPathTest {
             "home_stats_pages",
             "home_banner_repair",
             "home_open_insights",
+            "home_legal_privacy",
+            "home_legal_terms",
+            "history_copy",
+            "history_share",
+            "history_more",
             "nav_insights",
             "insights_screen",
             "insights_tab_usage",

@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import app.openflow.bubble.AppCategory
 import app.openflow.bubble.AppOverride
 import app.openflow.bubble.BubbleChrome
+import app.openflow.bubble.BubbleLook
 import app.openflow.bubble.BubbleScaleSteps
 import app.openflow.stt.LanguagePolicy
 import app.openflow.stt.SttTuning
@@ -209,17 +210,25 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         emitPalette()
     }
 
-    private fun computePalette(): AppearancePalette = AppearancePalette.overlay(
-        dark = darkMode.value == "dark",
-        bg = store.getString("color_bg", ""),
-        cards = store.getString("color_cards", ""),
-        text = store.getString("color_text", ""),
-        accent = store.getString("color_accent", ""),
-        border = store.getString("color_border", ""),
-        bubbleIdle = store.getString("color_bubble_idle", ""),
-        bubbleListen = store.getString("color_bubble_listen", ""),
-        bubbleText = store.getString("color_bubble_text", ""),
-    )
+    private fun computePalette(): AppearancePalette {
+        val overlay = AppearancePalette.overlay(
+            dark = darkMode.value == "dark",
+            bg = store.getString("color_bg", ""),
+            cards = store.getString("color_cards", ""),
+            text = store.getString("color_text", ""),
+            accent = store.getString("color_accent", ""),
+            border = store.getString("color_border", ""),
+            bubbleIdle = store.getString("color_bubble_idle", ""),
+            bubbleListen = store.getString("color_bubble_listen", ""),
+            bubbleText = store.getString("color_bubble_text", ""),
+        )
+        val tint = BubbleTint.normalize(store.getString("bubble_tint", BubbleTint.CHARCOAL))
+        return overlay.copy(
+            bubbleIdleArgb = BubbleLook.fillArgb(store.getString("color_bubble_idle", ""), tint),
+            bubbleListenArgb = BubbleLook.fillArgb(store.getString("color_bubble_listen", ""), tint),
+            bubbleTextArgb = BubbleLook.onArgb(store.getString("color_bubble_text", ""), tint),
+        )
+    }
 
     private fun emitPalette() {
         _appearance.value = computePalette()
@@ -312,7 +321,10 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
     /** charcoal | cream | ink | stone | sky | forest | coral | grape */
     var bubbleTint: String
         get() = BubbleTint.normalize(store.getString("bubble_tint", BubbleTint.CHARCOAL))
-        set(v) = store.putString("bubble_tint", BubbleTint.normalize(v))
+        set(v) {
+            store.putString("bubble_tint", BubbleTint.normalize(v))
+            emitPalette()
+        }
 
     /** hard | soft | round — default soft for clean pill */
     var bubbleRoundness: String

@@ -1,5 +1,6 @@
 package app.openflow.ui
 
+import android.graphics.BitmapFactory
 import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -23,6 +24,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -58,11 +60,14 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MicNone
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -94,12 +99,14 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -148,11 +155,14 @@ import app.openflow.ui.home.DictListPolicy
 import app.openflow.ui.home.HubListPolicy
 import app.openflow.ui.home.HistoryDays
 import app.openflow.ui.home.HistorySearchPolicy
+import app.openflow.ui.home.HistoryRowActions
 import app.openflow.ui.home.HomeBannerPolicy
 import app.openflow.ui.home.HomeFeed
 import app.openflow.ui.home.ModuleEditorVisibility
 import app.openflow.ui.home.UiScrollPolicy
 import app.openflow.ui.insights.InsightsScreen
+import app.openflow.ui.legal.LegalCopy
+import app.openflow.ui.legal.LegalDocumentScreen
 import app.openflow.ui.privacy.PrivacyHonesty
 import app.openflow.ui.setup.BatteryExemption
 import app.openflow.ui.setup.FirstRunPolicy
@@ -391,6 +401,8 @@ class MainActivity : ComponentActivity() {
                                 },
                                 onMic = { micPermission.launch(Manifest.permission.RECORD_AUDIO) },
                                 onOpenInsights = { goTo(AppRoute.Insights) },
+                                onPrivacyPolicy = { goTo(AppRoute.PrivacyPolicy) },
+                                onTerms = { goTo(AppRoute.Terms) },
                             )
                             AppRoute.History -> HistoryScreen(app)
                             AppRoute.Dictionary -> DictionaryTab(app)
@@ -406,6 +418,8 @@ class MainActivity : ComponentActivity() {
                                 onBubble = { goTo(AppRoute.BubbleSettings) },
                                 onCleanup = { goTo(AppRoute.Cleanup) },
                                 onPrivacy = { goTo(AppRoute.Privacy) },
+                                onPrivacyPolicy = { goTo(AppRoute.PrivacyPolicy) },
+                                onTerms = { goTo(AppRoute.Terms) },
                                 onHaptics = { goTo(AppRoute.Haptics) },
                                 onSounds = { goTo(AppRoute.Sounds) },
                                 onFeedback = {
@@ -467,7 +481,21 @@ class MainActivity : ComponentActivity() {
                             )
                             AppRoute.Haptics -> HapticsSettings(app.prefs) { tapPick = it }
                             AppRoute.Cleanup -> CleanupSettings(app.prefs)
-                            AppRoute.Privacy -> PrivacySettings(app.prefs)
+                            AppRoute.Privacy -> PrivacySettings(
+                                prefs = app.prefs,
+                                onPrivacyPolicy = { goTo(AppRoute.PrivacyPolicy) },
+                                onTerms = { goTo(AppRoute.Terms) },
+                            )
+                            AppRoute.PrivacyPolicy -> LegalDocumentScreen(
+                                title = LegalCopy.privacyTitle,
+                                body = LegalCopy.privacyBody,
+                                tag = "legal_privacy",
+                            )
+                            AppRoute.Terms -> LegalDocumentScreen(
+                                title = LegalCopy.termsTitle,
+                                body = LegalCopy.termsBody,
+                                tag = "legal_terms",
+                            )
                             AppRoute.Sounds -> SoundsSettings(app.prefs)
                             AppRoute.HomeModules -> ModuleEditor(
                                 title = "Home layout",
@@ -552,6 +580,8 @@ private fun HomeHub(
     onEnableBubble: () -> Unit,
     onMic: () -> Unit,
     onOpenInsights: () -> Unit,
+    onPrivacyPolicy: () -> Unit,
+    onTerms: () -> Unit,
 ) {
     HomeFeed(
         app = app,
@@ -560,6 +590,8 @@ private fun HomeHub(
         onEnableBubble = onEnableBubble,
         onMic = onMic,
         onOpenInsights = onOpenInsights,
+        onPrivacyPolicy = onPrivacyPolicy,
+        onTerms = onTerms,
         dictationCard = { d, onDelete, onShare, onSave, onUseRaw ->
             DictationCard(
                 d = d,
@@ -838,11 +870,19 @@ private fun DictationCard(
 ) {
     var showRaw by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf(false) }
+    var menu by remember { mutableStateOf(false) }
     var draft by remember(d.id, d.text) { mutableStateOf(d.text) }
     val hasRaw = d.rawText.isNotBlank() && d.rawText != d.text
     val timeStr = remember(d.createdAtEpochMs) {
         val sdf = SimpleDateFormat("MMM d, h:mm a", Locale.getDefault())
         sdf.format(Date(d.createdAtEpochMs))
+    }
+    val ctx = LocalContext.current
+
+    fun copyText(value: String) {
+        val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+        cm?.setPrimaryClip(ClipData.newPlainText("dictation", value))
+        Toast.makeText(ctx, "Copied", Toast.LENGTH_SHORT).show()
     }
 
     OpenCard {
@@ -850,49 +890,18 @@ private fun DictationCard(
             Modifier.padding(Dimen.MIN_PADDING),
             verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
         ) {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "$timeStr · ${d.wordCount}w" +
-                        if (ProcessStatus.isFailed(d.processStatus)) " · Fail" else "",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (ProcessStatus.isFailed(d.processStatus)) {
-                        SecUi.error
-                    } else {
-                        SecUi.muted
-                    },
-                    softWrap = true,
-                    modifier = Modifier.weight(1f)
-                )
-                Row {
-                    IconButton(
-                        onClick = onShare,
-                        modifier = Modifier.size(Dimen.MIN_TOUCH)
-                    ) {
-                        Icon(
-                            Icons.Default.Share,
-                            contentDescription = "Share",
-                            tint = SecUi.charcoal,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    IconButton(
-                        onClick = onDelete,
-                        modifier = Modifier.size(Dimen.MIN_TOUCH)
-                    ) {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = "Delete",
-                            tint = SecUi.error,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-            }
+            Text(
+                "$timeStr · ${d.wordCount}w" +
+                    if (ProcessStatus.isFailed(d.processStatus)) " · Fail" else "",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Medium,
+                color = if (ProcessStatus.isFailed(d.processStatus)) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                softWrap = true
+            )
 
             if (editing) {
                 OpenTextField(
@@ -911,107 +920,93 @@ private fun DictationCard(
                             onSave(d.text, new)
                         }
                         editing = false
-                    }
+                    },
+                    fill = false,
+                    variant = ButtonVariant.Filled
                 )
             } else {
                 Text(
                     d.text,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = SecUi.charcoal,
+                    color = MaterialTheme.colorScheme.onSurface,
                     softWrap = true,
                     overflow = TextOverflow.Visible,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable {
-                            draft = d.text
-                            editing = true
-                        }
+                        .clickable { copyText(d.text) }
                 )
             }
 
-            // Compact labels so Copy | Raw | Copy raw fit one row on 411dp.
-            FlowRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentHeight(),
-                horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM),
-                verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
             ) {
-                CopyButton(text = d.text, label = "Copy")
-                if (hasRaw) {
-                    OpenChip(
-                        label = if (showRaw) "Hide" else "Raw",
-                        isOn = showRaw,
-                        onClick = { showRaw = !showRaw }
-                    )
-                    CopyButton(text = d.rawText, label = "Raw copy")
-                    OpenChip(
-                        label = "Use raw",
-                        isOn = false,
-                        onClick = { onUseRaw(d.rawText) },
-                        modifier = Modifier.testTag("history_use_raw"),
-                    )
+                OpenButton(
+                    text = "Copy",
+                    onClick = { copyText(d.text) },
+                    fill = false,
+                    variant = ButtonVariant.Text,
+                    modifier = Modifier.testTag("history_copy")
+                )
+                OpenButton(
+                    text = "Share",
+                    onClick = onShare,
+                    fill = false,
+                    variant = ButtonVariant.Text,
+                    modifier = Modifier.testTag("history_share")
+                )
+                Box {
+                    IconButton(
+                        onClick = { menu = true },
+                        modifier = Modifier
+                            .size(Dimen.MIN_TOUCH)
+                            .testTag("history_more")
+                    ) {
+                        Icon(
+                            Icons.Default.MoreVert,
+                            contentDescription = "More",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                        HistoryRowActions.more(hasRaw).forEach { label ->
+                            DropdownMenuItem(
+                                text = { Text(label) },
+                                onClick = {
+                                    menu = false
+                                    when (label) {
+                                        "Edit" -> {
+                                            draft = d.text
+                                            editing = true
+                                        }
+                                        "Show raw" -> showRaw = !showRaw
+                                        "Use raw" -> onUseRaw(d.rawText)
+                                        "Delete" -> onDelete()
+                                    }
+                                },
+                                modifier = if (label == "Use raw") Modifier.testTag("history_use_raw") else Modifier
+                            )
+                        }
+                    }
                 }
             }
             if (hasRaw && showRaw) {
                 Surface(
-                    color = SecUi.stone,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
                     shape = MaterialTheme.shapes.small,
-                    border = SecUi.thinBorder,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
                         d.rawText,
                         modifier = Modifier.padding(Dimen.GAP_SM),
                         style = MaterialTheme.typography.bodySmall,
-                        color = SecUi.charcoal,
+                        color = MaterialTheme.colorScheme.onSurface,
                         softWrap = true
                     )
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun CopyButton(text: String, label: String = "Copy") {
-    val ctx = LocalContext.current
-    var copied by remember { mutableStateOf(false) }
-
-    LaunchedEffect(copied) {
-        if (copied) {
-            delay(2000)
-            copied = false
-        }
-    }
-
-    OutlinedButton(
-        onClick = {
-            val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-            cm?.setPrimaryClip(android.content.ClipData.newPlainText("dictation", text))
-            copied = true
-        },
-        modifier = Modifier
-            .defaultMinSize(minWidth = Dimen.MIN_TOUCH, minHeight = Dimen.MIN_TOUCH)
-            .heightIn(min = Dimen.MIN_TOUCH),
-        shape = MaterialTheme.shapes.small,
-        border = SecUi.hardBorder,
-        colors = ButtonDefaults.outlinedButtonColors(
-            contentColor = SecUi.charcoal,
-            containerColor = SecUi.cream
-        )
-    ) {
-        Icon(
-            imageVector = if (copied) Icons.Default.Check else Icons.Default.ContentCopy,
-            contentDescription = null,
-            modifier = Modifier.size(14.dp),
-            tint = if (copied) SecUi.ink else SecUi.charcoal
-        )
-        Spacer(Modifier.width(6.dp))
-        Text(
-            if (copied) "Copied!" else label,
-            fontWeight = FontWeight.SemiBold
-        )
     }
 }
 
@@ -1588,6 +1583,8 @@ private fun SettingsHub(
     onBubble: () -> Unit,
     onCleanup: () -> Unit,
     onPrivacy: () -> Unit,
+    onPrivacyPolicy: () -> Unit,
+    onTerms: () -> Unit,
     onHaptics: () -> Unit,
     onSounds: () -> Unit,
     onFeedback: () -> Unit,
@@ -1614,6 +1611,8 @@ private fun SettingsHub(
         SettingsRow("Cleanup Pipeline", "Filler words, course corrections, lists", onCleanup)
         SettingsRow("Appearance", "Dark / light theme and display refresh", onAppearance)
         SettingsRow("Privacy & Retention", "Zero-cloud audit, auto-wipe policies", onPrivacy)
+        SettingsRow("Privacy policy", "What this app uses. What can leave this phone.", onPrivacyPolicy)
+        SettingsRow("Terms of use", "MIT license, permissions, no warranty", onTerms)
         SettingsRow("Haptics", "Off, Light, or Full tactile feedback", onHaptics)
         SettingsRow("Sounds", "Start / stop audio cues", onSounds)
         SettingsRow(
@@ -1713,7 +1712,11 @@ private fun CleanupSettings(prefs: FlowPrefs) {
 }
 
 @Composable
-private fun PrivacySettings(prefs: FlowPrefs) {
+private fun PrivacySettings(
+    prefs: FlowPrefs,
+    onPrivacyPolicy: () -> Unit,
+    onTerms: () -> Unit,
+) {
     var ret by remember { mutableStateOf(prefs.retentionPolicy) }
     Column(
         Modifier
@@ -1735,6 +1738,16 @@ private fun PrivacySettings(prefs: FlowPrefs) {
             style = MaterialTheme.typography.bodySmall,
             color = SecUi.muted,
             softWrap = true
+        )
+        OpenButton(
+            text = "Privacy policy",
+            onClick = onPrivacyPolicy,
+            variant = ButtonVariant.Outlined
+        )
+        OpenButton(
+            text = "Terms of use",
+            onClick = onTerms,
+            variant = ButtonVariant.Outlined
         )
 
         var autoLearn by remember { mutableStateOf(prefs.autoLearn) }
@@ -2625,15 +2638,9 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
         ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
-        try {
-            ctx.contentResolver.takePersistableUriPermission(
-                uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION
-            )
-        } catch (_: Exception) {
-        }
-        prefs.bubbleIconUri = uri.toString()
-        iconUri = uri.toString()
+        val stored = persistBubbleIcon(ctx, uri)
+        prefs.bubbleIconUri = stored
+        iconUri = stored
         onApplyBubble()
     }
 
@@ -2736,12 +2743,7 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                 .heightIn(min = 120.dp)
                 .padding(vertical = Dimen.GAP_SM)
                 .border(SecUi.hardBorder)
-                .background(
-                    Color(
-                        if (Color(pal.bubbleIdleArgb).luminance() > 0.5f) 0xFF1A1A18.toInt()
-                        else 0xFFF4EFE6.toInt()
-                    )
-                )
+                .background(Color(BubbleTint.previewStageArgb(tint)))
                 .testTag("bubble_preview"),
             contentAlignment = Alignment.Center
         ) {
@@ -2756,16 +2758,46 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                 else -> 76.dp
             }
             val baseH = if (shape == "pill") 34.dp else baseW
-            Box(
+            val customBmp = remember(iconUri) {
+                val f = BubbleIconPolicy.localFile(ctx.filesDir)
+                if (!f.isFile || f.length() <= 0L) {
+                    null
+                } else {
+                    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    BitmapFactory.decodeFile(f.absolutePath, bounds)
+                    val opts = BitmapFactory.Options().apply {
+                        inSampleSize = BubbleIconPolicy.decodeSampleSize(bounds.outWidth, bounds.outHeight)
+                    }
+                    BitmapFactory.decodeFile(f.absolutePath, opts)
+                }
+            }
+            Row(
                 modifier = Modifier
                     .size(baseW * scale, baseH * scale)
                     .graphicsLayer { alpha = opacity }
-                    .background(Color(pal.bubbleIdleArgb), previewShape),
-                contentAlignment = Alignment.Center
+                    .background(Color(pal.bubbleIdleArgb), previewShape)
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
             ) {
+                if (customBmp != null) {
+                    Image(
+                        bitmap = customBmp.asImageBitmap(),
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp * scale)
+                    )
+                } else {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_mic),
+                        contentDescription = null,
+                        tint = Color(pal.bubbleTextArgb),
+                        modifier = Modifier.size(18.dp * scale)
+                    )
+                }
                 if (showText && shape != "dot") {
                     Text(
-                        "Hi",
+                        "Listen",
+                        modifier = Modifier.padding(start = 4.dp),
                         color = Color(pal.bubbleTextArgb),
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
@@ -2851,6 +2883,9 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                             onClick = {
                                 tint = id
                                 prefs.bubbleTint = id
+                                prefs.colorBubbleIdle = HexColor.format(BubbleTint.argb(id))
+                                prefs.colorBubbleListen = HexColor.format(BubbleTint.argb(id))
+                                prefs.colorBubbleText = HexColor.format(BubbleTint.onArgb(id))
                                 onApplyBubble()
                             }
                         )
@@ -3086,12 +3121,14 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                 OpenButton(
                     text = "Clear icon",
                     onClick = {
+                        clearBubbleIcon(ctx)
                         prefs.bubbleIconUri = ""
                         iconUri = ""
                         onApplyBubble()
                     },
                     variant = ButtonVariant.Text,
-                    enabled = BubbleIconPolicy.validUri(iconUri)
+                    enabled = BubbleIconPolicy.validUri(iconUri) ||
+                        BubbleIconPolicy.localFile(ctx.filesDir).isFile
                 )
             }
         }
@@ -3179,4 +3216,27 @@ private fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
         )
         Spacer(Modifier.height(Dimen.GAP_LG))
     }
+}
+
+private fun persistBubbleIcon(ctx: Context, uri: Uri): String {
+    try {
+        ctx.contentResolver.takePersistableUriPermission(
+            uri,
+            Intent.FLAG_GRANT_READ_URI_PERMISSION
+        )
+    } catch (_: Exception) {
+    }
+    val dest = BubbleIconPolicy.localFile(ctx.filesDir)
+    try {
+        ctx.contentResolver.openInputStream(uri)?.use { input ->
+            dest.outputStream().use { output -> input.copyTo(output) }
+        }
+        if (dest.isFile && dest.length() > 0L) return dest.toURI().toString()
+    } catch (_: Exception) {
+    }
+    return uri.toString()
+}
+
+private fun clearBubbleIcon(ctx: Context) {
+    BubbleIconPolicy.localFile(ctx.filesDir).delete()
 }

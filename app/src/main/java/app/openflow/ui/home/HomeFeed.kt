@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -43,6 +44,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import app.openflow.OpenFlowApp
 import app.openflow.orchestrate.SharePayload
 import app.openflow.ui.a11y.Dimen
+import app.openflow.ui.components.ButtonVariant
 import app.openflow.ui.components.EmptyState
 import app.openflow.ui.components.OpenButton
 import app.openflow.ui.components.OpenCard
@@ -64,6 +66,8 @@ fun HomeFeed(
     onEnableBubble: () -> Unit,
     onMic: () -> Unit,
     onOpenInsights: () -> Unit = {},
+    onPrivacyPolicy: () -> Unit = {},
+    onTerms: () -> Unit = {},
     dictationCard: @Composable (
         d: app.openflow.data.DictationEntity,
         onDelete: () -> Unit,
@@ -411,12 +415,33 @@ fun HomeFeed(
         }
 
         item(key = "privacy") {
-            Text(
-                PrivacyHonesty.HOME_FOOTER,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                softWrap = true
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)) {
+                Text(
+                    PrivacyHonesty.HOME_FOOTER,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                    softWrap = true
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+                ) {
+                    OpenButton(
+                        text = "Privacy policy",
+                        onClick = onPrivacyPolicy,
+                        fill = false,
+                        variant = ButtonVariant.Text,
+                        modifier = Modifier.testTag("home_legal_privacy")
+                    )
+                    OpenButton(
+                        text = "Terms",
+                        onClick = onTerms,
+                        fill = false,
+                        variant = ButtonVariant.Text,
+                        modifier = Modifier.testTag("home_legal_terms")
+                    )
+                }
+            }
         }
     }
 }

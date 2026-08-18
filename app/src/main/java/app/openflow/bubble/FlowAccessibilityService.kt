@@ -1775,7 +1775,6 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             bubbleDone?.visibility = if (p.bubbleShowDone) View.VISIBLE else View.GONE
             bubbleDone?.setColorFilter(on)
             icon.visibility = View.VISIBLE
-            icon.setColorFilter(on)
             icon.layoutParams = LinearLayout.LayoutParams(
                 (18f * density).toInt(),
                 (18f * density).toInt()
@@ -1812,7 +1811,6 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             val padV = (6f * density).toInt()
             root.setPadding(padH, padV, padH, padV)
             icon.visibility = View.VISIBLE
-            icon.setColorFilter(on)
             icon.layoutParams = LinearLayout.LayoutParams(
                 (18f * density).toInt(),
                 (18f * density).toInt()
@@ -1842,7 +1840,6 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 setStroke(stroke, on)
             }
             icon.visibility = View.VISIBLE
-            icon.setColorFilter(on)
             val iconSz = ((if (shape == "pill") 22f else orbDp * 0.42f) * density).toInt()
             icon.layoutParams = LinearLayout.LayoutParams(iconSz, iconSz).apply {
                 gravity = Gravity.CENTER
@@ -1853,17 +1850,36 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     }
 
     private fun applyBubbleIcon(icon: ImageView, uri: String, on: Int) {
-        if (!BubbleIconPolicy.validUri(uri)) {
+        val local = BubbleIconPolicy.localFile(filesDir)
+        val loadUri = when {
+            local.isFile && local.length() > 0L -> android.net.Uri.fromFile(local)
+            BubbleIconPolicy.validUri(uri) -> android.net.Uri.parse(uri)
+            else -> null
+        }
+        if (loadUri == null) {
             icon.setImageResource(R.drawable.ic_mic)
             icon.setColorFilter(on)
             return
         }
         try {
-            icon.setImageURI(android.net.Uri.parse(uri))
-            if (icon.drawable == null) icon.setImageResource(R.drawable.ic_mic)
+            val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            contentResolver.openInputStream(loadUri)?.use {
+                android.graphics.BitmapFactory.decodeStream(it, null, bounds)
+            }
+            val opts = android.graphics.BitmapFactory.Options().apply {
+                inSampleSize = BubbleIconPolicy.decodeSampleSize(bounds.outWidth, bounds.outHeight)
+            }
+            contentResolver.openInputStream(loadUri)?.use { stream ->
+                val bmp = android.graphics.BitmapFactory.decodeStream(stream, null, opts)
+                if (bmp != null) {
+                    icon.colorFilter = null
+                    icon.setImageBitmap(bmp)
+                    return
+                }
+            }
         } catch (_: Exception) {
-            icon.setImageResource(R.drawable.ic_mic)
         }
+        icon.setImageResource(R.drawable.ic_mic)
         icon.setColorFilter(on)
     }
 
@@ -1894,7 +1910,12 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             applyVisualScale()
             return
         }
-        val s = effectiveScale() * BubbleRms.pulseScale(lastRms)
+        val s = BubblePulsePolicy.scale(
+            listening = true,
+            pulseOn = prefs?.bubblePulse != false,
+            base = effectiveScale(),
+            rms = lastRms,
+        )
         view.scaleX = s
         view.scaleY = s
     }

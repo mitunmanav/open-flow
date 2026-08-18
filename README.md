@@ -15,6 +15,17 @@ Speech still uses the **phone’s recognizer**. On many phones that is Google. A
 
 Need “voice never leaves this phone”? Use FUTO / Sayboard / Whisper IME — not this app.
 
+## What’s new in 0.1.7
+
+Since the last GitHub build (**0.1.5**):
+
+- **Your bubble** — colors, shape, your own icon, haptics. Stays up with the keyboard.
+- **Speak the edit** — “strike that”, “X not Y”, lists, caps. Works on the phone.
+- **Insights + export** — usage and JSON history stay on this device.
+- **More languages** — Hindi, Indian English, and others in Settings. Tile in Quick Settings.
+
+Full list: [CHANGELOG.md](CHANGELOG.md).
+
 ## Install
 
 1. APK from **[Releases](https://github.com/mitunmanav/open-flow/releases/latest)**.

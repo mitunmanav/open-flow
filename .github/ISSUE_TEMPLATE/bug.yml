@@ -3,11 +3,22 @@ description: Something broke
 title: "[bug] "
 labels: ["bug"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Do **not** paste dictation, bank screens, names, emails, or phone numbers.
+  - type: checkboxes
+    id: no_personal
+    attributes:
+      label: This report is clean
+      options:
+        - label: I did not paste personal dictation, bank screens, or contact details
+          required: true
   - type: textarea
     id: what
     attributes:
       label: What happened
-      description: What you tapped and what you expected. A screenshot helps.
+      description: What you tapped and what you expected. A cropped screenshot of the app UI helps.
     validations:
       required: true
   - type: input
@@ -19,4 +30,4 @@ body:
     id: ver
     attributes:
       label: Open Flow version
-      placeholder: 0.1.5
+      placeholder: 0.1.7

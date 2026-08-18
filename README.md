@@ -7,58 +7,13 @@
 
 Android app. A **floating bubble** types what you say. **Not a keyboard** — keep yours.
 
-## What we are good at (the moat)
+No account. No ads. MIT. INTERNET is **declared** and unused until you pick a cloud path or a model download.
 
-We do **not** win on speech accuracy. Others with Whisper/Vosk do.
+## Honest about speech
 
-We win on **habit + private history + trust**:
+Speech still uses the **phone’s recognizer**. On many phones that is Google. Audio **can leave the device**. That is the phone, not an Open Flow server.
 
-| Moat | What that means |
-|------|------------------|
-| Always there | Bubble over *your* keyboard. You do not switch IME. |
-| Your archive | History, search, copy, share — on this phone. |
-| Your words | Dictionary (one word) and snippets (a whole block). |
-| Your rules | Keep / wipe 24h / never save. No account. |
-| Inspectable | MIT. No ads. INTERNET declared; unused until you opt in. |
-
-That is a product shell people can live in. It is **not** a better recognizer.
-
-## Honest
-
-Speech still uses the **system recognizer**. On many phones that is Google. Audio **can leave the device** — independent of our unused-by-default INTERNET permission.
-
-Need that? Use FUTO / Sayboard / Whisper IME.
-
-## Vs others (no sugar)
-
-Full write-up + sources: [docs/COMPARISON.md](docs/COMPARISON.md).
-
-| | Open Flow | Phone Whisper | FUTO Voice | Sayboard | Whisper IME | Kõnele | Wispr Flow |
-|---|---|---|---|---|---|---|---|
-| Keep your keyboard | **Yes** (bubble) | **Yes** (overlay) | No (IME / its keyboard) | No (voice keyboard) | No (IME) | No | Yes (bubble) |
-| Speech engine | System SpeechRecognizer | Local model **or** OpenAI | Local Whisper | Local Vosk | Local Whisper | Kaldi **server** | Cloud AI |
-| Audio can leave | **Yes, often** | Only if you pick cloud | No* | No* | No* | **Yes** on default server | **Yes** |
-| INTERNET in app | **Declared; off until opt-in** | Models / optional API | Model download | Model download | Model download | Yes | Yes |
-| Cleanup | Rule lists | Optional OpenAI | In-model | Weak | Weak | Server | Cloud LLM |
-| Languages | Catalog (default en-US; en-IN, hi-IN, …) | Several | Many | 20+ | Many | Depends | Many |
-| License | MIT | Personal / permissive | **Not OSI** | GPL-3.0 | FOSS | Apache-2.0 | Closed |
-| On F-Droid | **No** | No | Their repo | **Yes** | **Yes** | **Yes** | No |
-| History + dict/snippets | **Yes** | Limited | Weak | No | No | No | Yes (their cloud) |
-| Maturity | Early 0.1.x, debug-signed | Small project | Polished | Stable | Active | Older | Commercial |
-
-\*After you download a local model.
-
-**If you want…**
-
-| Goal | Winner | Us |
-|------|--------|-----|
-| Voice never leaves the phone | FUTO, Sayboard, Whisper IME | We lose |
-| Keep Gboard, bubble like Wispr | Phone Whisper or us | They transcribe better |
-| Best wording | Wispr (closed) or Whisper apps | Rules, not AI |
-| F-Droid today | Sayboard, Whisper IME, Kõnele | Not listed |
-| MIT + history + dict/snippets + keep keyboard | Small club | **This is our niche** |
-
-Wispr is closed. Kõnele’s **default** server can send audio unencrypted. FUTO is polished but not OSI FOSS.
+Need “voice never leaves this phone”? Use FUTO / Sayboard / Whisper IME — not this app.
 
 ## Install
 
@@ -68,11 +23,11 @@ Wispr is closed. Kõnele’s **default** server can send audio unencrypted. FUTO
 4. Grey switch: App info → **⋮ → Allow restricted settings**.
 5. Text field → tap bubble → speak → **tap again**.
 
-[Install](docs/INSTALL.md) · [Guide](docs/GUIDE.md) · [Launch checklist](docs/LAUNCH_CHECKLIST.md) · [Docs](docs/README.md)
+[Install](docs/INSTALL.md) · [Guide](docs/GUIDE.md) · [Privacy](docs/PRIVACY.md) · [Compare](docs/COMPARISON.md)
 
-After insert, short Copy / Undo chips on the bubble. Older text: **History**.
+Older text: **History** in the app.
 
-## Talk (Discussions) vs report (Issues)
+## Talk vs report
 
 | Use | Where |
 |-----|--------|
@@ -84,9 +39,9 @@ Start here: [Discussion #9](https://github.com/mitunmanav/open-flow/discussions/
 
 Do not post names, emails, bank screens, or private dictation.
 
-## Docs
+## Vs others
 
-[Website](https://mitunmanav.github.io/open-flow/) · [Architecture](https://mitunmanav.github.io/open-flow/architecture.html) · [Roadmap](https://mitunmanav.github.io/open-flow/roadmap.html) · [Privacy](docs/PRIVACY.md)
+Full write-up: [docs/COMPARISON.md](docs/COMPARISON.md). Our niche is MIT + keep your keyboard + history / dictionary / snippets on the phone.
 
 ## Build
 

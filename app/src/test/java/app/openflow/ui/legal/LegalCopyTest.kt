@@ -29,4 +29,15 @@ class LegalCopyTest {
         assertThat(LegalCopy.privacyTitle).isEqualTo("Privacy policy")
         assertThat(LegalCopy.termsTitle).isEqualTo("Terms of use")
     }
+
+    @Test
+    fun contact_is_github_not_personal() {
+        val blob = (LegalCopy.privacyBody + "\n" + LegalCopy.termsBody).lowercase()
+        assertThat(blob).contains("discussions")
+        assertThat(blob).contains("issues")
+        assertThat(blob).doesNotContain("issues only")
+        assertThat(blob).doesNotContain("gmail")
+        assertThat(blob).doesNotContain("mailto")
+        assertThat(blob).doesNotContain("@")
+    }
 }

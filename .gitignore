@@ -71,14 +71,27 @@ dist/DESKTOP-FOLDER.txt
 
 # Development / agent files (local only — not GitHub)
 AGENTS.md
+TEAM.md
+.superpowers/
+docs/superpowers/
+docs/ARCHITECTURE.md
 docs/BASELINE.md
 docs/FEATURES.md
 docs/HANDOFF.md
 docs/INDEX.md
+docs/LAUNCH_CHECKLIST.md
 docs/PROCESS.md
+docs/REPORT.md
 docs/SHIP.md
 docs/WISPR-SMALL-FEATURES-MAP.md
 docs/process/
 docs/research/
 info/
 .zcode/
+scripts/git-hooks/
+scripts/install-git-hooks.sh
+scripts/live_feature_test.py
+scripts/open-minimax-lab.sh
+scripts/post-task-docs.sh
+scripts/safe-merge-worktree.sh
+scripts/wsl-verify.sh

@@ -24,7 +24,7 @@ Your choices
 Stay on default phone speech and local rules. Revoke mic. Turn off Accessibility. Settings: keep, wipe in 24 hours, or never store. Not directed at children under 13.
 
 Contact
-GitHub Issues on the Open Flow repository only. Do not send personal data.
+GitHub Discussions for questions. GitHub Issues for bugs. Do not send personal data. No email.
 """.trimIndent()
 
     val termsBody: String = """
@@ -57,6 +57,6 @@ Liability
 To the maximum extent the MIT License allows, the authors are not liable for data loss, vendor use of audio or text you send, or other apps reacting to Accessibility.
 
 Contact
-GitHub Issues on the Open Flow repository.
+GitHub Discussions for questions. GitHub Issues for bugs. Do not send personal data. No email.
 """.trimIndent()
 }

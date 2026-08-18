@@ -68,6 +68,7 @@ fun HomeFeed(
     onOpenInsights: () -> Unit = {},
     onPrivacyPolicy: () -> Unit = {},
     onTerms: () -> Unit = {},
+    onHelp: () -> Unit = {},
     dictationCard: @Composable (
         d: app.openflow.data.DictationEntity,
         onDelete: () -> Unit,
@@ -439,6 +440,13 @@ fun HomeFeed(
                         fill = false,
                         variant = ButtonVariant.Text,
                         modifier = Modifier.testTag("home_legal_terms")
+                    )
+                    OpenButton(
+                        text = "Help",
+                        onClick = onHelp,
+                        fill = false,
+                        variant = ButtonVariant.Text,
+                        modifier = Modifier.testTag("home_legal_help")
                     )
                 }
             }

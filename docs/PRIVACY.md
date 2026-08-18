@@ -1,7 +1,7 @@
 # Privacy — Open Flow
 
-Last updated: 2026-08-13  
-Contact: GitHub Issues on this repository only. Do not send personal data.
+Last updated: 2026-08-18  
+Contact: GitHub Discussions for questions. GitHub Issues for bugs. Do not send personal data. No email.
 
 ## Short
 

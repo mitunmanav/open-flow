@@ -66,6 +66,8 @@ class UiPathTest {
             "app/src/main/AndroidManifest.xml"
         ).readText()
         assertThat(manifest).contains("android.permission.INTERNET")
+        assertThat(manifest).contains("android.intent.action.VIEW")
+        assertThat(manifest).contains("android:scheme=\"https\"")
     }
 
     @Test
@@ -129,6 +131,7 @@ class UiPathTest {
             "home_open_insights",
             "home_legal_privacy",
             "home_legal_terms",
+            "home_legal_help",
             "history_copy",
             "history_share",
             "history_more",

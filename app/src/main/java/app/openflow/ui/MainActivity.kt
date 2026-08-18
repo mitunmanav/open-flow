@@ -403,6 +403,14 @@ class MainActivity : ComponentActivity() {
                                 onOpenInsights = { goTo(AppRoute.Insights) },
                                 onPrivacyPolicy = { goTo(AppRoute.PrivacyPolicy) },
                                 onTerms = { goTo(AppRoute.Terms) },
+                                onHelp = {
+                                    startActivity(
+                                        Intent(
+                                            Intent.ACTION_VIEW,
+                                            android.net.Uri.parse(HelpLinks.DISCUSSIONS)
+                                        )
+                                    )
+                                },
                             )
                             AppRoute.History -> HistoryScreen(app)
                             AppRoute.Dictionary -> DictionaryTab(app)
@@ -582,6 +590,7 @@ private fun HomeHub(
     onOpenInsights: () -> Unit,
     onPrivacyPolicy: () -> Unit,
     onTerms: () -> Unit,
+    onHelp: () -> Unit,
 ) {
     HomeFeed(
         app = app,
@@ -592,6 +601,7 @@ private fun HomeHub(
         onOpenInsights = onOpenInsights,
         onPrivacyPolicy = onPrivacyPolicy,
         onTerms = onTerms,
+        onHelp = onHelp,
         dictationCard = { d, onDelete, onShare, onSave, onUseRaw ->
             DictationCard(
                 d = d,

@@ -12,14 +12,14 @@ A small **floating bubble** sits over other apps when you are in a text field. Y
 
 ## First time
 
-1. Install the APK ([Releases](https://github.com/mitunmanav/open-flow/releases/latest) or Desktop `open-flow.apk`).
+1. Install the APK ([Releases](https://github.com/mitunmanav/open-flow/releases/latest)).
 2. Open the app. Five short screens explain the product.
 3. Turn on **Accessibility** (this is how the bubble can type into other apps).
 4. If that switch is grey: App info → menu → **Allow restricted settings**, then try again.
 5. Allow the **microphone**.
 6. Battery **Unrestricted** if the bubble keeps dying (OEM).
 
-Full install: [INSTALL.md](INSTALL.md) · Phone GO list: [LAUNCH_CHECKLIST.md](LAUNCH_CHECKLIST.md#0-mitun-phone-go-do-this).
+Full install: [INSTALL.md](INSTALL.md).
 
 ## Everyday use
 

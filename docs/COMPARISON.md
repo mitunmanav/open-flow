@@ -51,6 +51,6 @@ If that sentence bothers you, use a Whisper/Vosk app below.
 - [Kõnele on F-Droid](https://f-droid.org/en/packages/ee.ioc.phon.android.speak/) + project privacy notes (default server)
 - [FUTO Voice Input](https://gitlab.futo.org/keyboard/voiceinput) / Play listing (Source First license, offline Whisper)
 - [Phone Whisper](https://github.com/kafkasl/phone-whisper) (overlay + sherpa-onnx / optional OpenAI)
-- This repo: `docs/ARCHITECTURE.md`, `AndroidManifest.xml` (INTERNET declared; unused until opt-in)
+- This repo: [architecture page](https://mitunmanav.github.io/open-flow/architecture.html), `AndroidManifest.xml` (INTERNET declared; unused until opt-in)
 
 We did not run timed accuracy tests on one phone against all of these. Accuracy ranks above are **engine class**, not a lab bake-off.

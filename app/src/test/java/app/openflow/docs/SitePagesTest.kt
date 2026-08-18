@@ -116,4 +116,26 @@ class SitePagesTest {
         assertThat(css).contains("Noto Sans")
         assertThat(css).contains("prefers-reduced-motion")
     }
+
+    @Test
+    fun site_loads_local_fonts_not_google_import() {
+        val root = File(UiSourceScan.projectRoot(), "docs")
+        val css = File(root, "site.css").readText()
+        assertThat(css).doesNotContain("@import")
+        assertThat(css).doesNotContain("fonts.googleapis.com")
+        assertThat(css).contains("@font-face")
+        assertThat(css).contains("font-display: swap")
+        assertThat(File(root, "fonts/big-shoulders-800.woff2").isFile).isTrue()
+        assertThat(File(root, "fonts/noto-sans.woff2").isFile).isTrue()
+        assertThat(File(root, "fonts/noto-sans-italic.woff2").isFile).isTrue()
+        pages.forEach { f ->
+            val t = f.readText()
+            assertWithMessage("${f.name} missing theme-color")
+                .that(t)
+                .contains("theme-color")
+        }
+        val index = File(root, "index.html").readText()
+        assertThat(index).contains("rel=\"preload\"")
+        assertThat(index).contains("big-shoulders-800.woff2")
+    }
 }

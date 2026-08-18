@@ -33,7 +33,9 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
     init {
         val raw = store.getString("learn_sides", "")
         if (raw.isNotEmpty()) LearnEngine.loadSides(raw)
+        LearnEngine.loadPending(store.getString("learn_pending", ""))
         LearnEngine.persistHook = { encoded -> store.putString("learn_sides", encoded) }
+        LearnEngine.pendingHook = { encoded -> store.putString("learn_pending", encoded) }
     }
 
     var bubbleScale: Float

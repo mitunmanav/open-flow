@@ -121,6 +121,7 @@ import app.openflow.export.HistoryExport
 import app.openflow.help.HelpLinks
 import app.openflow.prefs.FlowPrefs
 import app.openflow.prefs.LayoutPrefs
+import app.openflow.text.LearnEngine
 import app.openflow.text.PairImport
 import app.openflow.text.WritingStyle
 import app.openflow.ui.a11y.Dimen
@@ -1177,8 +1178,68 @@ private fun DictionaryTab(app: OpenFlowApp) {
                         )
                     }
                 }
+                val autoSet = LearnEngine.autoKeys()
+                val autoShown = shown.filter { it.word.lowercase() in autoSet }
+                val rest = shown.filter { it.word.lowercase() !in autoSet }
+                if (autoShown.isNotEmpty()) {
+                    item(key = "dict-auto-header") {
+                        Text(
+                            "Learned (auto)",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = SecUi.charcoal,
+                        )
+                    }
+                    items(
+                        items = autoShown,
+                        key = { "auto-" + UiScrollPolicy.dictRowKey(it.id) },
+                        contentType = { "dict-auto" },
+                    ) { w: DictionaryWordEntity ->
+                        OpenCard(modifier = Modifier.testTag("dict_auto_row")) {
+                            Row(
+                                Modifier
+                                    .padding(Dimen.MIN_PADDING)
+                                    .fillMaxWidth()
+                                    .heightIn(min = Dimen.MIN_TOUCH),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        w.word,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = SecUi.charcoal,
+                                        softWrap = true
+                                    )
+                                    Text(
+                                        "→ ${w.replacement}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = SecUi.ink,
+                                        softWrap = true
+                                    )
+                                }
+                                IconButton(
+                                    onClick = {
+                                        scope.launch { app.dictations.forget(w.word) }
+                                    },
+                                    modifier = Modifier
+                                        .size(Dimen.MIN_TOUCH)
+                                        .testTag("dict_auto_forget")
+                                ) {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = "Delete",
+                                        tint = SecUi.error,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
                 items(
-                    items = shown,
+                    items = rest,
                     key = { UiScrollPolicy.dictRowKey(it.id) },
                     contentType = { "dict" },
                 ) { w: DictionaryWordEntity ->

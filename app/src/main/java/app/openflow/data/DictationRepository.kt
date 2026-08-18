@@ -135,8 +135,13 @@ class DictationRepository(
                 forget(reverse ?: p.to)
                 continue
             }
-            addWord(p.from, p.to)
-            LearnEngine.putAuto(p.from, LearnEngine.sideBag(inserted, p.from))
+            val bag = LearnEngine.sideBag(inserted, p.from)
+            val confirm = LearnEngine.noteAutoCandidate(p.from, p.to, bag)
+            if (!confirm.persisted) continue
+            if (!upsertDictRow(p.from, p.to)) {
+                LearnEngine.drop(p.from)
+                continue
+            }
             kept.add(p)
         }
         return kept
@@ -165,6 +170,14 @@ class DictationRepository(
     suspend fun addWord(word: String, replacement: String = word): Boolean {
         val w = word.trim()
         if (w.isEmpty()) return false
+        if (!upsertDictRow(w, replacement)) return false
+        LearnEngine.putManual(w)
+        return true
+    }
+
+    private suspend fun upsertDictRow(word: String, replacement: String): Boolean {
+        val w = word.trim()
+        if (w.isEmpty()) return false
         val snip = snippetMap().keys
         if (PairImport.decide(w, dictionaryMap().keys, snip, PairImport.Kind.DICT) ==
             PairImport.Decision.CONFLICT
@@ -179,7 +192,6 @@ class DictationRepository(
                 createdAtEpochMs = System.currentTimeMillis()
             )
         )
-        LearnEngine.putManual(w)
         return true
     }
 

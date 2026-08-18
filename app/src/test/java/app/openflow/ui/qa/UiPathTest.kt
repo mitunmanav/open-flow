@@ -115,6 +115,7 @@ class UiPathTest {
             "nav_settings",
             "nav_snippets",
             "dict_fab",
+            "dict_auto_row",
             "snippet_fab",
             "home_stats_pages",
             "home_banner_repair",

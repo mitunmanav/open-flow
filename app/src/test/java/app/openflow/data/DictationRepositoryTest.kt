@@ -122,6 +122,9 @@ class DictationRepositoryTest {
     @Test
     fun learnFromEdit_calls_engine_and_stores_word() = runTest {
         val f = fakes()
+        val first = f.repo.learnFromEdit("Meet Mitton", "Meet Mitun")
+        assertThat(first).isEmpty()
+        assertThat(f.repo.observeDictionary().first()).isEmpty()
         val pairs = f.repo.learnFromEdit("Meet Mitton", "Meet Mitun")
         assertThat(pairs.map { it.from to it.to }).containsExactly("Mitton" to "Mitun")
         val words = f.repo.observeDictionary().first()
@@ -132,6 +135,7 @@ class DictationRepositoryTest {
     fun clearLearned_wipes_dict_and_sides() = runTest {
         val f = fakes()
         f.repo.addWord("foo", "bar")
+        f.repo.learnFromEdit("Meet Mitton", "Meet Mitun")
         f.repo.learnFromEdit("Meet Mitton", "Meet Mitun")
         assertThat(f.repo.dictionaryMap()).isNotEmpty()
         assertThat(LearnEngine.autoKeys()).isNotEmpty()
@@ -165,6 +169,7 @@ class DictationRepositoryTest {
     fun reverse_mic_to_mike_forgets() = runTest {
         val f = fakes()
         f.repo.learnFromEdit("Mike", "Mic")
+        f.repo.learnFromEdit("Mike", "Mic")
         assertThat(f.repo.dictionaryMap()).containsEntry("Mike", "Mic")
         val pairs = f.repo.learnFromEdit("Mic", "Mike")
         assertThat(pairs).isEmpty()
@@ -176,6 +181,7 @@ class DictationRepositoryTest {
     fun no_cycle() = runTest {
         val f = fakes()
         f.repo.learnFromEdit("Mike", "Mic")
+        f.repo.learnFromEdit("Mike", "Mic")
         f.repo.learnFromEdit("Mic", "Mike")
         val map = f.repo.dictionaryMap()
         assertThat(map).doesNotContainKey("Mic")
@@ -185,6 +191,7 @@ class DictationRepositoryTest {
     @Test
     fun learnFromEdit_stores_side_bag() = runTest {
         val f = fakes()
+        f.repo.learnFromEdit("turn on Mike", "turn on Mic")
         f.repo.learnFromEdit("turn on Mike", "turn on Mic")
         assertThat(LearnEngine.sideBags()["mike"]).containsExactly("turn")
         assertThat(LearnEngine.autoKeys()).contains("mike")
@@ -214,6 +221,7 @@ class DictationRepositoryTest {
     @Test
     fun forget_drops_row_and_bag() = runTest {
         val f = fakes()
+        f.repo.learnFromEdit("Mike", "Mic")
         f.repo.learnFromEdit("Mike", "Mic")
         f.repo.forget("Mike")
         assertThat(f.repo.dictionaryMap()).isEmpty()

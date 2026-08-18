@@ -148,4 +148,28 @@ class HistoryExportTest {
         assertThat(md).contains("fr-FR")
         assertThat(md).doesNotContain("(en-US,")
     }
+
+    @Test
+    fun json_array_omits_raw_when_off() {
+        val j = HistoryExport.toJson(rows, includeRaw = false)
+        assertThat(j).contains("\"text\"")
+        assertThat(j).doesNotContain("rawText")
+    }
+
+    @Test
+    fun json_includes_raw_when_on() {
+        val j = HistoryExport.toJson(rows, includeRaw = true)
+        assertThat(j).contains("hello world")
+    }
+
+    @Test
+    fun render_markdown_raw() {
+        val s = HistoryExport.render(rows, ExportChoice(ExportFormat.MARKDOWN, true))
+        assertThat(s).contains("> *Raw STT:*")
+    }
+
+    @Test
+    fun empty_json_is_array() {
+        assertThat(HistoryExport.toJson(emptyList(), false)).isEqualTo("[]")
+    }
 }

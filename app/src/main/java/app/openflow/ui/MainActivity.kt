@@ -115,6 +115,8 @@ import app.openflow.data.DictationEntity
 import app.openflow.data.DictionaryWordEntity
 import app.openflow.data.ProcessStatus
 import app.openflow.data.SnippetEntity
+import app.openflow.export.ExportChoice
+import app.openflow.export.ExportFormat
 import app.openflow.export.HistoryExport
 import app.openflow.help.HelpLinks
 import app.openflow.prefs.FlowPrefs
@@ -548,9 +550,25 @@ private fun HomeHub(
 @Composable
 private fun HistoryScreen(app: OpenFlowApp) {
     val dictations by app.dictations.observeDictations().collectAsState(initial = emptyList())
-    var searchQuery by rememberSaveable { mutableStateOf("") }
-    val scope = rememberCoroutineScope()
     val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var exportFormatName by rememberSaveable { mutableStateOf(ExportFormat.MARKDOWN.name) }
+    var exportRaw by rememberSaveable { mutableStateOf(false) }
+    val pendingExport = remember { arrayOf("") }
+    val saveDoc = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("text/plain")
+    ) { uri ->
+        val body = pendingExport[0]
+        if (uri == null || body.isEmpty()) return@rememberLauncherForActivityResult
+        try {
+            ctx.contentResolver.openOutputStream(uri)?.use { out ->
+                out.write(body.toByteArray(Charsets.UTF_8))
+            } ?: error("no stream")
+        } catch (_: Exception) {
+            Toast.makeText(ctx, "Could not save", Toast.LENGTH_SHORT).show()
+        }
+    }
     val match = HistorySearchPolicy.ftsMatch(searchQuery)
     val filtered by produceState(dictations, match, dictations) {
         value = if (match == null) {
@@ -593,38 +611,104 @@ private fun HistoryScreen(app: OpenFlowApp) {
                 modifier = Modifier.align(Alignment.CenterVertically)
             )
             if (dictations.isNotEmpty()) {
-                OutlinedButton(
-                    onClick = {
-                        val rows = dictations.map { d ->
-                            HistoryExport.Row(
-                                d.createdAtEpochMs,
-                                d.text,
-                                d.languageTag,
-                                d.wordCount,
-                                d.rawText,
-                            )
-                        }
-                        val shareText = HistoryExport.toMarkdown(rows)
-                        val send = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_TEXT, shareText)
-                        }
-                        try {
-                            ctx.startActivity(Intent.createChooser(send, "Export history (Markdown)"))
-                        } catch (_: Exception) {
-                        }
-                    },
-                    modifier = Modifier
-                        .defaultMinSize(minHeight = Dimen.MIN_TOUCH)
-                        .testTag("history_export"),
-                    shape = MaterialTheme.shapes.small,
-                    border = SecUi.hardBorder,
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = SecUi.charcoal,
-                        containerColor = SecUi.cream
+                val fmt = runCatching { ExportFormat.valueOf(exportFormatName) }
+                    .getOrDefault(ExportFormat.MARKDOWN)
+                val rows = dictations.map { d ->
+                    HistoryExport.Row(
+                        d.createdAtEpochMs,
+                        d.text,
+                        d.languageTag,
+                        d.wordCount,
+                        d.rawText,
+                        d.id,
+                        d.durationMs,
                     )
-                ) {
-                    Text("Export", fontWeight = FontWeight.SemiBold)
+                }
+                val body = HistoryExport.render(rows, ExportChoice(fmt, exportRaw))
+                Column(verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OpenChip(
+                            label = "MD",
+                            isOn = fmt == ExportFormat.MARKDOWN,
+                            modifier = Modifier.testTag("history_export_md"),
+                            onClick = { exportFormatName = ExportFormat.MARKDOWN.name }
+                        )
+                        OpenChip(
+                            label = "Plain",
+                            isOn = fmt == ExportFormat.PLAIN,
+                            modifier = Modifier.testTag("history_export_plain"),
+                            onClick = { exportFormatName = ExportFormat.PLAIN.name }
+                        )
+                        OpenChip(
+                            label = "JSON",
+                            isOn = fmt == ExportFormat.JSON,
+                            modifier = Modifier.testTag("history_export_json"),
+                            onClick = { exportFormatName = ExportFormat.JSON.name }
+                        )
+                        OpenChip(
+                            label = "Raw",
+                            isOn = exportRaw,
+                            modifier = Modifier.testTag("history_export_raw"),
+                            onClick = { exportRaw = !exportRaw }
+                        )
+                    }
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                val send = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, body)
+                                }
+                                try {
+                                    ctx.startActivity(Intent.createChooser(send, "Export history"))
+                                } catch (_: Exception) {
+                                }
+                            },
+                            modifier = Modifier
+                                .defaultMinSize(minHeight = Dimen.MIN_TOUCH)
+                                .testTag("history_export"),
+                            shape = MaterialTheme.shapes.small,
+                            border = SecUi.hardBorder,
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = SecUi.charcoal,
+                                containerColor = SecUi.cream
+                            )
+                        ) {
+                            Text("Share", fontWeight = FontWeight.SemiBold)
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                pendingExport[0] = body
+                                val name = when (fmt) {
+                                    ExportFormat.MARKDOWN -> "open-flow-history.md"
+                                    ExportFormat.PLAIN -> "open-flow-history.txt"
+                                    ExportFormat.JSON -> "open-flow-history.json"
+                                }
+                                try {
+                                    saveDoc.launch(name)
+                                } catch (_: Exception) {
+                                    Toast.makeText(ctx, "Could not save", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier
+                                .defaultMinSize(minHeight = Dimen.MIN_TOUCH)
+                                .testTag("history_export_save"),
+                            shape = MaterialTheme.shapes.small,
+                            border = SecUi.hardBorder,
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = SecUi.charcoal,
+                                containerColor = SecUi.cream
+                            )
+                        ) {
+                            Text("Save", fontWeight = FontWeight.SemiBold)
+                        }
+                    }
                 }
             }
         }

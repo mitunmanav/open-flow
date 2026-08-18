@@ -554,7 +554,8 @@ class SttEngine(
     }
 
     private fun buildIntent(languageTag: String, t: SttTuning = tuning): Intent {
-        val lang = SttIntentPolicy.languageTag(languageTag)
+        val extras = SttIntentPolicy.listenExtras(languageTag, Build.VERSION.SDK_INT, biasing)
+        val lang = extras.language
         return Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(
                 RecognizerIntent.EXTRA_LANGUAGE_MODEL,
@@ -592,14 +593,14 @@ class SttEngine(
                 val mode = SttIntentPolicy.formattingMode(t.preferFormattingQuality)
                 putExtra(RecognizerIntent.EXTRA_ENABLE_FORMATTING, mode)
                 putExtra(RecognizerIntent.EXTRA_HIDE_PARTIAL_TRAILING_PUNCTUATION, true)
-                if (SttIntentPolicy.includeBiasing(Build.VERSION.SDK_INT)) {
-                    putStringArrayListExtra(
-                        RecognizerIntent.EXTRA_BIASING_STRINGS,
-                        ArrayList(biasing)
-                    )
-                    putExtra(RecognizerIntent.EXTRA_ENABLE_BIASING_DEVICE_CONTEXT, true)
-                }
                 putExtra(RecognizerIntent.EXTRA_MASK_OFFENSIVE_WORDS, false)
+            }
+            if (extras.putBiasing) {
+                putStringArrayListExtra(
+                    RecognizerIntent.EXTRA_BIASING_STRINGS,
+                    ArrayList(extras.biasing)
+                )
+                putExtra(RecognizerIntent.EXTRA_ENABLE_BIASING_DEVICE_CONTEXT, true)
             }
         }
     }

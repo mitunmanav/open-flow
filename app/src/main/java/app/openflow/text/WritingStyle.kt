@@ -208,19 +208,9 @@ object StyleApplicator {
     }
 
     private fun applyEndPunct(t: String, mode: EndPunct, style: WritingStyle): String {
-        var s = t.trimEnd()
+        var s = QuestionPolicy.applyAll(t.trimEnd())
         if (s.isEmpty()) return s
-
-        // Questions from shape of sentence (all styles)
-        val qStarts = listOf(
-            "who ", "what ", "where ", "when ", "why ", "how ",
-            "is ", "are ", "can ", "could ", "would ", "will ", "do ", "does ", "did "
-        )
-        val isQ = qStarts.any { s.startsWith(it, ignoreCase = true) }
-        if (isQ) {
-            s = s.trimEnd('.', '!', '?') + "?"
-            return s
-        }
+        if (s.trimEnd().endsWith('?')) return s
 
         val last = s.lastOrNull()
         val hasEnd = last == '.' || last == '!' || last == '?'

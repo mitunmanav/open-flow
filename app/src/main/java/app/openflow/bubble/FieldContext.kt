@@ -15,18 +15,28 @@ object FieldContext {
     fun surrounding(on: Boolean, fieldText: String): String =
         if (!on) "" else fieldText.trim()
 
-    fun continueSpoken(field: String, spoken: String): String {
+    fun continueSpoken(
+        field: String,
+        spoken: String,
+        keepCap: Set<String> = emptySet(),
+    ): String {
         val f = field.trimEnd()
         val s = spoken.trim()
         if (f.isEmpty() || s.isEmpty()) return s
         val end = f.last()
         if (end in ".!?\n") return s
+        val first = s.split(Regex("\\s+")).first()
+        if (keepCap.any { it.equals(first, ignoreCase = true) }) return s
         return s.replaceFirstChar { ch -> ch.lowercaseChar() }
     }
 
     /** Full field after local continue + course-correct across the prefix boundary. */
-    fun afterPolish(prefix: String, polishedSpoken: String): String {
-        val said = continueSpoken(prefix, polishedSpoken)
+    fun afterPolish(
+        prefix: String,
+        polishedSpoken: String,
+        keepCap: Set<String> = emptySet(),
+    ): String {
+        val said = continueSpoken(prefix, polishedSpoken, keepCap)
         if (said.isEmpty()) return prefix
         if (prefix.isBlank()) return said
         val combined = FieldPolicy.mergeSession(prefix, said)

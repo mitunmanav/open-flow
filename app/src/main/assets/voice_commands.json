@@ -79,7 +79,16 @@
     "less-than sign": "<",
     "open angle bracket": "<",
     "close angle bracket": ">",
-    "angle bracket": "<"
+    "angle bracket": "<",
+    "fullstop": ".",
+    "semi colon": ";",
+    "semi-colon": ";",
+    "three dots": "...",
+    "dot dot dot": "...",
+    "open square bracket": "[",
+    "close square bracket": "]",
+    "left square bracket": "[",
+    "right square bracket": "]"
   },
   "layout": {
     "start a new paragraph": "\n\n",

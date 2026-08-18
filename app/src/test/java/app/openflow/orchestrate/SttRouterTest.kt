@@ -22,6 +22,25 @@ class SttRouterTest {
     }
 
     @Test
+    fun auto_prefer_on_device_still_local_first() {
+        val signals =
+            RouteSignals(
+                online = true,
+                keyedEars = setOf("openai"),
+                keyedBrains = emptySet(),
+                preferOnDevice = true,
+            )
+        val result =
+            SttRouter.pick(
+                auto = true,
+                manualEarId = "system",
+                signals = signals,
+                health = ProviderHealth(),
+            )
+        assertThat(result).isEqualTo(RouteExplain("system", "local-first"))
+    }
+
+    @Test
     fun auto_offline_picks_system() {
         val result =
             SttRouter.pick(
@@ -43,6 +62,28 @@ class SttRouterTest {
                 health = ProviderHealth(),
             )
         assertThat(result).isEqualTo(RouteExplain("system", "local-first"))
+    }
+
+    @Test
+    fun auto_prefer_on_device_never_picks_whisper_stub() {
+        val health = ProviderHealth(failThreshold = 3)
+        repeat(3) { health.recordFailure("system") }
+        val signals =
+            RouteSignals(
+                online = true,
+                keyedEars = setOf("openai"),
+                keyedBrains = emptySet(),
+                preferOnDevice = true,
+            )
+        val result =
+            SttRouter.pick(
+                auto = true,
+                manualEarId = "system",
+                signals = signals,
+                health = health,
+            )
+        assertThat(result.providerId).isNotEqualTo("on_phone")
+        assertThat(result).isEqualTo(RouteExplain("openai", "cloud-keyed"))
     }
 
     @Test

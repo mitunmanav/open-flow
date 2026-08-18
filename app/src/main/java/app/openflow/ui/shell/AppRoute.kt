@@ -6,10 +6,12 @@ enum class AppRoute(val title: String, val navId: String? = null) {
     Dictionary("Dictionary", "dictionary"),
     Snippets("Snippets", "snippets"),
     Style("Style", "style"),
+    Insights("Insights", "insights"),
     Settings("Settings", "settings"),
     SpeechAi("Speech + AI"),
     Appearance("Appearance"),
     BubbleSettings("Bubble"),
+    Haptics("Haptics"),
     HomeModules("Home layout"),
     Cleanup("Cleanup"),
     Privacy("Privacy"),
@@ -18,7 +20,7 @@ enum class AppRoute(val title: String, val navId: String? = null) {
 }
 
 /**
- * Wispr Android hub tabs: Home · Dictionary · Snippets · Style.
+ * Hub tabs: Home · Dictionary · Snippets · Style · Insights.
  * History lives on Home. Settings is the gear, not a tab.
  */
 val BottomBarRoutes = listOf(
@@ -26,6 +28,7 @@ val BottomBarRoutes = listOf(
     AppRoute.Dictionary,
     AppRoute.Snippets,
     AppRoute.Style,
+    AppRoute.Insights,
 )
 
 /**
@@ -36,6 +39,7 @@ val SettingsSubtreeRoutes = setOf(
     AppRoute.SpeechAi,
     AppRoute.Appearance,
     AppRoute.BubbleSettings,
+    AppRoute.Haptics,
     AppRoute.Cleanup,
     AppRoute.Privacy,
     AppRoute.Sounds,

@@ -20,12 +20,16 @@ class PrivacyHonestyTest {
     }
 
     @Test
-    fun ui_kotlin_does_not_claim_transcript_never_leaves() {
-        val src = UiSourceScan.uiKtText().lowercase()
-        assertThat(src).doesNotContain("never uploads audio or transcripts")
-        assertThat(src).doesNotContain("never uploaded by open flow")
-        assertThat(src).doesNotContain("we do not upload")
-        assertThat(src).doesNotContain("open flow never uploads audio")
-        assertThat(src).contains("post this utterance")
+    fun on_device_toggle_copy_is_honest() {
+        assertThat(PrivacyHonesty.ON_DEVICE_OFF.lowercase()).contains("may")
+        assertThat(PrivacyHonesty.ON_DEVICE_OFF.lowercase()).contains("google")
+        assertThat(PrivacyHonesty.ON_DEVICE_ON.lowercase()).contains("on-device")
+        assertThat(PrivacyHonesty.ON_DEVICE_ON.lowercase()).doesNotContain("never")
+    }
+
+    @Test
+    fun insights_voice_admits_counts_not_never() {
+        assertThat(PrivacyHonesty.INSIGHTS_VOICE.lowercase()).contains("counts")
+        assertThat(PrivacyHonesty.INSIGHTS_VOICE.lowercase()).doesNotContain("never")
     }
 }

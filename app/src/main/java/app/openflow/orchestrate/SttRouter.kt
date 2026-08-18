@@ -25,8 +25,9 @@ object SttRouter {
                 if (normalized in cloudEars) {
                     return@filter signals.online && normalized in keyed
                 }
-                EarGate.live(normalized) ||
-                    (normalized == "on_phone" && signals.preferOnDevice)
+                // Phone speech (`system`) owns the on-device factory pref.
+                // Never pick Whisper stub `on_phone` — EarGate.live stays false.
+                EarGate.live(normalized)
             }
 
         val picked = filtered.firstOrNull()

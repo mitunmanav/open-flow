@@ -11,6 +11,7 @@ package app.openflow.text
 object VoiceCommands {
 
     private val map: PhraseMap get() = PhraseMap.default
+    private val tlds = setOf("com", "org", "net", "io", "edu", "gov")
 
     fun apply(raw: String): String = apply(raw, map)
 
@@ -23,6 +24,17 @@ object VoiceCommands {
         val out = StringBuilder()
         var i = 0
         while (i < tokens.size) {
+            if (tokens[i].equals("dot", ignoreCase = true)) {
+                val next = tokens.getOrNull(i + 1)?.lowercase()
+                if (next != null && next in tlds) {
+                    if (out.isNotEmpty() && !out.last().isWhitespace()) out.append(' ')
+                    out.append(tokens[i])
+                } else {
+                    out.append(' ').append('.').append(' ')
+                }
+                i++
+                continue
+            }
             when (val m = phraseMap.matchAt(tokens, i)) {
                 is PhraseMap.Match.Insert -> {
                     out.append(' ').append(m.symbol).append(' ')

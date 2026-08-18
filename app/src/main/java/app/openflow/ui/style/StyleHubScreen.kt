@@ -27,6 +27,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,6 +48,8 @@ import app.openflow.ui.components.OpenButton
 import app.openflow.ui.components.OpenCard
 import app.openflow.ui.components.OpenChip
 import app.openflow.ui.components.OpenTextField
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -272,12 +275,21 @@ private fun AddAppDialog(
     val context = LocalContext.current
     val scheme = MaterialTheme.colorScheme
     val alreadyLower = remember(already) { already.map { it.lowercase() }.toSet() }
-    val apps = remember {
-        LauncherAppQuery.list(context.packageManager)
-            .filterNot { it.packageName.lowercase() in alreadyLower }
+    var apps by remember { mutableStateOf<List<LauncherAppMeta>?>(null) }
+    val pm = context.packageManager
+    LaunchedEffect(alreadyLower) {
+        apps = null
+        apps = withContext(Dispatchers.Default) {
+            LauncherAppQuery.excludePackages(
+                LauncherAppQuery.listMeta(pm),
+                alreadyLower,
+            )
+        }
     }
     var query by remember { mutableStateOf("") }
-    val filtered = remember(query, apps) { LauncherAppQuery.filter(apps, query) }
+    val filtered = remember(query, apps) {
+        LauncherAppQuery.filterMeta(apps.orEmpty(), query)
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         OpenCard {
@@ -301,43 +313,59 @@ private fun AddAppDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                LazyColumn(
-                    Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 360.dp),
-                    verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
-                ) {
-                    items(filtered, key = { it.packageName }) { app ->
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .clickable { onPick(app.packageName) }
-                                .padding(vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
-                        ) {
-                            if (app.icon != null) {
+                if (apps == null) {
+                    Text(
+                        "Loading apps…",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = scheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = Dimen.GAP)
+                    )
+                } else {
+                    LazyColumn(
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 360.dp),
+                        verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+                    ) {
+                        items(filtered, key = { it.packageName }) { app ->
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onPick(app.packageName) }
+                                    .padding(vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM)
+                            ) {
                                 AndroidView(
                                     factory = { ctx ->
                                         ImageView(ctx).apply {
-                                            setImageDrawable(app.icon)
                                             scaleType = ImageView.ScaleType.FIT_CENTER
+                                            runCatching {
+                                                setImageDrawable(pm.getApplicationIcon(app.packageName))
+                                            }
+                                        }
+                                    },
+                                    update = { view ->
+                                        runCatching {
+                                            view.setImageDrawable(pm.getApplicationIcon(app.packageName))
                                         }
                                     },
                                     modifier = Modifier.size(36.dp)
                                 )
-                            }
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    app.label,
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = scheme.onBackground
-                                )
-                                Text(
-                                    app.packageName,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = scheme.onSurfaceVariant
-                                )
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        app.label,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = scheme.onBackground
+                                    )
+                                    Text(
+                                        app.packageName,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = scheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
                     }

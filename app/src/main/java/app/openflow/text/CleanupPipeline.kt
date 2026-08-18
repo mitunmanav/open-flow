@@ -19,7 +19,8 @@ object CleanupPipeline {
         raw: String,
         level: CleanupLevel = CleanupLevel.NORMAL,
         style: WritingStyle = WritingStyle.CASUAL,
-        custom: CustomStyleConfig = CustomStyleConfig()
+        custom: CustomStyleConfig = CustomStyleConfig(),
+        messaging: Boolean = false,
     ): CleanupResult {
         val original = raw
         if (original.isBlank()) {
@@ -57,6 +58,7 @@ object CleanupPipeline {
         t = normalizeKeepNewlines(t)
         t = keepContent(original, t)
         t = StyleApplicator.apply(t, style, custom)
+        t = TrailingPeriodPolicy.apply(t, style, messaging)
         t = keepContent(original, t)
 
         return CleanupResult(
@@ -132,6 +134,9 @@ object CleanupPipeline {
     private val spokenDigitSplit = Regex("""\s+(?=\d{1,2}\s+[A-Za-z])""")
     private val spokenDigitItem = Regex("""^\d{1,2}\s+\S.*""")
     private val spokenDigitBody = Regex("""^(\d{1,2})\s+(.+)$""")
+    private val sequenceWordLead = Regex(
+        """(?i)(?:first|second|third|fourth|fifth)\s+"""
+    )
     private val spokenNumberItem = Regex("(?i)(?:number|item)\\s+(one|two|three|four|five|1|2|3|4|5)\\s+")
     private val spokenNumberSplit = Regex("(?i)(?:number|item)\\s+(?:one|two|three|four|five|1|2|3|4|5)\\s+")
     private val justHedge = Regex("""(?i)\bjust\s+(?=(?:want|need|think|go|do|say|try)\b)""")
@@ -222,6 +227,7 @@ object CleanupPipeline {
     internal fun applyListHints(t: String): String {
         splitDottedNumbered(t)?.let { return it }
         splitSpokenDigitList(t)?.let { return it }
+        splitSequenceWordList(t)?.let { return it }
         if (!spokenNumberItem.containsMatchIn(t)) return t
         val parts = t.split(spokenNumberSplit).map { it.trim() }.filter { it.isNotEmpty() }
         if (parts.size < 2) return t
@@ -253,6 +259,24 @@ object CleanupPipeline {
             val body = m.groupValues[2].trim().trimEnd('.', ',', ';')
             "${m.groupValues[1]}. $body"
         }.joinToString("\n")
+    }
+
+    /** "first … second …" → multiline list. Intro text before the first ordinal is dropped. */
+    private fun splitSequenceWordList(t: String): String? {
+        val trimmed = t.trim()
+        if (sequenceWordLead.findAll(trimmed).count() < 2) return null
+        val chunks = trimmed.split(Regex("(?i)\\s+(?=first|second|third|fourth|fifth)\\b"))
+        val ordinal = Regex("(?i)^(first|second|third|fourth|fifth)\\s+")
+        val bodies = ArrayList<String>()
+        chunks.forEachIndexed { i, chunk ->
+            val c = chunk.trim()
+            val hasOrd = ordinal.containsMatchIn(c)
+            if (!hasOrd && i == 0) return@forEachIndexed
+            val body = ordinal.replace(c, "").trim().trimEnd('.', ',')
+            if (body.isNotEmpty()) bodies += body
+        }
+        if (bodies.size < 2) return null
+        return bodies.mapIndexed { i, p -> "${i + 1}. $p" }.joinToString("\n")
     }
 
     // ---- High stages ----

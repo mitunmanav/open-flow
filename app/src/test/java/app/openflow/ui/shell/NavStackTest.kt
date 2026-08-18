@@ -6,21 +6,24 @@ import org.junit.Test
 class NavStackTest {
 
     @Test
-    fun wispr_android_tabs_are_home_dict_snips_style() {
+    fun hub_tabs_are_home_dict_snips_style_insights() {
         assertThat(BottomBarRoutes).containsExactly(
             AppRoute.Home,
             AppRoute.Dictionary,
             AppRoute.Snippets,
             AppRoute.Style,
+            AppRoute.Insights,
         ).inOrder()
         assertThat(AppRoute.History.isBottomBar()).isFalse()
         assertThat(AppRoute.Settings.isBottomBar()).isFalse()
         assertThat(AppRoute.Snippets.isSettingsSubtree()).isFalse()
         assertThat(AppRoute.Style.isSettingsSubtree()).isFalse()
+        assertThat(AppRoute.Insights.isSettingsSubtree()).isFalse()
         assertThat(AppRoute.Settings.backTarget()).isEqualTo(AppRoute.Home)
         assertThat(AppRoute.History.backTarget()).isEqualTo(AppRoute.Home)
         assertThat(AppRoute.Snippets.backTarget()).isEqualTo(AppRoute.Snippets)
         assertThat(AppRoute.Style.backTarget()).isEqualTo(AppRoute.Style)
+        assertThat(AppRoute.Insights.backTarget()).isEqualTo(AppRoute.Insights)
     }
 
     @Test

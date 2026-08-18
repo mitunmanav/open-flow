@@ -53,4 +53,13 @@ object OpenFlowMigrations {
             )
         }
     }
+
+    /** v7 → v8: processStatus on dictations (ok | failed). */
+    val MIGRATION_7_8 = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "ALTER TABLE `dictations` ADD COLUMN `processStatus` TEXT NOT NULL DEFAULT 'ok'"
+            )
+        }
+    }
 }

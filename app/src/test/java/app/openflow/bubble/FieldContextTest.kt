@@ -18,6 +18,17 @@ class FieldContextTest {
     }
 
     @Test
+    fun continue_keeps_dictionary_name() {
+        assertThat(
+            FieldContext.continueSpoken(
+                "Hey can we",
+                "Sarah is coming",
+                keepCap = setOf("Sarah"),
+            )
+        ).isEqualTo("Sarah is coming")
+    }
+
+    @Test
     fun continue_keeps_cap_after_sentence_end() {
         assertThat(FieldContext.continueSpoken("Hello.", "Meet at six"))
             .isEqualTo("Meet at six")

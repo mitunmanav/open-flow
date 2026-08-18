@@ -52,6 +52,9 @@ class DictationRepository(
         languageTag: String,
         retentionPolicy: String = "keep",
         packageName: String = "",
+        createdAtEpochMs: Long = System.currentTimeMillis(),
+        processStatus: String = ProcessStatus.OK,
+        id: String = UUID.randomUUID().toString(),
     ): DictationEntity? {
         if (!RetentionPolicy.shouldPersist(retentionPolicy)) return null
         return db.transact {
@@ -61,20 +64,43 @@ class DictationRepository(
             }
             val words = cleanText.trim().split(WORD_SPLIT).filter { it.isNotEmpty() }.size
             val e = DictationEntity(
-                id = UUID.randomUUID().toString(),
+                id = id,
                 text = cleanText,
                 rawText = rawText,
-                createdAtEpochMs = System.currentTimeMillis(),
+                createdAtEpochMs = createdAtEpochMs,
                 durationMs = durationMs,
                 languageTag = languageTag,
                 wordCount = words,
                 packageName = packageName.trim(),
+                processStatus = ProcessStatus.normalize(processStatus),
             )
             dictationDao.upsert(e)
             indexFts(e)
-            bumpStatsInternal(words)
+            if (ProcessStatus.isFailed(e.processStatus).not() && words > 0) {
+                bumpStatsInternal(words)
+            }
             e
         }
+    }
+
+    /** Mark a failed session as successfully processed after bubble retry. */
+    suspend fun markDictationOk(id: String, rawText: String, cleanText: String): Boolean {
+        val existing = dictationDao.get(id) ?: return false
+        val words = cleanText.trim().split(WORD_SPLIT).filter { it.isNotEmpty() }.size
+        val updated = existing.copy(
+            text = cleanText,
+            rawText = rawText,
+            wordCount = words,
+            processStatus = ProcessStatus.OK,
+        )
+        db.transact {
+            dictationDao.upsert(updated)
+            indexFts(updated)
+            if (words > 0 && ProcessStatus.isFailed(existing.processStatus)) {
+                bumpStatsInternal(words)
+            }
+        }
+        return true
     }
 
     suspend fun purgeOnLaunch(retentionPolicy: String, nowEpochMs: Long = System.currentTimeMillis()) {

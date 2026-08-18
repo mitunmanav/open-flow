@@ -75,7 +75,9 @@ object CourseCorrector {
             if (step.correction != null) corrections += step.correction
             t = step.text
         }
-        return CourseCorrectResult(normalizeSpaces(t), corrections)
+        t = normalizeSpaces(t)
+        t = applyFrameRestate(t)
+        return CourseCorrectResult(t, corrections)
     }
 
     private data class Step(val text: String, val correction: Correction? = null)
@@ -408,4 +410,20 @@ object CourseCorrector {
     }
 
     private fun normalizeSpaces(t: String) = t.replace(ws, " ").trim()
+
+    /**
+     * Same-frame restatement after ellipsis: "as a gift… as a present" → "as a present".
+     * Ambiguous (no shared as-a/the frame) stays put.
+     */
+    private val frameRestate = Regex(
+        """(?i)\b((?:as an?|the)\s+)([A-Za-z]{3,})(\s*(?:\.{2,}|…)\s*)\1([A-Za-z]{3,})\b"""
+    )
+
+    internal fun applyFrameRestate(t: String): String {
+        val m = frameRestate.find(t) ?: return t
+        val old = m.groupValues[2]
+        val neu = m.groupValues[4]
+        if (old.equals(neu, ignoreCase = true)) return t
+        return t.replaceRange(m.range, m.groupValues[1] + neu)
+    }
 }

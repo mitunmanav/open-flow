@@ -55,6 +55,7 @@ object TextPostProcessor {
         brainId: String = "none",
         languages: Set<String> = emptySet(),
         promptHint: String? = null,
+        messaging: Boolean = false,
     ): CleanupResult {
         val original = raw
         var t = raw
@@ -65,7 +66,7 @@ object TextPostProcessor {
             autoKeys = LearnEngine.autoKeys()
         )
         t = expandSnippets(t, snippets)
-        val result = CleanupPipeline.run(t, level, style, custom)
+        val result = CleanupPipeline.run(t, level, style, custom, messaging)
         val features = FeatureAuto.of(earId, brainId, languages)
         val useAi = brain != NoAI &&
             level != CleanupLevel.RAW &&

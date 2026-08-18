@@ -38,6 +38,7 @@ object CleanupPipeline {
         t = stripFillers(t)
         t = collapseRepetitions(t)
         t = VoiceCommands.apply(t)
+        t = RunOnSplitPolicy.apply(t)
         t = lightGrammar(t)
 
         // Medium+

@@ -40,6 +40,16 @@ class CleanupPipelineTest {
     }
 
     @Test
+    fun light_splits_then_i() {
+        val r = CleanupPipeline.run(
+            "I went to the store then I bought milk today too",
+            CleanupLevel.LIGHT
+        )
+        assertThat(r.clean).contains("store.")
+        assertThat(r.clean).contains("I bought")
+    }
+
+    @Test
     fun fillers_gone_like_kept() {
         val r = CleanupPipeline.run("I, uh, like, um, pizza.")
         assertThat(r.clean.lowercase()).contains("like")

@@ -51,4 +51,20 @@ class PackagePolicyTest {
         assertThat(PackagePolicy.shouldHideBubble("com.example.bank.mobile")).isTrue()
         assertThat(PackagePolicy.shouldHideBubble("com.foo.wallet")).isTrue()
     }
+
+    @Test
+    fun cred_is_not_a_raw_substring() {
+        assertThat(PackagePolicy.shouldHideBubble("com.android.credentialmanager")).isFalse()
+        assertThat(PackagePolicy.shouldHideBubble("com.incredible.app")).isFalse()
+    }
+
+    @Test
+    fun cred_segment_still_hides() {
+        assertThat(PackagePolicy.shouldHideBubble("com.cred.app")).isTrue()
+    }
+
+    @Test
+    fun still_hides_whatsapp_false() {
+        assertThat(PackagePolicy.shouldHideBubble("com.whatsapp")).isFalse()
+    }
 }

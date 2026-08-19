@@ -21,15 +21,32 @@ class CloudEarMicTest {
         assertThat(sock.sentBytes).hasSize(1)
     }
 
-    private class FakePcm : PcmSource {
+    @Test
+    fun start_fails_loud_when_pcm_refuses() {
+        val sock = FakeSocket()
+        val pcm = FakePcm(ok = false)
+        val ear = DeepgramEar(apiKey = { "dg" }, socket = sock, pcm = pcm)
+        val rec = RecListener()
+        ear.setListener(rec)
+        ear.startOnce("en-US")
+        assertThat(pcm.started).isTrue()
+        assertThat(rec.errors).contains("Microphone start failed")
+        assertThat(rec.fatal).contains(true)
+        assertThat(rec.ready).isEqualTo(0)
+        assertThat(rec.listening).isEmpty()
+        assertThat(sock.closed).isTrue()
+    }
+
+    private class FakePcm(private val ok: Boolean = true) : PcmSource {
         var started = false
         var stopped = false
         private var sink: ((ByteArray) -> Unit)? = null
 
-        override fun start(onChunk: (ByteArray) -> Unit) {
+        override fun start(onChunk: (ByteArray) -> Unit): Boolean {
             started = true
             stopped = false
             sink = onChunk
+            return ok
         }
 
         override fun stop() {

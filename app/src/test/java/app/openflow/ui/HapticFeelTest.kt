@@ -31,6 +31,10 @@ class HapticFeelTest {
             .isEqualTo(HapticFeel.CONFIRM)
         assertThat(HapticFeel.constantFor("full", HapticFeel.Event.CANCEL))
             .isEqualTo(HapticFeel.REJECT)
+        assertThat(HapticFeel.constantFor("full", HapticFeel.Event.ERROR))
+            .isEqualTo(HapticFeel.REJECT)
+        assertThat(HapticFeel.constantFor("full", HapticFeel.Event.LISTEN))
+            .isEqualTo(HapticFeel.CLOCK_TICK)
         assertThat(HapticFeel.CONTEXT_CLICK).isEqualTo(6)
         assertThat(HapticFeel.CONFIRM).isEqualTo(16)
         assertThat(HapticFeel.REJECT).isEqualTo(17)
@@ -41,5 +45,11 @@ class HapticFeelTest {
         assertThat(HapticFeel.normalize("")).isEqualTo(HapticFeel.FULL)
         assertThat(HapticFeel.normalize("buzz")).isEqualTo(HapticFeel.FULL)
         assertThat(HapticFeel.normalize("LIGHT")).isEqualTo(HapticFeel.LIGHT)
+    }
+
+    @Test
+    fun custom_is_a_feel_and_has_no_constant() {
+        assertThat(HapticFeel.normalize("custom")).isEqualTo(HapticFeel.CUSTOM)
+        assertThat(HapticFeel.constantFor("custom", HapticFeel.Event.TAP)).isNull()
     }
 }

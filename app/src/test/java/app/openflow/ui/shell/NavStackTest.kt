@@ -164,6 +164,14 @@ class NavStackTest {
     }
 
     @Test
+    fun legal_screens_are_settings_children() {
+        assertThat(AppRoute.PrivacyPolicy.isSettingsSubtree()).isTrue()
+        assertThat(AppRoute.Terms.isSettingsSubtree()).isTrue()
+        assertThat(AppRoute.PrivacyPolicy.backTarget()).isEqualTo(AppRoute.Settings)
+        assertThat(AppRoute.Terms.backTarget()).isEqualTo(AppRoute.Settings)
+    }
+
+    @Test
     fun customize_and_nav_modules_dead_routes_gone() {
         val names = AppRoute.entries.map { it.name }
         assertThat(names).doesNotContain("Customize")

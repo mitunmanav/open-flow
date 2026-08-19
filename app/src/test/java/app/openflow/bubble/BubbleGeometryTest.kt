@@ -125,11 +125,13 @@ class BubbleGeometryTest {
     }
 
     @Test
-    fun listen_is_264x48_regardless_of_shape() {
+    fun listen_is_three_discs_regardless_of_shape() {
+        val expectW = (BubbleTouch.listenWidthDp() * 2f).toInt()
+        val expectH = (BubbleTouch.ACTION_DP * 2f).toInt()
         for (shape in listOf("pill", "circle", "dot", "square")) {
             val (w, h) = BubbleGeometry.overlaySizePx(listening = true, density = 2f, shape = shape)
-            assertThat(w).isEqualTo(528)
-            assertThat(h).isEqualTo(96)
+            assertThat(w).isEqualTo(expectW)
+            assertThat(h).isEqualTo(expectH)
         }
     }
 
@@ -156,7 +158,8 @@ class BubbleGeometryTest {
             shape = "pill",
             chips = true,
         )
-        assertThat(chips.second).isEqualTo(idle.second)
+        assertThat(chips.second).isEqualTo((BubbleTouch.LISTEN_BAR_DP * 2f).toInt())
+        assertThat(chips.second).isGreaterThan(idle.second)
         assertThat(chips.first).isGreaterThan(idle.first)
         assertThat(chips.first).isAtMost((200f * 2f).toInt())
     }

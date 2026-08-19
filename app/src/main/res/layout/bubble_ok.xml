@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ImageView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/bubble_done"
+    android:layout_width="48dp"
+    android:layout_height="48dp"
+    android:layout_gravity="center_vertical"
+    android:background="?android:attr/selectableItemBackgroundBorderless"
+    android:contentDescription="@string/flow_bubble_done"
+    android:padding="10dp"
+    android:scaleType="centerInside"
+    android:src="@drawable/ic_done"
+    android:visibility="gone" />

@@ -23,7 +23,9 @@ object QuestionPolicy {
         val words = core.split(Regex("\\s+")).filter { it.isNotEmpty() }
         if (words.isEmpty()) return sentence
         val lastBare = words.last().trimEnd(',', ';').lowercase()
-        if (lastBare in tagWord) return "$core?"
+        val commaTag = core.contains(',') && lastBare in tagWord
+        val rightTag = lastBare == "right" && words.size >= 2
+        if (commaTag || rightTag) return "$core?"
         val first = words.first().lowercase().trimEnd(',', ';')
         val second = words.getOrNull(1)?.lowercase()?.trimEnd(',', ';').orEmpty()
         val qStart = first in q1

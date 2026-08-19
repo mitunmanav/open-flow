@@ -18,3 +18,7 @@
 
 # Android KeyStore & Crypto
 -keep class app.openflow.secrets.** { *; }
+
+# whisper.cpp JNI
+-keep class app.openflow.whisper.WhisperLib { *; }
+-keep class app.openflow.whisper.WhisperLib$Companion { *; }

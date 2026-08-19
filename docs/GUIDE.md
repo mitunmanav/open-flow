@@ -12,14 +12,14 @@ A small **floating bubble** sits over other apps when you are in a text field. Y
 
 ## First time
 
-1. Install the APK ([Releases](https://github.com/mitunmanav/open-flow/releases/latest) or Desktop `open-flow.apk`).
+1. Install the APK ([Releases](https://github.com/mitunmanav/open-flow/releases/latest)).
 2. Open the app. Five short screens explain the product.
 3. Turn on **Accessibility** (this is how the bubble can type into other apps).
 4. If that switch is grey: App info → menu → **Allow restricted settings**, then try again.
 5. Allow the **microphone**.
 6. Battery **Unrestricted** if the bubble keeps dying (OEM).
 
-Full install: [INSTALL.md](INSTALL.md) · Phone GO list: [LAUNCH_CHECKLIST.md](LAUNCH_CHECKLIST.md#0-mitun-phone-go-do-this).
+Full install: [INSTALL.md](INSTALL.md).
 
 ## Everyday use
 
@@ -31,10 +31,9 @@ Full install: [INSTALL.md](INSTALL.md) · Phone GO list: [LAUNCH_CHECKLIST.md](L
 | Hold the bubble | Talk only while you hold. Release inserts |
 | Tap X while listening | Throw away. Nothing is inserted |
 | End with “press enter” | Insert, then send (chat fields) |
-| Drag the bubble | Move it |
-| Drag to the bottom | Hide for 10 minutes. Shake the phone to bring it back |
+| Drag the bubble | Move it. While the keyboard is up, the bubble stays on screen |
 
-After insert, **Copy / Undo / Paste** chips show for a few seconds. Old text: open Open Flow → **History**.
+Copy lives in **History**, not on the bubble. Open Open Flow → **History** → Copy or Share.
 
 ## What the app will not type into
 
@@ -86,11 +85,10 @@ More: [PRIVACY.md](PRIVACY.md).
 
 Check, in order:
 
-1. Are you in a normal text field (not a password)?
+1. Are you in a normal text field (not a password or bank app)?
 2. Is the keyboard up?
-3. Did you snooze it (drag down)?
-4. Is Accessibility still on? (Force-stop turns it off.)
-5. Is the microphone allowed?
+3. Is Accessibility still on? (Force-stop turns it off.)
+4. Is the microphone allowed?
 
 ## Settings worth knowing
 

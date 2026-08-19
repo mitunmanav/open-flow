@@ -5,6 +5,8 @@ import android.content.SharedPreferences
 import app.openflow.bubble.AppCategory
 import app.openflow.bubble.AppOverride
 import app.openflow.bubble.BubbleChrome
+import app.openflow.bubble.BubbleLook
+import app.openflow.bubble.BubbleScaleSteps
 import app.openflow.stt.LanguagePolicy
 import app.openflow.stt.SttTuning
 import app.openflow.text.CapsMode
@@ -15,6 +17,8 @@ import app.openflow.text.LearnEngine
 import app.openflow.text.StyleCategory
 import app.openflow.text.WritingStyle
 import app.openflow.ui.HapticFeel
+import app.openflow.ui.HapticPick
+import app.openflow.ui.theme.AppearancePalette
 import app.openflow.ui.theme.BubbleTint
 import app.openflow.ui.theme.VisualSkin
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,7 +37,9 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
     init {
         val raw = store.getString("learn_sides", "")
         if (raw.isNotEmpty()) LearnEngine.loadSides(raw)
+        LearnEngine.loadPending(store.getString("learn_pending", ""))
         LearnEngine.persistHook = { encoded -> store.putString("learn_sides", encoded) }
+        LearnEngine.pendingHook = { encoded -> store.putString("learn_pending", encoded) }
     }
 
     var bubbleScale: Float
@@ -41,8 +47,8 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         set(v) = store.putFloat("bubble_scale", v)
 
     var bubbleOpacity: Float
-        get() = store.getFloat("bubble_opacity", 0.80f)
-        set(v) = store.putFloat("bubble_opacity", v)
+        get() = store.getFloat("bubble_opacity", 0.80f).coerceIn(0.20f, 1.00f)
+        set(v) = store.putFloat("bubble_opacity", v.coerceIn(0.20f, 1.00f))
 
     var bubbleX: Int
         get() = store.getString("bubble_x", "32").toIntOrNull() ?: 32
@@ -135,6 +141,97 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         val v = normalizeDarkMode(value)
         _darkMode.value = v
         store.putString("dark_mode", v)
+        emitPalette()
+    }
+
+    var colorBg: String
+        get() = store.getString("color_bg", "")
+        set(v) {
+            store.putString("color_bg", v)
+            emitPalette()
+        }
+    var colorCards: String
+        get() = store.getString("color_cards", "")
+        set(v) {
+            store.putString("color_cards", v)
+            emitPalette()
+        }
+    var colorText: String
+        get() = store.getString("color_text", "")
+        set(v) {
+            store.putString("color_text", v)
+            emitPalette()
+        }
+    var colorAccent: String
+        get() = store.getString("color_accent", "")
+        set(v) {
+            store.putString("color_accent", v)
+            emitPalette()
+        }
+    var colorBorder: String
+        get() = store.getString("color_border", "")
+        set(v) {
+            store.putString("color_border", v)
+            emitPalette()
+        }
+    var colorBubbleIdle: String
+        get() = store.getString("color_bubble_idle", "")
+        set(v) {
+            store.putString("color_bubble_idle", v)
+            emitPalette()
+        }
+    var colorBubbleListen: String
+        get() = store.getString("color_bubble_listen", "")
+        set(v) {
+            store.putString("color_bubble_listen", v)
+            emitPalette()
+        }
+    var colorBubbleText: String
+        get() = store.getString("color_bubble_text", "")
+        set(v) {
+            store.putString("color_bubble_text", v)
+            emitPalette()
+        }
+
+    private val _appearance = MutableStateFlow(computePalette())
+    val appearance: StateFlow<AppearancePalette> = _appearance.asStateFlow()
+
+    fun palette(): AppearancePalette = computePalette()
+
+    fun resetAppearanceColors() {
+        store.putString("color_bg", "")
+        store.putString("color_cards", "")
+        store.putString("color_text", "")
+        store.putString("color_accent", "")
+        store.putString("color_border", "")
+        store.putString("color_bubble_idle", "")
+        store.putString("color_bubble_listen", "")
+        store.putString("color_bubble_text", "")
+        emitPalette()
+    }
+
+    private fun computePalette(): AppearancePalette {
+        val overlay = AppearancePalette.overlay(
+            dark = darkMode.value == "dark",
+            bg = store.getString("color_bg", ""),
+            cards = store.getString("color_cards", ""),
+            text = store.getString("color_text", ""),
+            accent = store.getString("color_accent", ""),
+            border = store.getString("color_border", ""),
+            bubbleIdle = store.getString("color_bubble_idle", ""),
+            bubbleListen = store.getString("color_bubble_listen", ""),
+            bubbleText = store.getString("color_bubble_text", ""),
+        )
+        val tint = BubbleTint.normalize(store.getString("bubble_tint", BubbleTint.CHARCOAL))
+        return overlay.copy(
+            bubbleIdleArgb = BubbleLook.fillArgb(store.getString("color_bubble_idle", ""), tint),
+            bubbleListenArgb = BubbleLook.fillArgb(store.getString("color_bubble_listen", ""), tint),
+            bubbleTextArgb = BubbleLook.onArgb(store.getString("color_bubble_text", ""), tint),
+        )
+    }
+
+    private fun emitPalette() {
+        _appearance.value = computePalette()
     }
 
     private val _visualSkin = MutableStateFlow(
@@ -178,6 +275,45 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         get() = normalizeBubbleShape(store.getString("bubble_shape", "pill"))
         set(v) = store.putString("bubble_shape", normalizeBubbleShape(v))
 
+    var bubbleShowCancel: Boolean
+        get() = store.getString("bubble_show_cancel", "true") != "false"
+        set(v) = store.putString("bubble_show_cancel", if (v) "true" else "false")
+
+    var bubbleShowDone: Boolean
+        get() = store.getString("bubble_show_done", "true") != "false"
+        set(v) = store.putString("bubble_show_done", if (v) "true" else "false")
+
+    var bubbleIconUri: String
+        get() = store.getString("bubble_icon_uri", "")
+        set(v) = store.putString("bubble_icon_uri", v)
+
+    var bubbleRoundPct: Int
+        get() {
+            val raw = store.getString("bubble_round_pct", "")
+            return if (raw.isNotEmpty()) {
+                raw.toIntOrNull()?.coerceIn(0, 100) ?: 50
+            } else {
+                BubbleChrome.pctFromLegacy(bubbleRoundness)
+            }
+        }
+        set(v) = store.putString("bubble_round_pct", v.coerceIn(0, 100).toString())
+
+    var bubbleShrinkIdle: Boolean
+        get() = store.getString("bubble_shrink_idle", "false") == "true"
+        set(v) = store.putString("bubble_shrink_idle", if (v) "true" else "false")
+
+    var bubbleShrinkDot: Boolean
+        get() = store.getString("bubble_shrink_dot", "false") == "true"
+        set(v) = store.putString("bubble_shrink_dot", if (v) "true" else "false")
+
+    var bubbleShrinkSearch: Boolean
+        get() = store.getString("bubble_shrink_search", "false") == "true"
+        set(v) = store.putString("bubble_shrink_search", if (v) "true" else "false")
+
+    fun resetBubbleScale() {
+        bubbleScale = BubbleScaleSteps.DEFAULT
+    }
+
     var bubbleHaptics: Boolean
         get() = store.getString("bubble_haptics", "true") == "true"
         set(v) = store.putString("bubble_haptics", if (v) "true" else "false")
@@ -185,7 +321,10 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
     /** charcoal | cream | ink | stone | sky | forest | coral | grape */
     var bubbleTint: String
         get() = BubbleTint.normalize(store.getString("bubble_tint", BubbleTint.CHARCOAL))
-        set(v) = store.putString("bubble_tint", BubbleTint.normalize(v))
+        set(v) {
+            store.putString("bubble_tint", BubbleTint.normalize(v))
+            emitPalette()
+        }
 
     /** hard | soft | round — default soft for clean pill */
     var bubbleRoundness: String
@@ -207,6 +346,45 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
             store.putString("haptic_feel", n)
             bubbleHaptics = n != HapticFeel.OFF
         }
+
+    fun hapticPick(event: HapticFeel.Event): String {
+        if (hapticFeel == HapticFeel.CUSTOM) {
+            val raw = store.getString(hapticKey(event), "")
+            return if (raw.isNotEmpty()) HapticPick.normalize(raw) else defaultHapticPick(event)
+        }
+        return when (hapticFeel) {
+            HapticFeel.OFF -> HapticPick.OFF
+            HapticFeel.LIGHT -> HapticPick.TICK
+            else -> defaultHapticPick(event)
+        }
+    }
+
+    fun setHapticPick(event: HapticFeel.Event, pick: String) {
+        store.putString(hapticKey(event), HapticPick.normalize(pick))
+    }
+
+    fun resetHaptics() {
+        hapticFeel = HapticFeel.FULL
+        HapticFeel.Event.entries.forEach { event ->
+            store.putString(hapticKey(event), "")
+        }
+    }
+
+    private fun hapticKey(event: HapticFeel.Event): String = when (event) {
+        HapticFeel.Event.TAP -> "haptic_tap"
+        HapticFeel.Event.SAVE -> "haptic_save"
+        HapticFeel.Event.CANCEL -> "haptic_cancel"
+        HapticFeel.Event.ERROR -> "haptic_error"
+        HapticFeel.Event.LISTEN -> "haptic_listen"
+    }
+
+    private fun defaultHapticPick(event: HapticFeel.Event): String = when (event) {
+        HapticFeel.Event.TAP -> HapticPick.CLICK
+        HapticFeel.Event.SAVE -> HapticPick.CONFIRM
+        HapticFeel.Event.CANCEL -> HapticPick.REJECT
+        HapticFeel.Event.ERROR -> HapticPick.REJECT
+        HapticFeel.Event.LISTEN -> HapticPick.TICK
+    }
 
     var bubbleEdgeSnap: Boolean
         get() = store.getString("bubble_edge_snap", "true") == "true"

@@ -29,7 +29,7 @@ class HistorySearchPolicyTest {
     fun history_screen_calls_repo_fts_not_in_memory_contains() {
         val src = File(
             UiSourceScan.projectRoot(),
-            "app/src/main/java/app/openflow/ui/MainActivity.kt"
+            "app/src/main/java/app/openflow/ui/history/HistoryScreen.kt"
         ).readText()
         assertThat(src).contains("searchDictations")
         assertThat(src).contains("HistorySearchPolicy.ftsMatch")

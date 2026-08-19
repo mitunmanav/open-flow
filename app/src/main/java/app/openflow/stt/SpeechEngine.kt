@@ -38,6 +38,12 @@ interface SpeechEngine {
 
     fun stop()
 
+    /** Stop listen and invoke [onDone] after the last [Listener.onFinal] (or timeout). */
+    fun stopAndFlush(timeoutMs: Long, onDone: () -> Unit) {
+        stop()
+        onDone()
+    }
+
     fun destroy()
 
     /** API 33+ SpeechRecognizer bias. Default no-op. */

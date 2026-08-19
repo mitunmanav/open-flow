@@ -28,4 +28,14 @@ class ModelCatalogTest {
     fun parse_empty_array() {
         assertThat(ModelCatalog.parse("[]")).isEmpty()
     }
+
+    @Test
+    fun catalog_includes_tiny_en_https() {
+        val json = java.io.File("src/main/assets/ondevice_catalog.json").readText()
+        val models = ModelCatalog.parse(json)
+        val tinyEn = models.first { it.id == "tiny.en" }
+        assertThat(tinyEn.url)
+            .isEqualTo("https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin")
+        assertThat(tinyEn.minRamMb).isAtMost(2048)
+    }
 }

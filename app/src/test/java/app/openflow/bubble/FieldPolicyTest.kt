@@ -165,6 +165,42 @@ class FieldPolicyTest {
     }
 
     @Test
+    fun spin_hint_is_not_pin() {
+        assertThat(
+            FieldPolicy.isSensitive(false, 1, "EditText", "Spin the wheel")
+        ).isFalse()
+    }
+
+    @Test
+    fun headphones_hint_is_not_phone() {
+        assertThat(
+            FieldPolicy.isSensitive(false, 1, "EditText", "Headphones volume")
+        ).isFalse()
+    }
+
+    @Test
+    fun microphone_class_is_not_phone() {
+        assertThat(
+            FieldPolicy.isSensitive(false, 1, "android.widget.MicrophoneGain", "Gain")
+        ).isFalse()
+    }
+
+    @Test
+    fun pin_word_still_sensitive() {
+        assertThat(FieldPolicy.isSensitive(false, 1, "EditText", "Enter PIN")).isTrue()
+    }
+
+    @Test
+    fun phone_word_still_sensitive() {
+        assertThat(FieldPolicy.isSensitive(false, 1, "EditText", "Phone number")).isTrue()
+    }
+
+    @Test
+    fun telephone_word_still_sensitive() {
+        assertThat(FieldPolicy.isSensitive(false, 1, "EditText", "Telephone")).isTrue()
+    }
+
+    @Test
     fun accepts_skips_password_flag() {
         assertThat(
             FieldPolicy.acceptsDictation(

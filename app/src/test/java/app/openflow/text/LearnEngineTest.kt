@@ -274,4 +274,43 @@ class LearnEngineTest {
         assertThat(LearnEngine.levenshtein("", "abc")).isEqualTo(3)
         assertThat(LearnEngine.levenshtein("abc", "abc")).isEqualTo(0)
     }
+
+    @Test
+    fun one_edit_does_not_persist_auto() {
+        LearnEngine.resetLearn()
+        val c1 = LearnEngine.noteAutoCandidate("mike", "mic", setOf("turn"))
+        assertThat(c1.persisted).isFalse()
+        assertThat(LearnEngine.autoKeys()).doesNotContain("mike")
+    }
+
+    @Test
+    fun two_same_bag_persists() {
+        LearnEngine.resetLearn()
+        LearnEngine.noteAutoCandidate("mike", "mic", setOf("turn"))
+        val c2 = LearnEngine.noteAutoCandidate("mike", "mic", setOf("turn"))
+        assertThat(c2.persisted).isTrue()
+        assertThat(LearnEngine.autoKeys()).contains("mike")
+    }
+
+    @Test
+    fun apply_skips_title_mike_and_mike_ii() {
+        val text = LearnEngine.applyPairs(
+            "Meet Mike II tomorrow",
+            mapOf("mike" to "mic"),
+            sides = mapOf("mike" to setOf("turn")),
+            autoKeys = setOf("mike"),
+        )
+        assertThat(text).contains("Mike")
+        assertThat(text).contains("II")
+        assertThat(text.lowercase()).doesNotContain("mic")
+    }
+
+    @Test
+    fun reverse_surface_drops() {
+        LearnEngine.resetLearn()
+        LearnEngine.noteAutoCandidate("mike", "mic", setOf("turn"))
+        LearnEngine.noteAutoCandidate("mike", "mic", setOf("turn"))
+        LearnEngine.noteAutoCandidate("mic", "mike", setOf("turn"))
+        assertThat(LearnEngine.autoKeys()).doesNotContain("mike")
+    }
 }

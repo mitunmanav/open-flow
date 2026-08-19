@@ -79,8 +79,16 @@ abstract class CloudEar(
             )
             session = live
             onSessionOpen(live)
-            pcm.start { chunk ->
+            val micOn = pcm.start { chunk ->
                 if (chunk.isNotEmpty()) writeAudio(live, chunk)
+            }
+            if (!micOn) {
+                pcm.stop()
+                session = null
+                runCatching { onSessionClose(live) }
+                live.close()
+                listener?.onError("Microphone start failed", true)
+                return
             }
             listener?.onReady()
             listener?.onListeningChanged(true)

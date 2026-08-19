@@ -85,8 +85,9 @@ class SarvamEarTest {
 
     private class FakePcm : PcmSource {
         private var sink: ((ByteArray) -> Unit)? = null
-        override fun start(onChunk: (ByteArray) -> Unit) {
+        override fun start(onChunk: (ByteArray) -> Unit): Boolean {
             sink = onChunk
+            return true
         }
         override fun stop() {
             sink = null

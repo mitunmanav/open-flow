@@ -1,0 +1,141 @@
+package app.openflow.docs
+
+import app.openflow.ui.qa.UiSourceScan
+import com.google.common.truth.Truth.assertThat
+import com.google.common.truth.Truth.assertWithMessage
+import java.io.File
+import org.junit.Test
+
+/** GitHub Pages HTML: same nav, honest INTERNET, no filler words. */
+class SitePagesTest {
+
+    private val pages = File(UiSourceScan.projectRoot(), "docs")
+        .listFiles()
+        .orEmpty()
+        .filter { it.extension == "html" }
+
+    @Test
+    fun pages_exist() {
+        val names = pages.map { it.name }.toSet()
+        assertThat(names).containsAtLeast(
+            "index.html",
+            "install.html",
+            "guide.html",
+            "privacy.html",
+            "report.html",
+            "compare.html",
+            "architecture.html",
+            "roadmap.html",
+        )
+    }
+
+    @Test
+    fun every_page_has_talk_and_privacy_nav() {
+        pages.forEach { f ->
+            val t = f.readText()
+            assertWithMessage("${f.name} missing Privacy nav")
+                .that(t)
+                .contains("privacy.html")
+            assertWithMessage("${f.name} missing Talk / Discussions")
+                .that(t)
+                .contains("github.com/mitunmanav/open-flow/discussions")
+        }
+    }
+
+    @Test
+    fun no_filler_or_stale_lines() {
+        val banned = listOf(
+            "moat",
+            "product shell",
+            "no sugar",
+            "inspectable",
+            "copy / undo",
+            "adding internet",
+            "does not declare internet",
+            "no internet permission",
+            "seamless",
+            "leverage",
+            "empower",
+            "robust",
+            "streamline",
+            "cutting-edge",
+            "game-changer",
+            "delve",
+            "utilize",
+            "elevate",
+            "revolutionize",
+            "next-gen",
+            "effortless",
+            "crafted",
+            "supercharge",
+            "reimagine",
+        )
+        pages.forEach { f ->
+            val low = f.readText().lowercase()
+            banned.forEach { word ->
+                assertWithMessage("${f.name} has \"$word\"")
+                    .that(low)
+                    .doesNotContain(word)
+            }
+        }
+    }
+
+    @Test
+    fun index_and_privacy_say_internet_declared() {
+        val index = File(UiSourceScan.projectRoot(), "docs/index.html").readText().lowercase()
+        val privacy = File(UiSourceScan.projectRoot(), "docs/privacy.html").readText().lowercase()
+        assertThat(index).contains("internet is declared")
+        assertThat(privacy).contains("internet is declared")
+        assertThat(index).doesNotContain("ime")
+    }
+
+    @Test
+    fun index_hero_downloads_apk_without_card_grid() {
+        val index = File(UiSourceScan.projectRoot(), "docs/index.html").readText()
+        assertThat(index).contains("class=\"hero\"")
+        assertThat(index).contains("class=\"demo kb\"")
+        assertThat(index).contains("open-flow-0.1.7-debug.apk")
+        assertThat(index).doesNotContain("class=\"card\"")
+        assertThat(index).doesNotContain("class=\"grid\"")
+        assertThat(index).doesNotContain("class=\"field\"")
+        assertThat(index.lowercase()).doesNotContain("notes")
+    }
+
+    @Test
+    fun site_css_is_not_ai_landing_template() {
+        val css = File(UiSourceScan.projectRoot(), "docs/site.css").readText()
+        assertThat(css).doesNotContain("#f4efe6")
+        assertThat(css).doesNotContain("#0f1c22")
+        assertThat(css).doesNotContain("#e8a54b")
+        assertThat(css).doesNotContain("Sora")
+        assertThat(css).doesNotContain("Atkinson")
+        assertThat(css).doesNotContain("radial-gradient")
+        assertThat(css).contains("--desk")
+        assertThat(css).contains(".kb")
+        assertThat(css).contains("Big Shoulders")
+        assertThat(css).contains("Noto Sans")
+        assertThat(css).contains("prefers-reduced-motion")
+    }
+
+    @Test
+    fun site_loads_local_fonts_not_google_import() {
+        val root = File(UiSourceScan.projectRoot(), "docs")
+        val css = File(root, "site.css").readText()
+        assertThat(css).doesNotContain("@import")
+        assertThat(css).doesNotContain("fonts.googleapis.com")
+        assertThat(css).contains("@font-face")
+        assertThat(css).contains("font-display: swap")
+        assertThat(File(root, "fonts/big-shoulders-800.woff2").isFile).isTrue()
+        assertThat(File(root, "fonts/noto-sans.woff2").isFile).isTrue()
+        assertThat(File(root, "fonts/noto-sans-italic.woff2").isFile).isTrue()
+        pages.forEach { f ->
+            val t = f.readText()
+            assertWithMessage("${f.name} missing theme-color")
+                .that(t)
+                .contains("theme-color")
+        }
+        val index = File(root, "index.html").readText()
+        assertThat(index).contains("rel=\"preload\"")
+        assertThat(index).contains("big-shoulders-800.woff2")
+    }
+}

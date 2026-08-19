@@ -29,6 +29,8 @@ class UiPathTest {
             AppRoute.HomeModules,
             AppRoute.Cleanup,
             AppRoute.Privacy,
+            AppRoute.PrivacyPolicy,
+            AppRoute.Terms,
             AppRoute.Sounds,
             AppRoute.Setup,
         )
@@ -58,12 +60,26 @@ class UiPathTest {
     }
 
     @Test
+    fun home_does_not_duplicate_insights_or_legal() {
+        val home = File(
+            UiSourceScan.projectRoot(),
+            "app/src/main/java/app/openflow/ui/home/HomeFeed.kt"
+        ).readText()
+        assertThat(home).doesNotContain("home_open_insights")
+        assertThat(home).doesNotContain("home_legal_privacy")
+        assertThat(home).doesNotContain("Open Insights")
+        assertThat(home).contains("HomeHonestyFooter")
+    }
+
+    @Test
     fun internet_declared_unused_until_pick() {
         val manifest = File(
             UiSourceScan.projectRoot(),
             "app/src/main/AndroidManifest.xml"
         ).readText()
         assertThat(manifest).contains("android.permission.INTERNET")
+        assertThat(manifest).contains("android.intent.action.VIEW")
+        assertThat(manifest).contains("android:scheme=\"https\"")
     }
 
     @Test
@@ -85,8 +101,13 @@ class UiPathTest {
             "home_note_field",
             "home_history_search",
             "bubble_preview",
+            "appearance_theme",
+            "appearance_refresh",
+            "haptics_reset",
             "dict_word",
             "privacy_auto_learn",
+            "legal_privacy",
+            "legal_terms",
         )
 
         val PATH_TAGS = listOf(
@@ -97,18 +118,32 @@ class UiPathTest {
             "shell_title",
             "nav_back",
             "history_export",
+            "history_export_md",
+            "history_export_plain",
+            "history_export_json",
+            "history_export_raw",
+            "history_export_save",
             "history_edit",
             "engine_settings",
             "engine_feature_chips",
             "engine_honesty",
             "engine_ear_disabled",
+            "route_local_only",
+            "route_local_then_ai",
+            "route_ai_first",
+            "ai_when_every",
+            "ai_when_miss",
+            "settings_hub",
             "nav_settings",
             "nav_snippets",
             "dict_fab",
+            "dict_auto_row",
             "snippet_fab",
-            "home_stats_pages",
+            "home_stats_pager",
             "home_banner_repair",
-            "home_open_insights",
+            "history_copy",
+            "history_share",
+            "history_more",
             "nav_insights",
             "insights_screen",
             "insights_tab_usage",

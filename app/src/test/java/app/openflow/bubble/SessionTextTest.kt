@@ -47,4 +47,28 @@ class SessionTextTest {
     fun no_double_space_before_punct_partial() {
         assertThat(SessionText.commitRaw("Hi", ".")).isEqualTo("Hi.")
     }
+
+    @Test
+    fun overlap_suffix_prefix_does_not_double() {
+        assertThat(SessionText.commitRaw("I said hi", "hi there"))
+            .isEqualTo("I said hi there")
+    }
+
+    @Test
+    fun char_suffix_is_not_overlap() {
+        assertThat(SessionText.commitRaw("I want more", "or maybe"))
+            .isEqualTo("I want more or maybe")
+    }
+
+    @Test
+    fun short_partial_already_a_word_stays_finals() {
+        assertThat(SessionText.commitRaw("I want a sandwich", "a"))
+            .isEqualTo("I want a sandwich")
+    }
+
+    @Test
+    fun new_short_partial_appends() {
+        assertThat(SessionText.commitRaw("I want", "a"))
+            .isEqualTo("I want a")
+    }
 }

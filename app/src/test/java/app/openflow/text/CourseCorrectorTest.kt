@@ -296,4 +296,48 @@ class CourseCorrectorTest {
         assertThat(out.lowercase()).contains("actually")
         assertThat(out.lowercase()).contains("enjoyed")
     }
+
+    @Test
+    fun strike_that_restarts() {
+        val out = CourseCorrector.apply("write the intro strike that start with budget")
+        assertThat(out.lowercase()).contains("start with budget")
+        assertThat(out.lowercase()).doesNotContain("intro")
+    }
+
+    @Test
+    fun name_not_name() {
+        val out = CourseCorrector.apply("send it to John not James")
+        assertThat(out.lowercase()).contains("james")
+        assertThat(out.lowercase()).doesNotContain("john")
+    }
+
+    @Test
+    fun mike_ii_not_eaten() {
+        val out = CourseCorrector.apply("send it to Mike II not James")
+        assertThat(out).contains("James")
+        assertThat(out).contains("II")
+        assertThat(out).doesNotContain("Mike")
+    }
+
+    @Test
+    fun comma_send_frame_keeps_last_name() {
+        val out = CourseCorrector.apply("send it to John, James")
+        assertThat(out.lowercase()).contains("james")
+        assertThat(out.lowercase()).doesNotContain("john")
+    }
+
+    @Test
+    fun grocery_list_comma_kept() {
+        val out = CourseCorrector.apply("apples, oranges, bananas")
+        assertThat(out.lowercase()).contains("apples")
+        assertThat(out.lowercase()).contains("oranges")
+        assertThat(out.lowercase()).contains("bananas")
+    }
+
+    @Test
+    fun gift_ellipsis_still() {
+        val out = CourseCorrector.apply("as a gift… as a present")
+        assertThat(out.lowercase()).contains("present")
+        assertThat(out.lowercase()).doesNotContain("gift")
+    }
 }

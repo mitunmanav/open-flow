@@ -15,6 +15,8 @@ enum class AppRoute(val title: String, val navId: String? = null) {
     HomeModules("Home layout"),
     Cleanup("Cleanup"),
     Privacy("Privacy"),
+    PrivacyPolicy("Privacy policy"),
+    Terms("Terms of use"),
     Sounds("Sounds"),
     Setup("Set up", "setup"),
 }
@@ -42,6 +44,8 @@ val SettingsSubtreeRoutes = setOf(
     AppRoute.Haptics,
     AppRoute.Cleanup,
     AppRoute.Privacy,
+    AppRoute.PrivacyPolicy,
+    AppRoute.Terms,
     AppRoute.Sounds,
     AppRoute.HomeModules,
 )

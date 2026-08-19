@@ -53,6 +53,19 @@ object PackagePolicy {
         if (packageName.isNullOrBlank()) return false
         val p = packageName.lowercase()
         if (p in exact) return true
-        return tokens.any { p.contains(it) }
+        return tokens.any { tokenHits(p, it) }
+    }
+
+    private fun tokenHits(pkg: String, token: String): Boolean {
+        if (token.contains('.') || token.contains('_')) return pkg.contains(token)
+        if (token.length <= 4) {
+            return Regex("""(?<=^|[._])${Regex.escape(token)}(?=$|[._])""").containsMatchIn(pkg)
+        }
+        return pkg.contains(token)
+    }
+
+    fun isOwnApp(packageName: String?): Boolean {
+        val p = packageName.orEmpty()
+        return p == "app.openflow" || p.startsWith("app.openflow.")
     }
 }

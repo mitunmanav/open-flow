@@ -1,0 +1,21 @@
+title: "[Q] "
+category: q-a
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Install help and “how do I…”. Bugs → [Issues](https://github.com/mitunmanav/open-flow/issues/new/choose).
+        Do **not** post names, emails, bank screens, or private dictation.
+  - type: checkboxes
+    id: no_personal
+    attributes:
+      label: This post is clean
+      options:
+        - label: I did not paste personal dictation, bank screens, or contact details
+          required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+    validations:
+      required: true

@@ -2,6 +2,8 @@ package app.openflow.text
 
 data class LearnPair(val from: String, val to: String)
 
+data class LearnConfirm(val persisted: Boolean, val pendingHits: Int)
+
 data class LearnSides(
     val sides: Map<String, Set<String>> = emptyMap(),
     val auto: Set<String> = emptySet(),
@@ -25,16 +27,24 @@ object LearnEngine {
 
     private const val MANUAL_MARK = "*"
     private val SUFFIXES = listOf("'s", "s", "ed", "ing", "er", "est")
+    private val ROMAN = setOf("II", "III", "IV")
 
     @Volatile
     private var store: LearnSides = LearnSides()
 
+    private val pending = LinkedHashMap<String, PendingLearn>()
+
     @Volatile
     var persistHook: ((String) -> Unit)? = null
 
+    @Volatile
+    var pendingHook: ((String) -> Unit)? = null
+
     fun resetLearn() {
         store = LearnSides()
+        pending.clear()
         persistHook = null
+        pendingHook = null
     }
 
     fun sideBags(): Map<String, Set<String>> = store.sides
@@ -70,16 +80,70 @@ object LearnEngine {
             auto = store.auto - k,
             manual = store.manual - k
         )
+        pending.entries.removeAll { it.value.from == k || it.value.to == k }
         persist()
+        persistPending()
     }
 
     fun clearAll() {
         store = LearnSides()
+        pending.clear()
         persist()
+        persistPending()
     }
 
     fun loadSides(raw: String) {
         store = decodeSides(raw)
+    }
+
+    fun loadPending(raw: String) {
+        pending.clear()
+        if (raw.isBlank()) return
+        for (line in raw.split('\n')) {
+            val t = line.trim()
+            if (t.isEmpty() || '=' !in t || '|' !in t) continue
+            val from = t.substringBefore('=').trim().lowercase()
+            val rest = t.substringAfter('=')
+            val parts = rest.split('|')
+            if (parts.size < 2 || from.isEmpty()) continue
+            val to = parts[0].trim().lowercase()
+            val hits = parts[1].trim().toIntOrNull() ?: continue
+            val bag = if (parts.size < 3 || parts[2].isBlank()) {
+                emptySet()
+            } else {
+                parts[2].split(',').map { it.trim().lowercase() }.filter { it.isNotEmpty() }.toSet()
+            }
+            if (to.isEmpty()) continue
+            pending[pendingKey(from, to, bag)] = PendingLearn(from, to, bag, hits)
+        }
+    }
+
+    fun encodePending(): String =
+        pending.values.joinToString("\n") { p ->
+            val bag = p.bag.sorted().joinToString(",")
+            "${p.from}=${p.to}|${p.hits}|$bag"
+        }
+
+    fun noteAutoCandidate(from: String, to: String, bag: Set<String>): LearnConfirm {
+        val f = from.trim().lowercase()
+        val t = to.trim().lowercase()
+        val b = bag.map { it.trim().lowercase() }.filter { it.isNotEmpty() }.toSet()
+        if (f.isEmpty() || t.isEmpty() || f == t) return LearnConfirm(false, 0)
+        if (t in store.auto) {
+            drop(t)
+            return LearnConfirm(false, 0)
+        }
+        val key = pendingKey(f, t, b)
+        val hits = (pending[key]?.hits ?: 0) + 1
+        if (hits < 2) {
+            pending[key] = PendingLearn(f, t, b, hits)
+            persistPending()
+            return LearnConfirm(false, hits)
+        }
+        putAuto(from, b)
+        pending.remove(key)
+        persistPending()
+        return LearnConfirm(true, hits)
     }
 
     fun encodeSides(): String = encodeSides(store.sides, store.auto, store.manual)
@@ -248,6 +312,10 @@ object LearnEngine {
                     i++
                     continue
                 }
+                if (shy && next != null && isRomanNumeral(next)) {
+                    i++
+                    continue
+                }
                 val apply = when {
                     !shy -> true
                     !amb -> true
@@ -299,6 +367,22 @@ object LearnEngine {
     private fun persist() {
         persistHook?.invoke(encodeSides())
     }
+
+    private fun persistPending() {
+        pendingHook?.invoke(encodePending())
+    }
+
+    private fun pendingKey(from: String, to: String, bag: Set<String>): String =
+        "$from>$to|${bag.sorted().joinToString(",")}"
+
+    private data class PendingLearn(
+        val from: String,
+        val to: String,
+        val bag: Set<String>,
+        val hits: Int,
+    )
+
+    private fun isRomanNumeral(tok: String): Boolean = tok.uppercase() in ROMAN
 
     private fun splitWords(text: String): List<String> =
         text.split(Regex("\\s+")).filter { it.isNotEmpty() }

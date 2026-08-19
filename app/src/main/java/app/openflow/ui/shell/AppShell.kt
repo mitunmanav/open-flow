@@ -36,10 +36,14 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import app.openflow.ui.HapticPick
+import app.openflow.ui.LocalHapticTap
+import app.openflow.ui.UiHapticMap
 import app.openflow.ui.a11y.Dimen
 
 /**
@@ -56,11 +60,11 @@ private data class NavItem(
 
 /** Wispr Android tabs: Home · Dictionary · Snippets · Style. */
 private val bottomItems = listOf(
-    NavItem(AppRoute.Home, "Home", OpenIcons.HomeDesc, OpenIcons.Home, "nav_home"),
-    NavItem(AppRoute.Dictionary, "Dict", OpenIcons.BookDesc, OpenIcons.Book, "nav_dictionary"),
-    NavItem(AppRoute.Snippets, "Snips", OpenIcons.ShortTextDesc, OpenIcons.ShortText, "nav_snippets"),
-    NavItem(AppRoute.Style, "Style", OpenIcons.StyleDesc, OpenIcons.Style, "nav_style"),
-    NavItem(AppRoute.Insights, "Insights", OpenIcons.InsightsDesc, OpenIcons.Insights, "nav_insights"),
+    NavItem(AppRoute.Home, NavBarTokens.shortLabel(AppRoute.Home), OpenIcons.HomeDesc, OpenIcons.Home, "nav_home"),
+    NavItem(AppRoute.Dictionary, NavBarTokens.shortLabel(AppRoute.Dictionary), OpenIcons.BookDesc, OpenIcons.Book, "nav_dictionary"),
+    NavItem(AppRoute.Snippets, NavBarTokens.shortLabel(AppRoute.Snippets), OpenIcons.ShortTextDesc, OpenIcons.ShortText, "nav_snippets"),
+    NavItem(AppRoute.Style, NavBarTokens.shortLabel(AppRoute.Style), OpenIcons.StyleDesc, OpenIcons.Style, "nav_style"),
+    NavItem(AppRoute.Insights, NavBarTokens.shortLabel(AppRoute.Insights), OpenIcons.InsightsDesc, OpenIcons.Insights, "nav_insights"),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -87,6 +91,8 @@ fun AppShell(
     val selectedBg = scheme.primary
     val onSelected = scheme.onPrimary
     val hardShape = RectangleShape
+    val view = LocalView.current
+    val hapticOn = HapticPick.constant(LocalHapticTap.current) != null
 
     Scaffold(
         contentWindowInsets = WindowInsets.safeDrawing,
@@ -106,7 +112,10 @@ fun AppShell(
                         IconButton(
                             onClick = onBack,
                             modifier = Modifier
-                                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                                .sizeIn(
+                                    minWidth = NavBarTokens.iconMin,
+                                    minHeight = NavBarTokens.iconMin
+                                )
                                 .testTag("nav_back")
                         ) {
                             Icon(
@@ -122,7 +131,10 @@ fun AppShell(
                         IconButton(
                             onClick = { onNavigate(AppRoute.Settings) },
                             modifier = Modifier
-                                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                                .sizeIn(
+                                    minWidth = NavBarTokens.iconMin,
+                                    minHeight = NavBarTokens.iconMin
+                                )
                                 .testTag("nav_settings")
                         ) {
                             Icon(
@@ -183,16 +195,23 @@ fun AppShell(
                                 modifier = Modifier
                                     .weight(1f)
                                     .sizeIn(
-                                        minWidth = Dimen.MIN_TOUCH,
-                                        minHeight = Dimen.MIN_TOUCH
+                                        minWidth = NavBarTokens.tabMin,
+                                        minHeight = NavBarTokens.tabMin
                                     )
                                     .selectable(
                                         selected = selected,
                                         role = Role.Tab,
-                                        onClick = { onNavigate(item.route) }
+                                        onClick = {
+                                            if (hapticOn) {
+                                                view.performHapticFeedback(
+                                                    UiHapticMap.constant(UiHapticMap.Event.NAV_TAB)
+                                                )
+                                            }
+                                            onNavigate(item.route)
+                                        }
                                     )
                                     .testTag(item.testTag)
-                                    .padding(vertical = 6.dp),
+                                    .padding(vertical = NavBarTokens.tabPadV),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center,
                             ) {
@@ -213,7 +232,10 @@ fun AppShell(
                                                 Modifier
                                             }
                                         )
-                                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                                        .padding(
+                                            horizontal = NavBarTokens.selectedPadH,
+                                            vertical = NavBarTokens.selectedPadV
+                                        ),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(

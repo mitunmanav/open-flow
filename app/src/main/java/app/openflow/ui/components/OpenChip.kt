@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
@@ -30,6 +31,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.openflow.ui.HapticPick
+import app.openflow.ui.LocalHapticTap
+import app.openflow.ui.UiHapticMap
 import app.openflow.ui.a11y.Dimen
 import app.openflow.ui.a11y.OpenShapes
 
@@ -48,6 +52,8 @@ fun OpenChip(
     val shape = MaterialTheme.shapes.small
     val bgColor = if (isOn) scheme.primary else scheme.surface
     val textColor = if (isOn) scheme.onPrimary else scheme.onSurface
+    val view = LocalView.current
+    val hapticOn = HapticPick.constant(LocalHapticTap.current) != null
 
     val borderColor = if (isOn) scheme.primary else scheme.outline.copy(alpha = 0.5f)
     val stateLabel = if (isOn) "$label, selected" else label
@@ -57,7 +63,7 @@ fun OpenChip(
             .defaultMinSize(minHeight = Dimen.MIN_TOUCH)
             .alpha(if (enabled || isOn) 1f else 0.38f)
             .background(color = bgColor, shape = shape)
-            .border(BorderStroke(1.dp, borderColor), shape)
+            .border(BorderStroke(Dimen.HAIRLINE, borderColor), shape)
             .semantics {
                 contentDescription = stateLabel
                 role = Role.Checkbox
@@ -66,7 +72,14 @@ fun OpenChip(
             }
             .then(
                 if (enabled) {
-                    Modifier.clickable(role = Role.Checkbox, onClick = onClick)
+                    Modifier.clickable(role = Role.Checkbox, onClick = {
+                        if (hapticOn) {
+                            view.performHapticFeedback(
+                                UiHapticMap.constant(UiHapticMap.Event.CHIP)
+                            )
+                        }
+                        onClick()
+                    })
                 } else Modifier
             ),
         contentAlignment = Alignment.CenterStart

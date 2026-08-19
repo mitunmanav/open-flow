@@ -73,17 +73,21 @@ object BubbleGeometry {
         density: Float,
         shape: String = "pill",
         chips: Boolean = false,
+        cancel: Boolean = true,
+        done: Boolean = true,
     ): Pair<Int, Int> {
-        val barH = (48f * density).toInt()
+        val idleH = (48f * density).toInt()
+        val listenH = (BubbleTouch.LISTEN_BAR_DP * density).toInt()
         if (listening) {
-            // Cancel | waveform | Done — Wispr Android listen chrome
-            return (264f * density).toInt() to barH
+            val w = (BubbleTouch.listenWidthDp(cancel, done) * density).toInt()
+            val h = (BubbleTouch.ACTION_DP * density).toInt()
+            return w to h
         }
         if (chips) {
-            return (196f * density).toInt() to barH
+            return (196f * density).toInt() to listenH
         }
         return when (shape) {
-            "pill" -> (96f * density).toInt() to barH
+            "pill" -> (96f * density).toInt() to idleH
             "dot" -> {
                 val side = (28f * density).toInt()
                 side to side

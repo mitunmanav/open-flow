@@ -20,7 +20,7 @@ object HomeBannerPolicy {
     fun copy(banner: Banner): BannerCopy = when (banner) {
         Banner.REPAIR_A11Y -> BannerCopy(
             title = "Turn on Flow Bubble",
-            body = "Open Flow is off in Accessibility. Tap below, turn it on, come back.",
+            body = "Open Accessibility, enable Open Flow, then return.",
             cta = "Open Accessibility",
             a11yLabel = "Turn on Flow Bubble. Open Accessibility.",
         )

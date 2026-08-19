@@ -56,7 +56,7 @@ fun OpenCard(
             else Modifier
         )
         .background(color = faceColor, shape = shape)
-        .border(BorderStroke(1.dp, borderColor), shape)
+        .border(BorderStroke(Dimen.HAIRLINE, borderColor), shape)
         .semantics {
             if (contentDescription != null) this.contentDescription = contentDescription
             if (disabled) this.disabled()

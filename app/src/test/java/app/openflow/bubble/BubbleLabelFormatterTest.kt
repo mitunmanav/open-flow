@@ -14,7 +14,7 @@ class BubbleLabelFormatterTest {
     @Test
     fun partial_blank_falls_back_to_listening() {
         assertThat(BubbleLabelFormatter.partial("  ", elapsedSec = 3))
-            .isEqualTo("Hearing 3s")
+            .isEqualTo("Listening 3s")
     }
 
     @Test
@@ -26,8 +26,8 @@ class BubbleLabelFormatterTest {
 
     @Test
     fun listening_own_words() {
-        assertThat(BubbleLabelFormatter.listening(0)).isEqualTo("Hearing…")
-        assertThat(BubbleLabelFormatter.listening(3)).isEqualTo("Hearing 3s")
+        assertThat(BubbleLabelFormatter.listening(0)).isEqualTo("Listening")
+        assertThat(BubbleLabelFormatter.listening(3)).isEqualTo("Listening 3s")
     }
 
     @Test
@@ -56,5 +56,11 @@ class BubbleLabelFormatterTest {
     @Test
     fun idle_default() {
         assertThat(BubbleLabelFormatter.idle()).isEqualTo("Tap")
+    }
+
+    @Test
+    fun transcribe_fail_saved_in_app() {
+        assertThat(BubbleLabelFormatter.transcribeFail())
+            .isEqualTo("Could not transcribe. Saved in the app.")
     }
 }

@@ -15,14 +15,14 @@ class AndroidPcmMic(
     private var worker: Thread? = null
     private var record: AudioRecord? = null
 
-    override fun start(onChunk: (ByteArray) -> Unit) {
+    override fun start(onChunk: (ByteArray) -> Unit): Boolean {
         stop()
         val min = AudioRecord.getMinBufferSize(
             sampleRate,
             AudioFormat.CHANNEL_IN_MONO,
             AudioFormat.ENCODING_PCM_16BIT,
         )
-        if (min <= 0) return
+        if (!PcmStartPolicy.bufferOk(min)) return false
         val bufSize = min.coerceAtLeast(sampleRate / 5 * 2)
         val ar = try {
             AudioRecord(
@@ -33,11 +33,11 @@ class AndroidPcmMic(
                 bufSize,
             )
         } catch (_: Exception) {
-            return
+            return false
         }
-        if (ar.state != AudioRecord.STATE_INITIALIZED) {
+        if (!PcmStartPolicy.recordOk(ar.state == AudioRecord.STATE_INITIALIZED)) {
             ar.release()
-            return
+            return false
         }
         record = ar
         running.set(true)
@@ -47,7 +47,7 @@ class AndroidPcmMic(
             running.set(false)
             ar.release()
             record = null
-            return
+            return false
         }
         worker = thread(name = "openflow-pcm", isDaemon = true) {
             val buf = ByteArray(bufSize)
@@ -61,6 +61,7 @@ class AndroidPcmMic(
                 if (n < 0) break
             }
         }
+        return true
     }
 
     override fun stop() {

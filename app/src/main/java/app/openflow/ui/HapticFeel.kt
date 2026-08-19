@@ -9,27 +9,30 @@ object HapticFeel {
     const val OFF = "off"
     const val LIGHT = "light"
     const val FULL = "full"
+    const val CUSTOM = "custom"
 
     const val CLOCK_TICK = 4
     const val CONTEXT_CLICK = 6
     const val CONFIRM = 16
     const val REJECT = 17
 
-    enum class Event { TAP, SAVE, CANCEL }
+    enum class Event { TAP, SAVE, CANCEL, ERROR, LISTEN }
 
     fun normalize(value: String): String = when (value.lowercase()) {
-        OFF, LIGHT, FULL -> value.lowercase()
+        OFF, LIGHT, FULL, CUSTOM -> value.lowercase()
         else -> FULL
     }
 
-    /** null = skip haptic (off). Light = CLOCK_TICK only. */
+    /** null = skip haptic (off). Light = CLOCK_TICK only. Custom uses HapticPick. */
     fun constantFor(feel: String, event: Event): Int? = when (normalize(feel)) {
-        OFF -> null
+        OFF, CUSTOM -> null
         LIGHT -> CLOCK_TICK
         else -> when (event) {
             Event.TAP -> CONTEXT_CLICK
             Event.SAVE -> CONFIRM
             Event.CANCEL -> REJECT
+            Event.ERROR -> REJECT
+            Event.LISTEN -> CLOCK_TICK
         }
     }
 }

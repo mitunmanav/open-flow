@@ -4,16 +4,11 @@ Android 8+ (API 26). Speech language in Settings (default en-US). **Debug-signed
 
 **INTERNET** is declared in the APK; **unused** until you pick a net ear/brain or download a model. The phone’s speech engine may still use Google — that is not an Open Flow upload.
 
-**Maintainers:** pre-flight + device matrix → [LAUNCH_CHECKLIST.md](LAUNCH_CHECKLIST.md).
-
-**Maintainers:** pre-flight + device matrix → [LAUNCH_CHECKLIST.md](LAUNCH_CHECKLIST.md).
-
 ## 1. Get the APK
 
 | Source | Where |
 |--------|--------|
 | GitHub Releases | `open-flow-0.1.7-debug.apk` → [Releases](https://github.com/mitunmanav/open-flow/releases/latest) |
-| Desktop (dev) | `GitHub Releases` |
 | Fresh build | `app/build/outputs/apk/debug/app-debug.apk` |
 
 ## 2. Allow this one installer

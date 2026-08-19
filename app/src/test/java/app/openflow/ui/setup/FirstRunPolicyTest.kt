@@ -58,10 +58,10 @@ class FirstRunPolicyTest {
     @Test
     fun battery_step_copy_makes_skip_clear() {
         val c = FirstRunPolicy.copy(FirstRunPolicy.Step.BATTERY)
-        assertThat(c.title).isEqualTo("Stop the phone killing it")
+        assertThat(c.title).isEqualTo("Keep Open Flow running")
         assertThat(c.body).contains("Optional")
         assertThat(c.body).contains("Skip")
-        assertThat(c.primary).isEqualTo("Battery settings")
+        assertThat(c.primary).isEqualTo("Open battery setting")
         assertThat(c.secondary).isEqualTo("Skip")
     }
 

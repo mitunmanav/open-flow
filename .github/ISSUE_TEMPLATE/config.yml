@@ -1,8 +1,11 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Install help
-    url: https://github.com/mitunmanav/open-flow/blob/main/docs/INSTALL.md
-    about: How to install the APK and turn on the bubble
-  - name: Discussions
+  - name: Questions and install help
     url: https://github.com/mitunmanav/open-flow/discussions
-    about: Questions and ideas (not a crash)
+    about: Not a crash. Ask in Discussions.
+  - name: Install the APK
+    url: https://mitunmanav.github.io/open-flow/install.html
+    about: Sideload and Accessibility steps
+  - name: Security hole
+    url: https://github.com/mitunmanav/open-flow/security/advisories/new
+    about: Private report. Not a public issue.

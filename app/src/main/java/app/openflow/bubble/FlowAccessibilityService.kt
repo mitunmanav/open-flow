@@ -52,15 +52,12 @@ import app.openflow.audio.SessionAudioCapture
 import app.openflow.data.ProcessStatus
 import app.openflow.notify.DictationNotifier
 import java.util.UUID
-import app.openflow.orchestrate.BrainRouter
-import app.openflow.orchestrate.PipelineArtifactPolicy
 import app.openflow.orchestrate.ProviderHealth
 import app.openflow.orchestrate.RouteSignals
-import app.openflow.orchestrate.SessionArtifact
 import app.openflow.orchestrate.SttRouter
 import app.openflow.prefs.FlowPrefs
 import app.openflow.ui.HapticFeel
-import app.openflow.ui.theme.BubbleTint
+import app.openflow.ui.HapticPick
 import app.openflow.runtime.TrimPolicy
 import app.openflow.stt.providers.cloud.CloudEar
 import app.openflow.stt.AndroidSpeechEngine
@@ -68,8 +65,8 @@ import app.openflow.stt.MainThreadHop
 import app.openflow.stt.SpeechEngine
 import app.openflow.stt.SttBias
 import app.openflow.stt.SttEngine
+import app.openflow.stt.providers.ondevice.OnDeviceEar
 import app.openflow.text.CleanupResult
-import app.openflow.text.CleanupLevel
 import app.openflow.text.CommandMode
 import app.openflow.text.CustomStyleConfig
 import app.openflow.text.InsertPolish
@@ -104,6 +101,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     private var bubblePulseRing: View? = null
     private var bubbleCancel: ImageView? = null
     private var bubbleDone: ImageView? = null
+    private var bubbleWave: View? = null
+    private var bubbleWaveBars: Array<View?> = arrayOfNulls(4)
     private var bubbleChipCopy: TextView? = null
     private var bubbleChipUndo: TextView? = null
     private var bubbleChipPaste: TextView? = null
@@ -152,6 +151,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     private var compactVisual = false
     private var lastInteractionAt = 0L
     private var lastRms = 0f
+    private var listenAwake = false
     private val dragCache = BubbleDragCache()
     private var lastVisibilityRefreshAt = 0L
     private var lastRmsBars: String = ""
@@ -472,6 +472,11 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         bubblePulseRing = view.findViewById(R.id.bubble_pulse_ring)
         bubbleCancel = view.findViewById(R.id.bubble_cancel)
         bubbleDone = view.findViewById(R.id.bubble_done)
+        bubbleWave = view.findViewById(R.id.bubble_wave)
+        bubbleWaveBars[0] = view.findViewById(R.id.bubble_wave_0)
+        bubbleWaveBars[1] = view.findViewById(R.id.bubble_wave_1)
+        bubbleWaveBars[2] = view.findViewById(R.id.bubble_wave_2)
+        bubbleWaveBars[3] = view.findViewById(R.id.bubble_wave_3)
         bubbleChipCopy = view.findViewById(R.id.bubble_chip_copy)
         bubbleChipUndo = view.findViewById(R.id.bubble_chip_undo)
         bubbleChipPaste = view.findViewById(R.id.bubble_chip_paste)
@@ -624,10 +629,17 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                         bubbleHeightPx = h
                     )
                     if (dragged && savedY < 40) {
-                        prefs?.snoozeMinutes(10)
-                        Toast.makeText(this, R.string.flow_bubble_snoozed, Toast.LENGTH_SHORT).show()
-                        refreshBubbleVisibility()
-                        return@setOnTouchListener true
+                        if (BubbleSnoozePolicy.canSnooze(
+                                imeVisible = imeVisible,
+                                listening = listening,
+                                repairShowing = micRepairShowing(),
+                            )
+                        ) {
+                            prefs?.snoozeMinutes(10)
+                            Toast.makeText(this, R.string.flow_bubble_snoozed, Toast.LENGTH_SHORT).show()
+                            refreshBubbleVisibility()
+                            return@setOnTouchListener true
+                        }
                     }
                     val snapping = dragged && prefs?.bubbleEdgeSnap == true
                     params.y = BubbleGeometry.parkYAboveIme(savedY, imeHeightPx)
@@ -741,6 +753,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         bubblePulseRing = null
         bubbleCancel = null
         bubbleDone = null
+        bubbleWave = null
+        bubbleWaveBars = arrayOfNulls(4)
         bubbleChipCopy = null
         bubbleChipUndo = null
         bubbleChipPaste = null
@@ -816,16 +830,21 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
         lastPackage = ActivePackageTracker.remember(lastPackage, activePkg)
         val bankHide = PackagePolicy.shouldHideBubble(lastPackage)
+        if (BubbleVisibility.shouldAbortListen(bankHide, listening)) {
+            stopListening(false)
+        }
         val hasField = focusedEditable != null
-        // Wispr: show on text field. Keep visible while listening even if focus blips.
-        // Soft IME gate: if IME never reported, still show on field (OEM variance).
         val imeGate = if (imeVisible) true else hasField || listening
+        val micRepair = micRepairShowing()
         val show = BubbleVisibility.shouldShow(
             snoozed = snoozed,
             bankHide = bankHide,
             hasEditable = hasField || listening,
             imeVisible = imeGate,
-            alwaysShow = listening
+            alwaysShow = listening,
+            listening = listening,
+            insideOwnApp = PackagePolicy.isOwnApp(lastPackage),
+            mustStay = micRepair,
         )
         bubbleView?.visibility = if (show) View.VISIBLE else View.GONE
         if (snoozed) registerShake() else unregisterShake()
@@ -851,18 +870,25 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
     private fun effectiveScale(): Float {
         val p = prefs ?: return 0.9f
-        val mode = if (compactVisual && !listening) {
-            "compact"
-        } else {
-            FlowPrefs.normalizeBubbleMode(p.bubbleMode)
-        }
+        if (listening) return p.bubbleScale
+        val mode = BubbleShrinkPolicy.idleMode(p.bubbleShrinkIdle, p.bubbleShrinkDot)
         val modeMul = when (mode) {
             "compact" -> 0.75f
             "dot" -> 0.55f
             else -> 1f
         }
-        val searchMul = if (searchFieldFocused && !listening) 0.72f else 1f
+        val searchMul = BubbleShrinkPolicy.searchMul(
+            masterOn = p.bubbleShrinkIdle,
+            shrinkSearch = p.bubbleShrinkSearch,
+            searchFocused = searchFieldFocused,
+            listening = listening,
+        )
         return p.bubbleScale * modeMul * searchMul
+    }
+
+    private fun micRepairShowing(): Boolean {
+        val t = bubbleLabel?.text?.toString().orEmpty()
+        return t == BubbleLabelFormatter.needMic() || t == getString(R.string.flow_bubble_need_mic)
     }
 
     private fun applyVisualScale() {
@@ -1085,10 +1111,12 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         if (!micOk) {
             bubbleLabel?.text = getString(R.string.flow_bubble_need_mic)
             listening = false
+            refreshBubbleVisibility()
             return
         }
         listening = true
         compactVisual = false
+        hapticEvent(HapticFeel.Event.LISTEN)
         sessionBuffer = StringBuilder()
         lastPartial = ""
         fieldPrefix = captureFieldPrefix()
@@ -1098,25 +1126,24 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         lastInteractionAt = listenStartedAt
         setListeningAwake(true)
         val gen = ++listenGeneration
-        if (retrySessionId == null) {
-            sessionAudio.start()
-        }
 
         updateBubbleVisuals()
         setListenChrome(0)
         setBubbleEmphasis(true)
 
         val lang = InsertPolish.language(prefs?.languageTag)
-        val autoRoute = app.enginePrefs.autoRoute
         val earPick = SttRouter.pick(
-            auto = autoRoute,
+            auto = false,
             manualEarId = app.enginePrefs.earId,
             signals = routeSignals(),
             health = providerHealth,
         )
         sessionEarId = earPick.providerId
-        val ear = if (autoRoute) app.registry.ear(sessionEarId) else app.currentEar()
+        val ear = app.currentEar()
         this.ear = ear
+        if (retrySessionId == null && ear !is OnDeviceEar) {
+            sessionAudio.start()
+        }
         ear.setListener(object : SpeechEngine.Listener {
             /** Accept STT while this generation is active (including flush). */
             private fun live(): Boolean = gen == listenGeneration
@@ -1165,15 +1192,9 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 if (BuildConfig.DEBUG) {
                     android.util.Log.w("OpenFlow.Bubble", "ear error fatal=$fatal msg=$message")
                 }
-                val mic = message.contains("Microphone", true) ||
-                    message.contains("Allow mic", true)
-                val soft = !fatal && !mic && (
-                    message.contains("Silence", true) ||
-                        message.contains("No match", true) ||
-                        message.contains("Busy", true) ||
-                        message.contains("No recognition", true) ||
-                        message.contains("Retrying", true)
-                    )
+                val kind = EarErrorPolicy.classify(message, fatal)
+                val mic = kind == EarErrorPolicy.Kind.MIC
+                val soft = kind == EarErrorPolicy.Kind.SOFT
                 if (soft) {
                     setListenChrome((SystemClock.elapsedRealtime() - listenStartedAt) / 1000)
                     return@ui
@@ -1185,6 +1206,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 }
                 bubbleLabel?.text = shown
                 if (!mic && !soft) {
+                    hapticEvent(HapticFeel.Event.ERROR)
                     Toast.makeText(
                         this@FlowAccessibilityService,
                         shown,
@@ -1278,7 +1300,18 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 stopInProgress = false
                 return
             }
-            val raw = SessionText.commitRaw(sessionBuffer.toString(), lastPartial)
+            val snap = ListenSnapshot(
+                generation = gen,
+                finals = sessionBuffer.toString(),
+                lastPartial = lastPartial,
+                prefix = prefix,
+                earId = routedEarId,
+                sessionId = sessionId,
+                startedAtElapsed = listenStartedAt,
+                startedWallMs = listenStartedWallMs,
+                retrySessionId = retrySessionId,
+            )
+            val raw = snap.raw
             if (BuildConfig.DEBUG) {
                 android.util.Log.i(
                     "OpenFlow.Bubble",
@@ -1297,41 +1330,53 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             ear?.setListener(null)
             stopInProgress = false
 
-            if (save && raw.isNotBlank()) {
-                val lang = InsertPolish.language(prefs?.languageTag)
-                polishSession(raw, prefix, routedEarId) { result ->
-                    finishPolishedInsert(
-                        result = result,
-                        prefix = prefix,
-                        dur = dur,
-                        lang = lang,
-                        logTag = "OpenFlow.Bubble",
-                    )
+            when (StopCommitPolicy.decide(save, raw)) {
+                StopCommitPolicy.Action.POLISH_INSERT -> {
+                    val lang = InsertPolish.language(prefs?.languageTag)
+                    polishSession(raw, prefix, routedEarId) { result ->
+                        finishPolishedInsert(
+                            result = result,
+                            prefix = prefix,
+                            dur = dur,
+                            lang = lang,
+                            logTag = "OpenFlow.Bubble",
+                        )
+                    }
                 }
-            } else if (save && raw.isBlank()) {
-                persistFailedSession(dur)
-                bubbleLabel?.text = "Fail · tap to retry"
-            } else {
-                sessionAudio.stopAndDiscard()
-                bubbleLabel?.text = BubbleLabelFormatter.idle()
+                StopCommitPolicy.Action.PERSIST_FAIL -> {
+                    persistFailedSession(dur)
+                    bubbleLabel?.text = "Fail · tap to retry"
+                }
+                StopCommitPolicy.Action.DISCARD -> {
+                    sessionAudio.stopAndDiscard()
+                    bubbleLabel?.text = BubbleLabelFormatter.idle()
+                }
             }
             updateBubbleVisuals()
             setBubbleEmphasis(focusedEditable != null)
         }
 
-        when (val current = ear) {
-            is AndroidSpeechEngine -> current.stopAndFlush(SttEngine.DEFAULT_FLUSH_TIMEOUT_MS) {
-                mainHandler.post { finishCommit() }
+        val current = ear
+        if (current == null) {
+            finishCommit()
+        } else {
+            val timeout = if (current is OnDeviceEar) {
+                OnDeviceEar.FLUSH_TIMEOUT_MS
+            } else {
+                SttEngine.DEFAULT_FLUSH_TIMEOUT_MS
             }
-            else -> {
-                current?.stop()
-                finishCommit()
+            current.stopAndFlush(timeout) {
+                mainHandler.post { finishCommit() }
             }
         }
     }
 
     /** Circle/square hide label at idle; force visible while showing live text. */
     private fun ensureLabelVisibleForText() {
+        if (listening) {
+            bubbleLabel?.visibility = View.GONE
+            return
+        }
         if (prefs?.bubbleShowText != true) return
         bubbleLabel?.visibility = View.VISIBLE
     }
@@ -1382,11 +1427,11 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     }
 
     private fun registerInjectReceiver() {
-        if (!BuildConfig.DEBUG || injectReceiverRegistered) return
+        if (!ReceiverExportPolicy.injectAllowed(BuildConfig.DEBUG) || injectReceiverRegistered) return
         val filter = IntentFilter(ACTION_INJECT)
         try {
             if (Build.VERSION.SDK_INT >= 33) {
-                registerReceiver(injectReceiver, filter, Context.RECEIVER_EXPORTED)
+                registerReceiver(injectReceiver, filter, ReceiverExportPolicy.injectFlags())
             } else {
                 @Suppress("UnspecifiedRegisterReceiverFlag")
                 registerReceiver(injectReceiver, filter)
@@ -1414,7 +1459,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         val filter = IntentFilter(ACTION_COPY_LAST)
         try {
             if (Build.VERSION.SDK_INT >= 33) {
-                registerReceiver(copyReceiver, filter, Context.RECEIVER_EXPORTED)
+                registerReceiver(copyReceiver, filter, ReceiverExportPolicy.copyFlags())
             } else {
                 @Suppress("UnspecifiedRegisterReceiverFlag")
                 registerReceiver(copyReceiver, filter)
@@ -1463,23 +1508,54 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         val wall = if (listenStartedWallMs > 0L) listenStartedWallMs else System.currentTimeMillis()
         val lang = InsertPolish.language(prefs?.languageTag)
         val retention = prefs?.retentionPolicy ?: "keep"
+        val req = PersistAsk.afterFail(
+            sessionId = sid,
+            durationMs = dur,
+            languageTag = lang,
+            retentionPolicy = retention,
+            packageName = lastPackage.orEmpty(),
+            createdAtEpochMs = wall,
+        )
         scope.launch(Dispatchers.IO) {
             runCatching {
-                sessionAudio.stopAndWrite(audioFiles.getAudioFile(sid))
-                app.dictations.saveDictation(
-                    rawText = "",
-                    cleanText = "",
-                    durationMs = dur,
-                    languageTag = lang,
-                    retentionPolicy = retention,
-                    packageName = lastPackage.orEmpty(),
-                    createdAtEpochMs = wall,
-                    processStatus = ProcessStatus.FAILED,
-                    id = sid,
-                )
-                retrySessionId = sid
+                sessionAudio.stopAndWrite(audioFiles.getAudioFile(req.id))
+                applyPersist(req)
+                retrySessionId = req.id
                 DictationNotifier.notifyProcessFailed(this@FlowAccessibilityService)
             }
+        }
+    }
+
+    private suspend fun applyPersist(req: PersistAsk.Request) {
+        when (req.kind) {
+            PersistAsk.Kind.SKIP -> return
+            PersistAsk.Kind.SAVE_OK -> app.dictations.saveDictation(
+                rawText = req.rawText,
+                cleanText = req.cleanText,
+                durationMs = req.durationMs,
+                languageTag = req.languageTag,
+                retentionPolicy = req.retentionPolicy,
+                packageName = req.packageName,
+                createdAtEpochMs = req.createdAtEpochMs,
+                processStatus = ProcessStatus.OK,
+                id = req.id,
+            )
+            PersistAsk.Kind.MARK_OK -> app.dictations.markDictationOk(
+                id = req.id,
+                rawText = req.rawText,
+                cleanText = req.cleanText,
+            )
+            PersistAsk.Kind.SAVE_FAILED -> app.dictations.saveDictation(
+                rawText = req.rawText,
+                cleanText = req.cleanText,
+                durationMs = req.durationMs,
+                languageTag = req.languageTag,
+                retentionPolicy = req.retentionPolicy,
+                packageName = req.packageName,
+                createdAtEpochMs = req.createdAtEpochMs,
+                processStatus = ProcessStatus.FAILED,
+                id = req.id,
+            )
         }
     }
 
@@ -1510,87 +1586,42 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 WritingStyle.CASUAL
             }
             val custom = p?.customStyleConfig() ?: CustomStyleConfig()
-            val autoRoute = app.enginePrefs.autoRoute
-            val (result, brainId) = if (autoRoute) {
-                val local = TextPostProcessor.polishSessionResult(
-                    raw = text,
-                    style = style,
-                    level = level,
-                    custom = custom,
-                    dictionary = dict,
-                    snippets = snip,
-                    brain = NoAI,
-                    brainRewrite = false,
-                    earId = routedEarId,
-                    brainId = "none",
-                    promptHint = null,
-                    messaging = messaging,
-                )
-                val pickedBrain = if (level == CleanupLevel.RAW) {
-                    "none"
-                } else {
-                    BrainRouter.pick(
-                        auto = true,
-                        manualBrainId = app.enginePrefs.brainId,
-                        signals = routeSignals(),
-                        health = providerHealth,
-                        looksLikeCommand = looksLikeCommand(text),
-                        textLen = local.clean.length,
-                    ).providerId
-                }
-                val artifact = if (pickedBrain == "none") {
-                    SessionArtifact(raw = local.raw, cleaned = local.clean)
-                } else {
-                    val surrounding = FieldContext.surrounding(true, surroundingField)
-                    val brain = FieldContext.wrapBrain(app.registry.brain(pickedBrain), surrounding)
-                    PipelineArtifactPolicy.build(local.raw, local.clean) { cleaned ->
-                        brain.enhance(cleaned, "cleanup")
-                    }.let { built ->
-                        built.copy(
-                            ai = TextPostProcessor.applyDictionary(
-                                built.ai,
-                                dict,
-                                sides = LearnEngine.sideBags(),
-                                autoKeys = LearnEngine.autoKeys(),
-                            )
-                        )
-                    }.also { built ->
-                        if (built.ai.isBlank()) providerHealth.recordFailure(pickedBrain)
-                        else providerHealth.recordSuccess(pickedBrain)
-                    }
-                }
-                local.copy(raw = artifact.raw, clean = artifact.bestAvailable()) to pickedBrain
+            val mode = app.enginePrefs.routeMode
+            val rewrite = InsertPolish.brainRewriteOnInsert(app.enginePrefs.brainId)
+            val surrounding = FieldContext.surrounding(
+                FieldContext.on(rewrite),
+                surroundingField,
+            )
+            val brain = if (rewrite) {
+                FieldContext.wrapBrain(app.registry.brain(app.enginePrefs.brainId), surrounding)
             } else {
-                val manualBrainId = InsertPolish.brainIdForInsert(app.enginePrefs.brainId)
-                val brainRewrite = InsertPolish.brainRewriteOnInsert(app.enginePrefs.brainId)
-                val surrounding = FieldContext.surrounding(
-                    FieldContext.on(brainRewrite),
-                    surroundingField,
-                )
-                val brain = if (brainRewrite) {
-                    FieldContext.wrapBrain(app.currentBrain(), surrounding)
-                } else {
-                    app.currentBrain()
-                }
-                TextPostProcessor.polishSessionResult(
-                    raw = text,
-                    style = style,
-                    level = level,
-                    custom = custom,
-                    dictionary = dict,
-                    snippets = snip,
-                    brain = brain,
-                    brainRewrite = brainRewrite,
-                    earId = app.enginePrefs.earId,
-                    brainId = manualBrainId,
-                    promptHint = null,
-                    messaging = messaging,
-                ) to manualBrainId
+                NoAI
             }
+            val result = TextPostProcessor.polishRouted(
+                raw = text,
+                style = style,
+                level = level,
+                custom = custom,
+                dictionary = dict,
+                snippets = snip,
+                brain = brain,
+                earId = routedEarId,
+                brainId = app.enginePrefs.brainId,
+                promptHint = null,
+                messaging = messaging,
+                mode = mode,
+                aiWhen = app.enginePrefs.aiWhen,
+                signals = routeSignals(),
+                looksLikeCommand = looksLikeCommand(text),
+                onBrainOutcome = { id, ok ->
+                    if (ok) providerHealth.recordSuccess(id) else providerHealth.recordFailure(id)
+                },
+            )
+            val brainId = app.enginePrefs.brainId
             android.util.Log.i(
                 "OpenFlow.Cleanup",
                 "level=$level pref=$prefLevel style=$style lang=${InsertPolish.language(prefs?.languageTag)} " +
-                    "brain=$brainId auto=$autoRoute field=${surroundingField.isNotEmpty()} " +
+                    "brain=$brainId mode=$mode field=${surroundingField.isNotEmpty()} " +
                     "rawLen=${text.length} cleanLen=${result.clean.length} " +
                     "corr=${result.corrections.size} " +
                     "changed=${text.trim() != result.clean.trim()}"
@@ -1622,32 +1653,23 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             val wordCount = finalText.split(WORD_SPLIT)
                 .filter { it.isNotBlank() }.size
             val retention = prefs?.retentionPolicy ?: "keep"
+            val req = PersistAsk.afterPolish(
+                sessionId = sessionId,
+                wasRetry = retrySessionId != null,
+                raw = result.raw,
+                clean = finalText,
+                durationMs = dur,
+                languageTag = lang,
+                retentionPolicy = retention,
+                packageName = lastPackage.orEmpty(),
+                createdAtEpochMs = listenStartedWallMs,
+            )
             scope.launch(Dispatchers.IO) {
                 runCatching {
-                    val sid = sessionId
-                    val wasRetry = retrySessionId != null
-                    if (!wasRetry) {
-                        sessionAudio.stopAndWrite(audioFiles.getAudioFile(sid))
+                    if (req.kind != PersistAsk.Kind.MARK_OK && req.kind != PersistAsk.Kind.SKIP) {
+                        sessionAudio.stopAndWrite(audioFiles.getAudioFile(req.id))
                     }
-                    if (wasRetry) {
-                        app.dictations.markDictationOk(
-                            id = sid,
-                            rawText = result.raw,
-                            cleanText = finalText,
-                        )
-                    } else {
-                        app.dictations.saveDictation(
-                            rawText = result.raw,
-                            cleanText = finalText,
-                            durationMs = dur,
-                            languageTag = lang,
-                            retentionPolicy = retention,
-                            packageName = lastPackage.orEmpty(),
-                            createdAtEpochMs = listenStartedWallMs,
-                            processStatus = ProcessStatus.OK,
-                            id = sid,
-                        )
-                    }
+                    applyPersist(req)
                     retrySessionId = null
                 }
             }
@@ -1780,41 +1802,34 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             else -> 48f
         }
         val stroke = BubbleChrome.strokePx(density)
-        val fill = BubbleTint.argb(p.bubbleTint)
-        val on = BubbleTint.onArgb(p.bubbleTint)
+        val pal = p.palette()
+        val fill = if (listening) pal.bubbleListenArgb else pal.bubbleIdleArgb
+        val on = pal.bubbleTextArgb
 
         if (listening) {
-            val bg = GradientDrawable().apply {
-                this.shape = GradientDrawable.RECTANGLE
-                cornerRadius = BubbleChrome.cornerPx("listen", density, p.bubbleRoundness)
-                setColor(fill)
-                setStroke(stroke, on)
-            }
-            root.background = bg
+            root.background = null
             root.layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.CENTER
             )
-            val padH = (8f * density).toInt()
-            val padV = (6f * density).toInt()
-            root.setPadding(padH, padV, padH, padV)
+            root.setPadding(0, 0, 0, 0)
 
-            cancel?.visibility = View.VISIBLE
+            cancel?.visibility = if (p.bubbleShowCancel) View.VISIBLE else View.GONE
             cancel?.setColorFilter(on)
-            bubbleDone?.visibility = View.VISIBLE
+            bubbleDone?.visibility = if (p.bubbleShowDone) View.VISIBLE else View.GONE
             bubbleDone?.setColorFilter(on)
-            icon.visibility = View.VISIBLE
-            icon.setColorFilter(on)
+            bubbleWave?.visibility = View.VISIBLE
+            paintListenDisc(cancel, fill, on, stroke)
+            paintListenDisc(bubbleDone, fill, on, stroke)
+            paintListenDisc(bubbleWave, fill, on, stroke)
+            applyWaveFill(on)
+            icon.visibility = View.GONE
             icon.layoutParams = LinearLayout.LayoutParams(
                 (18f * density).toInt(),
                 (18f * density).toInt()
             ).apply { gravity = Gravity.CENTER }
-            label.visibility = View.VISIBLE
-            label.setTextColor(on)
-            if (label.text.isNullOrBlank()) {
-                label.text = BubbleLabelFormatter.listening(0)
-            }
+            label.visibility = View.GONE
 
             // Pulse WRAP_CONTENT was the grey veil. Idle-only; never on listen.
             pulseRing.visibility = View.GONE
@@ -1824,11 +1839,12 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         } else if (postStopActive()) {
             cancel?.visibility = View.GONE
             bubbleDone?.visibility = View.GONE
+            bubbleWave?.visibility = View.GONE
             label.visibility = View.GONE
             pulseRing.visibility = View.GONE
             val bg = GradientDrawable().apply {
                 this.shape = GradientDrawable.RECTANGLE
-                cornerRadius = BubbleChrome.cornerPx("listen", density, p.bubbleRoundness)
+                cornerRadius = BubbleChrome.cornerPx("listen", density, p.bubbleRoundPct)
                 setColor(fill)
                 setStroke(stroke, on)
             }
@@ -1838,11 +1854,10 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.CENTER
             )
-            val padH = (8f * density).toInt()
-            val padV = (6f * density).toInt()
+            val padH = (BubbleTouch.PAD_H_DP * density).toInt()
+            val padV = (BubbleTouch.PAD_V_DP * density).toInt()
             root.setPadding(padH, padV, padH, padV)
             icon.visibility = View.VISIBLE
-            icon.setColorFilter(on)
             icon.layoutParams = LinearLayout.LayoutParams(
                 (18f * density).toInt(),
                 (18f * density).toInt()
@@ -1853,6 +1868,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         } else {
             cancel?.visibility = View.GONE
             bubbleDone?.visibility = View.GONE
+            bubbleWave?.visibility = View.GONE
             label.visibility = View.GONE
             pulseRing.visibility = View.GONE
             bubbleChipCopy?.visibility = View.GONE
@@ -1866,19 +1882,53 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             root.background = GradientDrawable().apply {
                 this.shape = if (useOval) GradientDrawable.OVAL else GradientDrawable.RECTANGLE
                 if (!useOval) {
-                    cornerRadius = BubbleChrome.cornerPx(shape, density, p.bubbleRoundness)
+                    cornerRadius = BubbleChrome.cornerPx(shape, density, p.bubbleRoundPct)
                 }
                 setColor(fill)
                 setStroke(stroke, on)
             }
             icon.visibility = View.VISIBLE
-            icon.setColorFilter(on)
             val iconSz = ((if (shape == "pill") 22f else orbDp * 0.42f) * density).toInt()
             icon.layoutParams = LinearLayout.LayoutParams(iconSz, iconSz).apply {
                 gravity = Gravity.CENTER
             }
         }
+        applyBubbleIcon(icon, p.bubbleIconUri, on)
         applyOverlayWindowSize()
+    }
+
+    private fun applyBubbleIcon(icon: ImageView, uri: String, on: Int) {
+        val local = BubbleIconPolicy.localFile(filesDir)
+        val loadUri = when {
+            local.isFile && local.length() > 0L -> android.net.Uri.fromFile(local)
+            BubbleIconPolicy.validUri(uri) -> android.net.Uri.parse(uri)
+            else -> null
+        }
+        if (loadUri == null) {
+            icon.setImageResource(R.drawable.ic_mic)
+            icon.setColorFilter(on)
+            return
+        }
+        try {
+            val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            contentResolver.openInputStream(loadUri)?.use {
+                android.graphics.BitmapFactory.decodeStream(it, null, bounds)
+            }
+            val opts = android.graphics.BitmapFactory.Options().apply {
+                inSampleSize = BubbleIconPolicy.decodeSampleSize(bounds.outWidth, bounds.outHeight)
+            }
+            contentResolver.openInputStream(loadUri)?.use { stream ->
+                val bmp = android.graphics.BitmapFactory.decodeStream(stream, null, opts)
+                if (bmp != null) {
+                    icon.colorFilter = null
+                    icon.setImageBitmap(bmp)
+                    return
+                }
+            }
+        } catch (_: Exception) {
+        }
+        icon.setImageResource(R.drawable.ic_mic)
+        icon.setColorFilter(on)
     }
 
     /** Pin overlay window. WRAP_CONTENT measures against the screen. */
@@ -1892,6 +1942,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             density,
             shape,
             chips = wide && !listening,
+            cancel = prefs?.bubbleShowCancel != false,
+            done = prefs?.bubbleShowDone != false,
         )
         params.width = if (w > 0) w else WindowManager.LayoutParams.WRAP_CONTENT
         params.height = if (h > 0) h else WindowManager.LayoutParams.WRAP_CONTENT
@@ -1908,13 +1960,41 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             applyVisualScale()
             return
         }
-        val s = effectiveScale() * BubbleRms.pulseScale(lastRms)
+        val s = BubbleListenMotion.overlayScale(base = effectiveScale(), rms = lastRms)
         view.scaleX = s
         view.scaleY = s
+        applyWaveHeights(WaveformBars.filledCount(lastRms))
+    }
+
+    private fun paintListenDisc(view: View?, fill: Int, on: Int, stroke: Int) {
+        view ?: return
+        view.background = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(fill)
+            setStroke(stroke, on)
+        }
+    }
+
+    private fun applyWaveFill(on: Int) {
+        bubbleWaveBars.forEach { bar -> bar?.setBackgroundColor(on) }
+    }
+
+    private fun applyWaveHeights(filled: Int) {
+        val density = resources.displayMetrics.density
+        bubbleWaveBars.forEachIndexed { i, bar ->
+            val view = bar ?: return@forEachIndexed
+            val hDp = if (i < filled) 8 + filled * 4 else 8
+            val hPx = (hDp * density).toInt()
+            val lp = view.layoutParams
+            if (lp.height == hPx) return@forEachIndexed
+            lp.height = hPx
+            view.layoutParams = lp
+        }
     }
 
     private fun hapticEvent(event: HapticFeel.Event) {
-        val constant = HapticFeel.constantFor(prefs?.hapticFeel ?: HapticFeel.FULL, event) ?: return
+        val pick = prefs?.hapticPick(event) ?: HapticPick.CLICK
+        val constant = HapticPick.constant(pick) ?: return
         bubbleView?.performHapticFeedback(constant)
     }
 
@@ -1928,6 +2008,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     /** Keep the screen on while the bubble is listening. */
     private fun setListeningAwake(on: Boolean) {
         bubbleView?.keepScreenOn = on
+        if (listenAwake == on) return
+        listenAwake = on
         val params = bubbleParams ?: return
         val view = bubbleView ?: return
         val flag = WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
@@ -1938,30 +2020,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         }
     }
 
-    private fun setListenChrome(elapsedSec: Long) {
-        val p = prefs ?: return
-        bubbleLabel?.visibility = View.VISIBLE
-        val cmd = CommandChrome.suffix(brainCanCommand())
-        if (p.bubbleShowText) {
-            bubbleLabel?.text = BubbleLabelFormatter.listening(elapsedSec) + cmd
-        } else {
-            val bars = BubbleRms.bars(lastRms)
-            val warn = SessionGuard.phase(elapsedSec * 1000L) == SessionPhase.WARN
-            val suffix = if (warn) " wrap" else if (elapsedSec > 0) "  ${elapsedSec}s" else ""
-            val next = bars + suffix + cmd
-            val now = SystemClock.elapsedRealtime()
-            val allow = BubbleRedrawPolicy.shouldUpdateRmsLabel(
-                lastRmsBars,
-                bars,
-                lastRmsLabelAt,
-                now,
-            )
-            val prev = bubbleLabel?.text?.toString().orEmpty()
-            if (!allow && prev == next) return
-            lastRmsBars = bars
-            lastRmsLabelAt = now
-            bubbleLabel?.text = next
-        }
+    private fun setListenChrome(@Suppress("UNUSED_PARAMETER") elapsedSec: Long) {
+        bubbleLabel?.visibility = View.GONE
     }
 
     fun applyPrefsVisual() {

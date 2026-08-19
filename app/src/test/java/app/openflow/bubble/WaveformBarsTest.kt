@@ -24,4 +24,13 @@ class WaveformBarsTest {
         assertThat(WaveformBars.fromRms(-5f)).isEqualTo(WaveformBars.fromRms(0f))
         assertThat(WaveformBars.fromRms(99f)).isEqualTo(WaveformBars.fromRms(10f))
     }
+
+    @Test
+    fun filledCount_matches_bar_glyphs() {
+        assertThat(WaveformBars.filledCount(0f)).isEqualTo(0)
+        assertThat(WaveformBars.filledCount(10f)).isEqualTo(4)
+        assertThat(WaveformBars.filledCount(4f)).isEqualTo(
+            WaveformBars.fromRms(4f).count { it == '▮' }
+        )
+    }
 }

@@ -16,11 +16,15 @@ object FieldPolicy {
         if (isPhoneOrNumberInputType(inputType)) return true
         if (isPasswordInputVariation(inputType)) return true
         val hay = listOfNotNull(className, hintOrDesc).joinToString(" ").lowercase()
-        if (hay.contains("password") || hay.contains("pin") || hay.contains("otp")) return true
-        if (hay.contains("phone")) return true
+        if (hay.contains("password")) return true
+        if (hasWord(hay, "pin") || hasWord(hay, "otp")) return true
+        if (hasWord(hay, "phone") || hasWord(hay, "telephone")) return true
         if (hasSensitiveToken(hay)) return true
         return false
     }
+
+    private fun hasWord(hay: String, word: String): Boolean =
+        Regex("""\b${Regex.escape(word)}\b""", RegexOption.IGNORE_CASE).containsMatchIn(hay)
 
     private fun hasSensitiveToken(hay: String): Boolean {
         // Word-ish tokens — avoid "accident" matching "cid".

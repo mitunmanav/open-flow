@@ -38,6 +38,7 @@ object CleanupPipeline {
         t = stripFillers(t)
         t = collapseRepetitions(t)
         t = VoiceCommands.apply(t)
+        t = RunOnSplitPolicy.apply(t)
         t = lightGrammar(t)
 
         // Medium+
@@ -71,11 +72,14 @@ object CleanupPipeline {
 
     /** Explicit wipe commands may empty. Fillers-only may empty. Real words stay. */
     private fun keepContent(original: String, clean: String): String {
-        if (clean.isNotBlank()) return clean
-        if (isExplicitWipe(original)) return clean
-        if (!hasContentWords(original)) return clean
-        val recovered = stripFillers(collapseRepetitions(normalize(original.trim())))
-        return recovered.ifBlank { original.trim() }
+        return when (KeepContentPolicy.decide(clean, isExplicitWipe(original), hasContentWords(original))) {
+            KeepContentPolicy.Kind.KEEP_CLEAN -> clean
+            KeepContentPolicy.Kind.ALLOW_EMPTY -> clean
+            KeepContentPolicy.Kind.RECOVER -> {
+                val recovered = stripFillers(collapseRepetitions(normalize(original.trim())))
+                recovered.ifBlank { original.trim() }
+            }
+        }
     }
 
     private val wipePhrase = Regex(

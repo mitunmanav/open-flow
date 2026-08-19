@@ -226,7 +226,8 @@ fun StyleHubScreen(prefs: FlowPrefs) {
                             onClick = {
                                 prefs.removeStyleAppAssignment(pkg)
                                 assignments = prefs.getStyleAppAssignments()
-                            }
+                            },
+                            modifier = Modifier.size(Dimen.MIN_TOUCH)
                         ) {
                             Icon(
                                 Icons.Default.Delete,

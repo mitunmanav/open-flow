@@ -113,10 +113,23 @@ private fun shapesFor(skin: VisualSkin) = Shapes(
  * ([VisualSkin.BRUTAL] + [BrutalColors] + cream surfaces).
  * M3 only when [skin] is explicit M3.
  */
+private fun applyPalette(
+    base: androidx.compose.material3.ColorScheme,
+    p: AppearancePalette,
+): androidx.compose.material3.ColorScheme = base.copy(
+    background = Color(p.backgroundArgb),
+    onBackground = Color(p.textArgb),
+    surface = Color(p.cardsArgb),
+    onSurface = Color(p.textArgb),
+    primary = Color(p.accentArgb),
+    outline = Color(p.borderArgb),
+)
+
 @Composable
 fun OpenFlowTheme(
     darkMode: String = "light",
     skin: VisualSkin = VisualSkin.DEFAULT,
+    palette: AppearancePalette = AppearancePalette.factory(false),
     content: @Composable () -> Unit
 ) {
     val systemDark = isSystemInDarkTheme()
@@ -134,7 +147,7 @@ fun OpenFlowTheme(
     val shapes = shapesFor(skin)
 
     MaterialTheme(
-        colorScheme = colors,
+        colorScheme = applyPalette(colors, palette),
         typography = Typography,
         shapes = shapes,
         content = content

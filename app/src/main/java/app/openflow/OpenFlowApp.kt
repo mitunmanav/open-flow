@@ -31,7 +31,17 @@ import app.openflow.stt.providers.cloud.AndroidPcmMic
 import app.openflow.stt.providers.cloud.CloudSocket
 import app.openflow.stt.providers.cloud.PcmSource
 import app.openflow.stt.providers.host.LaptopEar
+import app.openflow.stt.providers.ondevice.OkHttpModelDownloader
+import app.openflow.stt.providers.ondevice.ModelStore
 import app.openflow.stt.providers.ondevice.OnDeviceEar
+import app.openflow.whisper.AudioRecordPcm
+import app.openflow.whisper.JniWhisperRuntime
+import android.Manifest
+import android.os.Handler
+import android.os.Looper
+import androidx.core.content.ContextCompat
+import java.io.File
+import kotlin.concurrent.thread
 import kotlinx.coroutines.launch
 
 class OpenFlowApp : Application(), ComponentCallbacks2 {
@@ -105,7 +115,36 @@ class OpenFlowApp : Application(), ComponentCallbacks2 {
             AppEngineWire.install(
                 it, secrets, enginePrefs, systemEar, cloudHttp, cloudSocket, cloudPcm,
             )
+            it.registerEar(EarId.ON_PHONE) { makeOnPhoneEar() }
         }
+    }
+
+    val modelStore by lazy {
+        ModelStore(
+            modelsDir = File(filesDir, "models"),
+            downloader = OkHttpModelDownloader(),
+            minReadyBytes = 1_000_000L,
+        )
+    }
+
+    internal fun makeOnPhoneEar(): OnDeviceEar {
+        val ready = modelStore.isReady("tiny.en")
+        val file = modelStore.file("tiny.en")
+        val main = Handler(Looper.getMainLooper())
+        lateinit var ear: OnDeviceEar
+        val pcm = AudioRecordPcm(onRms = { db -> ear.emitRms(db) })
+        ear = OnDeviceEar(
+            modelFile = file.takeIf { ready },
+            micGranted = ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.RECORD_AUDIO,
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED,
+            runtime = if (ready) JniWhisperRuntime(file) else null,
+            pcm = pcm,
+            runWork = { block -> thread(name = "openflow-whisper", block = block) },
+            onMain = { block -> main.post(block) },
+        )
+        return ear
     }
 
     fun currentEar(): SpeechEngine = AppEngineWire.currentEar(registry, enginePrefs)

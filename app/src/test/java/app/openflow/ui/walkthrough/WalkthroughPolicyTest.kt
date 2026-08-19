@@ -41,7 +41,7 @@ class WalkthroughPolicyTest {
     fun copy_not_ime_and_privacy_clear() {
         val what = WalkthroughPolicy.copy(WalkthroughPolicy.Page.WHAT)
         assertThat(what.title).isEqualTo("Speak to type")
-        assertThat(what.body).contains("Not a new keyboard")
+        assertThat(what.body).contains("Keep your keyboard")
         val privacy = WalkthroughPolicy.copy(WalkthroughPolicy.Page.PRIVACY)
         assertThat(privacy.body.lowercase()).contains("post")
         assertThat(privacy.body.lowercase()).doesNotContain("do not upload")

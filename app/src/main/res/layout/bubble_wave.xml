@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/bubble_wave"
+    android:layout_width="48dp"
+    android:layout_height="48dp"
+    android:layout_marginEnd="8dp"
+    android:contentDescription="@string/app_name"
+    android:gravity="center"
+    android:orientation="horizontal"
+    android:visibility="gone">
+
+    <View
+        android:id="@+id/bubble_wave_0"
+        android:layout_width="4dp"
+        android:layout_height="8dp"
+        android:layout_marginEnd="3dp"
+        android:background="#FFF4EFE6" />
+
+    <View
+        android:id="@+id/bubble_wave_1"
+        android:layout_width="4dp"
+        android:layout_height="8dp"
+        android:layout_marginEnd="3dp"
+        android:background="#FFF4EFE6" />
+
+    <View
+        android:id="@+id/bubble_wave_2"
+        android:layout_width="4dp"
+        android:layout_height="8dp"
+        android:layout_marginEnd="3dp"
+        android:background="#FFF4EFE6" />
+
+    <View
+        android:id="@+id/bubble_wave_3"
+        android:layout_width="4dp"
+        android:layout_height="8dp"
+        android:background="#FFF4EFE6" />
+</LinearLayout>

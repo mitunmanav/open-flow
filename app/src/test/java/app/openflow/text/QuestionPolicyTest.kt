@@ -27,4 +27,24 @@ class QuestionPolicyTest {
     fun tag_right() {
         assertThat(QuestionPolicy.apply("You're coming right")).endsWith("?")
     }
+
+    @Test
+    fun said_no_is_not_a_question() {
+        assertThat(QuestionPolicy.apply("I said no")).isEqualTo("I said no")
+    }
+
+    @Test
+    fun im_okay_is_not_a_question() {
+        assertThat(QuestionPolicy.apply("I'm okay")).isEqualTo("I'm okay")
+    }
+
+    @Test
+    fun comma_no_is_tag() {
+        assertThat(QuestionPolicy.apply("You're coming, no")).endsWith("?")
+    }
+
+    @Test
+    fun oh_yeah_is_not_a_question() {
+        assertThat(QuestionPolicy.apply("oh yeah")).isEqualTo("oh yeah")
+    }
 }

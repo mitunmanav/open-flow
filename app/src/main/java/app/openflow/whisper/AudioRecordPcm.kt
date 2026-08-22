@@ -6,18 +6,19 @@ import android.media.MediaRecorder
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 
-/** 16 kHz mono PCM16 → float. Same shape as SessionAudioCapture. */
+/** 16 kHz mono PCM16 → float. Streams samples; does not keep the whole session. */
 class AudioRecordPcm(
     private val sampleRate: Int = 16_000,
     private val onRms: (Float) -> Unit = {},
 ) : PcmSource {
     private val running = AtomicBoolean(false)
-    private val chunks = ArrayList<ByteArray>()
     private var worker: Thread? = null
     private var record: AudioRecord? = null
+    private var onSamples: (FloatArray) -> Unit = {}
 
-    override fun start() {
-        take() // discard leftover
+    override fun start(onSamples: (FloatArray) -> Unit) {
+        take()
+        this.onSamples = onSamples
         val min = AudioRecord.getMinBufferSize(
             sampleRate,
             AudioFormat.CHANNEL_IN_MONO,
@@ -27,7 +28,7 @@ class AudioRecordPcm(
         val bufSize = min.coerceAtLeast(sampleRate / 5 * 2)
         val ar = try {
             AudioRecord(
-                MediaRecorder.AudioSource.MIC,
+                MediaRecorder.AudioSource.VOICE_RECOGNITION,
                 sampleRate,
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT,
@@ -59,8 +60,9 @@ class AudioRecordPcm(
                     break
                 }
                 if (n > 0) {
-                    synchronized(chunks) { chunks.add(buf.copyOf(n)) }
+                    val f = toFloat(buf, n)
                     onRms(rmsDb(buf, n))
+                    if (f.isNotEmpty()) onSamples(f)
                 }
                 if (n < 0) break
             }
@@ -75,31 +77,21 @@ class AudioRecordPcm(
         record = null
         runCatching { ar?.stop() }
         runCatching { ar?.release() }
-        val pcm = synchronized(chunks) {
-            val total = chunks.sumOf { it.size }
-            if (total <= 0) {
-                chunks.clear()
-                return FloatArray(0)
-            }
-            val all = ByteArray(total)
-            var o = 0
-            for (c in chunks) {
-                System.arraycopy(c, 0, all, o, c.size)
-                o += c.size
-            }
-            chunks.clear()
-            all
-        }
-        val out = FloatArray(pcm.size / 2)
+        onSamples = {}
+        return FloatArray(0)
+    }
+
+    private fun toFloat(pcm: ByteArray, n: Int): FloatArray {
+        val out = FloatArray(n / 2)
         var i = 0
         var s = 0
-        while (i + 1 < pcm.size) {
+        while (i + 1 < n) {
             val v = (pcm[i].toInt() and 0xff) or (pcm[i + 1].toInt() shl 8)
             val signed = if (v >= 0x8000) v - 0x10000 else v
             out[s++] = signed / 32768f
             i += 2
         }
-        return out
+        return if (s == out.size) out else out.copyOf(s)
     }
 
     private fun rmsDb(buf: ByteArray, n: Int): Float {

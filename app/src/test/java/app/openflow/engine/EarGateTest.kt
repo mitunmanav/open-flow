@@ -15,8 +15,14 @@ class EarGateTest {
     }
 
     @Test
+    fun on_phone_ear_is_live() {
+        assertThat(EarGate.live("on_phone")).isTrue()
+        assertThat(EarGate.live("ON_PHONE")).isTrue()
+    }
+
+    @Test
     fun stub_ears_not_live() {
-        for (id in listOf("on_phone", "laptop", "custom_stt")) {
+        for (id in listOf("laptop", "custom_stt")) {
             assertThat(EarGate.live(id)).isFalse()
         }
     }
@@ -26,7 +32,7 @@ class EarGateTest {
         assertThat(EarGate.resolve("openai")).isEqualTo("openai")
         assertThat(EarGate.resolve("deepgram")).isEqualTo("deepgram")
         assertThat(EarGate.resolve("system")).isEqualTo("system")
-        assertThat(EarGate.resolve("on_phone")).isEqualTo("system")
+        assertThat(EarGate.resolve("on_phone")).isEqualTo("on_phone")
         assertThat(EarGate.resolve("")).isEqualTo("system")
     }
 

@@ -39,6 +39,7 @@ class EnginePickerStateTest {
         val s = EnginePickerState.of(earId = "on_phone", brainId = "none")
         assertThat(s.honesty).isEqualTo("Local. Audio stays on this phone.")
         assertThat(s.needsKey).isFalse()
+        assertThat(s.livePartials).isFalse()
     }
 
     @Test
@@ -217,11 +218,11 @@ class EnginePickerStateTest {
     @Test
     fun launch_ears_system_and_cloud_enabled() {
         assertThat(EnginePickerState.earEnabled("system")).isTrue()
-        for (id in listOf("openai", "deepgram", "assemblyai", "sarvam")) {
+        for (id in listOf("openai", "deepgram", "assemblyai", "sarvam", "on_phone")) {
             assertThat(EnginePickerState.earEnabled(id)).isTrue()
             assertThat(EnginePickerState.earDisabledReason(id)).isNull()
         }
-        for (id in listOf("on_phone", "laptop", "custom_stt")) {
+        for (id in listOf("laptop", "custom_stt")) {
             assertThat(EnginePickerState.earEnabled(id)).isFalse()
             assertThat(EnginePickerState.earDisabledReason(id))
                 .isEqualTo(EnginePickerState.STUB_EAR_REASON)
@@ -286,13 +287,14 @@ class EnginePickerStateTest {
         assertThat(secs.map { it.title })
             .containsExactly("On this phone", "Cloud speech", "Coming later")
             .inOrder()
-        assertThat(secs[0].items.map { it.id }).containsExactly("system")
-        assertThat(secs[0].items.single().label).isEqualTo("Phone speech")
+        assertThat(secs[0].items.map { it.id }).containsExactly("system", "on_phone").inOrder()
+        assertThat(secs[0].items[0].label).isEqualTo("Phone speech")
+        assertThat(secs[0].items[1].label).isEqualTo("Whisper on phone")
         assertThat(secs[1].items.map { it.id })
             .containsExactly("openai", "deepgram", "assemblyai", "sarvam")
             .inOrder()
         assertThat(secs[2].items.map { it.id })
-            .containsExactly("on_phone", "laptop", "custom_stt")
+            .containsExactly("laptop", "custom_stt")
             .inOrder()
     }
 

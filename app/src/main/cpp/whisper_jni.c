@@ -28,7 +28,8 @@ Java_app_openflow_whisper_WhisperLib_00024Companion_freeContext(
 
 JNIEXPORT void JNICALL
 Java_app_openflow_whisper_WhisperLib_00024Companion_fullTranscribe(
-        JNIEnv *env, jobject thiz, jlong context_ptr, jint num_threads, jfloatArray audio_data) {
+        JNIEnv *env, jobject thiz, jlong context_ptr, jint num_threads,
+        jfloatArray audio_data, jint audio_ctx) {
     UNUSED(thiz);
     struct whisper_context *context = (struct whisper_context *) context_ptr;
     jfloat *audio_data_arr = (*env)->GetFloatArrayElements(env, audio_data, NULL);
@@ -44,10 +45,17 @@ Java_app_openflow_whisper_WhisperLib_00024Companion_fullTranscribe(
     params.n_threads = num_threads;
     params.offset_ms = 0;
     params.no_context = true;
-    params.single_segment = false;
+    params.single_segment = audio_data_length < 16000 * 8;
+    params.temperature = 0.0f;
+    params.temperature_inc = 0.0f;
+    params.audio_ctx = audio_ctx;
 
+    whisper_reset_timings(context);
+    LOGI("samples=%d audio_ctx=%d threads=%d", (int) audio_data_length, audio_ctx, num_threads);
     if (whisper_full(context, params, audio_data_arr, audio_data_length) != 0) {
         LOGI("whisper_full failed");
+    } else {
+        whisper_print_timings(context);
     }
     (*env)->ReleaseFloatArrayElements(env, audio_data, audio_data_arr, JNI_ABORT);
 }

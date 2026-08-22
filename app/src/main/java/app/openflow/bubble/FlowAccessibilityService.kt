@@ -62,6 +62,7 @@ import app.openflow.runtime.TrimPolicy
 import app.openflow.stt.providers.cloud.CloudEar
 import app.openflow.stt.AndroidSpeechEngine
 import app.openflow.stt.MainThreadHop
+import app.openflow.stt.EarMicPolicy
 import app.openflow.stt.SpeechEngine
 import app.openflow.stt.SttBias
 import app.openflow.stt.SttEngine
@@ -1058,7 +1059,9 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             val elapsed = now - listenStartedAt
             when (SessionGuard.phase(elapsed)) {
                 SessionPhase.STOP -> {
-                    if (!stopInProgress) stopListening(save = true)
+                    if (!stopInProgress) {
+                        stopListening(SessionStopPolicy.save(SessionStopPolicy.onLimit(sessionEarId)))
+                    }
                     return
                 }
                 SessionPhase.WARN -> {
@@ -1141,7 +1144,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         sessionEarId = earPick.providerId
         val ear = app.currentEar()
         this.ear = ear
-        if (retrySessionId == null && ear !is OnDeviceEar) {
+        if (retrySessionId == null && EarMicPolicy.bubbleCapturesWav(sessionEarId)) {
             sessionAudio.start()
         }
         ear.setListener(object : SpeechEngine.Listener {

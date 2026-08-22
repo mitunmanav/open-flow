@@ -15,7 +15,12 @@ internal class WhisperLib private constructor() {
 
         external fun initContext(modelPath: String): Long
         external fun freeContext(contextPtr: Long)
-        external fun fullTranscribe(contextPtr: Long, numThreads: Int, audioData: FloatArray)
+        external fun fullTranscribe(
+            contextPtr: Long,
+            numThreads: Int,
+            audioData: FloatArray,
+            audioCtx: Int,
+        )
         external fun getTextSegmentCount(contextPtr: Long): Int
         external fun getTextSegment(contextPtr: Long, index: Int): String
         external fun getSystemInfo(): String

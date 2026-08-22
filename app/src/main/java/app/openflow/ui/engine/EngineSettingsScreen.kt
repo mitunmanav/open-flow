@@ -234,6 +234,12 @@ fun EngineSettingsScreen(
                         color = scheme.onSurface,
                         modifier = Modifier.testTag("tiny_en_status")
                     )
+                    Text(
+                        text = OnPhoneModelUi.DONE_NOT_LIVE,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = scheme.onSurfaceVariant,
+                        modifier = Modifier.testTag("tiny_en_not_live")
+                    )
                     OpenButton(
                         text = "Download ~75 MB",
                         onClick = onDownloadTinyEn,

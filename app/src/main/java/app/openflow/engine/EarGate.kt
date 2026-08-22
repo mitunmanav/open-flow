@@ -6,7 +6,7 @@ object EarGate {
 
     fun live(id: String): Boolean {
         val t = id.trim().lowercase()
-        return t == "system" || t in cloudEars
+        return t == "system" || t == "on_phone" || t in cloudEars
     }
 
     fun resolve(id: String): String {

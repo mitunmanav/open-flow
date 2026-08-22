@@ -10,4 +10,10 @@ class OnPhoneModelUiTest {
         assertThat(OnPhoneModelUi.line(ready = false, busy = true)).isEqualTo("tiny.en · downloading")
         assertThat(OnPhoneModelUi.line(ready = false, busy = false)).isEqualTo("tiny.en · not on this phone")
     }
+
+    @Test
+    fun done_not_live_is_honest() {
+        assertThat(OnPhoneModelUi.DONE_NOT_LIVE)
+            .isEqualTo("Text shows after Done. Not live like Gboard.")
+    }
 }

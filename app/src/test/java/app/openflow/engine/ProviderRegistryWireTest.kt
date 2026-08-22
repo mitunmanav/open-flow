@@ -100,6 +100,7 @@ class ProviderRegistryWireTest {
         val http = CloudHttp { _, _, _ -> "" }
         val socket = FailSoftSocket()
         AppEngineWire.install(registry, secrets, prefs, system, http, socket)
+        registry.registerEar(EarId.ON_PHONE) { OnDeviceEar() }
         return Wired(registry, secrets, prefs, system)
     }
 

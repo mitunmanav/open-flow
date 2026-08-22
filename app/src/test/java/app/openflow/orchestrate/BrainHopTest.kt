@@ -72,6 +72,21 @@ class BrainHopTest {
     }
 
     @Test
+    fun long_form_still_uses_keyed_brain() {
+        val ask = BrainHopAsk(
+            mode = RouteMode.LOCAL_THEN_AI,
+            aiWhen = AiWhen.EVERY,
+            brainId = "openai",
+            signals = RouteSignals(true, emptySet(), setOf("openai")),
+            looksLikeCommand = false,
+            textLen = 2000,
+            cleaned = "x".repeat(2000),
+            levelRaw = false,
+        )
+        assertThat(BrainHop.pick(ask)).isEqualTo(RouteExplain("openai", "user-brain"))
+    }
+
+    @Test
     fun from_legacy_off_none_is_local_only() {
         assertThat(RouteMode.fromLegacy(false, "none")).isEqualTo(RouteMode.LOCAL_ONLY)
     }

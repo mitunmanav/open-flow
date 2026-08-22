@@ -7,7 +7,7 @@ class EnginePickerVisibilityTest {
 
     @Test
     fun unfinishedEar_hiddenWhenEarGateOff() {
-        assertThat(EnginePickerVisibility.showEar("on_phone")).isFalse()
+        assertThat(EnginePickerVisibility.showEar("on_phone")).isTrue()
         assertThat(EnginePickerVisibility.showEar("laptop")).isFalse()
         assertThat(EnginePickerVisibility.showEar("custom_stt")).isFalse()
         assertThat(EnginePickerVisibility.showEar("system")).isTrue()
@@ -33,8 +33,8 @@ class EnginePickerVisibilityTest {
     @Test
     fun visibleEars_omitComingLaterStubs() {
         val ids = EnginePickerVisibility.visibleEars().map { it.id }
-        assertThat(ids).containsAtLeast("system", "openai", "deepgram", "assemblyai", "sarvam")
-        assertThat(ids).containsNoneOf("on_phone", "laptop", "custom_stt")
+        assertThat(ids).containsAtLeast("system", "on_phone", "openai", "deepgram", "assemblyai", "sarvam")
+        assertThat(ids).containsNoneOf("laptop", "custom_stt")
     }
 
     @Test

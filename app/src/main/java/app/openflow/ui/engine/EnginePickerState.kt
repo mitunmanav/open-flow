@@ -76,7 +76,10 @@ data class EnginePickerState(
             EngineSection(
                 "local",
                 "On this phone",
-                listOf(EnginePreset("system", "Phone speech")),
+                listOf(
+                    EnginePreset("system", "Phone speech"),
+                    EnginePreset("on_phone", "Whisper on phone"),
+                ),
             ),
             EngineSection(
                 "cloud",
@@ -92,7 +95,6 @@ data class EnginePickerState(
                 "later",
                 "Coming later",
                 listOf(
-                    EnginePreset("on_phone", "Whisper on phone"),
                     EnginePreset("laptop", "Your computer"),
                     EnginePreset("custom_stt", "Custom speech URL"),
                 ),
@@ -182,7 +184,7 @@ data class EnginePickerState(
             val ear = if (earId in knownEars) earId else "system"
             val brain = if (brainId in knownBrains) brainId else "none"
             val rewrite = brain in rewriteBrains
-            val livePartials = ear in knownEars
+            val livePartials = ear in knownEars && ear != "on_phone"
             val showSarvam = ear == "sarvam"
             val kind = pathKind(ear, brain)
             val earKey = ear in keyEars

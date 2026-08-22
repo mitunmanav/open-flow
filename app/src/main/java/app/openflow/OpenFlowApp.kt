@@ -34,14 +34,16 @@ import app.openflow.stt.providers.host.LaptopEar
 import app.openflow.stt.providers.ondevice.OkHttpModelDownloader
 import app.openflow.stt.providers.ondevice.ModelStore
 import app.openflow.stt.providers.ondevice.OnDeviceEar
+import app.openflow.stt.providers.ondevice.OnPhoneModelUi
 import app.openflow.whisper.AudioRecordPcm
 import app.openflow.whisper.JniWhisperRuntime
+import app.openflow.whisper.WhisperRuntimeHolder
 import android.Manifest
 import android.os.Handler
 import android.os.Looper
 import androidx.core.content.ContextCompat
 import java.io.File
-import kotlin.concurrent.thread
+import java.util.concurrent.Executors
 import kotlinx.coroutines.launch
 
 class OpenFlowApp : Application(), ComponentCallbacks2 {
@@ -85,6 +87,7 @@ class OpenFlowApp : Application(), ComponentCallbacks2 {
         super.onTrimMemory(level)
         lastTrimLevel = level
         dropIdleStt = TrimPolicy.shouldDropIdleStt(level)
+        whisperHolder.releaseIf(dropIdleStt)
     }
 
     val database by lazy { OpenFlowDatabase.get(this) }
@@ -127,9 +130,15 @@ class OpenFlowApp : Application(), ComponentCallbacks2 {
         )
     }
 
+    private val whisperExec = Executors.newSingleThreadExecutor { r ->
+        Thread(r, "openflow-whisper").apply { isDaemon = true }
+    }
+    private val whisperHolder = WhisperRuntimeHolder { JniWhisperRuntime(it) }
+
     internal fun makeOnPhoneEar(): OnDeviceEar {
-        val ready = modelStore.isReady("tiny.en")
-        val file = modelStore.file("tiny.en")
+        val url = OnPhoneModelUi.TINY_EN_URL
+        val ready = modelStore.isReady("tiny.en", url)
+        val file = modelStore.file("tiny.en", url)
         val main = Handler(Looper.getMainLooper())
         lateinit var ear: OnDeviceEar
         val pcm = AudioRecordPcm(onRms = { db -> ear.emitRms(db) })
@@ -139,15 +148,20 @@ class OpenFlowApp : Application(), ComponentCallbacks2 {
                 this,
                 Manifest.permission.RECORD_AUDIO,
             ) == android.content.pm.PackageManager.PERMISSION_GRANTED,
-            runtime = if (ready) JniWhisperRuntime(file) else null,
+            runtime = if (ready) whisperHolder.get(file) else null,
             pcm = pcm,
-            runWork = { block -> thread(name = "openflow-whisper", block = block) },
+            runWork = { whisperExec.execute(it) },
             onMain = { block -> main.post(block) },
         )
         return ear
     }
 
-    fun currentEar(): SpeechEngine = AppEngineWire.currentEar(registry, enginePrefs)
+    fun currentEar(): SpeechEngine {
+        if (EarGate.resolve(enginePrefs.earId) != "on_phone") {
+            whisperHolder.release()
+        }
+        return AppEngineWire.currentEar(registry, enginePrefs)
+    }
 
     fun currentBrain(): TextAIProvider = AppEngineWire.currentBrain(registry, enginePrefs)
 }
@@ -172,7 +186,6 @@ object AppEngineWire {
         pcm: PcmSource = PcmSource.None,
     ) {
         registry.registerEar(EarId.SYSTEM) { systemEar }
-        registry.registerEar(EarId.ON_PHONE) { OnDeviceEar() }
         registry.registerEar(EarId.LAPTOP) {
             LaptopEar(enginePrefs.customBaseUrl.ifBlank { null })
         }

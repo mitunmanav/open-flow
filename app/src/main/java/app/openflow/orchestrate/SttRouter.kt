@@ -25,8 +25,8 @@ object SttRouter {
                 if (normalized in cloudEars) {
                     return@filter signals.online && normalized in keyed
                 }
-                // Phone speech (`system`) owns the on-device factory pref.
-                // Never pick Whisper stub `on_phone` — EarGate.live stays false.
+                // Whisper is opt-in from Settings. Auto never picks it.
+                if (normalized == "on_phone") return@filter false
                 EarGate.live(normalized)
             }
 

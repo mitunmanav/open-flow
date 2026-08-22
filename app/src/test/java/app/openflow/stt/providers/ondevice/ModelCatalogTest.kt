@@ -35,7 +35,8 @@ class ModelCatalogTest {
         val models = ModelCatalog.parse(json)
         val tinyEn = models.first { it.id == "tiny.en" }
         assertThat(tinyEn.url)
-            .isEqualTo("https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin")
+            .isEqualTo("https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en-q5_1.bin")
+        assertThat(tinyEn.url).contains("tiny.en-q5_1")
         assertThat(tinyEn.minRamMb).isAtMost(2048)
     }
 }

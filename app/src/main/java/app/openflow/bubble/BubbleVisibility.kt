@@ -26,6 +26,9 @@ object BubbleVisibility {
         return hasEditable && imeVisible
     }
 
+    /** QS-tile hide is a hard gate: no window, no touches, no ghost taps. */
+    fun effectiveVisible(show: Boolean, tileHidden: Boolean): Boolean = show && !tileHidden
+
     /** Bank hide must kill the mic. Do not GONE the overlay while AudioRecord keeps running. */
     fun shouldAbortListen(bankHide: Boolean, listening: Boolean): Boolean =
         bankHide && listening

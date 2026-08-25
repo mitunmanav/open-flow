@@ -50,6 +50,10 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         get() = store.getFloat("bubble_opacity", 0.80f).coerceIn(0.20f, 1.00f)
         set(v) = store.putFloat("bubble_opacity", v.coerceIn(0.20f, 1.00f))
 
+    var bubbleHidden: Boolean
+        get() = store.getBoolean("bubble_hidden", false)
+        set(v) = store.putBoolean("bubble_hidden", v)
+
     var bubbleX: Int
         get() = store.getString("bubble_x", "32").toIntOrNull() ?: 32
         set(v) = store.putString("bubble_x", v.toString())

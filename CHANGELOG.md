@@ -2,6 +2,41 @@
 
 ## Unreleased
 
+## 0.1.8 — 2026-08-25
+
+GitHub sideload. versionCode 9 · versionName 0.1.8.
+
+### Added
+- **Whisper on phone** — whisper.cpp tiny.en (q5_1, arm64) runs fully offline. Model catalog + download in Settings, chunked transcribe with join, preload cache, honest on-stop picker.
+- Hinglish nudge — hi-IN / en-IN speakers get a one-tap switch to Sarvam Code-mix mode.
+- Session latency instrumentation (`adb logcat -s OpenFlow.Latency`) — listen → ear ready → first partial → insert, per session.
+- Play-policy battery dialog: plain-language justification before REQUEST_IGNORE_BATTERY_OPTIMIZATIONS; skip stays available.
+- Device smoke tests: prefs roundtrip, Room + FTS roundtrip, app launch.
+- GitHub Actions CI: unit tests + lint + debug build on every push.
+
+### Changed
+- Battery: adaptive bubble pulse — ~30x fewer idle CPU wake-ups; ticker slows when idle and shrinks to one-shot near boundaries.
+- Memory: retry-audio capture capped at 8 MB heap instead of unbounded growth on long sessions.
+- Fillers: stretched forms now stripped ("uhh", "mm-hmm", "ermm", "mhmm") alongside the old list.
+- Cleanup tone is app-aware end to end: chat / email / work / docs prompt guidelines reach the AI brain, not just the local rules.
+- Cloud ear failure says what happened and what happens next ("kept what was heard — next listen uses a working ear") instead of a raw error string.
+- Accessibility service declared `isAccessibilityTool`; subscribes only to events it actually handles (content-changed spam dropped).
+- Screens peeled out of MainActivity; grouped Settings hub; shared page chrome; sectioned legal screen.
+- Text correctness: word-aware finals merge, question marks only on real questions, pin/phone skipped only as whole words, bank-app hide only on real package tokens.
+- Deps: AGP 8.13, Gradle 8.13, AndroidX bumps; x86_64 emulator slice added to release ABI set.
+
+### Fixed
+- Mic permission state read at activity create, not during composition.
+- produceState assigns value unconditionally (History search).
+- All cloud brain/ear factories fail loud with the missing piece named instead of bare `!!`.
+- Listen stops cleanly when a bank app hides the bubble mid-session.
+- PCM start fails loud; blank sessions no longer persisted.
+
+### Known limits
+- Debug-signed sideload. Not Play / F-Droid.
+- Phone speech may still use Google or the OEM recognizer — pick Whisper on phone or a cloud ear for a different path.
+- Bank apps may still warn about Accessibility.
+
 ## 0.1.7 — 2026-08-18
 
 GitHub sideload. versionCode 8 · versionName 0.1.7. First public APK since **0.1.5** (0.1.6 was never published).

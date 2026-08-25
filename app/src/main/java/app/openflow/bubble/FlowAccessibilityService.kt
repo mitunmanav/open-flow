@@ -63,6 +63,7 @@ import app.openflow.runtime.TrimPolicy
 import app.openflow.stt.providers.cloud.CloudEar
 import app.openflow.stt.AndroidSpeechEngine
 import app.openflow.stt.CloudFallbackNotice
+import app.openflow.stt.LanguagePolicy
 import app.openflow.stt.MainThreadHop
 import app.openflow.stt.EarMicPolicy
 import app.openflow.stt.SpeechEngine
@@ -119,6 +120,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     private var listenStartedWallMs = 0L
     private var sessionId: String = ""
     private var retrySessionId: String? = null
+    private var overlayAttempts = 0
+    private val overlayRetry = Runnable { showOverlayOrRecover() }
     private val sessionAudio = SessionAudioCapture()
     private val audioFiles by lazy { AudioFileManager(this) }
     private val serviceJob = SupervisorJob()
@@ -201,6 +204,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+
         prefs = FlowPrefs(this)
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
         accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
@@ -233,20 +237,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             return
         }
         win.prefs = p
-        win.show(
-            scale = effectiveScale(),
-            opacity = p.bubbleOpacity,
-            savedX = p.bubbleX,
-            savedY = p.bubbleY,
-            onCancel = { if (listening || stopInProgress) stopListening(save = false) },
-            onDone = { if (listening || stopInProgress) stopListening(save = true) },
-            setupTouch = { v, lp -> setupTouch(v, lp) },
-            onAdded = {
-                updateBubbleVisuals()
-                setBubbleEmphasis(focusedEditable != null)
-                refreshBubbleVisibility()
-            },
-        )
+        overlayAttempts = 0
+        showOverlayOrRecover()
         instance = this
         lastInteractionAt = SystemClock.elapsedRealtime()
         registerInjectReceiver()
@@ -369,6 +361,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
     override fun onDestroy() {
         mainHandler.removeCallbacks(pulseTick)
+        mainHandler.removeCallbacks(overlayRetry)
         unregisterShake()
         unregisterInjectReceiver()
         unregisterCopyReceiver()
@@ -448,6 +441,42 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         )
         setBubbleEmphasis(target != null)
         refreshBubbleVisibility()
+    }
+
+    /**
+     * Overlay addView can fail transiently (boot token races, OEM overlay
+     * permission). Retry with backoff; after exhaustion post an honest nudge.
+     */
+    private fun showOverlayOrRecover() {
+        val p = prefs ?: return
+        val added = win.show(
+            scale = effectiveScale(),
+            opacity = p.bubbleOpacity,
+            savedX = p.bubbleX,
+            savedY = p.bubbleY,
+            onCancel = { if (listening || stopInProgress) stopListening(save = false) },
+            onDone = { if (listening || stopInProgress) stopListening(save = true) },
+            setupTouch = { v, lp -> setupTouch(v, lp) },
+            onAdded = {
+                updateBubbleVisuals()
+                setBubbleEmphasis(focusedEditable != null)
+                refreshBubbleVisibility()
+            },
+        )
+        if (added || win.view != null) {
+            overlayAttempts = 0
+            return
+        }
+        if (BuildConfig.DEBUG) {
+            android.util.Log.w("OpenFlow.Bubble", "overlay addView failed attempt=$overlayAttempts")
+        }
+        if (OverlayRecoveryPolicy.shouldRetry(overlayAttempts)) {
+            mainHandler.removeCallbacks(overlayRetry)
+            mainHandler.postDelayed(overlayRetry, OverlayRecoveryPolicy.delayFor(overlayAttempts))
+        } else {
+            DictationNotifier.notifyOverlayFailed(this)
+        }
+        overlayAttempts++
     }
 
     private fun setupTouch(view: View, params: WindowManager.LayoutParams) {
@@ -586,6 +615,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                             hitCopy = win.hitVisible(win.bubbleChipCopy, event.rawX, event.rawY),
                             hitUndo = win.hitVisible(win.bubbleChipUndo, event.rawX, event.rawY),
                             hitPaste = win.hitVisible(win.bubbleChipPaste, event.rawX, event.rawY),
+                            hitLang = win.hitVisible(win.bubbleChipLang, event.rawX, event.rawY),
                         )
                     ) {
                         BubbleTapPolicy.Action.START -> startListening()
@@ -594,6 +624,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                         BubbleTapPolicy.Action.COPY -> copyLastToClipboard()
                         BubbleTapPolicy.Action.UNDO -> undoLastInsert()
                         BubbleTapPolicy.Action.PASTE -> pasteClipboardIntoField()
+                        BubbleTapPolicy.Action.LANG_CYCLE -> cycleLanguage()
                         BubbleTapPolicy.Action.NONE -> { }
                     }
                     pushToTalk = false
@@ -631,22 +662,51 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         val hasField = focusedEditable != null
         val imeGate = if (win.imeVisible) true else hasField || listening
         val micRepair = micRepairShowing()
-        val show = BubbleVisibility.shouldShow(
-            snoozed = snoozed,
-            bankHide = bankHide,
-            hasEditable = hasField || listening,
-            imeVisible = imeGate,
-            alwaysShow = listening,
-            listening = listening,
-            insideOwnApp = PackagePolicy.isOwnApp(lastPackage),
-            mustStay = micRepair,
+        val tileHidden = prefs?.bubbleHidden == true && !listening
+        val show = BubbleVisibility.effectiveVisible(
+            show = BubbleVisibility.shouldShow(
+                snoozed = snoozed,
+                bankHide = bankHide,
+                hasEditable = hasField || listening,
+                imeVisible = imeGate,
+                alwaysShow = listening,
+                listening = listening,
+                insideOwnApp = PackagePolicy.isOwnApp(lastPackage),
+                mustStay = micRepair,
+            ),
+            tileHidden = tileHidden,
         )
         win.view?.visibility = if (show) View.VISIBLE else View.GONE
         if (snoozed) registerShake() else unregisterShake()
+        refreshLangChip(show && !listening)
         if (show) {
             win.applyParkedOverlayY()
             updateBubbleVisuals()
         }
+    }
+
+    private fun refreshLangChip(idle: Boolean) {
+        val chip = win.bubbleChipLang ?: return
+        if (!idle) {
+            chip.visibility = View.GONE
+            return
+        }
+        val tag = prefs?.languageTag
+        chip.text = LanguageCyclePolicy.badge(tag)
+        chip.visibility = View.VISIBLE
+    }
+
+    private fun cycleLanguage() {
+        val prefs = prefs ?: return
+        val tags = LanguagePolicy.SUPPORTED_LANGUAGES.map { it.tag }
+        val next = LanguageCyclePolicy.next(prefs.languageTag, tags)
+        prefs.languageTag = next
+        val name = LanguagePolicy.SUPPORTED_LANGUAGES
+            .firstOrNull { it.tag == next }?.displayName ?: next
+        Toast.makeText(this, getString(R.string.flow_bubble_lang_set, name), Toast.LENGTH_SHORT)
+            .show()
+        hapticEvent(HapticFeel.Event.TAP)
+        refreshLangChip(idle = true)
     }
 
     private fun registerShake() {

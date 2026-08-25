@@ -129,4 +129,15 @@ class BubbleVisibilityTest {
             )
         ).isTrue()
     }
+
+    @Test
+    fun tile_hidden_kills_visibility() {
+        assertThat(BubbleVisibility.effectiveVisible(show = true, tileHidden = true)).isFalse()
+    }
+
+    @Test
+    fun not_hidden_keeps_visibility_verdict() {
+        assertThat(BubbleVisibility.effectiveVisible(show = true, tileHidden = false)).isTrue()
+        assertThat(BubbleVisibility.effectiveVisible(show = false, tileHidden = false)).isFalse()
+    }
 }

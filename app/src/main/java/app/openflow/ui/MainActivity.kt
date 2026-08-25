@@ -269,6 +269,17 @@ class MainActivity : ComponentActivity() {
                     )
                 }
                 var micOn by remember { _micGranted }
+                var serviceAlive by remember {
+                    mutableStateOf(FlowAccessibilityService.isRunning())
+                }
+                // Self-heal the rebind race: system may reconnect the service after
+                // this screen composes. Poll the in-process liveness flag while visible.
+                LaunchedEffect(Unit) {
+                    while (true) {
+                        serviceAlive = FlowAccessibilityService.isRunning()
+                        kotlinx.coroutines.delay(2_000)
+                    }
+                }
                 var batterySeen by remember { mutableStateOf(app.prefs.setupBatterySeen) }
                 var navStack by rememberSaveable(stateSaver = NavStack.Saver) {
                     mutableStateOf(
@@ -311,6 +322,7 @@ class MainActivity : ComponentActivity() {
                         if (e == Lifecycle.Event.ON_RESUME) {
                             bubbleOn = FlowAccessibilityService.isRunning() ||
                                 FlowAccessibilityService.isEnabled(this@MainActivity)
+                            serviceAlive = FlowAccessibilityService.isRunning()
                             micOn = ContextCompat.checkSelfPermission(
                                 this@MainActivity,
                                 Manifest.permission.RECORD_AUDIO
@@ -420,6 +432,7 @@ class MainActivity : ComponentActivity() {
                                 app = app,
                                 bubbleOn = bubbleOn,
                                 micOn = micOn,
+                                serviceAlive = serviceAlive,
                                 onEnableBubble = { requestEnableBubble() },
                                 onMic = { micPermission.launch(Manifest.permission.RECORD_AUDIO) },
                             )
@@ -613,6 +626,7 @@ private fun HomeHub(
     app: OpenFlowApp,
     bubbleOn: Boolean,
     micOn: Boolean,
+    serviceAlive: Boolean = true,
     onEnableBubble: () -> Unit,
     onMic: () -> Unit,
 ) {
@@ -620,6 +634,7 @@ private fun HomeHub(
         app = app,
         bubbleOn = bubbleOn,
         micOn = micOn,
+        serviceAlive = serviceAlive,
         onEnableBubble = onEnableBubble,
         onMic = onMic,
         dictationCard = { d, onDelete, onShare, onSave, onUseRaw ->

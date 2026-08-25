@@ -9,7 +9,8 @@ import app.openflow.OpenFlowApp
 import app.openflow.ui.MainActivity
 
 /**
- * Android Quick Settings Tile to toggle / launch Open Flow Bubble.
+ * Quick Settings tile: dead service → open setup; live service → hard-hide
+ * the bubble via prefs.bubbleHidden (never touches user's opacity).
  */
 class FlowBubbleTileService : TileService() {
 
@@ -20,40 +21,36 @@ class FlowBubbleTileService : TileService() {
 
     override fun onClick() {
         super.onClick()
-        val app = application as? OpenFlowApp
-        val a11yActive = FlowAccessibilityService.instance != null
+        val app = application as? OpenFlowApp ?: return
+        val alive = FlowAccessibilityService.instance != null
+        val current = app.prefs.bubbleHidden
+        when (TileTogglePolicy.nextHidden(serviceAlive = alive, hidden = current)) {
+            null -> launchSetup()
+            else -> {
+                app.prefs.bubbleHidden = !current
+                FlowAccessibilityService.instance?.applyPrefsVisual()
+                updateTileState()
+            }
+        }
+    }
 
-        if (!a11yActive) {
-            // Open main activity / settings to enable accessibility
-            val intent = Intent(this, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                // Android 14+ startActivityAndCollapse
-                startActivityAndCollapse(
-                    android.app.PendingIntent.getActivity(
-                        this,
-                        0,
-                        intent,
-                        android.app.PendingIntent.FLAG_IMMUTABLE
-                    )
+    private fun launchSetup() {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startActivityAndCollapse(
+                android.app.PendingIntent.getActivity(
+                    this,
+                    0,
+                    intent,
+                    android.app.PendingIntent.FLAG_IMMUTABLE
                 )
-            } else {
-                @Suppress("DEPRECATION")
-                @SuppressLint("StartActivityAndCollapseDeprecated")
-                startActivityAndCollapse(intent)
-            }
+            )
         } else {
-            // If already running, toggle bubble visibility
-            app?.prefs?.let { prefs ->
-                val current = prefs.bubbleOpacity
-                if (current > 0.05f) {
-                    prefs.bubbleOpacity = 0.0f
-                } else {
-                    prefs.bubbleOpacity = 0.80f
-                }
-            }
-            updateTileState()
+            @Suppress("DEPRECATION")
+            @SuppressLint("StartActivityAndCollapseDeprecated")
+            startActivityAndCollapse(intent)
         }
     }
 
@@ -61,25 +58,29 @@ class FlowBubbleTileService : TileService() {
         val tile = qsTile ?: return
         val a11yActive = FlowAccessibilityService.instance != null
         val app = application as? OpenFlowApp
-        val visible = (app?.prefs?.bubbleOpacity ?: 0.80f) > 0.05f
+        val hidden = app?.prefs?.bubbleHidden ?: false
 
-        if (!a11yActive) {
-            tile.state = Tile.STATE_INACTIVE
-            tile.label = "Flow Bubble (Off)"
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                tile.subtitle = "Tap to setup"
+        when {
+            !a11yActive -> {
+                tile.state = Tile.STATE_INACTIVE
+                tile.label = "Flow Bubble (Off)"
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    tile.subtitle = "Tap to setup"
+                }
             }
-        } else if (visible) {
-            tile.state = Tile.STATE_ACTIVE
-            tile.label = "Flow Bubble"
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                tile.subtitle = "Active"
+            hidden -> {
+                tile.state = Tile.STATE_INACTIVE
+                tile.label = "Flow Bubble"
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    tile.subtitle = "Hidden"
+                }
             }
-        } else {
-            tile.state = Tile.STATE_INACTIVE
-            tile.label = "Flow Bubble"
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                tile.subtitle = "Hidden"
+            else -> {
+                tile.state = Tile.STATE_ACTIVE
+                tile.label = "Flow Bubble"
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    tile.subtitle = "Active"
+                }
             }
         }
         tile.updateTile()

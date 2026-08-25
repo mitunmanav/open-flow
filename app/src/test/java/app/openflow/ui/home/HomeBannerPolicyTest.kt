@@ -33,6 +33,58 @@ class HomeBannerPolicyTest {
     }
 
     @Test
+    fun stale_when_enabled_but_service_dead() {
+        assertThat(
+            HomeBannerPolicy.banner(
+                bubbleOn = true, micOn = true, snoozed = false, serviceAlive = false
+            )
+        ).isEqualTo(HomeBannerPolicy.Banner.SERVICE_STALE)
+    }
+
+    @Test
+    fun alive_service_never_stale() {
+        assertThat(
+            HomeBannerPolicy.banner(
+                bubbleOn = true, micOn = true, snoozed = false, serviceAlive = true
+            )
+        ).isEqualTo(HomeBannerPolicy.Banner.NONE)
+    }
+
+    @Test
+    fun repair_beats_stale() {
+        assertThat(
+            HomeBannerPolicy.banner(
+                bubbleOn = false, micOn = true, snoozed = false, serviceAlive = false
+            )
+        ).isEqualTo(HomeBannerPolicy.Banner.REPAIR_A11Y)
+    }
+
+    @Test
+    fun stale_beats_mic_and_snooze() {
+        assertThat(
+            HomeBannerPolicy.banner(
+                bubbleOn = true, micOn = false, snoozed = true, serviceAlive = false
+            )
+        ).isEqualTo(HomeBannerPolicy.Banner.SERVICE_STALE)
+    }
+
+    @Test
+    fun service_alive_defaults_true_for_old_callers() {
+        assertThat(
+            HomeBannerPolicy.banner(bubbleOn = true, micOn = true, snoozed = false)
+        ).isEqualTo(HomeBannerPolicy.Banner.NONE)
+    }
+
+    @Test
+    fun stale_copy_has_turn_back_on_cta() {
+        val c = HomeBannerPolicy.copy(HomeBannerPolicy.Banner.SERVICE_STALE)
+        assertThat(c.title).isEqualTo("Bubble stopped")
+        assertThat(c.body).contains("battery")
+        assertThat(c.cta).isEqualTo("Turn back on")
+        assertThat(c.a11yLabel).contains("Turn back on")
+    }
+
+    @Test
     fun repair_copy_points_to_accessibility() {
         val c = HomeBannerPolicy.copy(HomeBannerPolicy.Banner.REPAIR_A11Y)
         assertThat(c.title).isEqualTo("Turn on Flow Bubble")

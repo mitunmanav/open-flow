@@ -42,6 +42,7 @@ class BubbleWindowController(
     var bubbleChipCopy: TextView? = null
     var bubbleChipUndo: TextView? = null
     var bubbleChipPaste: TextView? = null
+    var bubbleChipLang: TextView? = null
     var params: WindowManager.LayoutParams? = null
     var snapAnimator: ValueAnimator? = null
 
@@ -84,6 +85,7 @@ class BubbleWindowController(
         bubbleChipCopy = v.findViewById(R.id.bubble_chip_copy)
         bubbleChipUndo = v.findViewById(R.id.bubble_chip_undo)
         bubbleChipPaste = v.findViewById(R.id.bubble_chip_paste)
+        bubbleChipLang = v.findViewById(R.id.bubble_chip_lang)
 
         // Wispr: Cancel discards; Done inserts; tap bubble also inserts.
         bubbleCancel?.setOnClickListener { onCancel() }
@@ -140,6 +142,7 @@ class BubbleWindowController(
         bubbleChipCopy = null
         bubbleChipUndo = null
         bubbleChipPaste = null
+        bubbleChipLang = null
         params = null
     }
 

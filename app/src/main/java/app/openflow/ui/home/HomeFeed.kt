@@ -58,6 +58,7 @@ fun HomeFeed(
     app: OpenFlowApp,
     bubbleOn: Boolean,
     micOn: Boolean,
+    serviceAlive: Boolean = true,
     onEnableBubble: () -> Unit,
     onMic: () -> Unit,
     dictationCard: @Composable (
@@ -162,7 +163,14 @@ fun HomeFeed(
         }
 
         item(key = "banner") {
-            when (val banner = HomeBannerPolicy.banner(bubbleOn = bubbleOn, micOn = micOn, snoozed = snoozed)) {
+            when (
+                val banner = HomeBannerPolicy.banner(
+                    bubbleOn = bubbleOn,
+                    micOn = micOn,
+                    snoozed = snoozed,
+                    serviceAlive = serviceAlive,
+                )
+            ) {
                 HomeBannerPolicy.Banner.REPAIR_A11Y -> {
                     val copy = HomeBannerPolicy.copy(banner)
                     OpenCard(modifier = Modifier.testTag("home_banner_repair")) {
@@ -190,6 +198,37 @@ fun HomeFeed(
                                 onClick = onEnableBubble,
                                 contentDescription = copy.a11yLabel,
                                 modifier = Modifier.testTag("home_banner_a11y")
+                            )
+                        }
+                    }
+                }
+                HomeBannerPolicy.Banner.SERVICE_STALE -> {
+                    val copy = HomeBannerPolicy.copy(banner)
+                    OpenCard(modifier = Modifier.testTag("home_banner_stale")) {
+                        Column(
+                            Modifier.padding(Dimen.MIN_PADDING),
+                            verticalArrangement = Arrangement.spacedBy(HomeFeedTokens.cardInnerGap)
+                        ) {
+                            Text(
+                                copy.title,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                softWrap = true
+                            )
+                            if (copy.body != null) {
+                                Text(
+                                    copy.body,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    softWrap = true
+                                )
+                            }
+                            OpenButton(
+                                text = copy.cta ?: "Turn back on",
+                                onClick = onEnableBubble,
+                                contentDescription = copy.a11yLabel,
+                                modifier = Modifier.testTag("home_banner_stale_btn")
                             )
                         }
                     }

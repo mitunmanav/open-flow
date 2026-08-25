@@ -1,7 +1,7 @@
 package app.openflow.bubble
 
 object BubbleTapPolicy {
-    enum class Action { START, STOP_SAVE, STOP_DISCARD, COPY, UNDO, PASTE, NONE }
+    enum class Action { START, STOP_SAVE, STOP_DISCARD, COPY, UNDO, PASTE, LANG_CYCLE, NONE }
 
     fun action(
         listening: Boolean,
@@ -14,12 +14,14 @@ object BubbleTapPolicy {
         hitCopy: Boolean = false,
         hitUndo: Boolean = false,
         hitPaste: Boolean = false,
+        hitLang: Boolean = false,
     ): Action {
         if (cancelled || dragged || stopInProgress) return Action.NONE
         if (!listening) {
             if (hitCopy) return Action.COPY
             if (hitUndo) return Action.UNDO
             if (hitPaste) return Action.PASTE
+            if (hitLang) return Action.LANG_CYCLE
         }
         if (longPressFired) {
             return if (listening) Action.STOP_SAVE else Action.NONE

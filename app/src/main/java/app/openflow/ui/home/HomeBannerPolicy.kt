@@ -1,7 +1,7 @@
 package app.openflow.ui.home
 
 object HomeBannerPolicy {
-    enum class Banner { REPAIR_A11Y, ALLOW_MIC, END_SNOOZE, NONE }
+    enum class Banner { REPAIR_A11Y, SERVICE_STALE, ALLOW_MIC, END_SNOOZE, NONE }
 
     data class BannerCopy(
         val title: String,
@@ -10,8 +10,14 @@ object HomeBannerPolicy {
         val a11yLabel: String,
     )
 
-    fun banner(bubbleOn: Boolean, micOn: Boolean, snoozed: Boolean): Banner = when {
+    fun banner(
+        bubbleOn: Boolean,
+        micOn: Boolean,
+        snoozed: Boolean,
+        serviceAlive: Boolean = true,
+    ): Banner = when {
         !bubbleOn -> Banner.REPAIR_A11Y
+        !serviceAlive -> Banner.SERVICE_STALE
         !micOn -> Banner.ALLOW_MIC
         snoozed -> Banner.END_SNOOZE
         else -> Banner.NONE
@@ -23,6 +29,12 @@ object HomeBannerPolicy {
             body = "Open Accessibility, enable Open Flow, then return.",
             cta = "Open Accessibility",
             a11yLabel = "Turn on Flow Bubble. Open Accessibility.",
+        )
+        Banner.SERVICE_STALE -> BannerCopy(
+            title = "Bubble stopped",
+            body = "Your phone's battery manager stopped the bubble. Turn it back on to dictate.",
+            cta = "Turn back on",
+            a11yLabel = "Bubble stopped. Turn back on.",
         )
         Banner.ALLOW_MIC -> BannerCopy(
             title = "Allow microphone",

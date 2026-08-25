@@ -13,16 +13,17 @@ No account. No ads. MIT. INTERNET is **declared** and unused until you pick a cl
 
 Speech still uses the **phone’s recognizer**. On many phones that is Google. Audio **can leave the device**. That is the phone, not an Open Flow server.
 
-Need “voice never leaves this phone”? Use FUTO / Sayboard / Whisper IME — not this app.
+Need “voice never leaves this phone”? Pick **Whisper on phone** in Settings — or FUTO / Sayboard / Whisper IME.
 
-## What’s new in 0.1.7
+## What’s new in 0.1.8
 
-Since the last GitHub build (**0.1.5**):
+Since **0.1.7**:
 
-- **Your bubble** — colors, shape, your own icon, haptics. Stays up with the keyboard.
-- **Speak the edit** — “strike that”, “X not Y”, lists, caps. Works on the phone.
-- **Insights + export** — usage and JSON history stay on this device.
-- **More languages** — Hindi, Indian English, and others in Settings. Tile in Quick Settings.
+- **Whisper on the phone** — offline English speech (tiny.en, arm64). This path never sends audio anywhere. Download it in Settings.
+- **Cooler, calmer bubble** — ~30x fewer idle CPU wake-ups, memory cap on retry audio, wider filler net (“uh”, “mm-hmm”, “er”).
+- **Cleanup knows where you are** — chat stays casual, email stays sharp; per-app tone hints reach the AI brain. Hinglish nudge for hi-IN/en-IN speakers.
+- **Honest failures** — cloud speech down? The bubble says what was kept and that the next listen routes around it.
+- **Play-policy clean** — battery dialog explains itself before asking, accessibility service declared a tool.
 
 Full list: [CHANGELOG.md](CHANGELOG.md).
 

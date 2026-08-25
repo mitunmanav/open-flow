@@ -1,5 +1,7 @@
 package app.openflow.ai.providers.cloud
 
+import app.openflow.stt.providers.cloud.FailSoftSocket
+import app.openflow.stt.providers.cloud.PcmSource
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
@@ -66,6 +68,49 @@ class AllBrainsTest {
             if (id == "sarvam") {
                 assertThat(http.lastHeaders["api-subscription-key"]).isEqualTo("test-key-sarvam")
             }
+        }
+    }
+
+    private class CapturingRegistry : CloudProviders.Registry {
+        val brains = linkedMapOf<String, CloudProviders.BrainFactory>()
+        val ears = linkedMapOf<String, CloudProviders.EarFactory>()
+        override fun addBrain(id: String, factory: CloudProviders.BrainFactory) {
+            brains[id] = factory
+        }
+        override fun addEar(id: String, factory: CloudProviders.EarFactory) {
+            ears[id] = factory
+        }
+    }
+
+    @Test
+    fun test_registered_brain_factories_produce_non_null_for_known_ids() {
+        val registry = CapturingRegistry()
+        CloudProviders.register(registry)
+        assertThat(registry.brains.keys).containsAtLeastElementsIn(allCloudBrainIds)
+        for ((id, factory) in registry.brains) {
+            val brain = factory.create(
+                apiKey = { "key-$id" },
+                model = "model-$id",
+                baseUrl = "https://example.invalid/v1",
+                http = RecordingHttp(),
+            )
+            assertThat(brain).isNotNull()
+        }
+    }
+
+    @Test
+    fun test_registered_ear_factories_produce_non_null_for_known_ids() {
+        val registry = CapturingRegistry()
+        CloudProviders.register(registry)
+        assertThat(registry.ears.keys).containsExactly("openai", "deepgram", "assemblyai", "sarvam")
+        for ((id, factory) in registry.ears) {
+            val engine = factory.create(
+                apiKey = { "key-$id" },
+                socket = FailSoftSocket(),
+                mode = "transcribe",
+                pcm = PcmSource.None,
+            )
+            assertThat(engine).isNotNull()
         }
     }
 

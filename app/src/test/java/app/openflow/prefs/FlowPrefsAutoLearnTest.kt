@@ -13,9 +13,9 @@ class FlowPrefsAutoLearnTest {
     }
 
     @Test
-    fun autoLearn_defaults_true() {
+    fun autoLearn_defaults_false() {
         val prefs = FlowPrefs(MemoryPrefsStore())
-        assertThat(prefs.autoLearn).isTrue()
+        assertThat(prefs.autoLearn).isFalse()
     }
 
     @Test

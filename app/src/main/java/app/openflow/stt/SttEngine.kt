@@ -1,6 +1,7 @@
 package app.openflow.stt
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -484,6 +485,8 @@ class SttEngine(
         recognizer = null
     }
 
+    // Guarded by SDK_INT >= S; lint cannot see through fallbackPolicy.
+    @SuppressLint("NewApi")
     private fun createRecognizer(): SpeechRecognizer? {
         refreshOnDeviceFromPrefs()
         if (!SpeechRecognizer.isRecognitionAvailable(context)) return null

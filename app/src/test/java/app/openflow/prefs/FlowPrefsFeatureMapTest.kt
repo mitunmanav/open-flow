@@ -24,7 +24,7 @@ class FlowPrefsFeatureMapTest {
         assertThat(p.sttProfile).isEqualTo(SttTuning.PROFILE_BALANCED)
         assertThat(p.sttTuning().preferFormattingQuality).isTrue()
         assertThat(p.preferOnDevice).isFalse()
-        assertThat(p.autoLearn).isTrue()
+        assertThat(p.autoLearn).isFalse()
         assertThat(p.darkMode.value).isEqualTo("light")
         assertThat(p.seenHowTo).isFalse()
         assertThat(p.languageTag).isEqualTo(SttTuning.DEFAULT_LANGUAGE)

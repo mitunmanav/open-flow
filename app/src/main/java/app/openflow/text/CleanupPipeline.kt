@@ -116,13 +116,25 @@ object CleanupPipeline {
 
     private val fillers = listOf(
         "um", "uh", "erm", "ah", "uhm", "hmm", "mhm",
-        "you know", "sort of", "kind of"
+        "you know", "sort of", "kind of",
+        "i mean", "uh huh", "uh-huh", "mm hmm", "mm-hmm"
     )
     private val fillerSet = fillers.toHashSet()
 
     private val fillerRegexes: List<Regex> = fillers
         .sortedByDescending { it.length }
         .map { f -> Regex("\\b${Regex.escape(f)}\\b[,\\s]*", RegexOption.IGNORE_CASE) }
+
+    /** Stretched sounds from STT: umm, uhhh, hmmm, ahhh, erm, errr. \b keeps real words safe. */
+    private val stretchedFillerRegexes: List<Regex> = listOf(
+        "\\bu+m+\\b",
+        "\\bu+h+m?\\b",
+        "\\bah+\\b",
+        "\\bh+m+\\b",
+        "\\bermm*\\b",
+        "\\ber+r+m*\\b",
+        "\\bm+h+m*\\b",
+    ).map { Regex(it, RegexOption.IGNORE_CASE) }
 
     private val repeatPhrase = Regex("""(?i)\b(\w+(?:\s+\w+){0,2})\s+\1\b""")
     private val loneI = Regex("""\bi\b""")
@@ -172,6 +184,9 @@ object CleanupPipeline {
     internal fun stripFillers(t: String): String {
         var out = t
         fillerRegexes.forEach { re ->
+            out = re.replace(out, " ")
+        }
+        stretchedFillerRegexes.forEach { re ->
             out = re.replace(out, " ")
         }
         out = doubleComma.replace(out, ",")

@@ -42,19 +42,30 @@ object CloudProviders {
     fun register(registry: Registry) {
         for (id in namedBrains) {
             registry.addBrain(id) { key, model, url, http ->
-                brain(id, key, model, url, http)!!
+                brain(id, key, model, url, http)
+                    ?: error("CloudProviders: unknown brain id=$id (no baseUrl mapping)")
             }
         }
         registry.addBrain("anthropic") { key, model, _, http ->
-            brain("anthropic", key, model, null, http)!!
+            brain("anthropic", key, model, null, http)
+                ?: error("CloudProviders: anthropic brain factory returned null")
         }
         registry.addBrain("custom") { key, model, url, http ->
-            brain("custom", key, model, url, http)!!
+            brain("custom", key, model, url, http)
+                ?: error("CloudProviders: custom brain missing baseUrl")
         }
-        registry.addEar("openai") { key, socket, _, pcm -> ear("openai", key, socket, pcm = pcm)!! }
-        registry.addEar("deepgram") { key, socket, _, pcm -> ear("deepgram", key, socket, pcm = pcm)!! }
-        registry.addEar("assemblyai") { key, socket, _, pcm -> ear("assemblyai", key, socket, pcm = pcm)!! }
-        registry.addEar("sarvam") { key, socket, mode, pcm -> ear("sarvam", key, socket, mode, pcm)!! }
+        registry.addEar("openai") { key, socket, _, pcm ->
+            ear("openai", key, socket, pcm = pcm) ?: error("CloudProviders: no ear for openai")
+        }
+        registry.addEar("deepgram") { key, socket, _, pcm ->
+            ear("deepgram", key, socket, pcm = pcm) ?: error("CloudProviders: no ear for deepgram")
+        }
+        registry.addEar("assemblyai") { key, socket, _, pcm ->
+            ear("assemblyai", key, socket, pcm = pcm) ?: error("CloudProviders: no ear for assemblyai")
+        }
+        registry.addEar("sarvam") { key, socket, mode, pcm ->
+            ear("sarvam", key, socket, mode, pcm) ?: error("CloudProviders: no ear for sarvam")
+        }
     }
 
     fun brain(

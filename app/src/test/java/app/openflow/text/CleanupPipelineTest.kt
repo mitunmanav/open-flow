@@ -59,6 +59,39 @@ class CleanupPipelineTest {
     }
 
     @Test
+    fun stretched_fillers_gone() {
+        val r = CleanupPipeline.run("ummm I uhhh think hmmm ahh yes errr okay")
+        val c = r.clean.lowercase()
+        c.let {
+            assertThat(it).doesNotContain("ummm")
+            assertThat(it).doesNotContain("uhhh")
+            assertThat(it).doesNotContain("hmmm")
+            assertThat(it).doesNotContain("ahh")
+            assertThat(it).doesNotContain("errr")
+        }
+        assertThat(c).contains("i think")
+        assertThat(c).contains("yes")
+    }
+
+    @Test
+    fun i_mean_and_hyphen_filler_stripped() {
+        val r = CleanupPipeline.run("Uh-huh, I mean this is good")
+        val c = r.clean.lowercase()
+        assertThat(c).doesNotContain("i mean")
+        assertThat(c).doesNotContain("uh-huh")
+        assertThat(c).contains("this is good")
+    }
+
+    @Test
+    fun stretch_rules_keep_real_words() {
+        val r = CleanupPipeline.run("The aha moment was an error near my arm")
+        val c = r.clean.lowercase()
+        assertThat(c).contains("aha")
+        assertThat(c).contains("error")
+        assertThat(c).contains("arm")
+    }
+
+    @Test
     fun real_like_kept() {
         val r = CleanupPipeline.run("I like pizza.")
         assertThat(r.clean.lowercase()).contains("i like pizza")

@@ -1,5 +1,6 @@
 package app.openflow.whisper
 
+import android.annotation.SuppressLint
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
@@ -16,6 +17,9 @@ class AudioRecordPcm(
     private var record: AudioRecord? = null
     private var onSamples: (FloatArray) -> Unit = {}
 
+    // RECORD_AUDIO is checked by FlowAccessibilityService before any listen
+    // session; AudioRecord fails soft (try/catch) if permission is missing.
+    @SuppressLint("MissingPermission")
     override fun start(onSamples: (FloatArray) -> Unit) {
         take()
         this.onSamples = onSamples

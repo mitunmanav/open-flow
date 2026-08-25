@@ -69,6 +69,7 @@ class FirstRunPolicyTest {
     fun a11y_and_mic_copy_keep_keyboard() {
         val a11y = FirstRunPolicy.copy(FirstRunPolicy.Step.A11Y)
         assertThat(a11y.body).contains("keyboard")
+        assertThat(a11y.body.lowercase()).contains("reads")
         assertThat(a11y.primary).isEqualTo("Open Accessibility")
         val mic = FirstRunPolicy.copy(FirstRunPolicy.Step.MIC)
         assertThat(mic.body.lowercase()).contains("post")

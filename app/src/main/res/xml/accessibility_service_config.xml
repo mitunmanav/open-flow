@@ -7,10 +7,11 @@
   No analytics. No screen scraping for ads.
 -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-    android:accessibilityEventTypes="typeViewFocused|typeViewClicked|typeWindowStateChanged|typeWindowContentChanged|typeViewTextChanged"
+    android:accessibilityEventTypes="typeViewFocused|typeViewClicked|typeWindowStateChanged|typeWindowsChanged|typeViewTextChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagReportViewIds|flagRetrieveInteractiveWindows|flagIncludeNotImportantViews"
     android:canRetrieveWindowContent="true"
     android:description="@string/a11y_service_description"
+    android:isAccessibilityTool="true"
     android:notificationTimeout="100"
     android:settingsActivity="app.openflow.ui.MainActivity" />

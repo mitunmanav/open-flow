@@ -4,6 +4,7 @@ import app.openflow.stt.providers.ondevice.OnPhoneModelUi
 import app.openflow.ui.dictionary.DictionaryTab
 import app.openflow.ui.history.HistoryScreen
 import app.openflow.ui.history.useHistoryRaw
+import app.openflow.ui.privacy.A11yDisclosureDialog
 import app.openflow.ui.settings.AppearanceSettings
 import app.openflow.ui.settings.BubbleSettings
 import app.openflow.ui.settings.CleanupSettings
@@ -23,9 +24,9 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -183,6 +184,7 @@ import app.openflow.ui.legal.LegalCopy
 import app.openflow.ui.legal.LegalDocumentScreen
 import app.openflow.ui.privacy.PrivacyHonesty
 import app.openflow.ui.setup.BatteryExemption
+import app.openflow.ui.setup.BatteryExemptionDialog
 import app.openflow.ui.setup.FirstRunPolicy
 import app.openflow.ui.setup.SetupWizard
 import app.openflow.ui.style.StyleHubScreen
@@ -233,7 +235,15 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // Custom bottom bar draws behind the nav bar — no system scrim.
+            window.isNavigationBarContrastEnforced = false
+        }
         val app = application as OpenFlowApp
+        _micGranted.value = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.RECORD_AUDIO
+        ) == PackageManager.PERMISSION_GRANTED
         setContent {
             val darkMode by app.prefs.darkMode.collectAsState()
             val skin by app.prefs.visualSkin.collectAsState()
@@ -260,10 +270,6 @@ class MainActivity : ComponentActivity() {
                 }
                 var micOn by remember { _micGranted }
                 var batterySeen by remember { mutableStateOf(app.prefs.setupBatterySeen) }
-                _micGranted.value = ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.RECORD_AUDIO
-                ) == PackageManager.PERMISSION_GRANTED
                 var navStack by rememberSaveable(stateSaver = NavStack.Saver) {
                     mutableStateOf(
                         NavStack.initial(
@@ -336,6 +342,36 @@ class MainActivity : ComponentActivity() {
                 var walkthroughSeen by remember { mutableStateOf(app.prefs.seenHowTo) }
                 var walkPage by remember { mutableStateOf(WalkthroughPolicy.Page.WHAT) }
 
+                var showA11yDisclosure by rememberSaveable { mutableStateOf(false) }
+                var showBatteryDialog by rememberSaveable { mutableStateOf(false) }
+                fun openA11ySettings() {
+                    try {
+                        startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                    } catch (_: Exception) {
+                        try {
+                            startActivity(Intent(Settings.ACTION_SETTINGS))
+                        } catch (_: Exception) {
+                        }
+                    }
+                }
+                fun requestEnableBubble() {
+                    if (app.prefs.a11yDisclosureAccepted) {
+                        openA11ySettings()
+                    } else {
+                        showA11yDisclosure = true
+                    }
+                }
+                if (showA11yDisclosure) {
+                    A11yDisclosureDialog(
+                        onAgree = {
+                            app.prefs.a11yDisclosureAccepted = true
+                            showA11yDisclosure = false
+                            openA11ySettings()
+                        },
+                        onDecline = { showA11yDisclosure = false },
+                    )
+                }
+
                 if (WalkthroughPolicy.needsWalkthrough(walkthroughSeen)) {
                     WalkthroughPager(
                         page = walkPage,
@@ -384,21 +420,7 @@ class MainActivity : ComponentActivity() {
                                 app = app,
                                 bubbleOn = bubbleOn,
                                 micOn = micOn,
-                                onEnableBubble = {
-                                    try {
-                                        android.widget.Toast.makeText(
-                                            this@MainActivity,
-                                            "Turn ON Open Flow Bubble in Accessibility, then return.",
-                                            android.widget.Toast.LENGTH_LONG
-                                        ).show()
-                                        startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                                    } catch (_: Exception) {
-                                        try {
-                                            startActivity(Intent(Settings.ACTION_SETTINGS))
-                                        } catch (_: Exception) {
-                                        }
-                                    }
-                                },
+                                onEnableBubble = { requestEnableBubble() },
                                 onMic = { micPermission.launch(Manifest.permission.RECORD_AUDIO) },
                             )
                             AppRoute.History -> HistoryScreen(app)
@@ -528,53 +550,53 @@ class MainActivity : ComponentActivity() {
                                     layoutTick++
                                 }
                             )
-                            AppRoute.Setup -> SetupWizard(
-                                step = setupStep,
-                                onEnableBubble = {
-                                    try {
-                                        android.widget.Toast.makeText(
-                                            this@MainActivity,
-                                            "Turn ON Open Flow Bubble in Accessibility, then return.",
-                                            android.widget.Toast.LENGTH_LONG
-                                        ).show()
-                                        startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                                    } catch (_: Exception) {
-                                        try {
-                                            startActivity(Intent(Settings.ACTION_SETTINGS))
-                                        } catch (_: Exception) {
-                                        }
+                            AppRoute.Setup -> {
+                                SetupWizard(
+                                    step = setupStep,
+                                    onEnableBubble = { requestEnableBubble() },
+                                    onMic = { micPermission.launch(Manifest.permission.RECORD_AUDIO) },
+                                    onBattery = { showBatteryDialog = true },
+                                    onSkipBattery = {
+                                        markBatterySeen()
+                                        goTo(AppRoute.Home)
                                     }
-                                },
-                                onMic = { micPermission.launch(Manifest.permission.RECORD_AUDIO) },
-                                onBattery = {
-                                    app.prefs.setupBatterySeen = true
-                                    val ignoring = try {
-                                        val pm = getSystemService(PowerManager::class.java)
-                                        pm.isIgnoringBatteryOptimizations(packageName)
-                                    } catch (_: Exception) {
-                                        false
-                                    }
-                                    val batteryIntent = Intent(BatteryExemption.action(ignoring)).setData(
-                                        Uri.parse(BatteryExemption.dataUri(packageName))
-                                    )
-                                    try {
-                                        startActivity(batteryIntent)
-                                    } catch (_: Exception) {
-                                        try {
-                                            startActivity(
-                                                Intent(BatteryExemption.fallbackAction()).setData(
-                                                    Uri.parse(BatteryExemption.dataUri(packageName))
-                                                )
+                                )
+                                if (showBatteryDialog) {
+                                    BatteryExemptionDialog(
+                                        onAgree = {
+                                            showBatteryDialog = false
+                                            app.prefs.setupBatterySeen = true
+                                            val ignoring = try {
+                                                val pm = getSystemService(PowerManager::class.java)
+                                                pm.isIgnoringBatteryOptimizations(packageName)
+                                            } catch (_: Exception) {
+                                                false
+                                            }
+                                            val batteryIntent = Intent(
+                                                BatteryExemption.action(ignoring)
+                                            ).setData(
+                                                Uri.parse(BatteryExemption.dataUri(packageName))
                                             )
-                                        } catch (_: Exception) {
-                                        }
-                                    }
-                                },
-                                onSkipBattery = {
-                                    markBatterySeen()
-                                    goTo(AppRoute.Home)
+                                            try {
+                                                startActivity(batteryIntent)
+                                            } catch (_: Exception) {
+                                                try {
+                                                    startActivity(
+                                                        Intent(BatteryExemption.fallbackAction())
+                                                            .setData(
+                                                                Uri.parse(
+                                                                    BatteryExemption.dataUri(packageName)
+                                                                )
+                                                            )
+                                                    )
+                                                } catch (_: Exception) {
+                                                }
+                                            }
+                                        },
+                                        onDecline = { showBatteryDialog = false },
+                                    )
                                 }
-                            )
+                            }
                         }
                     }
                 }

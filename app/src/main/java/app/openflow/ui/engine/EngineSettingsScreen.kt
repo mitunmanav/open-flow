@@ -269,6 +269,20 @@ fun EngineSettingsScreen(
                     onSarvamMode(it)
                 }
             )
+            val sarvamSuggest = flowPrefs?.let {
+                SarvamModeSuggest.suggest(it.languageTag, sarvamMode)
+            }
+            if (sarvamSuggest != null) {
+                OpenChip(
+                    label = "Speaking Hinglish? Switch to Code-mix",
+                    isOn = false,
+                    modifier = Modifier.testTag("sarvam_codemix_suggestion"),
+                    onClick = {
+                        sarvamMode = sarvamSuggest
+                        onSarvamMode(sarvamSuggest)
+                    }
+                )
+            }
         }
 
         if (state.needsEarKey) {

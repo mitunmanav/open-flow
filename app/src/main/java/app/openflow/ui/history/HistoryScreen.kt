@@ -1,5 +1,6 @@
 package app.openflow.ui.history
 
+import android.annotation.SuppressLint
 import android.graphics.BitmapFactory
 import android.Manifest
 import android.content.ClipData
@@ -216,12 +217,15 @@ fun HistoryScreen(app: OpenFlowApp) {
         }
     }
     val match = HistorySearchPolicy.ftsMatch(searchQuery)
-    val filtered by produceState(dictations, match, dictations) {
-        value = if (match == null) {
+    // Lint false positive (compose-bom 2024.10): value IS assigned unconditionally.
+    @SuppressLint("ProduceStateDoesNotAssignValue")
+    val filtered by produceState(initialValue = dictations, match, dictations) {
+        val next = if (match == null) {
             dictations
         } else {
             app.dictations.searchDictations(searchQuery)
         }
+        value = next
     }
     val days = remember(filtered) {
         val nowMs = System.currentTimeMillis()

@@ -1,5 +1,6 @@
 package app.openflow.stt.providers.cloud
 
+import android.annotation.SuppressLint
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
@@ -15,6 +16,9 @@ class AndroidPcmMic(
     private var worker: Thread? = null
     private var record: AudioRecord? = null
 
+    // RECORD_AUDIO is checked upstream (service refuses listen without it);
+    // AudioRecord construction fails soft via try/catch if permission missing.
+    @SuppressLint("MissingPermission")
     override fun start(onChunk: (ByteArray) -> Unit): Boolean {
         stop()
         val min = AudioRecord.getMinBufferSize(

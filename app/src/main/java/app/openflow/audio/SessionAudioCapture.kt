@@ -1,5 +1,6 @@
 package app.openflow.audio
 
+import android.annotation.SuppressLint
 import app.openflow.stt.providers.cloud.WavPcm
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
@@ -11,12 +12,17 @@ import kotlin.concurrent.thread
  */
 class SessionAudioCapture(
     private val sampleRate: Int = 16_000,
+    private val maxBytes: Long = CaptureCap.DEFAULT_MAX_BYTES,
 ) {
     private val running = AtomicBoolean(false)
     private val chunks = ArrayList<ByteArray>()
+    private var retained = 0L
     private var worker: Thread? = null
     private var record: android.media.AudioRecord? = null
 
+    // Only started while a listen session is live (RECORD_AUDIO already
+    // granted); fail-soft try/catch if the mic cannot start.
+    @SuppressLint("MissingPermission")
     fun start() {
         stopAndDiscard()
         val min = android.media.AudioRecord.getMinBufferSize(
@@ -43,6 +49,7 @@ class SessionAudioCapture(
         }
         record = ar
         running.set(true)
+        retained = 0L
         try {
             ar.startRecording()
         } catch (_: Exception) {
@@ -60,7 +67,12 @@ class SessionAudioCapture(
                     break
                 }
                 if (n > 0) {
-                    synchronized(chunks) { chunks.add(buf.copyOf(n)) }
+                    synchronized(chunks) {
+                        if (CaptureCap.admit(retained, n, maxBytes)) {
+                            chunks.add(buf.copyOf(n))
+                            retained += n
+                        }
+                    }
                 }
                 if (n < 0) break
             }
@@ -80,6 +92,7 @@ class SessionAudioCapture(
             val total = chunks.sumOf { it.size }
             if (total <= 0) {
                 chunks.clear()
+                retained = 0L
                 return null
             }
             val all = ByteArray(total)
@@ -89,6 +102,7 @@ class SessionAudioCapture(
                 o += c.size
             }
             chunks.clear()
+            retained = 0L
             all
         }
         return try {
@@ -108,6 +122,9 @@ class SessionAudioCapture(
         record = null
         runCatching { ar?.stop() }
         runCatching { ar?.release() }
-        synchronized(chunks) { chunks.clear() }
+        synchronized(chunks) {
+            chunks.clear()
+            retained = 0L
+        }
     }
 }

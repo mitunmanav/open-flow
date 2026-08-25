@@ -19,9 +19,9 @@ import app.openflow.ui.a11y.Dimen
 
 @Composable
 fun SettingsPage(
+    modifier: Modifier = Modifier,
     intro: String? = null,
     tag: String? = null,
-    modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(

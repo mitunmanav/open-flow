@@ -51,49 +51,13 @@ Thumbs.db
 # Optional editor
 *.code-workspace
 
-# Old brainstorming / session artifacts (now canonicalised under docs/sessions/ + docs/mockups/)
-.superpowers-stale/
-.serena/
-
 # Python
 **/__pycache__/
 *.py[cod]
 *.pyo
 
-# Local agent notes (not public)
-.grok/
-.agents/
-dist/DESKTOP-FOLDER.txt
+# Codegraph index (regenerate with `codegraph init`)
+.codegraph/
 
-# Local agent notes (optional machine state)
-.grok/NOW.local.md
-
-# Grok session auto stamp (hooks)
-.grok/rules/01-session-stamp.md
-
-# Development / agent files (local only — not GitHub)
-AGENTS.md
-TEAM.md
-.superpowers/
-docs/superpowers/
-docs/ARCHITECTURE.md
-docs/BASELINE.md
-docs/FEATURES.md
-docs/HANDOFF.md
-docs/INDEX.md
-docs/LAUNCH_CHECKLIST.md
-docs/PROCESS.md
-docs/REPORT.md
-docs/SHIP.md
-docs/WISPR-SMALL-FEATURES-MAP.md
-docs/process/
-docs/research/
-info/
-.zcode/
-scripts/git-hooks/
-scripts/install-git-hooks.sh
-scripts/live_feature_test.py
-scripts/open-minimax-lab.sh
-scripts/post-task-docs.sh
-scripts/safe-merge-worktree.sh
-scripts/wsl-verify.sh
+# Agent tool scratch (play-policy audit runs etc.)
+.scratch/

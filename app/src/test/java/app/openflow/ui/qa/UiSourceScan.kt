@@ -27,8 +27,8 @@ internal object UiSourceScan {
             .joinToString("\n") { it.readText() }
     }
 
-    fun valuesFile(name: String): File {
-        val f = File(projectRoot(), "app/src/main/res/values/$name")
+    fun valuesFile(name: String, qualifier: String = "values"): File {
+        val f = File(projectRoot(), "app/src/main/res/$qualifier/$name")
         require(f.isFile) { "missing $f" }
         return f
     }

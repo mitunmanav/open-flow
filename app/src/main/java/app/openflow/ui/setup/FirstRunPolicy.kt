@@ -37,7 +37,8 @@ object FirstRunPolicy {
     fun copy(step: Step): StepCopy = when (step) {
         Step.A11Y -> StepCopy(
             title = "Turn on Flow Bubble",
-            body = "Needed so we can type into other apps. Your keyboard stays.",
+            body = "Reads the focused text field and app package so we can type into other apps. " +
+                "Audio is recorded only while you dictate. Your keyboard stays.",
             primary = "Open Accessibility",
         )
         Step.MIC -> StepCopy(

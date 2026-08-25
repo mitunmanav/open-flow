@@ -1,17 +1,16 @@
 package app.openflow.bubble
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
-import androidx.annotation.RequiresApi
 import app.openflow.OpenFlowApp
 import app.openflow.ui.MainActivity
 
 /**
  * Android Quick Settings Tile to toggle / launch Open Flow Bubble.
  */
-@RequiresApi(Build.VERSION_CODES.N)
 class FlowBubbleTileService : TileService() {
 
     override fun onStartListening() {
@@ -41,6 +40,7 @@ class FlowBubbleTileService : TileService() {
                 )
             } else {
                 @Suppress("DEPRECATION")
+                @SuppressLint("StartActivityAndCollapseDeprecated")
                 startActivityAndCollapse(intent)
             }
         } else {

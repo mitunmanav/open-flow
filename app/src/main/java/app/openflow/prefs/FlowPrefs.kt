@@ -404,10 +404,18 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         get() = normalizeRetention(store.getString("retention", "keep"))
         set(v) = store.putString("retention", normalizeRetention(v))
 
-    /** Remember word fixes after dictation (on-device). */
+    /** Remember word fixes after dictation (on-device). Opt-in — default OFF. */
     var autoLearn: Boolean
-        get() = store.getString("auto_learn", "true") == "true"
+        get() = store.getString("auto_learn", "false") == "true"
         set(v) = store.putString("auto_learn", if (v) "true" else "false")
+
+    /**
+     * Prominent-disclosure consent for the Accessibility service.
+     * Must be accepted before we send the user to system Accessibility settings.
+     */
+    var a11yDisclosureAccepted: Boolean
+        get() = store.getString("a11y_disclosure_accepted", "false") == "true"
+        set(v) = store.putString("a11y_disclosure_accepted", if (v) "true" else "false")
 
     /**
      * Tiny learn map: `from=bag` auto, `from=*` manual.

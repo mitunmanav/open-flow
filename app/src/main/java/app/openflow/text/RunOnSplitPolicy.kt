@@ -6,12 +6,31 @@ object RunOnSplitPolicy {
     private val bridge = Regex(
         """(?i)(?<=\s)((?:and then|then|so|but)\s+(?:I|we|they))(?=\s)"""
     )
+    private val timeThenClause = Regex(
+        """(?i)\b(noon|midnight|morning|evening|tonight|today|yesterday|tomorrow)\s+(it|i|we|they|he|she)\b"""
+    )
 
     fun apply(t: String): String {
         val s = t.trim()
         if (s.isEmpty()) return t
         if (s.contains(Regex("""^\d+\.""")) || s.contains(Regex("""(?i)\d+\.\s"""))) {
             return t
+        }
+        timeThenClause.find(s)?.let { m ->
+            val time = m.groupValues[1]
+            val pronoun = m.groupValues[2]
+            val left = s.substring(0, m.range.first + time.length).trim()
+            val right = s.substring(m.range.first + time.length).trim()
+            val last = left.lastOrNull()
+            if (wordCount(left) >= 3 && wordCount(right) >= 3 &&
+                last != '.' && last != '?' && last != '!'
+            ) {
+                val cap = pronoun.replaceFirstChar { ch ->
+                    if (ch.isLetter()) ch.uppercaseChar() else ch
+                }
+                val rest = right.drop(pronoun.length).trim()
+                return "$left. $cap $rest"
+            }
         }
         val hits = bridge.findAll(s).toList()
         if (hits.size != 1) return t

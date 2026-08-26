@@ -2,6 +2,7 @@ package app.openflow.text
 
 import app.openflow.ai.TextAIProvider
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
@@ -107,6 +108,44 @@ class BrainPolishTest {
         )
         assertThat(out.clean).isNotEqualTo(out.clean.uppercase())
         assertThat(fake.calls).isEqualTo(0)
+    }
+
+    @Test
+    fun brain_invention_falls_back_to_local() {
+        val fake = object : TextAIProvider {
+            override val name: String = "fake"
+            override suspend fun enhance(text: String, mode: String): String =
+                "$text xyzzy"
+        }
+        val out = TextPostProcessor.polishSessionResult(
+            raw = sample,
+            level = CleanupLevel.HIGH,
+            brain = fake,
+            brainRewrite = true,
+        )
+        assertThat(out.clean.lowercase()).doesNotContain("xyzzy")
+        assertThat(out.clean.lowercase()).contains("hello")
+    }
+
+    @Test
+    fun brain_timeout_falls_back_to_local_rules() {
+        val slow = object : TextAIProvider {
+            override val name: String = "slow"
+            override suspend fun enhance(text: String, mode: String): String {
+                delay(10_000)
+                return "SHOULD NOT APPEAR xyzzy"
+            }
+        }
+        val out = TextPostProcessor.polishSessionResult(
+            raw = sample,
+            level = CleanupLevel.HIGH,
+            brain = slow,
+            brainRewrite = true,
+            budgetMs = 80L,
+        )
+        assertThat(out.clean.lowercase()).doesNotContain("xyzzy")
+        assertThat(out.clean.lowercase()).contains("hello")
+        assertThat(out.raw).isEqualTo(sample)
     }
 
     @Test

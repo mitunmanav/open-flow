@@ -129,12 +129,15 @@ object CommandMode {
 
     private fun formatBullets(raw: String): String {
         val items = splitListItems(raw)
-        return items.filter { it.isNotBlank() }.joinToString("\n") { "• " + capitalizeFirst(it.trim()) }
+        return items.filter { it.isNotBlank() }
+            .joinToString("\n") { "• " + capitalizeFirst(it.trim().trimEnd('.')) }
     }
 
     private fun formatNumberedList(raw: String): String {
         val items = splitListItems(raw)
-        return items.filter { it.isNotBlank() }.mapIndexed { i, it -> "${i + 1}. " + capitalizeFirst(it.trim()) }.joinToString("\n")
+        return items.filter { it.isNotBlank() }
+            .mapIndexed { i, it -> "${i + 1}. " + capitalizeFirst(it.trim().trimEnd('.')) }
+            .joinToString("\n")
     }
 
     private fun splitListItems(raw: String): List<String> {

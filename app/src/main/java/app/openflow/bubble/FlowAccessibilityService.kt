@@ -70,6 +70,7 @@ import app.openflow.stt.SpeechEngine
 import app.openflow.stt.SttBias
 import app.openflow.stt.SttEngine
 import app.openflow.stt.providers.ondevice.OnDeviceEar
+import app.openflow.text.CleanupBudget
 import app.openflow.text.CleanupResult
 import app.openflow.text.CommandMode
 import app.openflow.text.CustomStyleConfig
@@ -83,7 +84,9 @@ import app.openflow.text.WritingStyle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.abs
 
 /**
@@ -103,6 +106,17 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             windowsProvider = { windows },
             hapticTap = { hapticEvent(HapticFeel.Event.TAP) },
         )
+    }
+    private val painter by lazy {
+        BubbleVisualPainter(win, object : BubbleVisualPainter.Env {
+            override val prefs: FlowPrefs? get() = this@FlowAccessibilityService.prefs
+            override val listening: Boolean get() = this@FlowAccessibilityService.listening
+            override fun postStopActive(): Boolean = this@FlowAccessibilityService.postStopActive()
+            override fun density(): Float = resources.displayMetrics.density
+            override val filesDir: java.io.File get() = this@FlowAccessibilityService.filesDir
+            override val contentResolver: android.content.ContentResolver
+                get() = this@FlowAccessibilityService.contentResolver
+        })
     }
 
     /** Live listen ear from [OpenFlowApp.currentEar]. Not a raw [SttEngine]. */
@@ -340,8 +354,9 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             if (LearnEngine.isOwnSet(newText, lastInserted)) return
             val from = lastInserted
             lastInserted = newText
+            val deltaMs = SystemClock.elapsedRealtime() - lastInsertAt
             scope.launch(Dispatchers.IO) {
-                runCatching { app.dictations.learnFromEdit(from, newText) }
+                runCatching { app.dictations.learnFromEdit(from, newText, deltaMs) }
             }
         } finally {
             if (source != null) {
@@ -458,7 +473,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             onDone = { if (listening || stopInProgress) stopListening(save = true) },
             setupTouch = { v, lp -> setupTouch(v, lp) },
             onAdded = {
-                updateBubbleVisuals()
+                painter.paint()
                 setBubbleEmphasis(focusedEditable != null)
                 refreshBubbleVisibility()
             },
@@ -681,7 +696,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         refreshLangChip(show && !listening)
         if (show) {
             win.applyParkedOverlayY()
-            updateBubbleVisuals()
+            painter.paint()
         }
     }
 
@@ -788,7 +803,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         win.bubbleChipCopy?.visibility = View.GONE
         win.bubbleChipUndo?.visibility = View.GONE
         win.bubbleChipPaste?.visibility = View.GONE
-        updateBubbleVisuals()
+        painter.paint()
     }
 
     private fun refreshPostStopChips() {
@@ -807,7 +822,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         win.bubbleChipCopy?.visibility = if (s.copy) View.VISIBLE else View.GONE
         win.bubbleChipUndo?.visibility = if (s.undo) View.VISIBLE else View.GONE
         win.bubbleChipPaste?.visibility = if (s.paste) View.VISIBLE else View.GONE
-        if (s.any) updateBubbleVisuals()
+        if (s.any) painter.paint()
     }
 
     private fun undoLastInsert() {
@@ -980,7 +995,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         setListeningAwake(true)
         val gen = ++listenGeneration
 
-        updateBubbleVisuals()
+        painter.paint()
         setListenChrome(0)
         setBubbleEmphasis(true)
 
@@ -1122,6 +1137,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             mainHandler.post {
                 if (gen != listenGeneration || !listening) return@post
                 ear.setBiasing(bias)
+                ear.setPickDictionary(bias)
                 ear.startContinuous(lang)
                 if (BuildConfig.DEBUG) {
                     android.util.Log.i(
@@ -1208,7 +1224,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                     win.bubbleLabel?.text = BubbleLabelFormatter.idle()
                 }
             }
-            updateBubbleVisuals()
+            painter.paint()
             setBubbleEmphasis(focusedEditable != null)
         }
 
@@ -1435,9 +1451,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             val snip = app.dictations.snippetMap()
             lastKeepCap = dict.keys
             val detected = AppContextEngine.detect(lastPackage)
-            val messaging = detected.category.let {
-                it == AppCategory.MESSAGING || it == AppCategory.WORK_COLLAB
-            }
+            val messaging = AppContextEngine.casualChat(detected.category)
             val prefLevel = prefs?.cleanupLevel ?: "medium"
             val level = InsertPolish.level(prefLevel)
             val p = prefs
@@ -1462,26 +1476,41 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             } else {
                 NoAI
             }
-            val result = TextPostProcessor.polishRouted(
-                raw = text,
-                style = style,
-                level = level,
-                custom = custom,
-                dictionary = dict,
-                snippets = snip,
-                brain = brain,
-                earId = routedEarId,
-                brainId = app.enginePrefs.brainId,
-                promptHint = detected.category.promptGuideline,
-                messaging = messaging,
-                mode = mode,
-                aiWhen = app.enginePrefs.aiWhen,
-                signals = routeSignals(),
-                looksLikeCommand = looksLikeCommand(text),
-                onBrainOutcome = { id, ok ->
-                    if (ok) providerHealth.recordSuccess(id) else providerHealth.recordFailure(id)
-                },
-            )
+            var polishTimedOut = false
+            val polish = async {
+                TextPostProcessor.polishRouted(
+                    raw = text,
+                    style = style,
+                    level = level,
+                    custom = custom,
+                    dictionary = dict,
+                    snippets = snip,
+                    brain = brain,
+                    earId = routedEarId,
+                    brainId = app.enginePrefs.brainId,
+                    promptHint = detected.category.promptGuideline,
+                    messaging = messaging,
+                    mode = mode,
+                    aiWhen = app.enginePrefs.aiWhen,
+                    signals = routeSignals(),
+                    looksLikeCommand = looksLikeCommand(text),
+                    onBrainOutcome = { id, ok ->
+                        if (ok) providerHealth.recordSuccess(id) else providerHealth.recordFailure(id)
+                    },
+                )
+            }
+            val result = withTimeoutOrNull(CleanupBudget.POLISH_MS) { polish.await() } ?: run {
+                polishTimedOut = true
+                polish.cancel()
+                if (BuildConfig.DEBUG) {
+                    android.util.Log.w(
+                        "OpenFlow.Cleanup",
+                        "polish timed out after ${CleanupBudget.POLISH_MS}ms — honest raw fallback",
+                    )
+                }
+                CleanupBudget.fallback(text)
+            }
+            if (result == null) return@launch
             val brainId = app.enginePrefs.brainId
             android.util.Log.i(
                 "OpenFlow.Cleanup",
@@ -1491,7 +1520,16 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                     "corr=${result.corrections.size} " +
                     "changed=${text.trim() != result.clean.trim()}"
             )
-            mainHandler.post { onDone(result) }
+            mainHandler.post {
+                if (polishTimedOut) {
+                    Toast.makeText(
+                        this@FlowAccessibilityService,
+                        R.string.flow_cleanup_fallback,
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
+                onDone(result)
+            }
         }
     }
 
@@ -1662,181 +1700,6 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         return null
     }
 
-    /**
-     * Clean chrome:
-     * - Idle: soft pill + charcoal/cream (tint prefs)
-     * - Listening: Cancel | status | Done
-     * Default shape: pill (product clean).
-     */
-    private fun updateBubbleVisuals() {
-        val p = prefs ?: return
-        val root = win.bubbleRoot ?: return
-        val icon = win.bubbleIcon ?: return
-        val label = win.bubbleLabel ?: return
-        val pulseRing = win.bubblePulseRing ?: return
-        val cancel = win.bubbleCancel
-        val density = resources.displayMetrics.density
-        val shape = FlowPrefs.normalizeBubbleShape(p.bubbleShape)
-
-        val mode = FlowPrefs.normalizeBubbleMode(p.bubbleMode)
-        val orbDp = when (mode) {
-            "dot" -> 40f
-            "compact" -> 44f
-            else -> 48f
-        }
-        val stroke = BubbleChrome.strokePx(density)
-        val pal = p.palette()
-        val fill = if (listening) pal.bubbleListenArgb else pal.bubbleIdleArgb
-        val on = pal.bubbleTextArgb
-
-        if (listening) {
-            root.background = null
-            root.layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.CENTER
-            )
-            root.setPadding(0, 0, 0, 0)
-
-            cancel?.visibility = if (p.bubbleShowCancel) View.VISIBLE else View.GONE
-            cancel?.setColorFilter(on)
-            win.bubbleDone?.visibility = if (p.bubbleShowDone) View.VISIBLE else View.GONE
-            win.bubbleDone?.setColorFilter(on)
-            win.bubbleWave?.visibility = View.VISIBLE
-            paintListenDisc(cancel, fill, on, stroke)
-            paintListenDisc(win.bubbleDone, fill, on, stroke)
-            paintListenDisc(win.bubbleWave, fill, on, stroke)
-            applyWaveFill(on)
-            icon.visibility = View.GONE
-            icon.layoutParams = LinearLayout.LayoutParams(
-                (18f * density).toInt(),
-                (18f * density).toInt()
-            ).apply { gravity = Gravity.CENTER }
-            label.visibility = View.GONE
-
-            // Pulse WRAP_CONTENT was the grey veil. Idle-only; never on listen.
-            pulseRing.visibility = View.GONE
-            win.bubbleChipCopy?.visibility = View.GONE
-            win.bubbleChipUndo?.visibility = View.GONE
-            win.bubbleChipPaste?.visibility = View.GONE
-        } else if (postStopActive()) {
-            cancel?.visibility = View.GONE
-            win.bubbleDone?.visibility = View.GONE
-            win.bubbleWave?.visibility = View.GONE
-            label.visibility = View.GONE
-            pulseRing.visibility = View.GONE
-            val bg = GradientDrawable().apply {
-                this.shape = GradientDrawable.RECTANGLE
-                cornerRadius = BubbleChrome.cornerPx("listen", density, p.bubbleRoundPct)
-                setColor(fill)
-                setStroke(stroke, on)
-            }
-            root.background = bg
-            root.layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.CENTER
-            )
-            val padH = (BubbleTouch.PAD_H_DP * density).toInt()
-            val padV = (BubbleTouch.PAD_V_DP * density).toInt()
-            root.setPadding(padH, padV, padH, padV)
-            icon.visibility = View.VISIBLE
-            icon.layoutParams = LinearLayout.LayoutParams(
-                (18f * density).toInt(),
-                (18f * density).toInt()
-            ).apply { gravity = Gravity.CENTER }
-            listOf(win.bubbleChipCopy, win.bubbleChipUndo, win.bubbleChipPaste).forEach { chip ->
-                chip?.setTextColor(on)
-            }
-        } else {
-            cancel?.visibility = View.GONE
-            win.bubbleDone?.visibility = View.GONE
-            win.bubbleWave?.visibility = View.GONE
-            label.visibility = View.GONE
-            pulseRing.visibility = View.GONE
-            win.bubbleChipCopy?.visibility = View.GONE
-            win.bubbleChipUndo?.visibility = View.GONE
-            win.bubbleChipPaste?.visibility = View.GONE
-
-            val (w, h) = BubbleGeometry.overlaySizePx(listening = false, density = density, shape = shape)
-            root.layoutParams = FrameLayout.LayoutParams(w, h, Gravity.CENTER)
-            root.setPadding(0, 0, 0, 0)
-            val useOval = shape == "circle" || shape == "dot"
-            root.background = GradientDrawable().apply {
-                this.shape = if (useOval) GradientDrawable.OVAL else GradientDrawable.RECTANGLE
-                if (!useOval) {
-                    cornerRadius = BubbleChrome.cornerPx(shape, density, p.bubbleRoundPct)
-                }
-                setColor(fill)
-                setStroke(stroke, on)
-            }
-            icon.visibility = View.VISIBLE
-            val iconSz = ((if (shape == "pill") 22f else orbDp * 0.42f) * density).toInt()
-            icon.layoutParams = LinearLayout.LayoutParams(iconSz, iconSz).apply {
-                gravity = Gravity.CENTER
-            }
-        }
-        applyBubbleIcon(icon, p.bubbleIconUri, on)
-        applyOverlayWindowSize()
-    }
-
-    private fun applyBubbleIcon(icon: ImageView, uri: String, on: Int) {
-        val local = BubbleIconPolicy.localFile(filesDir)
-        val loadUri = when {
-            local.isFile && local.length() > 0L -> android.net.Uri.fromFile(local)
-            BubbleIconPolicy.validUri(uri) -> android.net.Uri.parse(uri)
-            else -> null
-        }
-        if (loadUri == null) {
-            icon.setImageResource(R.drawable.ic_mic)
-            icon.setColorFilter(on)
-            return
-        }
-        try {
-            val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            contentResolver.openInputStream(loadUri)?.use {
-                android.graphics.BitmapFactory.decodeStream(it, null, bounds)
-            }
-            val opts = android.graphics.BitmapFactory.Options().apply {
-                inSampleSize = BubbleIconPolicy.decodeSampleSize(bounds.outWidth, bounds.outHeight)
-            }
-            contentResolver.openInputStream(loadUri)?.use { stream ->
-                val bmp = android.graphics.BitmapFactory.decodeStream(stream, null, opts)
-                if (bmp != null) {
-                    icon.colorFilter = null
-                    icon.setImageBitmap(bmp)
-                    return
-                }
-            }
-        } catch (_: Exception) {
-        }
-        icon.setImageResource(R.drawable.ic_mic)
-        icon.setColorFilter(on)
-    }
-
-    /** Pin overlay window. WRAP_CONTENT measures against the screen. */
-    private fun applyOverlayWindowSize() {
-        val params = win.params ?: return
-        val density = resources.displayMetrics.density
-        val shape = FlowPrefs.normalizeBubbleShape(prefs?.bubbleShape.orEmpty())
-        val wide = listening || postStopActive()
-        val (w, h) = BubbleGeometry.overlaySizePx(
-            listening,
-            density,
-            shape,
-            chips = wide && !listening,
-            cancel = prefs?.bubbleShowCancel != false,
-            done = prefs?.bubbleShowDone != false,
-        )
-        params.width = if (w > 0) w else WindowManager.LayoutParams.WRAP_CONTENT
-        params.height = if (h > 0) h else WindowManager.LayoutParams.WRAP_CONTENT
-        val view = win.view ?: return
-        try {
-            win.updateLayout(view, params)
-        } catch (_: Exception) {
-        }
-    }
-
     private fun applyRmsPulse() {
         val view = win.view ?: return
         if (!listening) {
@@ -1846,33 +1709,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         val s = BubbleListenMotion.overlayScale(base = effectiveScale(), rms = lastRms)
         view.scaleX = s
         view.scaleY = s
-        applyWaveHeights(WaveformBars.filledCount(lastRms))
-    }
-
-    private fun paintListenDisc(view: View?, fill: Int, on: Int, stroke: Int) {
-        view ?: return
-        view.background = GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            setColor(fill)
-            setStroke(stroke, on)
-        }
-    }
-
-    private fun applyWaveFill(on: Int) {
-        win.bubbleWaveBars.forEach { bar -> bar?.setBackgroundColor(on) }
-    }
-
-    private fun applyWaveHeights(filled: Int) {
-        val density = resources.displayMetrics.density
-        win.bubbleWaveBars.forEachIndexed { i, bar ->
-            val view = bar ?: return@forEachIndexed
-            val hDp = if (i < filled) 8 + filled * 4 else 8
-            val hPx = (hDp * density).toInt()
-            val lp = view.layoutParams
-            if (lp.height == hPx) return@forEachIndexed
-            lp.height = hPx
-            view.layoutParams = lp
-        }
+        painter.applyWaveHeights(WaveformBars.filledCount(lastRms))
     }
 
     private fun hapticEvent(event: HapticFeel.Event) {
@@ -1915,7 +1752,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         win.params?.alpha = p.bubbleOpacity
         win.refreshImeHeight()
         win.applyParkedOverlayY()
-        updateBubbleVisuals()
+        painter.paint()
         refreshBubbleVisibility()
     }
 

@@ -18,5 +18,6 @@
     <string name="flow_bubble_undone">Undid last insert</string>
     <string name="flow_bubble_lang_set">Dictation language: %s</string>
     <string name="flow_bubble_saved_in_app">Saved in Open Flow — open app to Copy</string>
+    <string name="flow_cleanup_fallback">Cleanup timed out — inserted raw text</string>
     <string name="restore_raw">Restore raw</string>
 </resources>

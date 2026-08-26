@@ -44,6 +44,13 @@ class TrailingPeriodPolicyTest {
     }
 
     @Test
+    fun email_keeps_short_period_when_not_messaging() {
+        assertThat(
+            TrailingPeriodPolicy.apply("Sounds good.", WritingStyle.CASUAL, messaging = false)
+        ).isEqualTo("Sounds good.")
+    }
+
+    @Test
     fun keeps_ellipsis() {
         assertThat(TrailingPeriodPolicy.apply("Wait...", WritingStyle.CASUAL, messaging = true))
             .isEqualTo("Wait...")

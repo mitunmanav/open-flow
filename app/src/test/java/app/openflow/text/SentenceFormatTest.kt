@@ -30,6 +30,12 @@ class SentenceFormatTest {
     }
 
     @Test
+    fun capitalizes_after_newline() {
+        val out = SentenceFormat.capitalizeSentences("line one\nline two")
+        assertThat(out).isEqualTo("Line one\nLine two")
+    }
+
+    @Test
     fun does_not_strip_fillers() {
         val out = SentenceFormat.capitalizeSentences("um hello. uh yes")
         assertThat(out.lowercase()).contains("um")

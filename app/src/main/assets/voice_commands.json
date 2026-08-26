@@ -16,11 +16,6 @@
     "right parenthesis": ")",
     "left paren": "(",
     "right paren": ")",
-    "open brackets": "(",
-    "close brackets": ")",
-    "open bracket": "(",
-    "close bracket": ")",
-    "brackets": "()",
     "open quote": "\"",
     "close quote": "\"",
     "end quote": "\"",
@@ -88,7 +83,12 @@
     "open square bracket": "[",
     "close square bracket": "]",
     "left square bracket": "[",
-    "right square bracket": "]"
+    "right square bracket": "]",
+    "open bracket": "[",
+    "close bracket": "]",
+    "brackets": "[]",
+    "open brackets": "[",
+    "close brackets": "]"
   },
   "layout": {
     "start a new paragraph": "\n\n",

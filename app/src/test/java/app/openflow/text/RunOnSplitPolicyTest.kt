@@ -21,6 +21,12 @@ class RunOnSplitPolicyTest {
     }
 
     @Test
+    fun noon_it_was_splits() {
+        val out = RunOnSplitPolicy.apply("we met at noon it was fun")
+        assertThat(out).isEqualTo("we met at noon. It was fun")
+    }
+
+    @Test
     fun skip_inside_numbered_list() {
         val s = "1. first item and then I skip 2. second"
         assertThat(RunOnSplitPolicy.apply(s)).isEqualTo(s)

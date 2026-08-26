@@ -39,7 +39,7 @@ object CourseCorrector {
     )
 
     private val moneyOrNumber = Regex(
-        """(?i)\b\d+(?:\.\d+)?\s*[kmb]?\b|\b\d+\s*(?:dollars?|bucks|percent|%)\b"""
+        """(?i)\b\d+(?:\.\d+)?[kmb]?\b|\b\d+\s*(?:dollars?|bucks|percent|%)\b"""
     )
 
     private val datePattern = Regex(
@@ -79,8 +79,42 @@ object CourseCorrector {
         t = applyFrameRestate(t)
         t = applyNotSwap(t)
         t = applyCommaName(t)
+        t = applyBareTrigger(t)
         return CourseCorrectResult(t, corrections)
     }
+
+    /**
+     * Bare mid-sentence rethink without punctuation ("monday no tuesday",
+     * "buy a red no blue shirt"): drop [wordBefore trigger] + trigger, keep the
+     * repair side. Guarded — "I have NO idea" must survive (blocked frames).
+     */
+    internal fun applyBareTrigger(t: String): String {
+        val bare = Regex(
+            """(?i)(?:^|\s)(\S+)\s+((?:no\s+wait|wait\s+no|no))\s+(?=[A-Za-z0-9])"""
+        )
+        val m = bare.find(t) ?: return t
+        val beforeWord = m.groupValues[1].trim('.', ',', '!', '?', ';', ':').lowercase()
+        if (beforeWord in blockedFrames) return t
+        var out = t.removeRange(m.range.first + if (t[m.range.first].isWhitespace()) 1 else 0, m.range.last + 1)
+        // "order the the pasta" artifacts after deletion
+        out = Regex("""(?i)\b(the)\s+\1\b""").replace(out, "$1")
+        out = Regex("""(?i)\b(a)\s+\1\b""").replace(out, "$1")
+        return normalizeSpaces(out)
+    }
+
+    private val blockedFrames = setOf(
+        "have", "has", "had", "is", "was", "are", "were", "am", "be", "been",
+        "do", "does", "did", "done", "a", "an", "the", "this", "that", "it",
+        "of", "to", "in", "on", "for", "and", "but", "or", "so", "not", "no",
+        "yes", "my", "your", "his", "her", "its", "our", "their", "with",
+        "without", "any", "some", "many", "much", "more", "most", "very",
+        "just", "really", "quite", "too", "also", "get", "got", "make",
+        "made", "take", "took", "see", "saw", "know", "knew", "want", "need",
+        "think", "thought", "say", "said", "tell", "told", "idea", "there",
+        "i", "we", "you", "they", "he", "she", "me", "us", "him", "her", "them",
+        "please", "hello", "hi", "hey", "ok", "okay", "well", "now", "here",
+        "then", "still", "again", "maybe", "let", "lets", "thank", "thanks",
+    )
 
     private data class Step(val text: String, val correction: Correction? = null)
 
@@ -313,8 +347,15 @@ object CourseCorrector {
             marker == "wait"
     }
 
+    private val temporalWords = setOf(
+        "today", "tomorrow", "yesterday", "tonight", "now", "later", "soon",
+    )
+
     private fun looksLikeSlot(words: List<String>): Boolean {
         val joined = words.joinToString(" ")
+        if (words.firstOrNull()?.trimEnd('.', ',', '!', '?')?.lowercase() in temporalWords) {
+            return true
+        }
         if (weekdayPattern.containsMatchIn(joined)) return true
         if (timePattern.containsMatchIn(joined)) return true
         if (moneyOrNumber.containsMatchIn(joined)) return true
@@ -407,7 +448,7 @@ object CourseCorrector {
         if (cleanAfter.isEmpty()) return before
         val afterWords = cleanAfter.split(ws).filter { it.isNotBlank() }
         val n = afterWords.size.coerceAtLeast(1).coerceAtMost(tokens.size)
-        val cut = tokens.size - n
+        val cut = (tokens.size - n).coerceAtLeast(0)
         val head = tokens.subList(0, cut).joinToString(" ")
         return if (head.isBlank()) cleanAfter else "$head $cleanAfter".trim()
     }

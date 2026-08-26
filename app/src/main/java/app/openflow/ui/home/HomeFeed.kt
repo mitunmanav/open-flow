@@ -171,126 +171,34 @@ fun HomeFeed(
                     serviceAlive = serviceAlive,
                 )
             ) {
-                HomeBannerPolicy.Banner.REPAIR_A11Y -> {
-                    val copy = HomeBannerPolicy.copy(banner)
-                    OpenCard(modifier = Modifier.testTag("home_banner_repair")) {
-                        Column(
-                            Modifier.padding(Dimen.MIN_PADDING),
-                            verticalArrangement = Arrangement.spacedBy(HomeFeedTokens.cardInnerGap)
-                        ) {
-                            Text(
-                                copy.title,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                softWrap = true
-                            )
-                            if (copy.body != null) {
-                                Text(
-                                    copy.body,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    softWrap = true
-                                )
-                            }
-                            OpenButton(
-                                text = copy.cta ?: "Open Accessibility",
-                                onClick = onEnableBubble,
-                                contentDescription = copy.a11yLabel,
-                                modifier = Modifier.testTag("home_banner_a11y")
-                            )
-                        }
-                    }
-                }
-                HomeBannerPolicy.Banner.SERVICE_STALE -> {
-                    val copy = HomeBannerPolicy.copy(banner)
-                    OpenCard(modifier = Modifier.testTag("home_banner_stale")) {
-                        Column(
-                            Modifier.padding(Dimen.MIN_PADDING),
-                            verticalArrangement = Arrangement.spacedBy(HomeFeedTokens.cardInnerGap)
-                        ) {
-                            Text(
-                                copy.title,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                softWrap = true
-                            )
-                            if (copy.body != null) {
-                                Text(
-                                    copy.body,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    softWrap = true
-                                )
-                            }
-                            OpenButton(
-                                text = copy.cta ?: "Turn back on",
-                                onClick = onEnableBubble,
-                                contentDescription = copy.a11yLabel,
-                                modifier = Modifier.testTag("home_banner_stale_btn")
-                            )
-                        }
-                    }
-                }
-                HomeBannerPolicy.Banner.ALLOW_MIC -> {
-                    val copy = HomeBannerPolicy.copy(banner)
-                    OpenCard(modifier = Modifier.testTag("home_banner_mic")) {
-                        Column(
-                            Modifier.padding(Dimen.MIN_PADDING),
-                            verticalArrangement = Arrangement.spacedBy(HomeFeedTokens.cardInnerGap)
-                        ) {
-                            Text(
-                                copy.title,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                softWrap = true
-                            )
-                            if (copy.body != null) {
-                                Text(
-                                    copy.body,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    softWrap = true
-                                )
-                            }
-                            OpenButton(
-                                text = copy.cta ?: "Allow microphone",
-                                onClick = onMic,
-                                contentDescription = copy.a11yLabel,
-                                modifier = Modifier.testTag("home_banner_mic_btn")
-                            )
-                        }
-                    }
-                }
-                HomeBannerPolicy.Banner.END_SNOOZE -> {
-                    val copy = HomeBannerPolicy.copy(banner)
-                    OpenCard(modifier = Modifier.testTag("home_banner_snooze")) {
-                        Column(
-                            Modifier.padding(Dimen.MIN_PADDING),
-                            verticalArrangement = Arrangement.spacedBy(HomeFeedTokens.cardInnerGap)
-                        ) {
-                            Text(
-                                copy.title,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                softWrap = true
-                            )
-                            OpenButton(
-                                text = copy.cta ?: "End snooze",
-                                onClick = {
-                                    app.prefs.clearSnooze()
-                                    snoozed = false
-                                    Toast.makeText(ctx, "Snooze ended", Toast.LENGTH_SHORT).show()
-                                },
-                                contentDescription = copy.a11yLabel,
-                                modifier = Modifier.testTag("home_banner_end_snooze")
-                            )
-                        }
-                    }
-                }
+                HomeBannerPolicy.Banner.REPAIR_A11Y -> BannerCard(
+                    copy = HomeBannerPolicy.copy(banner),
+                    onClick = onEnableBubble,
+                    testTag = "home_banner_repair",
+                    buttonTestTag = "home_banner_a11y",
+                )
+                HomeBannerPolicy.Banner.SERVICE_STALE -> BannerCard(
+                    copy = HomeBannerPolicy.copy(banner),
+                    onClick = onEnableBubble,
+                    testTag = "home_banner_stale",
+                    buttonTestTag = "home_banner_stale_btn",
+                )
+                HomeBannerPolicy.Banner.ALLOW_MIC -> BannerCard(
+                    copy = HomeBannerPolicy.copy(banner),
+                    onClick = onMic,
+                    testTag = "home_banner_mic",
+                    buttonTestTag = "home_banner_mic_btn",
+                )
+                HomeBannerPolicy.Banner.END_SNOOZE -> BannerCard(
+                    copy = HomeBannerPolicy.copy(banner),
+                    onClick = {
+                        app.prefs.clearSnooze()
+                        snoozed = false
+                        Toast.makeText(ctx, "Snooze ended", Toast.LENGTH_SHORT).show()
+                    },
+                    testTag = "home_banner_snooze",
+                    buttonTestTag = "home_banner_end_snooze",
+                )
                 HomeBannerPolicy.Banner.NONE -> Unit
             }
         }
@@ -402,6 +310,43 @@ fun HomeFeed(
 
         item(key = "privacy") {
             HomeHonestyFooter()
+        }
+    }
+}
+
+@Composable
+private fun BannerCard(
+    copy: HomeBannerPolicy.BannerCopy,
+    onClick: () -> Unit,
+    testTag: String,
+    buttonTestTag: String,
+) {
+    OpenCard(modifier = Modifier.testTag(testTag)) {
+        Column(
+            Modifier.padding(Dimen.MIN_PADDING),
+            verticalArrangement = Arrangement.spacedBy(HomeFeedTokens.cardInnerGap)
+        ) {
+            Text(
+                copy.title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                softWrap = true
+            )
+            if (copy.body != null) {
+                Text(
+                    copy.body,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    softWrap = true
+                )
+            }
+            OpenButton(
+                text = copy.cta ?: "Open Accessibility",
+                onClick = onClick,
+                contentDescription = copy.a11yLabel,
+                modifier = Modifier.testTag(buttonTestTag)
+            )
         }
     }
 }

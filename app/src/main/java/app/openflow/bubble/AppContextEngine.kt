@@ -117,6 +117,10 @@ object AppContextEngine {
         "search", "query", "find", "type url", "ask anything", "search or type"
     )
 
+    /** Chat/work: drop short casual periods. Email/docs keep them. */
+    fun casualChat(category: AppCategory): Boolean =
+        category == AppCategory.MESSAGING || category == AppCategory.WORK_COLLAB
+
     fun detect(packageName: String?, hintText: String? = null): AppContext {
         val pkg = packageName.orEmpty().lowercase().trim()
         val hint = hintText.orEmpty().lowercase().trim()

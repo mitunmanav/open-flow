@@ -108,6 +108,18 @@ class FieldPolicyTest {
     }
 
     @Test
+    fun merge_session_open_prefix_lowercases_continuation() {
+        assertThat(FieldPolicy.mergeSession("I think we should", "Wait for it."))
+            .isEqualTo("I think we should wait for it.")
+    }
+
+    @Test
+    fun merge_session_closed_prefix_keeps_caps() {
+        assertThat(FieldPolicy.mergeSession("Done.", "Wait for it."))
+            .isEqualTo("Done. Wait for it.")
+    }
+
+    @Test
     fun search_hint_is_search() {
         assertThat(FieldPolicy.isSearch(0x1, "android.widget.EditText", "Search chats")).isTrue()
     }

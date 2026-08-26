@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.speech.AlternativeSpan
 import android.speech.RecognitionListener
 import android.speech.RecognitionPart
 import android.speech.RecognizerIntent
@@ -86,6 +87,15 @@ class SttEngine(
     fun setBiasing(words: List<String>) {
         biasing = words
     }
+
+    /** Local N-best re-rank terms (see [HypothesisPick]). */
+    private var pickDictionary: Set<String> = emptySet()
+
+    fun setPickDictionary(words: List<String>) {
+        pickDictionary = words.mapNotNull { it.trim().lowercase().takeIf(String::isNotEmpty) }
+            .toSet()
+    }
+
 
     val isAvailable: Boolean
         get() = SpeechRecognizer.isRecognitionAvailable(context)
@@ -619,8 +629,9 @@ class SttEngine(
             hyps,
             scores,
             preferFormatted = SttIntentPolicy.preferFormatted(Build.VERSION.SDK_INT),
+            dictionary = pickDictionary,
         )
-        if (picked.isNotEmpty()) return picked
+        if (picked.isNotEmpty()) return applySpanAlternatives(picked, bundle)
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE || bundle == null) {
             return ""
@@ -641,6 +652,42 @@ class SttEngine(
             if (!formatted.isNullOrBlank()) formatted.trim() else part.rawText.trim()
         }
         return HypothesisPick.joinParts(texts)
+    }
+
+    /**
+     * API 33+ span alternatives: swap a span only when an alternative hits the
+     * pick dictionary exactly and the original does not. Never throws.
+     */
+    private fun applySpanAlternatives(base: String, bundle: Bundle?): String {
+        if (pickDictionary.isEmpty() || base.isEmpty() || bundle == null ||
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
+        ) {
+            return base
+        }
+        val spans = try {
+            bundle.getParcelableArrayList(
+                SpeechRecognizer.RESULTS_ALTERNATIVES,
+                AlternativeSpan::class.java
+            )
+        } catch (e: Exception) {
+            rememberError("alternatives: ${e.message ?: e.javaClass.simpleName}")
+            null
+        }
+        if (spans.isNullOrEmpty()) return base
+        val mapped = spans.mapNotNull { span ->
+            try {
+                val alts = span.alternatives.filter { it.isNotBlank() }
+                if (alts.isEmpty()) null else HypothesisPick.SpanAlts(
+                    span.startPosition,
+                    span.endPosition,
+                    alts
+                )
+            } catch (e: Exception) {
+                rememberError("alternative span: ${e.message ?: e.javaClass.simpleName}")
+                null
+            }
+        }
+        return HypothesisPick.applySpans(base, mapped, pickDictionary)
     }
 
     private fun rememberError(

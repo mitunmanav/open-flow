@@ -1,6 +1,7 @@
 package app.openflow.data
 
 import app.openflow.privacy.RetentionPolicy
+import app.openflow.text.CorrectionClassifier
 import app.openflow.text.LearnPair
 import app.openflow.text.LearnEngine
 import app.openflow.text.PairImport
@@ -124,7 +125,22 @@ class DictationRepository(
 
     suspend fun latestText(): String? = dictationDao.latest()?.text
 
-    suspend fun learnFromEdit(inserted: String, edited: String): List<LearnPair> {
+    /**
+     * Learn from a user fix. When [timeSinceInsertionMs] is given, the edit is
+     * classified first (T13): edits/change-of-mind never learn (Google FL lesson:
+     * learning all edits diverges). Null = unclassified legacy path (history edits).
+     */
+    suspend fun learnFromEdit(
+        inserted: String,
+        edited: String,
+        timeSinceInsertionMs: Long? = null,
+    ): List<LearnPair> {
+        if (timeSinceInsertionMs != null) {
+            val signals = CorrectionClassifier.signalsFor(inserted, edited, timeSinceInsertionMs)
+            if (CorrectionClassifier.classify(signals) == CorrectionClassifier.Kind.EDIT) {
+                return emptyList()
+            }
+        }
         val pairs = LearnEngine.pairsFromEdit(inserted, edited)
         if (pairs.isEmpty()) return emptyList()
         val existing = dictionaryMap()

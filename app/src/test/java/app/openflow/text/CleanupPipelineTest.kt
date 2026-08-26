@@ -401,6 +401,41 @@ class CleanupPipelineTest {
     }
 
     @Test
+    fun letter_stutter_why_has_no_question_mark() {
+        val r = CleanupPipeline.run("w w why")
+        assertThat(r.clean).doesNotContain("?")
+        assertThat(r.clean).startsWith("Why")
+    }
+
+    @Test
+    fun serial_comma_and_noon_split() {
+        val list = CleanupPipeline.run("we need milk eggs and bread")
+        assertThat(list.clean).contains("milk, eggs, and bread")
+        val split = CleanupPipeline.run("we met at noon it was fun")
+        assertThat(split.clean).contains("noon.")
+        assertThat(split.clean).contains("It was fun")
+    }
+
+    @Test
+    fun spoken_pair_list_allows_commas_and_multiword() {
+        val commas = CleanupPipeline.run("one, apples two, bananas three, cherries")
+        assertThat(commas.clean).contains("1. Apples")
+        assertThat(commas.clean).contains("2. Bananas")
+        assertThat(commas.clean).contains("3. Cherries")
+        assertThat(commas.clean).contains("\n")
+        val multi = CleanupPipeline.run("one red apples two green bananas")
+        assertThat(multi.clean).contains("1. Red apples")
+        assertThat(multi.clean).contains("2. Green bananas")
+    }
+
+    @Test
+    fun sentence_with_one_and_two_is_not_a_list() {
+        val r = CleanupPipeline.run("I have one apple and two bananas")
+        assertThat(r.clean.lowercase()).contains("one apple")
+        assertThat(r.clean).doesNotContain("1.")
+    }
+
+    @Test
     fun style_applies_after_cleanup() {
         val r = CleanupPipeline.run(
             "um well i think we should um go",

@@ -75,6 +75,10 @@ class AndroidSpeechEngine(
         engine.setBiasing(words)
     }
 
+    override fun setPickDictionary(words: List<String>) {
+        engine.setPickDictionary(words)
+    }
+
     override fun startContinuous(languageTag: String) {
         engine.startContinuous(languageTag)
     }

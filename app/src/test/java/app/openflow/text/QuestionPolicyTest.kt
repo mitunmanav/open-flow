@@ -19,6 +19,13 @@ class QuestionPolicyTest {
     }
 
     @Test
+    fun bare_why_is_not_a_question() {
+        assertThat(QuestionPolicy.apply("Why")).isEqualTo("Why")
+        assertThat(QuestionPolicy.apply("why")).isEqualTo("why")
+        assertThat(QuestionPolicy.apply("Why?")).isEqualTo("Why?")
+    }
+
+    @Test
     fun how_are_you_is_question() {
         assertThat(QuestionPolicy.apply("How are you")).endsWith("?")
     }

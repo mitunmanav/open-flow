@@ -28,6 +28,15 @@ class AppContextEngineTest {
     }
 
     @Test
+    fun casual_chat_is_messaging_and_work_not_email() {
+        assertThat(AppContextEngine.casualChat(AppCategory.MESSAGING)).isTrue()
+        assertThat(AppContextEngine.casualChat(AppCategory.WORK_COLLAB)).isTrue()
+        assertThat(AppContextEngine.casualChat(AppCategory.EMAIL)).isFalse()
+        assertThat(AppContextEngine.casualChat(AppCategory.DOCS_NOTES)).isFalse()
+        assertThat(AppContextEngine.casualChat(AppCategory.GENERAL)).isFalse()
+    }
+
+    @Test
     fun email_packages_classified_correctly() {
         val email = listOf(
             "com.google.android.gm",

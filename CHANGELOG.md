@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+## 0.1.9 — 2026-08-25
+
+Reliability round. versionCode 10 · versionName 0.1.9.
+
+### Added
+- **Post-dictation COPY chip** on the bubble (10 s auto-dismiss) — Wispr-style one-tap copy after every dictation.
+- **Stale-service banner** on Home when the toggle is on but the process was killed, with a Turn-back-on CTA.
+- **Overlay self-recovery** — bubble addView failures retry with backoff (1 s / 5 s / 15 s), then post an honest notification.
+- **Language cycle badge** on the idle bubble; tap to rotate dictation language.
+
+### Fixed
+- Quick-settings tile: hide now truly hides via `bubbleHidden`; no longer pins opacity at 0.20 or clobbers the slider.
+- Stale banner rebind race healed by in-process liveness poll.
+- Invisible tap-thief risk removed (hidden state uses GONE, never alpha 0).
+
+### Changed
+- Bubble visual painting extracted into `BubbleVisualPainter` (service 1,959 → 1,771 lines).
+- Home banners unified into one `BannerCard` composable.
+
 ## 0.1.8 — 2026-08-25
 
 GitHub sideload. versionCode 9 · versionName 0.1.8.

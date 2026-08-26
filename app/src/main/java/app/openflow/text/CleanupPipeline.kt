@@ -22,6 +22,21 @@ object CleanupPipeline {
         custom: CustomStyleConfig = CustomStyleConfig(),
         messaging: Boolean = false,
     ): CleanupResult {
+        // I3 totality: user text can be anything — the pipeline must never throw.
+        return try {
+            runGated(raw, level, style, custom, messaging)
+        } catch (t: Throwable) {
+            CleanupResult(raw = raw.trim(), clean = raw.trim(), level = level)
+        }
+    }
+
+    private fun runGated(
+        raw: String,
+        level: CleanupLevel,
+        style: WritingStyle,
+        custom: CustomStyleConfig,
+        messaging: Boolean,
+    ): CleanupResult {
         val original = raw
         if (original.isBlank()) {
             return CleanupResult(raw = "", clean = "", level = level)
@@ -30,25 +45,102 @@ object CleanupPipeline {
             return CleanupResult(raw = original, clean = original, level = level)
         }
 
-        var t = original.trim()
-        val corrections = mutableListOf<Correction>()
+        val result = converge(original, level, style, custom, messaging)
 
-        // Light (all non-RAW)
-        t = normalize(t)
+        // I4 stability + I1 no invention: an unstable or inventing run falls
+        // back to the converged light pass (same gates); if even that fails,
+        // hand back honest raw text. Never crash, never invent.
+        if (result.second && InvariantGate.ok(original, result.first.clean)) {
+            return result.first
+        }
+        if (level != CleanupLevel.LIGHT) {
+            val light = converge(original, CleanupLevel.LIGHT, style, custom, messaging)
+            if (light.second && InvariantGate.ok(original, light.first.clean)) {
+                return light.first
+            }
+        }
+        return CleanupResult(
+            raw = original.trim(),
+            clean = normalizeKeepNewlines(original),
+            corrections = emptyList(),
+            level = level
+        )
+    }
+
+    /** Max stage sweeps to reach a fixed point (I4 idempotence). */
+    private const val MAX_PASSES = 3
+
+    /**
+     * Runs [stages] repeatedly until the output stops changing, so
+     * clean(clean(x)) == clean(x) holds by construction. Second element is
+     * false when [MAX_PASSES] sweeps still mutate the text.
+     */
+    private fun converge(
+        input: String,
+        level: CleanupLevel,
+        style: WritingStyle,
+        custom: CustomStyleConfig,
+        messaging: Boolean,
+    ): Pair<CleanupResult, Boolean> {
+        var cur = input
+        var res = stages(cur, level, style, custom, messaging)
+        val first = res
+        var passes = 1
+        while (res.clean != cur && passes < MAX_PASSES) {
+            cur = res.clean
+            res = stages(cur, level, style, custom, messaging)
+            passes++
+        }
+        val stable = res.clean == cur
+        // Raw + corrections always come from the FIRST sweep over the user's
+        // text; later sweeps only refine the clean string.
+        return first.copy(clean = res.clean) to stable
+    }
+
+    private fun stages(
+        original: String,
+        level: CleanupLevel,
+        style: WritingStyle,
+        custom: CustomStyleConfig,
+        messaging: Boolean,
+    ): CleanupResult {
+        // Newline-preserving entry: sweeps 2+ must not undo inserted line breaks.
+        var t = normalizeKeepNewlines(original.trim())
+        val corrections = mutableListOf<Correction>()
+        val protected0 = AtomicTokens.protect(t)
+        var atomicSpans = protected0.spans
+        t = protected0.text
+        // Spoken addresses before VoiceCommands so "dot"/"slash" inside them
+        // survive the punctuation table; then wrap the symbolic forms.
+        t = ItnElectronic.apply(t)
+        val protectedE = AtomicTokens.protect(t)
+        atomicSpans += protectedE.spans
+        t = protectedE.text
         t = stripFillers(t)
-        t = collapseRepetitions(t)
+        t = StutterCollapse.apply(t)
+        t = repeatPhrase.replace(t, "$1")
         t = VoiceCommands.apply(t)
         t = RunOnSplitPolicy.apply(t)
         t = lightGrammar(t)
 
         // Medium+
         if (level == CleanupLevel.NORMAL || level == CleanupLevel.HIGH) {
+            val protected1 = AtomicTokens.protect(t)
+            atomicSpans += protected1.spans
+            t = Itn.apply(protected1.text)
             t = stripFalseStarts(t)
+            val hadLeadNl = t.startsWith("\n")
             val analyzed = CourseCorrector.analyze(t)
             corrections += analyzed.corrections
             t = analyzed.text
+            if (hadLeadNl && !t.startsWith("\n")) t = "\n" + t
             t = applyListHints(t)
+            t = SerialCommaPolicy.apply(t)
             t = lightClarity(t)
+            // Openers stripped above can expose an interjection at the start.
+            t = interjection.replace(t) { m ->
+                m.groupValues[1].replaceFirstChar { it.uppercase() } + ", "
+            }
         }
 
         // High only
@@ -60,6 +152,9 @@ object CleanupPipeline {
         t = keepContent(original, t)
         t = StyleApplicator.apply(t, style, custom)
         t = TrailingPeriodPolicy.apply(t, style, messaging)
+
+        // Restore protected spans last so punctuation/caps stages never touch them.
+        t = AtomicTokens.restore(t, atomicSpans)
         t = keepContent(original, t)
 
         return CleanupResult(
@@ -108,11 +203,13 @@ object CleanupPipeline {
         t.replace(ws, " ").trim()
 
     /** Collapse horizontal space; keep newlines for lists / spoken line breaks. */
-    internal fun normalizeKeepNewlines(t: String): String =
-        t.lines()
+    internal fun normalizeKeepNewlines(t: String): String {
+        val lead = if (t.startsWith("\n")) "\n" else ""
+        return lead + t.lines()
             .joinToString("\n") { it.replace(horizWs, " ").trim() }
             .replace(manyNewlines, "\n\n")
-            .trim()
+            .trimEnd()
+    }
 
     private val fillers = listOf(
         "um", "uh", "erm", "ah", "uhm", "hmm", "mhm",
@@ -136,14 +233,24 @@ object CleanupPipeline {
         "\\bm+h+m*\\b",
     ).map { Regex(it, RegexOption.IGNORE_CASE) }
 
-    private val repeatPhrase = Regex("""(?i)\b(\w+(?:\s+\w+){0,2})\s+\1\b""")
+    private val repeatPhrase = Regex("""(?i)\b(\w+(?:\s+\w+){1,2})\s+\1\b""")
     private val loneI = Regex("""\bi\b""")
     private val spaceBeforePunct = Regex("""\s+([,.!?;:])""")
     private val punctNeedSpace = Regex("""([,.!?;:])([A-Za-z])""")
     private val falseStartGoing = Regex("""(?i)\bI\s+was\s+going\s+to\b[^.!?\n]*?[—–-]\s*""")
     private val falseStartStarted = Regex("""(?i)\bI\s+started\s+to\b[^.!?\n]*?[—–-]\s*""")
     private val clarityOpenerComma = Regex("""(?i)^(well|so|okay|ok|right|anyway)\s*,\s*""")
-    private val clarityOpenerSpace = Regex("""(?i)^(well|so|okay|ok|right|anyway)\s+""")
+    // "well"/"anyway" kept as openers: "well done everyone" is a compliment,
+    // "anyway, we left" is a real transition — not filler.
+    private val clarityOpenerSpace = Regex("""(?i)^(so|okay|ok|anyway)\s+""")
+    /** Interjections that take a comma before the rest of the sentence. */
+    private val interjection = Regex(
+        """(?i)^(yes|yeah|nope|sure|correct|exactly|anyway|also)(\s+)(?=[a-z])"""
+    )
+    /** Discourse "like" opening a clause ("like we need to...") is filler. */
+    private val clauseLike = Regex(
+        """(?i)^like\s+(?=(?:we|i|you|they|he|she|it)\b)"""
+    )
     private val spaceBeforeDot = Regex("""\s+\.""")
     private val dottedListSplit = Regex("""\s+(?=\d+\.\s+)""")
     private val dottedListItem = Regex("""^\d+\.\s+\S.*""")
@@ -181,8 +288,37 @@ object CleanupPipeline {
         Regex("\\b${Regex.escape(h)}\\b[,\\s]*", RegexOption.IGNORE_CASE)
     }
 
+    /**
+     * Content uses that must survive filler stripping: correction triggers
+     * feed CourseCorrector later; emphasis phrases are real content.
+     */
+    internal val fillerKeepPhrases = listOf(
+        Regex("""(?i)\bi\s+mean\s+(?=[a-z])"""),
+        Regex("""(?i)\bi\s+meant\s+(?=[a-z])"""),
+        Regex("""(?i)\byou\s+know\s+(?=[a-z])"""),
+        Regex("""(?i)\bwhat\s+i\s+mean\b"""),
+        Regex("""(?i)\bwell\s+done\b"""),
+    )
+
+    /** Line-local so inserted newlines (voice commands) survive re-passes. */
     internal fun stripFillers(t: String): String {
-        var out = t
+        if (!t.contains('\n')) return stripFillersSingle(t)
+        return t.split("\n").joinToString("\n") { line -> stripFillersSingle(line) }
+    }
+
+    private fun stripFillersSingle(t: String): String {
+        // Protect content phrases from filler removal.
+        var work = t
+        val guards = ArrayList<Pair<String, String>>()
+        fillerKeepPhrases.forEachIndexed { idx, re ->
+            re.findAll(work).toList().reversed().forEach { m ->
+                val token = "\uE100${idx}x${m.range.first}\uE101"
+                guards.add(token to m.value)
+                work = work.substring(0, m.range.first) + token +
+                    work.substring(m.range.last + 1)
+            }
+        }
+        var out = work
         fillerRegexes.forEach { re ->
             out = re.replace(out, " ")
         }
@@ -195,6 +331,7 @@ object CleanupPipeline {
         out = likeBeforeFiller.replace(out, " ")
         out = doubleComma.replace(out, ",")
         out = spaceComma.replace(out, ",")
+        guards.forEach { (token, original) -> out = out.replace(token, original) }
         return normalize(out)
     }
 
@@ -212,9 +349,13 @@ object CleanupPipeline {
         return normalize(s)
     }
 
-    /** Light grammar: lone i→I, punct spacing. Not style, not hedges. */
+    /** Light grammar: lone i→I, punct spacing, interjection commas. */
     internal fun lightGrammar(t: String): String {
         var s = t
+        s = clauseLike.replace(s, "")
+        s = interjection.replace(s) { m ->
+            m.groupValues[1].replaceFirstChar { it.uppercase() } + ", "
+        }
         s = loneI.replace(s, "I")
         s = spaceBeforePunct.replace(s, "$1")
         s = punctNeedSpace.replace(s, "$1 $2")
@@ -244,6 +385,8 @@ object CleanupPipeline {
     }
 
     internal fun applyListHints(t: String): String {
+        inlineEnumeration(t)?.let { return it }
+        spokenPairList(t)?.let { return it }
         splitDottedNumbered(t)?.let { return it }
         splitSpokenDigitList(t)?.let { return it }
         splitSequenceWordList(t)?.let { return it }
@@ -253,6 +396,64 @@ object CleanupPipeline {
         return parts.mapIndexed { i, p ->
             "${i + 1}. ${p.trim().trimEnd('.', ',')}"
         }.joinToString("\n")
+    }
+
+    private val numWord1to12 = setOf(
+        "one", "two", "three", "four", "five", "six",
+        "seven", "eight", "nine", "ten", "eleven", "twelve",
+    )
+    /** "steps are one install two configure three run" → "… 1. install 2. …" */
+    private val enumCue = Regex(
+        """(?i)\b(steps|agenda|options|list|plan)\s+(?:are|is)\s+"""
+    )
+    private val numWordToken = Regex("""(?i)^(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)$""")
+
+    /** Inline numbered run after an explicit cue: replace number words with "N.". */
+    private fun inlineEnumeration(t: String): String? {
+        val m = enumCue.find(t) ?: return null
+        val rest = t.substring(m.range.last + 1)
+        val tokens = rest.split(" ")
+        val out = ArrayList<String>(tokens.size)
+        var n = 0
+        for (tok in tokens) {
+            if (numWordToken.matches(tok.trim(',')) && n < 12) {
+                n++
+                out.add("$n.")
+            } else {
+                out.add(tok)
+            }
+        }
+        if (n < 2) return null
+        return t.substring(0, m.range.last + 1) + out.joinToString(" ")
+    }
+
+    /** Whole-utterance spoken pairs: "one coffee two tea" / "one, apples two, bananas". */
+    private fun isListNumWord(tok: String): Boolean =
+        numWordToken.matches(tok.trim(',').trimEnd('.'))
+
+    private fun spokenPairList(t: String): String? {
+        if (t.contains('\n')) return null
+        val trimmed = t.trim().trimEnd('.', '!', '?')
+        val tokens = trimmed.split(" ").filter { it.isNotBlank() }
+        if (tokens.isEmpty()) return null
+        var i = 0
+        if (tokens[0].equals("the", ignoreCase = true)) i = 1
+        if (i >= tokens.size || !isListNumWord(tokens[i])) return null
+        val items = ArrayList<String>()
+        while (i < tokens.size) {
+            if (!isListNumWord(tokens[i])) return null
+            i++
+            val noun = StringBuilder()
+            while (i < tokens.size && !isListNumWord(tokens[i])) {
+                noun.append(tokens[i]).append(' ')
+                i++
+            }
+            val body = noun.toString().trim().trimEnd(',', ';')
+            if (body.isEmpty()) return null
+            items.add(body)
+        }
+        if (items.size < 2) return null
+        return items.mapIndexed { idx, p -> "${idx + 1}. $p" }.joinToString("\n")
     }
 
     /** "1. Apples 2. Bananas 3. Oranges" → multiline. */
@@ -282,6 +483,7 @@ object CleanupPipeline {
 
     /** "first … second …" → multiline list. Intro text before the first ordinal is dropped. */
     private fun splitSequenceWordList(t: String): String? {
+        if (t.contains('\n')) return null  // layout commands already structured it
         val trimmed = t.trim()
         if (sequenceWordLead.findAll(trimmed).count() < 2) return null
         val chunks = trimmed.split(Regex("(?i)\\s+(?=first|second|third|fourth|fifth)\\b"))

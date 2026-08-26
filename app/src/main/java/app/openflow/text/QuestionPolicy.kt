@@ -23,9 +23,11 @@ object QuestionPolicy {
         val words = core.split(Regex("\\s+")).filter { it.isNotEmpty() }
         if (words.isEmpty()) return sentence
         val lastBare = words.last().trimEnd(',', ';').lowercase()
+        // Tag questions: ", right?" always; bare "...right" only when STT left
+        // it unpunctuated (a spoken tag). A period-ed "...right." is agreement.
         val commaTag = core.contains(',') && lastBare in tagWord
-        val rightTag = lastBare == "right" && words.size >= 2
-        if (commaTag || rightTag) return "$core?"
+        val bareTag = lastBare == "right" && words.size >= 2 && !hadEnd
+        if (commaTag || bareTag) return "$core?"
         val first = words.first().lowercase().trimEnd(',', ';')
         val second = words.getOrNull(1)?.lowercase()?.trimEnd(',', ';').orEmpty()
         val qStart = first in q1
@@ -33,6 +35,10 @@ object QuestionPolicy {
         if (qStart && invert) return "$core?"
         if (qStart && !invert && hadEnd && raw.endsWith(".") && words.size >= 6) {
             return raw
+        }
+        // Bare "why"/"what" after letter-stutter is a word, not a question.
+        if (qStart && words.size == 1) {
+            return if (raw.endsWith("?")) "$core?" else core
         }
         if (qStart && words.size <= 12) return "$core?"
         return if (hadEnd) raw else core

@@ -102,6 +102,9 @@ data class CustomStyleConfig(
 
 object StyleApplicator {
 
+    /** AtomicTokens closing sentinel char — counts as a word character. */
+    private const val SENTINEL_END = '\uE001' 
+
     private val informal = listOf(
         "gonna" to "going to",
         "wanna" to "want to",
@@ -188,10 +191,11 @@ object StyleApplicator {
         t = applyEndPunct(t, endMode, style)
 
         // Collapse horizontal space only — keep newlines (lists / new paragraph).
-        t = t.lines().joinToString("\n") { line ->
+        val lead = if (t.startsWith("\n")) "\n" else ""
+        t = lead + t.lines().joinToString("\n") { line ->
             line.replace(Regex("[ \\t]+"), " ").trim()
-        }.replace(Regex("\n{3,}"), "\n\n").trim()
-        t = t.replace(Regex("""[ \\t]+([.,!?;:])"""), "$1")
+        }.replace(Regex("\n{3,}"), "\n\n").trimEnd()
+        t = t.replace(Regex("[ \\t]+([.,!?;:])"), "$1")
         return t
     }
 
@@ -210,7 +214,8 @@ object StyleApplicator {
     private fun applyEndPunct(t: String, mode: EndPunct, style: WritingStyle): String {
         var s = QuestionPolicy.applyAll(t.trimEnd())
         if (s.isEmpty()) return s
-        if (s.trimEnd().endsWith('?')) return s
+        // Multi-line output (lists / layout commands) owns its endings.
+        if (!s.contains('\n') && s.trimEnd().endsWith('?')) return s
 
         val last = s.lastOrNull()
         val hasEnd = last == '.' || last == '!' || last == '?'
@@ -229,7 +234,23 @@ object StyleApplicator {
             }
         }
 
-        if (!s.last().isLetterOrDigit()) return s
+        if (!s.last().isLetterOrDigit() && s.last() != SENTINEL_END) {
+            // Closing quote/bracket takes sentence punctuation — unless the
+            // sentence already ends inside the quotes ("…there.").
+            val closers = charArrayOf('"', '\'', ')', ']', '}')
+            if (s.last() in closers) {
+                var k = s.length - 1
+                while (k >= 0 && (s[k] in closers || s[k] == SENTINEL_END)) k--
+                val core = if (k >= 0) s[k] else '.'
+                val coreIsWord = core.isLetterOrDigit() || core == SENTINEL_END
+                return if (mode != EndPunct.NONE && core !in ".!?" && coreIsWord) {
+                    "$s."
+                } else {
+                    s
+                }
+            }
+            return s
+        }
 
         return when (mode) {
             EndPunct.PERIOD -> "$s."
@@ -238,9 +259,10 @@ object StyleApplicator {
             EndPunct.AUTO -> when {
                 style == WritingStyle.EXCITED -> "$s!"
                 style == WritingStyle.FORMAL -> "$s."
-                // Casual: period only when the line is long; very_casual never reaches AUTO
-                s.length > 40 -> "$s."
-                else -> s
+                // Casual: dictation ends with a period, but lists/layout lines
+                // keep their own endings; messaging strips it later.
+                s.contains('\n') || s.contains("• ") -> s
+                else -> "$s."
             }
         }
     }

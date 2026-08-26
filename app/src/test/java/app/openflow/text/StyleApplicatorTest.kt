@@ -9,7 +9,7 @@ import org.junit.Test
  */
 class StyleApplicatorTest {
 
-    private val raw = "hey um i think we should ship it"
+    private val raw = "hey um i think we're gonna ship it"
 
     @Test
     fun same_raw_five_styles_differ_by_end_punct() {

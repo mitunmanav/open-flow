@@ -62,6 +62,7 @@ object TextPostProcessor {
         languages: Set<String> = emptySet(),
         promptHint: String? = null,
         messaging: Boolean = false,
+        budgetMs: Long = CleanupBudget.POLISH_MS,
     ): CleanupResult {
         val original = raw
         var t = raw
@@ -84,8 +85,12 @@ object TextPostProcessor {
                 append(if (!promptHint.isNullOrBlank()) "cleanup: $promptHint" else "cleanup")
                 if (hints.isNotEmpty()) append(" spell: ").append(hints)
             }
-            val enhanced = runBlocking { brain.enhance(result.clean, systemContext) }
-            sanitizeBrainOutput(enhanced, result.clean)
+            val enhanced = runBlocking {
+                CleanupBudget.within(budgetMs) { brain.enhance(result.clean, systemContext) }
+                    .orEmpty()
+            }
+            val sanitized = sanitizeBrainOutput(enhanced, result.clean)
+            if (InvariantGate.ok(original, sanitized)) sanitized else result.clean
         } else {
             result.clean
         }
@@ -94,7 +99,11 @@ object TextPostProcessor {
         cleaned = CommandMode.applyLocal(cleaned)
 
         if (useAi && Feature.COMMAND in features) {
-            cleaned = runBlocking { CommandMode.apply(cleaned, brainCommand = true, brain = brain) }
+            cleaned = runBlocking {
+                CleanupBudget.within(budgetMs) {
+                    CommandMode.apply(cleaned, brainCommand = true, brain = brain)
+                } ?: cleaned
+            }
         }
 
         cleaned = applyDictionary(
@@ -125,6 +134,7 @@ object TextPostProcessor {
         signals: RouteSignals = RouteSignals(false, emptySet(), emptySet()),
         looksLikeCommand: Boolean = false,
         onBrainOutcome: (providerId: String, ok: Boolean) -> Unit = { _, _ -> },
+        budgetMs: Long = CleanupBudget.POLISH_MS,
     ): CleanupResult {
         val original = raw
         val sides = LearnEngine.sideBags()
@@ -172,10 +182,10 @@ object TextPostProcessor {
             }
         }
 
-        fun afterBrain(text: String): String {
+        fun afterBrain(text: String, fallback: String): String {
             var cleaned = applyDictionary(text, dictionary, sides, autoKeys)
             cleaned = CommandMode.applyLocal(cleaned)
-            return cleaned
+            return if (InvariantGate.ok(original, cleaned)) cleaned else fallback
         }
 
         if (rawLevel || mode == RouteMode.LOCAL_ONLY) {
@@ -186,16 +196,18 @@ object TextPostProcessor {
             val hop = BrainHop.pick(hopAsk(vocab, vocab.length))
             if (hop.providerId != "none") {
                 val artifact = runBlocking {
-                    PipelineArtifactPolicy.build(original, vocab) { t ->
-                        brain.enhance(t, contextFor(t))
+                    CleanupBudget.within(budgetMs) {
+                        PipelineArtifactPolicy.build(original, vocab) { t ->
+                            brain.enhance(t, contextFor(t))
+                        }
                     }
-                }
+                } ?: return localRules()
                 val ok = artifact.ai.isNotBlank()
                 onBrainOutcome(hop.providerId, ok)
                 if (ok) {
                     return CleanupResult(
                         raw = original.trim().ifEmpty { original },
-                        clean = afterBrain(artifact.bestAvailable()),
+                        clean = afterBrain(artifact.bestAvailable(), vocab),
                         level = level,
                     )
                 }
@@ -207,14 +219,16 @@ object TextPostProcessor {
         val hop = BrainHop.pick(hopAsk(local.clean, local.clean.length))
         if (hop.providerId == "none") return local
         val artifact = runBlocking {
-            PipelineArtifactPolicy.build(local.raw, local.clean) { t ->
-                brain.enhance(t, contextFor(t))
+            CleanupBudget.within(budgetMs) {
+                PipelineArtifactPolicy.build(local.raw, local.clean) { t ->
+                    brain.enhance(t, contextFor(t))
+                }
             }
-        }
+        } ?: return local
         val ok = artifact.ai.isNotBlank()
         onBrainOutcome(hop.providerId, ok)
         if (!ok) return local
-        return local.copy(clean = afterBrain(artifact.bestAvailable()))
+        return local.copy(clean = afterBrain(artifact.bestAvailable(), local.clean))
     }
 
     private fun sanitizeBrainOutput(aiOutput: String, fallback: String): String {

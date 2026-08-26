@@ -1,7 +1,13 @@
 package app.openflow.whisper
 
+import app.openflow.text.HallucinationGuard
+
 class TranscriptParts {
     private val parts = ArrayList<String>()
+
+    @Volatile
+    var last: HallucinationGuard.Result = HallucinationGuard.Result("", false, emptyList())
+        private set
 
     @Synchronized
     fun add(text: String) {
@@ -10,5 +16,9 @@ class TranscriptParts {
     }
 
     @Synchronized
-    fun join(): String = parts.joinToString(" ")
+    fun join(): String {
+        val r = HallucinationGuard.apply(parts.joinToString(" "))
+        last = r
+        return r.text
+    }
 }

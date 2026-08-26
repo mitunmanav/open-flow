@@ -64,6 +64,13 @@ class OnDeviceEar(
             val tail = chunker.flush()
             if (tail.isNotEmpty()) transcribeWindows(listOf(tail))
             val text = parts.join()
+            val flagged = parts.last
+            if (flagged.loopCollapsed || flagged.signatures.isNotEmpty()) {
+                android.util.Log.i(
+                    "OpenFlow.Whisper",
+                    "hallucination loops=${flagged.loopCollapsed} sigs=${flagged.signatures}",
+                )
+            }
             onMain {
                 stop()
                 if (text.isNotEmpty()) listener?.onFinal(text)

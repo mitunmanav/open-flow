@@ -24,6 +24,17 @@ jobs:
       - name: Lint
         run: ./gradlew :app:lintDebug --console=plain
 
+      - name: Assemble debug APK
+        run: ./gradlew :app:assembleDebug --console=plain
+
+      - name: Changelog covers version
+        run: |
+          V=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
+          grep -qE "^## ${V}\b" CHANGELOG.md || {
+            echo "::error::CHANGELOG.md has no '## ${V}' section"
+            exit 1
+          }
+
       - name: Upload lint report
         if: always()
         uses: actions/upload-artifact@v4

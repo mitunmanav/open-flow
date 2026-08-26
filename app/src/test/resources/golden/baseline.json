@@ -1,0 +1,17 @@
+{
+  "_comment": "Pinned GoldenCorpusTest F1 per category (word-level micro). Re-pinned after P2 offline-smart work: ITN stages (ItnNumber/DateTime/Money/Electronic), StutterCollapse, CourseCorrector bare-triggers, interjection commas, AtomicTokens protect, SentenceFormat de-ICU. Known pressure items (19) tracked in tasks/todo.md P3 section. Raise only via intentional quality work; CI fails below these.",
+  "commands": 0.804,
+  "context": 0.958,
+  "filler": 0.87,
+  "homophone": 1.0,
+  "itn_date": 1.0,
+  "itn_electronic": 1.0,
+  "itn_money": 1.0,
+  "itn_number": 0.973,
+  "itn_time": 1.0,
+  "list": 0.727,
+  "notouch": 1.0,
+  "selfcorrect": 0.856,
+  "stutter": 0.848,
+  "all": 0.9
+}

@@ -48,4 +48,11 @@ interface SpeechEngine {
 
     /** API 33+ SpeechRecognizer bias. Default no-op. */
     fun setBiasing(words: List<String>) {}
+
+    /**
+     * Terms that should win local N-best re-rank (learned dict values + field
+     * tokens). Same list as [setBiasing] today; separate seam so bias and pick
+     * can diverge later. Default no-op.
+     */
+    fun setPickDictionary(words: List<String>) {}
 }

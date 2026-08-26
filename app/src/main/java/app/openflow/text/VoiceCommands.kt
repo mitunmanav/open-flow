@@ -15,8 +15,16 @@ object VoiceCommands {
 
     fun apply(raw: String): String = apply(raw, map)
 
-    /** Testable entry with explicit map. */
+    /** Testable entry with explicit map. Line-local so inserted newlines survive re-passes. */
     fun apply(raw: String, phraseMap: PhraseMap): String {
+        if (raw.isBlank()) return raw
+        if (raw.contains('\n')) {
+            return raw.split("\n").joinToString("\n") { line -> applySingle(line, phraseMap) }
+        }
+        return applySingle(raw, phraseMap)
+    }
+
+    private fun applySingle(raw: String, phraseMap: PhraseMap): String {
         if (raw.isBlank()) return raw
         val tokens = tokenize(raw)
         if (tokens.isEmpty()) return raw
@@ -96,6 +104,9 @@ object VoiceCommands {
 
     private val spaceBeforeClose = Regex("""\s+([.,!?;:)\]])""")
     private val spaceAfterOpen = Regex("""([(\[])\s+""")
+    private val spaceBeforeQuote = Regex("""(?<=[^\s.,!?;:])\s+(")""")
+    private val spaceAfterQuote = Regex("""(?<=")\s+""")
+
     private val endNeedSpace = Regex("""([.!?])([A-Za-z])""")
     private val commaNeedSpace = Regex("""(,)([A-Za-z])""")
     private val horizWs = Regex("[ \\t]+")
@@ -105,6 +116,8 @@ object VoiceCommands {
         var t = s
         t = spaceBeforeClose.replace(t, "$1")
         t = spaceAfterOpen.replace(t, "$1")
+        t = spaceBeforeQuote.replace(t, "$1")
+        t = spaceAfterQuote.replace(t, "")
         t = endNeedSpace.replace(t, "$1 $2")
         t = commaNeedSpace.replace(t, "$1 $2")
         t = t.lines().joinToString("\n") { line ->

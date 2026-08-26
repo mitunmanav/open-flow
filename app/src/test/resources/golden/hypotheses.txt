@@ -1,0 +1,7 @@
+# dict ||| hypA ||| hypB ||| scoreA,scoreB ||| expected
+# N-best picker golden (spec success criterion 4).
+jon doe ||| send it to john doe ||| send it to Jon Doe ||| 0.95,0.40 ||| send it to Jon Doe
+open ||| the opening slide ||| open the deck ||| 0.95,0.30 ||| open the deck
+Mitun ||| email MITUN about it ||| email Mitun about it ||| 0.60,0.55 ||| email Mitun about it
+mitun ||| call mitunn now please ||| nothing relevant here ||| 0.90,0.95 ||| call mitunn now please
+cap ||| a cat sat ||| a cap sat ||| 0.95,0.20 ||| a cap sat

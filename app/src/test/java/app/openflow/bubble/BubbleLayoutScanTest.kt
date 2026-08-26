@@ -9,6 +9,21 @@ class BubbleLayoutScanTest {
     private fun root() = File(UiSourceScan.projectRoot(), "app/src/main/res/layout")
 
     @Test
+    fun painter_env_overrides_delegate_to_service_not_themselves() {
+        // StackOverflow regression: inside the anonymous Env object, an
+        // unqualified `listening` / `postStopActive()` resolves to the Env's own
+        // override, recursing forever. Must qualify with the service receiver.
+        val src = File(
+            UiSourceScan.projectRoot(),
+            "app/src/main/java/app/openflow/bubble/FlowAccessibilityService.kt",
+        ).readText()
+        assertThat(src)
+            .contains("override val listening: Boolean get() = this@FlowAccessibilityService.listening")
+        assertThat(src)
+            .contains("override fun postStopActive(): Boolean = this@FlowAccessibilityService.postStopActive()")
+    }
+
+    @Test
     fun service_aborts_listen_on_bank_hide() {
         val src = File(
             UiSourceScan.projectRoot(),
@@ -54,7 +69,7 @@ class BubbleLayoutScanTest {
     fun listen_paints_three_discs_not_one_bar() {
         val src = File(
             UiSourceScan.projectRoot(),
-            "app/src/main/java/app/openflow/bubble/FlowAccessibilityService.kt",
+            "app/src/main/java/app/openflow/bubble/BubbleVisualPainter.kt",
         ).readText()
         assertThat(src).contains("paintListenDisc")
         assertThat(src).contains("root.background = null")
@@ -78,8 +93,25 @@ class BubbleLayoutScanTest {
             UiSourceScan.projectRoot(),
             "app/src/main/java/app/openflow/bubble/FlowAccessibilityService.kt",
         ).readText()
-        val pulse = src.substringAfter("fun applyRmsPulse").substringBefore("fun paintListenDisc")
+        val pulse = src.substringAfter("fun applyRmsPulse").substringBefore("fun hapticEvent")
         assertThat(pulse).contains("BubbleListenMotion.overlayScale")
         assertThat(pulse).doesNotContain("BubblePulsePolicy.scale")
+    }
+
+    @Test
+    fun polish_session_bounds_cleanup_and_falls_back_raw() {
+        val src = File(
+            UiSourceScan.projectRoot(),
+            "app/src/main/java/app/openflow/bubble/FlowAccessibilityService.kt",
+        ).readText()
+        assertThat(src).contains("CleanupBudget.POLISH_MS")
+        assertThat(src).contains("CleanupBudget.fallback")
+        assertThat(src).contains("withTimeoutOrNull")
+        assertThat(src).contains("flow_cleanup_fallback")
+        val strings = File(
+            UiSourceScan.projectRoot(),
+            "app/src/main/res/values/strings.xml",
+        ).readText()
+        assertThat(strings).contains("flow_cleanup_fallback")
     }
 }

@@ -1,0 +1,30 @@
+name: Release notes
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract changelog section
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          awk "/^## ${V}\b/{f=1;next} /^## /{f=0} f" CHANGELOG.md > notes.md
+          if [ ! -s notes.md ]; then
+            echo "::warning::No CHANGELOG section for ${V}; using fallback text"
+            echo "Release ${GITHUB_REF_NAME}" > notes.md
+          fi
+          cat notes.md
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: notes.md
+          make_latest: true

@@ -29,7 +29,8 @@ class WritingStyleTest {
         val short = StyleApplicator.apply(body, WritingStyle.CASUAL)
         assertThat(short.first().isUpperCase()).isTrue()
         assertThat(short.lowercase()).contains("gonna")
-        assertThat(short.trimEnd().last()).isNotEqualTo('.')
+        // P4 trailing-punct: dictation sentences end with a period (lists excepted).
+        assertThat(short.trimEnd().last()).isEqualTo('.')
 
         val long = StyleApplicator.apply(
             "this is a somewhat longer casual sentence that should get a period",

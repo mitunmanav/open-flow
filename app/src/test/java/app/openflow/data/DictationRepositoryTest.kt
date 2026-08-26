@@ -230,6 +230,27 @@ class DictationRepositoryTest {
     }
 
     @Test
+    fun learnFromEdit_gated_edit_learns_nothing_even_repeated() = runTest {
+        val f = fakes()
+        val from = "meet me at the cafe tomorrow morning"
+        val to = "meet me at the diner tomorrow evening"
+        assertThat(f.repo.learnFromEdit(from, to, timeSinceInsertionMs = 300_000L)).isEmpty()
+        assertThat(f.repo.learnFromEdit(from, to, timeSinceInsertionMs = 300_000L)).isEmpty()
+        assertThat(f.repo.dictionaryMap()).isEmpty()
+        assertThat(LearnEngine.autoKeys()).isEmpty()
+    }
+
+    @Test
+    fun learnFromEdit_fast_correction_still_learns_after_two_hits() = runTest {
+        val f = fakes()
+        val first = f.repo.learnFromEdit("Meet Mitton", "Meet Mitun", timeSinceInsertionMs = 5_000L)
+        assertThat(first).isEmpty()
+        val pairs = f.repo.learnFromEdit("Meet Mitton", "Meet Mitun", timeSinceInsertionMs = 5_000L)
+        assertThat(pairs.map { it.from to it.to }).containsExactly("Mitton" to "Mitun")
+        assertThat(f.repo.dictionaryMap()).containsEntry("Mitton", "Mitun")
+    }
+
+    @Test
     fun save_bumps_stats() = runTest {
         val f = fakes()
         f.repo.saveDictation("a b", "a b", 1L, "en-US", "keep")

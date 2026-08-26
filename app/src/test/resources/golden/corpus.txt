@@ -1,0 +1,203 @@
+filler ||| normal ||| um i think we should go ||| I think we should go
+filler ||| normal ||| uh let me think ||| Let me think.
+filler ||| normal ||| well um you know it was fine ||| It was fine
+filler ||| normal ||| so like we need to um discuss this ||| We need to discuss this
+filler ||| normal ||| i mean we should check the logs ||| We should check the logs.
+filler ||| normal ||| the um um meeting is at noon ||| The meeting is at noon.
+filler ||| normal ||| it was uh great ||| It was great.
+filler ||| normal ||| hmm let me see ||| Let me see.
+filler ||| normal ||| ah yes that works ||| Yes, that works.
+filler ||| normal ||| um yeah it's fine ||| Yeah, it's fine.
+filler ||| normal ||| so uh anyway we left ||| Anyway, we left
+filler ||| normal ||| i think um it's ready ||| I think it's ready.
+filler ||| normal ||| we can um move forward ||| We can move forward.
+filler ||| normal ||| that's uh a good point ||| That's a good point.
+filler ||| normal ||| and um then we went home ||| And then we went home.
+filler ||| normal ||| please uh confirm the time ||| Please confirm the time.
+filler ||| normal ||| there were uh five people ||| There were five people.
+filler ||| normal ||| i was like so excited ||| I was like so excited.
+filler ||| normal ||| there are like five options ||| There are like five options.
+filler ||| normal ||| you know what i mean ||| You know what I mean.
+filler ||| normal ||| i mean it when i say this ||| I mean it when I say this
+filler ||| normal ||| well done everyone ||| Well done everyone.
+stutter ||| normal ||| i i think so ||| I think so.
+stutter ||| normal ||| the the best one ||| The best one.
+stutter ||| normal ||| we should should go ||| We should go.
+stutter ||| normal ||| so so um so we left ||| So we left
+stutter ||| normal ||| w w why ||| Why.
+stutter ||| normal ||| i i i want this ||| I want this.
+stutter ||| normal ||| it it is good ||| It is good.
+stutter ||| normal ||| we we went home ||| We went home.
+stutter ||| normal ||| can can you help ||| Can you help
+stutter ||| normal ||| to to the store ||| To the store.
+stutter ||| normal ||| and and then what ||| And then what.
+stutter ||| normal ||| no no no i insist ||| No, no, no, I insist.
+stutter ||| normal ||| no no no no i insist ||| No no no no, I insist.
+stutter ||| normal ||| very very good ||| Very very good.
+stutter ||| normal ||| openai openai openai ||| Openai.
+stutter ||| normal ||| please please stop ||| Please stop.
+stutter ||| normal ||| i really really mean it ||| I really really mean it.
+stutter ||| normal ||| the the the report is done ||| The report is done.
+stutter ||| normal ||| we we we are done ||| We are done.
+stutter ||| normal ||| let's let's go ||| Let's go.
+stutter ||| normal ||| it was was raining ||| It was raining.
+selfcorrect ||| normal ||| let's meet at 2 actually 3 ||| Let's meet at 3.
+selfcorrect ||| normal ||| buy a red no blue shirt ||| Buy a blue shirt.
+selfcorrect ||| normal ||| the deadline is monday no tuesday ||| The deadline is Tuesday.
+selfcorrect ||| normal ||| i want the wait the blue one ||| I want the blue one
+selfcorrect ||| normal ||| send it to john sorry james ||| Send it to james.
+selfcorrect ||| normal ||| we need 10 i mean 12 people ||| We need 12 people
+selfcorrect ||| normal ||| call me tomorrow actually today ||| Call me today.
+selfcorrect ||| normal ||| the meeting at 3 make that 4 ||| The meeting at 4.
+selfcorrect ||| normal ||| 200 dollars scratch that 300 dollars ||| 300 dollars.
+selfcorrect ||| normal ||| i wanted to buy a record as a gift as a present ||| I wanted to buy a record as a gift as a present.
+selfcorrect ||| normal ||| let's do coffee at 2 actually 3 ||| Let's do coffee at 3.
+selfcorrect ||| normal ||| we met on the 5th no wait the 6th ||| We met on the 6th.
+selfcorrect ||| normal ||| he's 42 no 43 years old ||| He's 43 years old.
+selfcorrect ||| normal ||| turn left i mean right at the corner ||| Turn right at the corner
+selfcorrect ||| normal ||| the report is due friday actually thursday ||| The report is due Thursday.
+selfcorrect ||| normal ||| it costs 5 bucks actually 7 ||| It costs 5 bucks actually 7
+selfcorrect ||| normal ||| go to paris no wait london ||| Go to london.
+selfcorrect ||| normal ||| i'll take the 3 o'clock no wait the 4 o'clock train ||| I'll take the 4 o'clock train
+selfcorrect ||| normal ||| order the chicken no the pasta ||| Order the pasta.
+selfcorrect ||| normal ||| the blue one not the red one ||| The blue one
+selfcorrect ||| normal ||| we leave on tuesday sorry wednesday ||| We leave on Wednesday.
+selfcorrect ||| normal ||| i actually enjoyed the movie ||| I actually enjoyed the movie.
+selfcorrect ||| normal ||| i'd rather go home than stay ||| I'd rather go home than stay
+itn_number ||| normal ||| twenty five people came ||| 25 people came.
+itn_number ||| normal ||| one hundred and twenty three ||| 123.
+itn_number ||| normal ||| three point one four ||| Three point 1:04.
+itn_number ||| normal ||| one thousand two hundred ||| 1,200.
+itn_number ||| normal ||| forty two ||| 42.
+itn_number ||| normal ||| the number three hundred sixty five ||| The number 365.
+itn_number ||| normal ||| he scored ninety nine ||| He scored 99.
+itn_number ||| normal ||| fifteen percent ||| 15 percent.
+itn_number ||| normal ||| fifty percent of them agreed ||| 50 percent of them agreed.
+itn_number ||| normal ||| in twenty twenty six ||| In 2026.
+itn_number ||| normal ||| two thousand and twenty five ||| 2025.
+itn_number ||| normal ||| the year nineteen ninety nine ||| The year 1999.
+itn_number ||| normal ||| seven billion people ||| 7 billion people.
+itn_number ||| normal ||| three hundred million users ||| 300 million users.
+itn_number ||| normal ||| we need at least twelve chairs ||| We need at least 12 chairs.
+itn_number ||| normal ||| half of them agreed ||| Half of them agreed.
+itn_number ||| normal ||| the first quarter results ||| The first quarter results.
+itn_number ||| normal ||| he finished first ||| He finished first.
+itn_number ||| normal ||| the system uptime is 99.9 percent ||| The system uptime is 99.9 percent.
+itn_date ||| normal ||| may third ||| May 3.
+itn_date ||| normal ||| february fourteenth ||| February 14.
+itn_date ||| normal ||| july fourth ||| July 4.
+itn_date ||| normal ||| december twenty fifth ||| December 25.
+itn_date ||| normal ||| january first twenty twenty four ||| January 1, 2024.
+itn_date ||| normal ||| march second twenty twenty five ||| March 2, 2025.
+itn_date ||| normal ||| the tenth of december ||| The 10th of December.
+itn_date ||| normal ||| the deadline is august fifteenth ||| The deadline is August 15.
+itn_date ||| normal ||| the meeting is on the twenty third ||| The meeting is on the 23rd.
+itn_date ||| normal ||| due may tenth ||| Due May 10.
+itn_date ||| normal ||| born on november ninth ||| Born on November 9.
+itn_date ||| normal ||| see you on the first ||| See you on the 1st.
+itn_date ||| normal ||| monday the third of june ||| Monday, June 3.
+itn_date ||| normal ||| next friday is the thirteenth ||| Next Friday is the 13th.
+itn_date ||| normal ||| august fifteenth is the deadline ||| August 15 is the deadline.
+itn_date ||| normal ||| we close on december thirty first ||| We close on December 31.
+itn_time ||| normal ||| four thirty pm ||| 4:30 PM.
+itn_time ||| normal ||| half past five ||| 5:30.
+itn_time ||| normal ||| nine o'clock ||| 9:00.
+itn_time ||| normal ||| a quarter to six ||| A 5:45.
+itn_time ||| normal ||| ten fifteen in the morning ||| 10:15 AM.
+itn_time ||| normal ||| the train leaves at seven ||| The train leaves at 7:00.
+itn_time ||| normal ||| lunch at noon ||| Lunch at noon.
+itn_time ||| normal ||| we met at midnight ||| We met at midnight.
+itn_time ||| normal ||| it's three thirty ||| It's 3:30.
+itn_time ||| normal ||| wake me at six thirty am ||| Wake me at 6:30 AM.
+itn_time ||| normal ||| the call is at two ||| The call is at 2:00.
+itn_time ||| normal ||| quarter past nine ||| 9:15.
+itn_time ||| normal ||| ten to eleven ||| 10:50.
+itn_time ||| normal ||| we start at eight sharp ||| We start at 8:00 sharp.
+itn_money ||| normal ||| twenty five dollars ||| $25.
+itn_money ||| normal ||| five dollars and fifty cents ||| $5.50.
+itn_money ||| normal ||| one hundred dollars ||| $100.
+itn_money ||| normal ||| ten euros ||| 10 euros.
+itn_money ||| normal ||| it costs twelve pounds ||| It costs £12.
+itn_money ||| normal ||| fifty cents ||| $0.50.
+itn_money ||| normal ||| the total is nine ninety nine ||| The total is $9.99.
+itn_money ||| normal ||| two thousand dollars ||| $2,000.
+itn_money ||| normal ||| a ten dollar bill ||| A $10 bill.
+itn_money ||| normal ||| the fee is fifteen dollars ||| The fee is $15.
+itn_money ||| normal ||| i paid thirty bucks ||| I paid 30 bucks.
+itn_money ||| normal ||| the fine is one hundred and fifty dollars ||| The fine is $150.
+itn_electronic ||| normal ||| email me at john at gmail dot com ||| Email me at john@gmail.com.
+itn_electronic ||| normal ||| the site is www dot example dot com ||| The site is www.example.com.
+itn_electronic ||| normal ||| my number is five five five one two three four ||| My number is 555-1234.
+itn_electronic ||| normal ||| call nine one one ||| Call 911.
+itn_electronic ||| normal ||| reach out to sarah at openflow dot org ||| Reach out to sarah@openflow.org.
+itn_electronic ||| normal ||| the url is example dot com slash docs ||| The url is example.com/docs.
+itn_electronic ||| normal ||| my phone is two one two five five five zero one zero zero ||| My phone is 212-555-0100.
+itn_electronic ||| normal ||| contact me at support at company dot com ||| Contact me at support@company.com.
+itn_electronic ||| normal ||| visit openflow dot io slash docs ||| Visit openflow.io/docs.
+itn_electronic ||| normal ||| the server is at ten dot one dot two dot five ||| The server is at 10.1.2.5.
+itn_electronic ||| normal ||| the file is at home slash user slash docs slash report dot pdf ||| The file is at /home/user/docs/report.pdf.
+list ||| normal ||| one apples two bananas three cherries ||| 1. apples\n2. bananas\n3. cherries
+list ||| normal ||| first gather the notes second review them ||| First, gather the notes\nSecond, review them
+list ||| normal ||| we need milk eggs and bread ||| We need milk, eggs, and bread.
+list ||| normal ||| the steps are one install two configure three run ||| The steps are 1. Install 2. Configure 3. Run.
+list ||| normal ||| first install the app second open it ||| 1. Install the app
+list ||| normal ||| one coffee two tea ||| 1. coffee\n2. tea
+list ||| normal ||| first research second draft third review ||| First, research\nSecond, draft\nThird, review
+list ||| normal ||| the agenda is one standup two design three retro ||| The agenda is 1. Standup 2. Design 3. Retro.
+list ||| normal ||| options are one blue two green three red ||| Options are 1. Blue 2. Green 3. Red.
+commands ||| normal ||| please sit down period ||| Please sit down.
+commands ||| normal ||| are you coming question mark ||| Are you coming?
+commands ||| normal ||| wow exclamation point ||| Wow!
+commands ||| normal ||| hello comma world ||| Hello, world.
+commands ||| normal ||| first line new line second line ||| First line\nsecond line
+commands ||| normal ||| first part new paragraph second part ||| first part\n\nsecond part
+commands ||| normal ||| open parenthesis hello close parenthesis ||| (hello).
+commands ||| normal ||| let's go comma team ||| Let's go, team.
+commands ||| normal ||| what's the plan question mark ||| What's the plan?
+commands ||| normal ||| stop period ||| Stop.
+commands ||| normal ||| and so on ellipsis ||| And so on...
+commands ||| normal ||| note colon the meeting is on time ||| Note: the meeting is on time.
+commands ||| normal ||| call me semicolon it's urgent ||| Call me; it's urgent.
+commands ||| normal ||| the plan em dash simple ||| The plan — simple.
+commands ||| normal ||| she said open quote hello close quote ||| She said"hello".
+commands ||| normal ||| open bracket one close bracket ||| [one].
+commands ||| normal ||| the answer is forty two period ||| The answer is 42.
+commands ||| normal ||| new line after this ||| \nafter this
+context ||| normal ||| the sky is blue ||| The sky is blue.
+context ||| normal ||| please confirm ||| Please confirm.
+context ||| normal ||| i am fine ||| I am fine.
+context ||| normal ||| let's meet monday ||| Let's meet Monday.
+context ||| normal ||| line one\nline two ||| line one\nline two
+context ||| normal ||| we met at noon it was fun ||| We met at noon. It was fun.
+context ||| normal ||| thanks for the update ||| Thanks for the update.
+context ||| normal ||| see you tomorrow ||| See you tomorrow.
+context ||| normal ||| the report looks good ||| The report looks good.
+context ||| normal ||| yes that works ||| Yes, that works.
+context ||| normal ||| the build passed ||| The build passed.
+context ||| normal ||| working on it now ||| Working on it now.
+context ||| normal ||| the deploy is scheduled ||| The deploy is scheduled.
+notouch ||| normal ||| I actually enjoyed the movie. ||| I actually enjoyed the movie.
+notouch ||| normal ||| There are like five options to choose from. ||| There are like five options to choose from.
+notouch ||| normal ||| The meeting is at 4:30 PM. ||| The meeting is at 4:30 PM.
+notouch ||| normal ||| Call me at 555-1234. ||| Call me at 555-1234.
+notouch ||| normal ||| He is 42 years old. ||| He is 42 years old.
+notouch ||| normal ||| This costs $25. ||| This costs $25.
+notouch ||| normal ||| The deadline is August 15th. ||| The deadline is August 15th.
+notouch ||| normal ||| To be or not to be, that is the question. ||| To be or not to be, that is the question.
+notouch ||| normal ||| We need to check the API endpoint at /v1/users. ||| We need to check the API endpoint at /v1/users.
+notouch ||| normal ||| My name is John Smith. ||| My name is John Smith.
+notouch ||| normal ||| The wifi password is hunter2. ||| The wifi password is hunter2.
+notouch ||| normal ||| I think we should ship on Friday. ||| I think we should ship on Friday.
+notouch ||| normal ||| Good morning, how are you? ||| Good morning, how are you?
+homophone ||| normal ||| It's its own thing, you're right, they're here. ||| It's its own thing, you're right, they're here.
+homophone ||| normal ||| Your book is on the table. ||| Your book is on the table.
+homophone ||| normal ||| They're going to their house. ||| They're going to their house.
+homophone ||| normal ||| I think you're right. ||| I think you're right.
+notouch ||| normal ||| Please send the report by EOD tomorrow. ||| Please send the report by EOD tomorrow.
+notouch ||| normal ||| I wanted a record, not a book. ||| I wanted a record, not a book.
+notouch ||| normal ||| She said, "I'll be there." ||| She said, "I'll be there."
+notouch ||| normal ||| The report is done and the review is next. ||| The report is done and the review is next.
+notouch ||| normal ||| Please review the draft by noon. ||| Please review the draft by noon.
+notouch ||| normal ||| The design review starts at 2. ||| The design review starts at 2.
+notouch ||| normal ||| The patch is ready for review. ||| The patch is ready for review.
+notouch ||| normal ||| The release notes are updated. ||| The release notes are updated.

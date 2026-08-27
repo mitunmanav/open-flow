@@ -13,4 +13,6 @@ This folder is the **GitHub Pages** site plus user markdown.
 
 Site: [mitunmanav.github.io/open-flow](https://mitunmanav.github.io/open-flow/).
 
+GitHub Pages: workflow `.github/workflows/pages.yml` deploys this folder from `main`. Repo Settings → Pages → **GitHub Actions**.
+
 Talk: [Discussions](https://github.com/mitunmanav/open-flow/discussions). Bugs: [Issues](https://github.com/mitunmanav/open-flow/issues/new/choose).

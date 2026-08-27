@@ -61,3 +61,14 @@ Thumbs.db
 
 # Agent tool scratch (play-policy audit runs etc.)
 .scratch/
+.serena/
+.grok/
+.claude/
+.cursor/
+.vscode/
+.env
+.env.*
+!.env.example
+*.orig
+*.bak
+sessions/

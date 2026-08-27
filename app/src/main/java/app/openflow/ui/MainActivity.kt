@@ -302,6 +302,7 @@ class MainActivity : ComponentActivity() {
                     batterySeen = true
                 }
                 val setupStep = FirstRunPolicy.step(bubbleOn, micOn, batterySeen)
+                // Cold start deep link (e.g., notification). Warm links go via onNewIntent.
                 androidx.compose.runtime.LaunchedEffect(intent) {
                     if (intent?.getBooleanExtra("open_history", false) == true) {
                         navStack = NavStack.openDeepLink(AppRoute.History)
@@ -310,6 +311,7 @@ class MainActivity : ComponentActivity() {
                 DisposableEffect(Unit) {
                     val listener = androidx.core.util.Consumer<Intent> { newIntent ->
                         if (newIntent.getBooleanExtra("open_history", false)) {
+                            setIntent(newIntent)
                             navStack = NavStack.openDeepLink(AppRoute.History)
                         }
                     }

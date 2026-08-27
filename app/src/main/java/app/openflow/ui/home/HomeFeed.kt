@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MicNone
 import androidx.compose.material.icons.filled.Search
@@ -122,7 +123,10 @@ fun HomeFeed(
             .fillMaxSize()
             .padding(horizontal = HomeFeedTokens.pagePadH)
             .testTag("home_hub"),
-        contentPadding = PaddingValues(vertical = HomeFeedTokens.pagePadV),
+        contentPadding = PaddingValues(
+            top = HomeFeedTokens.pagePadV,
+            bottom = 88.dp
+        ),
         verticalArrangement = Arrangement.spacedBy(HomeFeedTokens.sectionGap),
     ) {
         if (!seenHowTo) {

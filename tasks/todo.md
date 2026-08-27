@@ -92,15 +92,15 @@ Plan: `tasks/plan.md`. Spec: `docs/specs/offline-smart.md`.
 
 ## P2 leftover pressure items (P3 fuel)
 
-- Bare `wait` / `actually` / `i mean` triggers (only `no`, `no wait`, `wait no` fire unpunctuated).
-- ~~"it costs 5 bucks actually 7" -> money splice glues "7bucks"~~ RESOLVED (T11): unstable splice now falls back to honest full text; golden updated.
-- Emphasis triples ("no no no i insist") collapse to one; spec wants keep-when-emphatic decision refined.
-- Letter-stutter "w w why" -> "Why?" (want "Why").
-- Serial comma insertion ("milk eggs and bread") not implemented (P4).
-- Mid-sentence sentence-split ("noon it was fun") not implemented (P4).
+- Bare `wait` / `actually` / `i mean` triggers stay **open** (T8). Only `no` / `no wait` / `wait no` fire unpunctuated.
+- ~~"it costs 5 bucks actually 7" -> money splice glues "7bucks"~~ RESOLVED (T11).
+- ~~Emphasis triples ("no no no i insist")~~ RESOLVED: keep-when-emphatic.
+- ~~Letter-stutter "w w why" -> "Why?"~~ RESOLVED: bare why is not a question.
+- ~~Serial comma insertion ("milk eggs and bread")~~ RESOLVED (P4).
+- ~~Mid-sentence sentence-split ("noon it was fun")~~ RESOLVED (P4).
 
 ## T11 follow-ups (not blocking)
 
-- AI brain rewrite path (`brain.enhance`) bypasses InvariantGate — only sanitizeBrainOutput checks. Gate it in P3.
-- Convergence doubles pipeline sweeps for unstable inputs (max 3); latency fine on short text, not formally measured vs 50ms/500-word budget.
+- ~~AI brain rewrite path (`brain.enhance`) bypasses InvariantGate~~ RESOLVED: gated, falls back to local.
+- Convergence doubles pipeline sweeps for unstable inputs (max 3); latency measured in CleanupBudgetTest (500 words < 50ms).
 - Golden corpus: 2 expectations re-pinned to idempotent fixpoints ("so like we need...", "5 bucks actually 7").

@@ -169,6 +169,7 @@ fun InsightsScreen(
                 },
             )
         }
+        Spacer(Modifier.height(88.dp))
     }
 }
 

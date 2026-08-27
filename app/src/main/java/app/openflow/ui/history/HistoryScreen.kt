@@ -48,6 +48,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -243,7 +244,7 @@ fun HistoryScreen(app: OpenFlowApp) {
             .background(SecUi.cream)
             .padding(horizontal = Dimen.PAGE_PAD, vertical = Dimen.GAP),
         verticalArrangement = Arrangement.spacedBy(Dimen.GAP),
-        contentPadding = PaddingValues(bottom = Dimen.GAP_LG)
+        contentPadding = PaddingValues(bottom = 88.dp)
     ) {
         item(key = "history-hdr") {
         FlowRow(

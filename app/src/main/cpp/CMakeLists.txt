@@ -25,6 +25,10 @@ set(
 
 find_library(LOG_LIB log)
 
+# 16 KB devices (API 35+ / this emu). NDK r28 defaults this; pin so ggml
+# targets cannot drop back to 4 KB. https://developer.android.com/guide/practices/page-sizes
+add_link_options(-Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384)
+
 include(FetchContent)
 
 function(build_library target_name)
@@ -58,6 +62,13 @@ function(build_library target_name)
     endif()
     FetchContent_MakeAvailable(ggml)
     target_compile_options(ggml PRIVATE ${GGML_COMPILE_OPTIONS})
+    foreach(g_tgt ggml ggml-base ggml-cpu)
+        if (TARGET ${g_tgt})
+            target_link_options(${g_tgt} PRIVATE
+                -Wl,-z,max-page-size=16384
+                -Wl,-z,common-page-size=16384)
+        endif()
+    endforeach()
     target_link_libraries(${target_name} ${LOG_LIB} android ggml)
 endfunction()
 

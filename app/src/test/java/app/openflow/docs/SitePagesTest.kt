@@ -94,7 +94,7 @@ class SitePagesTest {
         val index = File(UiSourceScan.projectRoot(), "docs/index.html").readText()
         assertThat(index).contains("class=\"hero\"")
         assertThat(index).contains("class=\"demo kb\"")
-        assertThat(index).contains("open-flow-0.1.7-debug.apk")
+        assertThat(index).contains("github.com/mitunmanav/open-flow/releases/latest")
         assertThat(index).doesNotContain("class=\"card\"")
         assertThat(index).doesNotContain("class=\"grid\"")
         assertThat(index).doesNotContain("class=\"field\"")

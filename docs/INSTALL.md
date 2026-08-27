@@ -8,7 +8,7 @@ Android 8+ (API 26). Speech language in Settings (default en-US). **Debug-signed
 
 | Source | Where |
 |--------|--------|
-| GitHub Releases | `open-flow-0.1.7-debug.apk` → [Releases](https://github.com/mitunmanav/open-flow/releases/latest) |
+| GitHub Releases | Latest debug APK → [Releases](https://github.com/mitunmanav/open-flow/releases/latest) |
 | Fresh build | `app/build/outputs/apk/debug/app-debug.apk` |
 
 ## 2. Allow this one installer

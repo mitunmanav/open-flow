@@ -1283,7 +1283,9 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
 
     /**
      * Debug inject: same polish + field commit path as stopListening, no STT.
-     * adb: am broadcast -a app.openflow.INJECT_DICTATION -p <pkg> --es text "…"
+     * Receiver is NOT_EXPORTED (see [ReceiverExportPolicy]); shell `am broadcast`
+     * cannot reach it on API 33+. For E2E, call [injectDictation] directly in-process
+     * or send an in-app broadcast: `context.sendBroadcast(Intent(ACTION_INJECT))`.
      */
     fun injectDictation(raw: String) {
         if (!BuildConfig.DEBUG) return

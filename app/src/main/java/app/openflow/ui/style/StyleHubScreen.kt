@@ -251,7 +251,7 @@ fun StyleHubScreen(prefs: FlowPrefs) {
             style = MaterialTheme.typography.labelSmall,
             color = scheme.onSurfaceVariant.copy(alpha = 0.85f)
         )
-        Spacer(Modifier.height(Dimen.GAP_LG))
+        Spacer(Modifier.height(88.dp))
     }
 
     if (showPicker) {

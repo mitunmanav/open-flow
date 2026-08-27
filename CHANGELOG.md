@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+Local cleanup v2 on `main` (not a version bump yet).
+
+### Added
+- Golden corpus + N-best hypothesis pick, ITN, invariant gate I1–I4.
+- Polish timeout (5 s) with raw insert + toast.
+- Continuation join, serial comma, noon-clause split, whisper 4-gram / signature guard.
+
 ## 0.1.9 — 2026-08-25
 
 Reliability round. versionCode 10 · versionName 0.1.9.

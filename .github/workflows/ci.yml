@@ -10,6 +10,39 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Authorship is Mitun only
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BASE:-}" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            RANGE="-1"
+          else
+            RANGE="${BASE}..HEAD"
+          fi
+          authors=$(git log --format='%an' $RANGE)
+          echo "$authors"
+          echo "$authors" | grep -qiE 'dependabot|github-actions|copilot' && {
+            echo "::error::bot author in commits"
+            exit 1
+          }
+          git log --format=%B $RANGE | grep -qE '^[[:space:]]*Co-Authored-By:' && {
+            echo "::error::Co-Authored-By trailer in commit body"
+            exit 1
+          }
+          true
+
+      - name: No secret-like strings in the tree
+        run: |
+          set -euo pipefail
+          if git grep -nIE -- \
+            'BEGIN (RSA |OPENSSH |EC )?PRIVATE KEY|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36}|xox[baprs]-[A-Za-z0-9-]{10,}'; then
+            echo "::error::secret-like string in tracked files"
+            exit 1
+          fi
 
       - uses: actions/setup-java@v4
         with:
@@ -27,6 +60,12 @@ jobs:
       - name: Assemble debug APK
         run: ./gradlew :app:assembleDebug --console=plain
 
+      - name: Bundle release AAB (Play)
+        run: ./gradlew :app:bundleRelease --console=plain
+
+      - name: Play static checks
+        run: bash scripts/qa/play-check.sh
+
       - name: Changelog covers version
         run: |
           V=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
@@ -42,3 +81,11 @@ jobs:
           name: lint-report
           path: app/build/reports/lint-results-debug.html
           if-no-files-found: ignore
+
+      - name: Upload AAB
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: warn

@@ -15,15 +15,16 @@ Speech still uses the **phone’s recognizer**. On many phones that is Google. A
 
 Need “voice never leaves this phone”? Pick **Whisper on phone** in Settings — or FUTO / Sayboard / Whisper IME.
 
-## What’s new in 0.1.8
+## What’s new in 0.1.9
 
-Since **0.1.7**:
+Since **0.1.8**:
 
-- **Whisper on the phone** — offline English speech (tiny.en, arm64). This path never sends audio anywhere. Download it in Settings.
-- **Cooler, calmer bubble** — ~30x fewer idle CPU wake-ups, memory cap on retry audio, wider filler net (“uh”, “mm-hmm”, “er”).
-- **Cleanup knows where you are** — chat stays casual, email stays sharp; per-app tone hints reach the AI brain. Hinglish nudge for hi-IN/en-IN speakers.
-- **Honest failures** — cloud speech down? The bubble says what was kept and that the next listen routes around it.
-- **Play-policy clean** — battery dialog explains itself before asking, accessibility service declared a tool.
+- **Copy chip** after dictation (Wispr-style, 10 s).
+- **Stale-service banner** when the toggle is on but the process died.
+- **Overlay retry** on addView fail, then an honest notice.
+- **Language badge** on the idle bubble.
+
+On **main** (not tagged yet): local cleanup v2 — N-best pick, spoken numbers, invariant gate, 5 s polish timeout, whisper loop guard.
 
 Full list: [CHANGELOG.md](CHANGELOG.md).
 
@@ -58,8 +59,10 @@ Full write-up: [docs/COMPARISON.md](docs/COMPARISON.md). Our niche is MIT + keep
 ## Build
 
 ```bash
-./gradlew :app:testDebugUnitTest :app:assembleDebug
+./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
 ```
+
+Device loop (this laptop): [docs/testing.md](docs/testing.md) — `scripts/qa/gate.sh`
 
 Debug-signed sideload. Not Play / F-Droid.
 

@@ -1,0 +1,12 @@
+Open Flow is a Wispr-Flow style dictation bubble for Android. Tap the bubble, speak, and text lands in any app — you keep your keyboard.
+
+• Floating bubble, not a keyboard replacement
+• System speech or on-device Whisper
+• History, dictionary, and snippets stay on this phone
+• No account, no ads, no analytics
+
+How it works: the bubble uses Accessibility only to find the focused text field and insert what you dictated. Password fields are skipped. History is local; cloud is opt-in only after you pick a brain or ear.
+
+Privacy: INTERNET is declared but unused until you pick a cloud model or laptop URL. Default speech may use Google — that is the phone's engine, not our server. See Privacy policy for vendor list.
+
+Open source (MIT): https://github.com/mitunmanav/open-flow

@@ -2,7 +2,7 @@
 
 Public product plan. Not a promise of dates.
 
-## Now — 0.1.7 (GitHub sideload)
+## Now — 0.1.9 (GitHub sideload)
 
 - Bubble + Accessibility insert. Not a keyboard.
 - Hub: Home · Dictionary · Snippets · Style.

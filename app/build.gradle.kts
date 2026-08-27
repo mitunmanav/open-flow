@@ -22,7 +22,11 @@ android {
         }
         externalNativeBuild {
             cmake {
-                arguments += listOf("-DANDROID_STL=c++_shared", "-DCMAKE_BUILD_TYPE=Release")
+                arguments += listOf(
+                    "-DANDROID_STL=c++_shared",
+                    "-DCMAKE_BUILD_TYPE=Release",
+                    "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON",
+                )
             }
         }
     }
@@ -75,11 +79,12 @@ android {
     }
     testOptions {
         unitTests.isReturnDefaultValues = true
+        animationsDisabled = true
     }
     lint {
         abortOnError = false
     }
-    ndkVersion = "25.2.9519653"
+    ndkVersion = "28.2.13676358"
     externalNativeBuild {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
@@ -107,6 +112,9 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    // Compose 1.7.5 pulls 1.0.1 (4 KB ELF). 1.1.0 is 16 KB aligned.
+    // https://developer.android.com/jetpack/androidx/releases/graphics#graphics-path-1.1.0
+    implementation("androidx.graphics:graphics-path:1.1.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
@@ -114,6 +122,9 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test:core:1.7.0")
     androidTestImplementation("androidx.test:runner:1.7.0")
+    // 3.7.0: getSystemService, not InputManager.getInstance (gone on API 36.1+/37).
+    // https://developer.android.com/jetpack/androidx/releases/test#espresso-3.7.0
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("com.google.truth:truth:1.4.4")
 

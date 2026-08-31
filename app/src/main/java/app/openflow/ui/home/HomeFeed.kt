@@ -62,6 +62,7 @@ fun HomeFeed(
     serviceAlive: Boolean = true,
     onEnableBubble: () -> Unit,
     onMic: () -> Unit,
+    onOpenHistory: () -> Unit = {},
     dictationCard: @Composable (
         d: app.openflow.data.DictationEntity,
         onDelete: () -> Unit,
@@ -71,7 +72,8 @@ fun HomeFeed(
     ) -> Unit,
     useHistoryRaw: (android.content.Context, String) -> Unit,
 ) {
-    val dictations by app.dictations.observeDictations().collectAsState(initial = emptyList())
+    var limit by rememberSaveable { mutableStateOf(200) }
+    val dictations by app.dictations.observeRecentDictations(limit).collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
     val ctx = LocalContext.current
     var words by remember { mutableStateOf(0L) }
@@ -81,6 +83,25 @@ fun HomeFeed(
     var snoozed by remember { mutableStateOf(app.prefs.isSnoozed()) }
     var seenHowTo by remember { mutableStateOf(app.prefs.seenHowTo) }
     var homeSearch by rememberSaveable { mutableStateOf("") }
+    var debouncedSearch by remember { mutableStateOf("") }
+    // Full-history FTS hits — search must reach rows beyond the loaded page (1000+ scale).
+    var fullHits by remember { mutableStateOf<List<app.openflow.data.DictationEntity>>(emptyList()) }
+    // Debounce 300ms to keep 1000+ rows smooth (Wispr has no debounced local search)
+    androidx.compose.runtime.LaunchedEffect(homeSearch) {
+        kotlinx.coroutines.delay(300)
+        debouncedSearch = homeSearch
+    }
+    androidx.compose.runtime.LaunchedEffect(debouncedSearch) {
+        if (debouncedSearch.isBlank()) {
+            fullHits = emptyList()
+        } else {
+            fullHits = try {
+                app.dictations.searchDictations(debouncedSearch)
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
+    }
     val owner = LocalLifecycleOwner.current
 
     fun refreshStats() {
@@ -107,9 +128,13 @@ fun HomeFeed(
         }
     }
 
-    val shown = dictations.filter {
-        HubListPolicy.matches(homeSearch, it.text, it.rawText)
-    }
+    val shown = HistorySearchPolicy.mergeSearch(
+        query = debouncedSearch,
+        loadedPage = dictations.filter { HubListPolicy.matches(debouncedSearch, it.text, it.rawText) },
+        fullHits = fullHits,
+        id = { it.id },
+        createdAt = { it.createdAtEpochMs },
+    )
     val nowMs = System.currentTimeMillis()
     val days = HistoryDays.group(
         shown.map { HistoryDays.Row(it.id, it.createdAtEpochMs, it.text) },
@@ -117,6 +142,8 @@ fun HomeFeed(
         zoneOffsetMs = TimeZone.getDefault().getOffset(nowMs).toLong()
     )
     val byId = shown.associateBy { it.id }
+    val homeModules = app.prefs.homeModules()
+    val blockOrder = HomeModulePolicy.orderedVisible(homeModules)
 
     LazyColumn(
         Modifier
@@ -129,191 +156,224 @@ fun HomeFeed(
         ),
         verticalArrangement = Arrangement.spacedBy(HomeFeedTokens.sectionGap),
     ) {
-        if (!seenHowTo) {
-            item(key = "howto") {
-                OpenCard(modifier = Modifier.testTag("home_howto")) {
-                    Column(
-                        Modifier
-                            .padding(Dimen.MIN_PADDING)
-                            .wrapContentHeight(),
-                        verticalArrangement = Arrangement.spacedBy(HomeFeedTokens.cardInnerGap)
-                    ) {
-                        Text(
-                            HomeHowToCopy.title,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            softWrap = true
-                        )
-                        HomeHowToCopy.lines.forEach { line ->
-                            Text(
-                                line,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                softWrap = true
+        blockOrder.forEach { blockId ->
+            when (blockId) {
+                HomeModulePolicy.HOWTO -> {
+                    if (!seenHowTo) {
+                        item(key = "howto") {
+                            OpenCard(modifier = Modifier.testTag("home_howto")) {
+                                Column(
+                                    Modifier
+                                        .padding(Dimen.MIN_PADDING)
+                                        .wrapContentHeight(),
+                                    verticalArrangement = Arrangement.spacedBy(HomeFeedTokens.cardInnerGap)
+                                ) {
+                                    Text(
+                                        HomeHowToCopy.title,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        softWrap = true
+                                    )
+                                    HomeHowToCopy.lines.forEach { line ->
+                                        Text(
+                                            line,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            softWrap = true
+                                        )
+                                    }
+                                    OpenButton(
+                                        text = HomeHowToCopy.gotIt,
+                                        onClick = {
+                                            app.prefs.seenHowTo = true
+                                            seenHowTo = true
+                                        },
+                                        modifier = Modifier.testTag("home_howto_got_it")
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                HomeModulePolicy.BANNER -> {
+                    val banner = HomeBannerPolicy.banner(
+                        bubbleOn = bubbleOn,
+                        micOn = micOn,
+                        snoozed = snoozed,
+                        serviceAlive = serviceAlive,
+                    )
+                    if (banner != HomeBannerPolicy.Banner.NONE) {
+                        item(key = "banner") {
+                            when (banner) {
+                                HomeBannerPolicy.Banner.REPAIR_A11Y -> BannerCard(
+                                    copy = HomeBannerPolicy.copy(banner),
+                                    onClick = onEnableBubble,
+                                    testTag = "home_banner_repair",
+                                    buttonTestTag = "home_banner_a11y",
+                                )
+                                HomeBannerPolicy.Banner.SERVICE_STALE -> BannerCard(
+                                    copy = HomeBannerPolicy.copy(banner),
+                                    onClick = onEnableBubble,
+                                    testTag = "home_banner_stale",
+                                    buttonTestTag = "home_banner_stale_btn",
+                                )
+                                HomeBannerPolicy.Banner.ALLOW_MIC -> BannerCard(
+                                    copy = HomeBannerPolicy.copy(banner),
+                                    onClick = onMic,
+                                    testTag = "home_banner_mic",
+                                    buttonTestTag = "home_banner_mic_btn",
+                                )
+                                HomeBannerPolicy.Banner.END_SNOOZE -> BannerCard(
+                                    copy = HomeBannerPolicy.copy(banner),
+                                    onClick = {
+                                        app.prefs.clearSnooze()
+                                        snoozed = false
+                                        Toast.makeText(ctx, "Snooze ended", Toast.LENGTH_SHORT).show()
+                                    },
+                                    testTag = "home_banner_snooze",
+                                    buttonTestTag = "home_banner_end_snooze",
+                                )
+                                HomeBannerPolicy.Banner.NONE -> Unit
+                            }
+                        }
+                    }
+                }
+                HomeModulePolicy.STATS -> {
+                    item(key = "stats") {
+                        HomeStats(words = words, sessions = sessions, streak = streak)
+                    }
+                }
+                HomeModulePolicy.NOTE -> {
+                    item(key = "note") {
+                        OpenCard(modifier = Modifier.testTag("home_local_note")) {
+                            Column(
+                                Modifier.padding(Dimen.MIN_PADDING),
+                                verticalArrangement = Arrangement.spacedBy(HomeFeedTokens.cardInnerGap)
+                            ) {
+                                Text(
+                                    "Note on this phone",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                OpenTextField(
+                                    value = localNote,
+                                    onValueChange = {
+                                        localNote = it
+                                        app.prefs.homeNote = it
+                                    },
+                                    placeholder = "Write a note on this phone",
+                                    singleLine = false,
+                                    minLines = 2,
+                                    modifier = Modifier.testTag("home_note_field")
+                                )
+                            }
+                        }
+                    }
+                }
+                HomeModulePolicy.SEARCH -> {
+                    item(key = "search") {
+                        Column(verticalArrangement = Arrangement.spacedBy(HomeFeedTokens.cardInnerGap)) {
+                            OpenTextField(
+                                value = homeSearch,
+                                onValueChange = { homeSearch = it },
+                                placeholder = "Search transcripts…",
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Search,
+                                        contentDescription = "Search",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                },
+                                modifier = Modifier.testTag("home_history_search")
+                            )
+                            OpenButton(
+                                text = "All history",
+                                onClick = onOpenHistory,
+                                variant = ButtonVariant.Text,
+                                modifier = Modifier.testTag("home_open_history")
                             )
                         }
-                        OpenButton(
-                            text = HomeHowToCopy.gotIt,
-                            onClick = {
-                                app.prefs.seenHowTo = true
-                                seenHowTo = true
-                            },
-                            modifier = Modifier.testTag("home_howto_got_it")
-                        )
+                    }
+                }
+                HomeModulePolicy.RECENT -> {
+                    if (shown.isEmpty()) {
+                        item(key = "empty") {
+                            EmptyState(
+                                icon = Icons.Default.MicNone,
+                                title = if (homeSearch.isBlank()) "No dictations yet" else "No matching results",
+                                subtitle = if (homeSearch.isBlank()) {
+                                    "Speak with the bubble to save history on this phone."
+                                } else {
+                                    "Try a different search keyword."
+                                },
+                                modifier = Modifier.testTag("home_recent_empty")
+                            )
+                        }
+                    } else {
+                        days.forEach { day ->
+                            stickyHeader(key = "day_${day.label}") {
+                                Text(
+                                    day.label,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(MaterialTheme.colorScheme.background)
+                                        .testTag("home_day_${day.label}")
+                                        .semantics { heading() },
+                                )
+                            }
+                            items(day.rows, key = { it.id }) { row ->
+                                val d = byId[row.id] ?: return@items
+                                dictationCard(
+                                    d,
+                                    { scope.launch { app.dictations.deleteDictation(d.id) } },
+                                    {
+                                        val body = SharePayload.forRow(d.text, d.rawText)
+                                        val send = Intent(Intent.ACTION_SEND).apply {
+                                            type = "text/plain"
+                                            putExtra(Intent.EXTRA_TEXT, body)
+                                        }
+                                        try {
+                                            ctx.startActivity(Intent.createChooser(send, "Share dictation"))
+                                        } catch (_: Exception) {
+                                        }
+                                    },
+                                    { old, new ->
+                                        scope.launch {
+                                            if (app.prefs.autoLearn) {
+                                                app.dictations.learnFromEdit(old, new)
+                                            }
+                                            app.dictations.updateDictationText(d.id, new)
+                                        }
+                                    },
+                                    { raw -> useHistoryRaw(ctx, raw) },
+                                )
+                            }
+                        }
+                        if (dictations.size >= limit) {
+                            item(key = "load_more") {
+                                OpenButton(
+                                    text = "Load more (${dictations.size} shown)",
+                                    onClick = { limit += 200 },
+                                    variant = ButtonVariant.Outlined,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("home_load_more"),
+                                )
+                            }
+                        }
+                    }
+                }
+                HomeModulePolicy.HONESTY -> {
+                    item(key = "privacy") {
+                        HomeHonestyFooter()
                     }
                 }
             }
-        }
-
-        item(key = "banner") {
-            when (
-                val banner = HomeBannerPolicy.banner(
-                    bubbleOn = bubbleOn,
-                    micOn = micOn,
-                    snoozed = snoozed,
-                    serviceAlive = serviceAlive,
-                )
-            ) {
-                HomeBannerPolicy.Banner.REPAIR_A11Y -> BannerCard(
-                    copy = HomeBannerPolicy.copy(banner),
-                    onClick = onEnableBubble,
-                    testTag = "home_banner_repair",
-                    buttonTestTag = "home_banner_a11y",
-                )
-                HomeBannerPolicy.Banner.SERVICE_STALE -> BannerCard(
-                    copy = HomeBannerPolicy.copy(banner),
-                    onClick = onEnableBubble,
-                    testTag = "home_banner_stale",
-                    buttonTestTag = "home_banner_stale_btn",
-                )
-                HomeBannerPolicy.Banner.ALLOW_MIC -> BannerCard(
-                    copy = HomeBannerPolicy.copy(banner),
-                    onClick = onMic,
-                    testTag = "home_banner_mic",
-                    buttonTestTag = "home_banner_mic_btn",
-                )
-                HomeBannerPolicy.Banner.END_SNOOZE -> BannerCard(
-                    copy = HomeBannerPolicy.copy(banner),
-                    onClick = {
-                        app.prefs.clearSnooze()
-                        snoozed = false
-                        Toast.makeText(ctx, "Snooze ended", Toast.LENGTH_SHORT).show()
-                    },
-                    testTag = "home_banner_snooze",
-                    buttonTestTag = "home_banner_end_snooze",
-                )
-                HomeBannerPolicy.Banner.NONE -> Unit
-            }
-        }
-
-        item(key = "stats") {
-            HomeStats(words = words, sessions = sessions, streak = streak)
-        }
-
-        item(key = "note") {
-            OpenCard(modifier = Modifier.testTag("home_local_note")) {
-                Column(
-                    Modifier.padding(Dimen.MIN_PADDING),
-                    verticalArrangement = Arrangement.spacedBy(HomeFeedTokens.cardInnerGap)
-                ) {
-                    Text(
-                        "Note on this phone",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    OpenTextField(
-                        value = localNote,
-                        onValueChange = {
-                            localNote = it
-                            app.prefs.homeNote = it
-                        },
-                        placeholder = "Write a note on this phone",
-                        singleLine = false,
-                        minLines = 2,
-                        modifier = Modifier.testTag("home_note_field")
-                    )
-                }
-            }
-        }
-
-        item(key = "search") {
-            OpenTextField(
-                value = homeSearch,
-                onValueChange = { homeSearch = it },
-                placeholder = "Search transcripts…",
-                leadingIcon = {
-                    Icon(
-                        Icons.Default.Search,
-                        contentDescription = "Search",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                modifier = Modifier.testTag("home_history_search")
-            )
-        }
-
-        if (shown.isEmpty()) {
-            item(key = "empty") {
-                EmptyState(
-                    icon = Icons.Default.MicNone,
-                    title = if (homeSearch.isBlank()) "No dictations yet" else "No matching results",
-                    subtitle = if (homeSearch.isBlank()) {
-                        "Speak with the bubble to save history on this phone."
-                    } else {
-                        "Try a different search keyword."
-                    },
-                    modifier = Modifier.testTag("home_recent_empty")
-                )
-            }
-        } else {
-            days.forEach { day ->
-                stickyHeader(key = "day_${day.label}") {
-                    Text(
-                        day.label,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.background)
-                            .testTag("home_day_${day.label}")
-                            .semantics { heading() },
-                    )
-                }
-                items(day.rows, key = { it.id }) { row ->
-                    val d = byId[row.id] ?: return@items
-                    dictationCard(
-                        d,
-                        { scope.launch { app.dictations.deleteDictation(d.id) } },
-                        {
-                            val body = SharePayload.forRow(d.text, d.rawText)
-                            val send = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, body)
-                            }
-                            try {
-                                ctx.startActivity(Intent.createChooser(send, "Share dictation"))
-                            } catch (_: Exception) {
-                            }
-                        },
-                        { old, new ->
-                            scope.launch {
-                                if (app.prefs.autoLearn) {
-                                    app.dictations.learnFromEdit(old, new)
-                                }
-                                app.dictations.updateDictationText(d.id, new)
-                            }
-                        },
-                        { raw -> useHistoryRaw(ctx, raw) },
-                    )
-                }
-            }
-        }
-
-        item(key = "privacy") {
-            HomeHonestyFooter()
         }
     }
 }

@@ -4,20 +4,21 @@ Source: [Sign your app](https://developer.android.com/studio/publish/app-signing
 
 ## GitHub sideload (today)
 
-- `app/build.gradle.kts` `signingConfigs.debug` + `localRelease` (v1+v2+v3). `debug` keystore is Gradle default, never committed.
-- `./gradlew :app:assembleDebug` → `app/build/outputs/apk/debug/app-debug.apk` (debug-signed, sideload).
-- Validity of debug cert is short; not for Play.
+- `app/build.gradle.kts`: `signingConfigs.release` reads `OPENFLOW_KEYSTORE_PATH` / `_PASS` / `OPENFLOW_KEY_ALIAS` / `OPENFLOW_KEY_PASS` (or matching `openflow.keystore.*` gradle props).
+- Missing keystore → **fail loud**. No debug-signed release fallback.
+- Local secrets live outside git: `source ~/.openflow/env` (see `~/.openflow/WHY.md`). Never commit `.p12` / passwords.
+- `./gradlew :app:assembleRelease` → `app/build/outputs/apk/release/app-release.apk`.
+- `./gradlew :app:assembleDebug` → debug APK for USB/dev only.
+- **Check**: `apksigner verify --print-certs app-release.apk` must show **CN ≠ Android Debug**.
 
 ## Play (as-if launch)
 
 - **Format**: `app/build/outputs/bundle/release/app-release.aab` via `./gradlew :app:bundleRelease`. New apps must be AAB (APK not accepted). Bundle contains `BundleConfig.pb`.
 - **Play App Signing**: enabled for new apps. Google holds **app signing key** (the identity). You hold **upload key** (signs AAB before upload). If upload key leaks, you can request reset without losing app identity.
-- **Upload key**: generate once with `keytool -genkeypair -keystore upload.jks -keyalg RSA -keysize 4096 -validity 9125` (> 2033-10-22 required). Store **outside repo**:
-  - Local: `~/.gradle/gradle.properties` (`MYAPP_UPLOAD_STORE_FILE`, `MYAPP_UPLOAD_KEY_ALIAS`, passwords) — gitignored.
-  - CI: GitHub Actions secret `UPLOAD_KEYSTORE_BASE64` + passwords (never in `.github/workflows/`).
-- **Wiring** (when ready): `signingConfigs.create("release")` reads `System.getenv("UPLOAD_KEYSTORE_BASE64")` or `gradle.properties`. `buildTypes.release.signingConfig = signingConfigs.getByName("release")` only when env present; else `assembleRelease` uses `localRelease` (still v1+v2+v3, minify true).
-- **Check**: `apksigner verify --print-certs app-release.apk` must show cert `Not after > 2033-10-22`. `scripts/qa/play-check.sh` checks `KEYSTORE` not in git and `ELF16` 16KB.
-- **Enroll**: first AAB upload in Play Console → Play App Signing enroll → upload key certificate registered. Afterwards every upload must be signed with same upload key.
+- **Upload key**: generate once with `keytool -genkeypair -keystore upload.p12 -storetype PKCS12 -keyalg RSA -keysize 4096 -validity 9125` (Not-after > 2033-10-22). Store **outside repo** (`~/.openflow/`).
+- **CI (later)**: GitHub Actions secret base64 of the p12 + same `OPENFLOW_*` env names in `release.yml` (not fully wired yet — local/tag release can upload prebuilt APK).
+- **Check**: `apksigner verify --print-certs` · `scripts/qa/play-check.sh` checks keystore not in git + ELF 16KB.
+- **Enroll**: first AAB upload in Play Console → Play App Signing enroll → upload key certificate registered.
 
 ## What not to do
 

@@ -13,9 +13,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import app.openflow.ui.a11y.Dimen
-import app.openflow.ui.components.ButtonVariant
-import app.openflow.ui.components.OpenButton
-import app.openflow.ui.components.OpenCard
 
 @Composable
 fun SetupWizard(
@@ -25,6 +22,7 @@ fun SetupWizard(
     onBattery: () -> Unit,
     onSkipBattery: () -> Unit,
     modifier: Modifier = Modifier,
+    onDone: (() -> Unit)? = null,
 ) {
     val stepTag = when (step) {
         FirstRunPolicy.Step.A11Y -> "setup_step_a11y"
@@ -55,6 +53,7 @@ fun SetupWizard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.testTag("setup_progress"),
             )
+            SetupProgressDots(step)
             SetupStepCard(
                 title = copy.title,
                 body = copy.body,
@@ -64,46 +63,34 @@ fun SetupWizard(
                 onSecondary = if (copy.secondary != null) onSkipBattery else null,
                 stepTag = stepTag,
             )
-        }
-    }
-}
-
-@Composable
-private fun SetupStepCard(
-    title: String,
-    body: String,
-    primary: String,
-    onPrimary: () -> Unit,
-    secondary: String? = null,
-    onSecondary: (() -> Unit)? = null,
-    stepTag: String? = null,
-) {
-    OpenCard(modifier = if (stepTag != null) Modifier.testTag(stepTag) else Modifier) {
-        Column(
-            Modifier.padding(Dimen.MIN_PADDING),
-            verticalArrangement = Arrangement.spacedBy(Dimen.GAP)
-        ) {
-            Text(
-                title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                body,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            OpenButton(text = primary, onClick = onPrimary)
-            if (secondary != null && onSecondary != null) {
-                OpenButton(
-                    text = secondary,
-                    onClick = onSecondary,
-                    variant = ButtonVariant.Outlined,
-                    contentDescription = "Skip battery optimization",
-                    modifier = Modifier.testTag("setup_skip_battery"),
+            // Honest OEM hint — Wispr buries this in a support page; per-device not wall of text
+            if (step == FirstRunPolicy.Step.BATTERY) {
+                Text(
+                    OemBatteryHint.hintForDevice(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.testTag("setup_battery_hint"),
                 )
             }
+        } else if (onDone != null) {
+            // Replay mode: wizard reached with everything granted — show exit card.
+            Text(
+                text = FirstRunPolicy.progressLabel(step),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag("setup_progress"),
+            )
+            SetupProgressDots(step)
+            SetupStepCard(
+                title = copy.title,
+                body = copy.body,
+                primary = copy.primary,
+                onPrimary = onDone,
+                secondary = null,
+                onSecondary = null,
+                stepTag = "setup_step_done",
+            )
         }
     }
 }

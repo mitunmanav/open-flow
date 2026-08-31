@@ -13,9 +13,9 @@ class ModuleEditorVisibilityTest {
 
     @Test
     fun lockVisibleIds_hideToggleForThoseOnly() {
-        val locked = setOf("setup")
-        assertThat(ModuleEditorVisibility.showHideChip("setup", locked)).isFalse()
-        assertThat(ModuleEditorVisibility.showHideChip("test", locked)).isTrue()
-        assertThat(ModuleEditorVisibility.showHideChip("keys", emptySet())).isTrue()
+        val locked = setOf("honesty")
+        assertThat(ModuleEditorVisibility.showHideChip("honesty", locked)).isFalse()
+        assertThat(ModuleEditorVisibility.showHideChip("note", locked)).isTrue()
+        assertThat(ModuleEditorVisibility.showHideChip("search", emptySet())).isTrue()
     }
 }

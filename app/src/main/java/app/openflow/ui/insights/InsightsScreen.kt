@@ -185,6 +185,9 @@ private fun UsagePane(
     val scope = rememberCoroutineScope()
     val wpm = InsightsAggregatePolicy.wordsPerMinute(sessions)
     val cleaned = InsightsAggregatePolicy.cleanedDeltaWords(sessions)
+    val perDay = InsightsAggregatePolicy.wordsPerActiveDay(sessions, zone)
+    val best = InsightsAggregatePolicy.bestDay(sessions, zone)
+    val dayparts = InsightsAggregatePolicy.daypartCounts(sessions, zone)
     val days = InsightsAggregatePolicy.dayWordCounts(
         sessions,
         nowMs = System.currentTimeMillis(),
@@ -192,79 +195,12 @@ private fun UsagePane(
         weeks = 12,
     )
     val topApp = InsightsAggregatePolicy.topPackage(sessions)
+    var showMore by remember { mutableStateOf(false) }
 
     Tile("Words", "$totalWords")
     Tile("Sessions", "$totalSessions")
     Tile("WPM", String.format(Locale.US, "%.1f", wpm))
     Tile("Streak", "$streak d")
-    Tile("Cleaned by rules", "$cleaned")
-
-    OpenCard(modifier = Modifier.testTag("insights_share")) {
-        Column(
-            Modifier.padding(Dimen.MIN_PADDING),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text("Share", fontWeight = FontWeight.Bold)
-            Text(
-                "Send your local stats as text or a card image.",
-                style = MaterialTheme.typography.bodySmall,
-            )
-            OpenButton(
-                text = "Share text",
-                onClick = {
-                    val body = InsightSharePayload.text(totalWords, totalSessions, streak, wpm)
-                    val send = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, body)
-                    }
-                    runCatching {
-                        ctx.startActivity(Intent.createChooser(send, "Share insights"))
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("insights_share_text"),
-            )
-            OpenButton(
-                text = "Share card image",
-                onClick = {
-                    scope.launch {
-                        val uri = withContext(Dispatchers.IO) {
-                            val bmp = InsightShareCard.render(
-                                totalWords = totalWords,
-                                totalSessions = totalSessions,
-                                streakDays = streak,
-                                wpm = wpm,
-                            )
-                            val dir = File(ctx.cacheDir, "share").apply { mkdirs() }
-                            val file = File(dir, "insight-card.png")
-                            FileOutputStream(file).use { out ->
-                                bmp.compress(Bitmap.CompressFormat.PNG, 100, out)
-                            }
-                            bmp.recycle()
-                            FileProvider.getUriForFile(
-                                ctx,
-                                "${ctx.packageName}.fileprovider",
-                                file,
-                            )
-                        }
-                        val send = Intent(Intent.ACTION_SEND).apply {
-                            type = "image/png"
-                            putExtra(Intent.EXTRA_STREAM, uri)
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        }
-                        runCatching {
-                            ctx.startActivity(Intent.createChooser(send, "Share insight card"))
-                        }
-                    }
-                },
-                variant = ButtonVariant.Outlined,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("insights_share_card"),
-            )
-        }
-    }
 
     OpenCard(modifier = Modifier.testTag("insights_heatmap")) {
         Column(
@@ -273,13 +209,170 @@ private fun UsagePane(
         ) {
             Text("Last 12 weeks", fontWeight = FontWeight.Bold)
             HeatmapGrid(days = days, streakDays = streak)
+            Text(
+                "Streak ${streak}d · ${days.count { it.words > 0 }} active days",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 
-    OpenCard {
-        Column(Modifier.padding(Dimen.MIN_PADDING), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("Top app", fontWeight = FontWeight.Bold)
-            Text(topApp ?: "— (new sessions only)")
+    // Beat Wispr: local per-app breakdown (they hide this behind cloud)
+    val byApp = remember(sessions) {
+        InsightsAggregatePolicy.topAppsByWords(sessions, n = 5)
+    }
+    OpenCard(modifier = Modifier.testTag("insights_by_app")) {
+        Column(Modifier.padding(Dimen.MIN_PADDING), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Usage by app", fontWeight = FontWeight.Bold)
+            if (byApp.isEmpty()) {
+                Text("— speak in any app to see breakdown", style = MaterialTheme.typography.bodySmall)
+            } else {
+                val maxApp = byApp.maxOf { it.second }.coerceAtLeast(1)
+                byApp.forEach { (app, words) ->
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(app, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
+                            Text("$words w", style = MaterialTheme.typography.bodySmall)
+                        }
+                        androidx.compose.foundation.layout.Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(6.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                                    androidx.compose.foundation.shape.RoundedCornerShape(3.dp)
+                                )
+                        ) {
+                            androidx.compose.foundation.layout.Box(
+                                Modifier
+                                    .fillMaxWidth(fraction = words.toFloat() / maxApp)
+                                    .height(6.dp)
+                                    .background(
+                                        MaterialTheme.colorScheme.primary,
+                                        androidx.compose.foundation.shape.RoundedCornerShape(3.dp)
+                                    )
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    OpenButton(
+        text = if (showMore) "Hide more stats" else "More stats",
+        onClick = { showMore = !showMore },
+        variant = ButtonVariant.Outlined,
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("insights_more"),
+    )
+
+    if (showMore) {
+        Tile("Cleaned by rules", "$cleaned")
+        Tile("Per active day", "$perDay w")
+        Tile("Best day", best?.let { "${it.words} w" } ?: "—")
+        if (topApp != null) {
+            Tile("Top app", topApp)
+        }
+
+        OpenCard(modifier = Modifier.testTag("insights_share")) {
+            Column(
+                Modifier.padding(Dimen.MIN_PADDING),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text("Share", fontWeight = FontWeight.Bold)
+                Text(
+                    "Send your local stats as text or a card image.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                OpenButton(
+                    text = "Share text",
+                    onClick = {
+                        val body = InsightSharePayload.text(totalWords, totalSessions, streak, wpm)
+                        val send = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, body)
+                        }
+                        runCatching {
+                            ctx.startActivity(Intent.createChooser(send, "Share insights"))
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("insights_share_text"),
+                )
+                OpenButton(
+                    text = "Share card image",
+                    onClick = {
+                        scope.launch {
+                            val uri = withContext(Dispatchers.IO) {
+                                val bmp = InsightShareCard.render(
+                                    totalWords = totalWords,
+                                    totalSessions = totalSessions,
+                                    streakDays = streak,
+                                    wpm = wpm,
+                                )
+                                val dir = File(ctx.cacheDir, "share").apply { mkdirs() }
+                                val file = File(dir, "insight-card.png")
+                                FileOutputStream(file).use { out ->
+                                    bmp.compress(Bitmap.CompressFormat.PNG, 100, out)
+                                }
+                                bmp.recycle()
+                                FileProvider.getUriForFile(
+                                    ctx,
+                                    "${ctx.packageName}.fileprovider",
+                                    file,
+                                )
+                            }
+                            val send = Intent(Intent.ACTION_SEND).apply {
+                                type = "image/png"
+                                putExtra(Intent.EXTRA_STREAM, uri)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            runCatching {
+                                ctx.startActivity(Intent.createChooser(send, "Share insight card"))
+                            }
+                        }
+                    },
+                    variant = ButtonVariant.Outlined,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("insights_share_card"),
+                )
+            }
+        }
+
+        OpenCard(modifier = Modifier.testTag("insights_dayparts")) {
+            Column(Modifier.padding(Dimen.MIN_PADDING), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("When you speak", fontWeight = FontWeight.Bold)
+                val maxPart = dayparts.values.maxOrNull()?.coerceAtLeast(1) ?: 1
+                dayparts.forEach { (label, n) ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(label, style = MaterialTheme.typography.bodySmall)
+                        Text("$n", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium)
+                    }
+                    androidx.compose.foundation.layout.Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .background(
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                                androidx.compose.foundation.shape.RoundedCornerShape(2.dp)
+                            )
+                    ) {
+                        androidx.compose.foundation.layout.Box(
+                            Modifier
+                                .fillMaxWidth(fraction = n.toFloat() / maxPart)
+                                .height(4.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.primary,
+                                    androidx.compose.foundation.shape.RoundedCornerShape(2.dp)
+                                )
+                        )
+                    }
+                }
+            }
         }
     }
 }

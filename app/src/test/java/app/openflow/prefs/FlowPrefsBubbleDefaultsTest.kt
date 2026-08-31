@@ -18,5 +18,7 @@ class FlowPrefsBubbleDefaultsTest {
     @Test
     fun normalize_unknown_shape_falls_to_pill() {
         assertThat(FlowPrefs.normalizeBubbleShape("neon")).isEqualTo("pill")
+        assertThat(FlowPrefs.normalizeBubbleShape("slim")).isEqualTo("slim")
+        assertThat(FlowPrefs.normalizeBubbleShape("stadium")).isEqualTo("stadium")
     }
 }

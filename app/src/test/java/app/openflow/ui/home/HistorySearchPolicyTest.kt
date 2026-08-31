@@ -26,6 +26,36 @@ class HistorySearchPolicyTest {
     }
 
     @Test
+    fun merge_blank_query_returns_loaded_page_untouched() {
+        val merged = HistorySearchPolicy.mergeSearch(
+            query = "",
+            loadedPage = listOf("a", "b"),
+            fullHits = listOf("z"),
+            id = { it },
+            createdAt = { it.hashCode().toLong() },
+        )
+        assertThat(merged).containsExactly("a", "b").inOrder()
+    }
+
+    @Test
+    fun merge_query_unions_page_and_full_hits_dedup_newest_first() {
+        val rows = mapOf(
+            "old" to 100L,
+            "new" to 900L,
+            "mid" to 500L,
+        )
+        val merged = HistorySearchPolicy.mergeSearch(
+            query = "q",
+            loadedPage = listOf("new", "mid"),
+            fullHits = listOf("old", "new"),
+            id = { it },
+            createdAt = { rows[it] ?: 0L },
+        )
+        // "new" deduped; "old" pulled in from FTS; sorted newest → oldest
+        assertThat(merged).containsExactly("new", "mid", "old").inOrder()
+    }
+
+    @Test
     fun history_screen_calls_repo_fts_not_in_memory_contains() {
         val src = File(
             UiSourceScan.projectRoot(),

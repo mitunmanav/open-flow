@@ -47,8 +47,11 @@ import app.openflow.BuildConfig
 import app.openflow.OpenFlowApp
 import app.openflow.R
 import app.openflow.ai.NoAI
+import app.openflow.audio.AppAudioCapture
 import app.openflow.audio.AudioFileManager
+import app.openflow.audio.M3TeeFlags
 import app.openflow.audio.SessionAudioCapture
+import app.openflow.audio.WavFileConsumer
 import app.openflow.data.ProcessStatus
 import app.openflow.notify.DictationNotifier
 import app.openflow.metrics.SessionLatency
@@ -138,6 +141,8 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
     private val overlayRetry = Runnable { showOverlayOrRecover() }
     private val sessionAudio = SessionAudioCapture()
     private val audioFiles by lazy { AudioFileManager(this) }
+    private val appCapture by lazy { (application as OpenFlowApp).appAudioCapture }
+    private var teeWavConsumer: WavFileConsumer? = null
     private val serviceJob = SupervisorJob()
     private val scope = CoroutineScope(serviceJob + Dispatchers.Main.immediate)
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -185,7 +190,9 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             if (!BuildConfig.DEBUG) return
             if (intent?.action != ACTION_INJECT) return
             val raw = intent.getStringExtra(EXTRA_TEXT).orEmpty()
-            android.util.Log.i("OpenFlow.Inject", "recv rawLen=${raw.length}")
+            if (BuildConfig.DEBUG) {
+                android.util.Log.i("OpenFlow.Inject", "recv rawLen=${raw.length}")
+            }
             injectDictation(raw)
         }
     }
@@ -698,11 +705,12 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             win.applyParkedOverlayY()
             painter.paint()
         }
+        refreshA11yActions()
     }
 
     private fun refreshLangChip(idle: Boolean) {
         val chip = win.bubbleChipLang ?: return
-        if (!idle) {
+        if (!idle || prefs?.bubbleShowLangChip != true) {
             chip.visibility = View.GONE
             return
         }
@@ -804,6 +812,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         win.bubbleChipUndo?.visibility = View.GONE
         win.bubbleChipPaste?.visibility = View.GONE
         painter.paint()
+        refreshA11yActions()
     }
 
     private fun refreshPostStopChips() {
@@ -823,6 +832,40 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         win.bubbleChipUndo?.visibility = if (s.undo) View.VISIBLE else View.GONE
         win.bubbleChipPaste?.visibility = if (s.paste) View.VISIBLE else View.GONE
         if (s.any) painter.paint()
+        refreshA11yActions()
+    }
+
+    private fun refreshA11yActions() {
+        val s = if (listening || postStopAt <= 0L) null else PostStopChips.state(
+            elapsedMs = SystemClock.elapsedRealtime() - postStopAt,
+            hasSessionText = prefs?.lastSessionClean.orEmpty().isNotBlank(),
+            insertOk = lastInsertOk,
+            canUndo = UndoInsert.canUndo(undoSnap),
+        )
+        win.updateA11yActions(
+            listening = listening,
+            stopInProgress = stopInProgress,
+            chipState = s,
+            hasField = focusedEditable != null,
+            onCancel = { if (listening || stopInProgress) stopListening(save = false) },
+            onDone = { if (listening || stopInProgress) stopListening(save = true) },
+            onCopy = { copyLastToClipboard() },
+            onUndo = { undoLastInsert() },
+            onPaste = { pasteClipboardIntoField() },
+            onSnooze = {
+                if (BubbleSnoozePolicy.canSnooze(
+                        imeVisible = win.imeVisible,
+                        listening = listening,
+                        repairShowing = micRepairShowing(),
+                    )
+                ) {
+                    prefs?.snoozeMinutes(10)
+                    Toast.makeText(this, R.string.flow_bubble_snoozed, Toast.LENGTH_SHORT).show()
+                    refreshBubbleVisibility()
+                }
+            },
+            onLang = { cycleLanguage() },
+        )
     }
 
     private fun undoLastInsert() {
@@ -998,6 +1041,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         painter.paint()
         setListenChrome(0)
         setBubbleEmphasis(true)
+        refreshA11yActions()
 
         val lang = InsertPolish.language(prefs?.languageTag)
         val earPick = SttRouter.pick(
@@ -1009,8 +1053,101 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         sessionEarId = earPick.providerId
         val ear = app.currentEar()
         this.ear = ear
-        if (retrySessionId == null && EarMicPolicy.bubbleCapturesWav(sessionEarId)) {
-            sessionAudio.start()
+        // H3: on_phone can replay the saved WAV without re-recording. Cloud/system keep honest "tap to try again" (re-speak).
+        val pendingRetry = retrySessionId
+        val wavForRetry = pendingRetry?.let { audioFiles.getAudioFile(it) }
+        val canReplay = pendingRetry != null && wavForRetry != null && wavForRetry.exists() && wavForRetry.length() > 44L &&
+            ear is OnDeviceEar && (ear as OnDeviceEar).isAvailable
+        if (canReplay) {
+            val od = ear as OnDeviceEar
+            val retryId = pendingRetry!!
+            val wavFile = wavForRetry!!
+            val replayPrefix = fieldPrefix
+            val replayEarId = sessionEarId
+            val replayGen = gen
+            win.bubbleLabel?.text = "…"
+            scope.launch(Dispatchers.IO) {
+                val raw = od.transcribeWavFile(wavFile)
+                kotlinx.coroutines.withContext(Dispatchers.Main) {
+                    if (replayGen != listenGeneration) return@withContext
+                    if (raw.isBlank()) {
+                        Toast.makeText(this@FlowAccessibilityService, "Replay empty — speak again", Toast.LENGTH_SHORT).show()
+                        listening = false
+                        setListeningAwake(false)
+                        lastRms = 0f
+                        applyRmsPulse()
+                        sessionBuffer = StringBuilder()
+                        lastPartial = ""
+                        fieldPrefix = ""
+                        ear.setListener(null)
+                        runCatching { wavFile.delete() }
+                        refreshBubbleVisibility()
+                        painter.paint()
+                        return@withContext
+                    }
+                    // Successful replay — delete source wav (row will be marked OK) and polish like a normal commit.
+                    runCatching { wavFile.delete() }
+                    listenGeneration++
+                    listening = false
+                    setListeningAwake(false)
+                    lastRms = 0f
+                    applyRmsPulse()
+                    sessionBuffer = StringBuilder()
+                    lastPartial = ""
+                    fieldPrefix = ""
+                    ear.setListener(null)
+                    stopInProgress = false
+                    polishSession(raw, replayPrefix, replayEarId) { result ->
+                        finishPolishedInsert(result, replayPrefix, 0L, InsertPolish.language(prefs?.languageTag), "OpenFlow.Replay")
+                    }
+                }
+            }
+            return
+        }
+        val useTee = M3TeeFlags.USE_TEE && EarMicPolicy.teeEnabledFor(sessionEarId)
+        if (useTee) {
+            val retention = prefs?.retentionPolicy ?: "keep"
+            val shouldWav = retrySessionId == null &&
+                EarMicPolicy.shouldCaptureWav(sessionEarId, true) && retention != "never_store"
+            teeWavConsumer = if (shouldWav) WavFileConsumer(gen) else null
+            val consumers = mutableListOf<AppAudioCapture.PcmConsumer>()
+            teeWavConsumer?.let { consumers.add(it) }
+            when (ear) {
+                is OnDeviceEar -> {
+                    ear.setTeeGeneration(gen)
+                    val c = object : AppAudioCapture.PcmConsumer {
+                        override fun onPcm(pcm: ByteArray, generation: Int) { ear.feedTeePcm(pcm, generation) }
+                        override fun onError(generation: Int) { ear.feedTeePcmError(generation) }
+                    }
+                    consumers.add(c)
+                }
+                is CloudEar -> {
+                    ear.setTeeGeneration(gen)
+                    val c = object : AppAudioCapture.PcmConsumer {
+                        override fun onPcm(pcm: ByteArray, generation: Int) { ear.feedTeePcm(pcm, generation) }
+                    }
+                    consumers.add(c)
+                }
+                else -> { /* system not tee */ }
+            }
+            val captureOk = if (consumers.isNotEmpty()) appCapture.start(gen, consumers) else true
+            if (!captureOk) {
+                teeWavConsumer = null
+                if (ear is OnDeviceEar) (ear as OnDeviceEar).setTeeGeneration(-1)
+                if (ear is CloudEar) (ear as CloudEar).setTeeGeneration(-1)
+                appCapture.stop()
+                listening = false
+                setListeningAwake(false)
+                lastRms = 0f
+                applyRmsPulse()
+                win.bubbleLabel?.text = "Microphone start failed"
+                Toast.makeText(this@FlowAccessibilityService, "Microphone start failed", Toast.LENGTH_SHORT).show()
+                return
+            }
+        } else {
+            if (retrySessionId == null && EarMicPolicy.shouldCaptureWav(sessionEarId, M3TeeFlags.USE_TEE)) {
+                sessionAudio.start()
+            }
         }
         ear.setListener(object : SpeechEngine.Listener {
             /** Accept STT while this generation is active (including flush). */
@@ -1191,6 +1328,15 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                         "partialLen=${lastPartial.length} gen=$gen"
                 )
             }
+            val useTeeForThisGen = M3TeeFlags.USE_TEE && EarMicPolicy.teeEnabledFor(routedEarId)
+            val capturedWavConsumer = if (useTeeForThisGen) teeWavConsumer else null
+            if (useTeeForThisGen) {
+                appCapture.stop()
+                teeWavConsumer = null
+                // Clear tee generation on ears so stale PCM is dropped
+                (ear as? OnDeviceEar)?.setTeeGeneration(-1)
+                (ear as? CloudEar)?.setTeeGeneration(-1)
+            }
             listenGeneration++
             listening = false
             setListeningAwake(false)
@@ -1212,15 +1358,29 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                             dur = dur,
                             lang = lang,
                             logTag = "OpenFlow.Bubble",
+                            teeWavConsumer = capturedWavConsumer,
+                            teeGeneration = gen,
+                            useTee = useTeeForThisGen,
                         )
                     }
                 }
                 StopCommitPolicy.Action.PERSIST_FAIL -> {
-                    persistFailedSession(dur)
-                    win.bubbleLabel?.text = "Fail · tap to retry"
+                    persistFailedSession(dur, capturedWavConsumer, gen, useTeeForThisGen)
+                    win.bubbleLabel?.text = "Fail · saved · tap to try again"
+                    // Bubble may be hidden (own app / bank) — the toast is the honest signal.
+                    Toast.makeText(
+                        this,
+                        R.string.flow_bubble_fail_saved,
+                        Toast.LENGTH_LONG,
+                    ).show()
                 }
                 StopCommitPolicy.Action.DISCARD -> {
-                    sessionAudio.stopAndDiscard()
+                    if (useTeeForThisGen) {
+                        capturedWavConsumer?.discard()
+                    } else {
+                        sessionAudio.stopAndDiscard()
+                        (ear as? OnDeviceEar)?.discardWav()
+                    }
                     win.bubbleLabel?.text = BubbleLabelFormatter.idle()
                 }
             }
@@ -1317,10 +1477,12 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 registerReceiver(injectReceiver, filter, ReceiverExportPolicy.injectFlags())
             } else {
                 @Suppress("UnspecifiedRegisterReceiverFlag")
-                registerReceiver(injectReceiver, filter)
+                registerReceiver(injectReceiver, filter, ReceiverExportPolicy.PRIVATE_PERMISSION, null)
             }
             injectReceiverRegistered = true
-            android.util.Log.i("OpenFlow.Inject", "receiver registered action=$ACTION_INJECT")
+            if (BuildConfig.DEBUG) {
+                android.util.Log.i("OpenFlow.Inject", "receiver registered action=$ACTION_INJECT")
+            }
         } catch (e: Exception) {
             if (BuildConfig.DEBUG) {
                 android.util.Log.e("OpenFlow.Inject", "register failed", e)
@@ -1345,7 +1507,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 registerReceiver(copyReceiver, filter, ReceiverExportPolicy.copyFlags())
             } else {
                 @Suppress("UnspecifiedRegisterReceiverFlag")
-                registerReceiver(copyReceiver, filter)
+                registerReceiver(copyReceiver, filter, ReceiverExportPolicy.PRIVATE_PERMISSION, null)
             }
             copyReceiverRegistered = true
         } catch (_: Exception) {
@@ -1386,7 +1548,12 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
      * Same path for stopListening + debug inject:
      * dict → snippets → CleanupPipeline(pref level) → optional brain (if picked) → dict again.
      */
-    private fun persistFailedSession(dur: Long) {
+    private fun persistFailedSession(
+        dur: Long,
+        teeWavConsumer: WavFileConsumer? = null,
+        teeGeneration: Int = -1,
+        useTee: Boolean = false,
+    ) {
         val sid = sessionId.ifBlank { UUID.randomUUID().toString() }
         val wall = if (listenStartedWallMs > 0L) listenStartedWallMs else System.currentTimeMillis()
         val lang = InsertPolish.language(prefs?.languageTag)
@@ -1399,9 +1566,27 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             packageName = lastPackage.orEmpty(),
             createdAtEpochMs = wall,
         )
+        val earAtFail = ear
         scope.launch(Dispatchers.IO) {
             runCatching {
-                sessionAudio.stopAndWrite(audioFiles.getAudioFile(req.id))
+                val out = audioFiles.getAudioFile(req.id)
+                val written: java.io.File? = if (useTee) {
+                    // M3-A: tee owns WAV for app-owned ears; system has no WAV per spec (honest re-speak)
+                    val w = teeWavConsumer?.stopAndWrite(out, teeGeneration)
+                    if (BuildConfig.DEBUG) {
+                        if (w == null) android.util.Log.w("OpenFlow.Bubble", "persistFailed tee no wav gen=$teeGeneration ear=$earAtFail")
+                    }
+                    teeWavConsumer?.discard()
+                    w
+                } else {
+                    val w = sessionAudio.stopAndWrite(out)
+                    // on_phone owns the mic via whisper PcmSource, not SessionAudioCapture — write its buffered WAV.
+                    val w2 = if (w == null && earAtFail is OnDeviceEar) earAtFail.writeWav(out) else w
+                    if (BuildConfig.DEBUG) {
+                        if (w2 == null) android.util.Log.w("OpenFlow.Bubble", "persistFailed no wav file for $earAtFail")
+                    }
+                    w2
+                }
                 applyPersist(req)
                 retrySessionId = req.id
                 DictationNotifier.notifyProcessFailed(this@FlowAccessibilityService)
@@ -1474,13 +1659,17 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 surroundingField,
             )
             val brain = if (rewrite) {
-                FieldContext.wrapBrain(app.registry.brain(app.enginePrefs.brainId), surrounding)
+                // registry.brain returns null when no factory is wired for this id
+                // (e.g. brain id was renamed or kept by a stale preference). Falling
+                // back to NoAI keeps polish local-only instead of crashing the insert.
+                val picked = app.registry.brain(app.enginePrefs.brainId) ?: NoAI
+                FieldContext.wrapBrain(picked, surrounding)
             } else {
                 NoAI
             }
             var polishTimedOut = false
             val polish = async {
-                TextPostProcessor.polishRouted(
+                TextPostProcessor.polishRoutedAsync(
                     raw = text,
                     style = style,
                     level = level,
@@ -1499,6 +1688,7 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                     onBrainOutcome = { id, ok ->
                         if (ok) providerHealth.recordSuccess(id) else providerHealth.recordFailure(id)
                     },
+                    spokenEmoji = p?.spokenEmoji == true,
                 )
             }
             val result = withTimeoutOrNull(CleanupBudget.POLISH_MS) { polish.await() } ?: run {
@@ -1514,14 +1704,16 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
             }
             if (result == null) return@launch
             val brainId = app.enginePrefs.brainId
-            android.util.Log.i(
-                "OpenFlow.Cleanup",
-                "level=$level pref=$prefLevel style=$style lang=${InsertPolish.language(prefs?.languageTag)} " +
-                    "brain=$brainId mode=$mode field=${surroundingField.isNotEmpty()} " +
-                    "rawLen=${text.length} cleanLen=${result.clean.length} " +
-                    "corr=${result.corrections.size} " +
-                    "changed=${text.trim() != result.clean.trim()}"
-            )
+            if (BuildConfig.DEBUG) {
+                android.util.Log.i(
+                    "OpenFlow.Cleanup",
+                    "level=$level pref=$prefLevel style=$style lang=${InsertPolish.language(prefs?.languageTag)} " +
+                        "brain=$brainId mode=$mode field=${surroundingField.isNotEmpty()} " +
+                        "rawLen=${text.length} cleanLen=${result.clean.length} " +
+                        "corr=${result.corrections.size} " +
+                        "changed=${text.trim() != result.clean.trim()}"
+                )
+            }
             mainHandler.post {
                 if (polishTimedOut) {
                     Toast.makeText(
@@ -1541,23 +1733,30 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
         dur: Long,
         lang: String,
         logTag: String,
+        teeWavConsumer: WavFileConsumer? = null,
+        teeGeneration: Int = -1,
+        useTee: Boolean = false,
     ) {
         val pe = PressEnterPolicy.apply(result.clean)
         val finalText = pe.text
-        android.util.Log.i(
-            "OpenFlow.Bubble",
-            "commit cleanLen=${finalText.length} prefixLen=${prefix.length} " +
-                "submit=${pe.submit} level=${result.level}"
-        )
+        if (BuildConfig.DEBUG) {
+            android.util.Log.i(
+                "OpenFlow.Bubble",
+                "commit cleanLen=${finalText.length} prefixLen=${prefix.length} " +
+                    "submit=${pe.submit} level=${result.level}"
+            )
+        }
         if (finalText.isNotBlank()) {
             val ok = commitSessionToField(finalText, prefix, result.raw)
             if (ok && pe.submit) submitAfterInsert()
             latencyTrace?.mark("inserted")
-            latencyTrace?.let { t ->
-                android.util.Log.i(
-                    "OpenFlow.Latency",
-                    "ok=$ok words=${finalText.split(WORD_SPLIT).count { it.isNotBlank() }} ${t.summary()}"
-                )
+            if (BuildConfig.DEBUG) {
+                latencyTrace?.let { t ->
+                    android.util.Log.i(
+                        "OpenFlow.Latency",
+                        "ok=$ok words=${finalText.split(WORD_SPLIT).count { it.isNotBlank() }} ${t.summary()}"
+                    )
+                }
             }
             latencyTrace = null
             prefs?.setLastSession(raw = result.raw, clean = finalText)
@@ -1577,10 +1776,33 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 packageName = lastPackage.orEmpty(),
                 createdAtEpochMs = listenStartedWallMs,
             )
+            val earAtSave = ear
+            val capturedTeeConsumer = teeWavConsumer
+            val capturedGen = teeGeneration
+            val capturedUseTee = useTee
             scope.launch(Dispatchers.IO) {
                 runCatching {
                     if (req.kind != PersistAsk.Kind.MARK_OK && req.kind != PersistAsk.Kind.SKIP) {
-                        sessionAudio.stopAndWrite(audioFiles.getAudioFile(req.id))
+                        val out = audioFiles.getAudioFile(req.id)
+                        var written: java.io.File? = null
+                        if (capturedUseTee) {
+                            written = capturedTeeConsumer?.stopAndWrite(out, capturedGen)
+                        } else {
+                            written = sessionAudio.stopAndWrite(out)
+                            if (written == null && earAtSave is OnDeviceEar) {
+                                written = earAtSave.writeWav(out)
+                            }
+                            // Ensure buffer cleared even if write failed (avoids unbounded growth).
+                            if (earAtSave is OnDeviceEar) earAtSave.discardWav()
+                        }
+                        // Tee consumer already cleared on stopAndWrite; ensure discard on failure
+                        if (capturedUseTee) capturedTeeConsumer?.discard()
+                    } else {
+                        if (capturedUseTee) {
+                            capturedTeeConsumer?.discard()
+                        } else if (earAtSave is OnDeviceEar) {
+                            earAtSave.discardWav()
+                        }
                     }
                     applyPersist(req)
                     retrySessionId = null
@@ -1639,10 +1861,12 @@ class FlowAccessibilityService : AccessibilityService(), SensorEventListener {
                 return false
             }
             val ok = setNodeText(node, merged)
-            android.util.Log.i(
-                "OpenFlow.Bubble",
-                "setText ok=$ok mergedLen=${merged.length} class=${node.className}"
-            )
+            if (BuildConfig.DEBUG) {
+                android.util.Log.i(
+                    "OpenFlow.Bubble",
+                    "setText ok=$ok mergedLen=${merged.length} class=${node.className}"
+                )
+            }
             if (ok) {
                 lastInserted = merged
                 lastInsertAt = SystemClock.elapsedRealtime()

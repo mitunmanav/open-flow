@@ -107,13 +107,14 @@
             android:layout_height="48dp"
             android:layout_gravity="center_vertical"
             android:layout_marginStart="2dp"
+            android:alpha="0.7"
             android:gravity="center"
-            android:minWidth="40dp"
+            android:minWidth="48dp"
             android:paddingStart="6dp"
             android:paddingEnd="6dp"
             android:text="EN"
             android:textColor="#FFF4EFE6"
-            android:textSize="12sp"
+            android:textSize="10sp"
             android:visibility="gone" />
     </LinearLayout>
 </FrameLayout>

@@ -30,11 +30,11 @@ import app.openflow.stt.providers.cloud.AndroidCloudSocket
 import app.openflow.stt.providers.cloud.AndroidPcmMic
 import app.openflow.stt.providers.cloud.CloudSocket
 import app.openflow.stt.providers.cloud.PcmSource
-import app.openflow.stt.providers.host.LaptopEar
 import app.openflow.stt.providers.ondevice.OkHttpModelDownloader
 import app.openflow.stt.providers.ondevice.ModelStore
 import app.openflow.stt.providers.ondevice.OnDeviceEar
 import app.openflow.stt.providers.ondevice.OnPhoneModelUi
+import app.openflow.audio.AppAudioCapture
 import app.openflow.whisper.AudioRecordPcm
 import app.openflow.whisper.JniWhisperRuntime
 import app.openflow.whisper.WhisperRuntimeHolder
@@ -134,6 +134,7 @@ class OpenFlowApp : Application(), ComponentCallbacks2 {
         Thread(r, "openflow-whisper").apply { isDaemon = true }
     }
     private val whisperHolder = WhisperRuntimeHolder { JniWhisperRuntime(it) }
+    val appAudioCapture by lazy { AppAudioCapture(this) }
 
     internal fun makeOnPhoneEar(): OnDeviceEar {
         val url = OnPhoneModelUi.TINY_EN_URL
@@ -161,17 +162,20 @@ class OpenFlowApp : Application(), ComponentCallbacks2 {
             whisperHolder.release()
         }
         return AppEngineWire.currentEar(registry, enginePrefs)
+            ?: registry.ear(EarId.SYSTEM)
+            ?: error("system ear is not registered")
     }
 
-    fun currentBrain(): TextAIProvider = AppEngineWire.currentBrain(registry, enginePrefs)
+    fun currentBrain(): TextAIProvider =
+        AppEngineWire.currentBrain(registry, enginePrefs) ?: NoAI
 }
 
 /** Pure wire helper. Factories exist without keys. */
 object AppEngineWire {
-    fun currentEar(registry: ProviderRegistry, enginePrefs: EnginePrefs): SpeechEngine =
+    fun currentEar(registry: ProviderRegistry, enginePrefs: EnginePrefs): SpeechEngine? =
         registry.ear(EarGate.resolve(enginePrefs.earId))
 
-    fun currentBrain(registry: ProviderRegistry, enginePrefs: EnginePrefs): TextAIProvider =
+    fun currentBrain(registry: ProviderRegistry, enginePrefs: EnginePrefs): TextAIProvider? =
         registry.brain(EarGate.resolveBrain(enginePrefs.brainId))
 
     const val DEFAULT_LAPTOP_MODEL = "llama3"
@@ -186,9 +190,10 @@ object AppEngineWire {
         pcm: PcmSource = PcmSource.None,
     ) {
         registry.registerEar(EarId.SYSTEM) { systemEar }
-        registry.registerEar(EarId.LAPTOP) {
-            LaptopEar(enginePrefs.customBaseUrl.ifBlank { null })
-        }
+        // No LaptopEar: a LAN STT ear is not implemented yet, and a stub that
+        // claims availability but never yields audio would fake a working path.
+        // EarGate already treats "laptop" as non-live; a saved "laptop" pref
+        // resolves to the system ear via ProviderRegistry.fallbackEar.
         registry.registerBrain(BrainId.NONE) { NoAI }
         registry.registerBrain(BrainId.ON_PHONE) { OnDeviceBrain() }
         registry.registerBrain(BrainId.LAPTOP) {

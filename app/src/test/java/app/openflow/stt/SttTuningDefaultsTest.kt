@@ -13,9 +13,9 @@ class SttTuningDefaultsTest {
     @Test
     fun balanced_is_faster_than_old_quality_defaults() {
         val t = SttTuning()
-        assertThat(t.completeSilenceMs).isAtMost(1000L)
-        assertThat(t.possiblyCompleteSilenceMs).isAtMost(600L)
-        assertThat(t.preferFormattingQuality).isTrue()
+        assertThat(t.completeSilenceMs).isAtMost(800L)
+        assertThat(t.possiblyCompleteSilenceMs).isAtMost(500L)
+        assertThat(t.preferFormattingQuality).isFalse()
     }
 
     @Test

@@ -73,12 +73,8 @@ fun AppShell(
     route: AppRoute,
     onNavigate: (AppRoute) -> Unit,
     onBack: () -> Unit = { onNavigate(route.backTarget()) },
-    isDrawerExtraVisible: (AppRoute) -> Boolean = { true },
     content: @Composable (PaddingValues) -> Unit
 ) {
-    @Suppress("UNUSED_PARAMETER")
-    val unused = isDrawerExtraVisible
-
     val title = route.title
     val showBack = !route.isBottomBar() && route != AppRoute.Setup
     val showSettingsGear = route.isBottomBar()

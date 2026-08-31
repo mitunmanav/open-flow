@@ -15,14 +15,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import app.openflow.ui.a11y.Dimen
-import app.openflow.ui.theme.SecUi
 
 @Composable
 fun SettingsHub(onOpen: (SettingsItem) -> Unit) {
     Column(
         Modifier
             .fillMaxSize()
-            .background(SecUi.cream)
+            .background(MaterialTheme.colorScheme.background)
             .padding(horizontal = Dimen.PAGE_PAD, vertical = Dimen.GAP)
             .verticalScroll(rememberScrollState())
             .testTag("settings_hub"),
@@ -31,7 +30,7 @@ fun SettingsHub(onOpen: (SettingsItem) -> Unit) {
         Text(
             "Preferences & local configuration",
             style = MaterialTheme.typography.bodySmall,
-            color = SecUi.muted,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             softWrap = true,
         )
         SettingsCatalog.groups.forEach { group ->
@@ -49,7 +48,7 @@ fun SettingsHub(onOpen: (SettingsItem) -> Unit) {
         Text(
             "Open Flow is free and open source (MIT). No trackers. No analytics.",
             style = MaterialTheme.typography.labelSmall,
-            color = SecUi.muted.copy(alpha = 0.85f),
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
             modifier = Modifier.padding(top = Dimen.GAP_SM),
         )
         Spacer(Modifier.height(Dimen.GAP_LG))

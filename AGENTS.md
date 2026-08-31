@@ -1,98 +1,82 @@
 # Open Flow — Agent Rules
 
-Wispr-Flow-style Android dictation app (floating bubble, Kotlin/Compose, accessibility service).
+Wispr-Flow-style Android dictation (floating bubble, Kotlin/Compose, accessibility).
 
 ## Comms (strict)
 
 - Caveman style. Short lines. Easy words.
 - Bullet points only. Brief.
-- Report format: DID / PASS-FAIL / NEXT / SUGGEST / ASK.
+- Report: DID / PASS-FAIL / NEXT / SUGGEST / ASK.
+- Wait for GO before file/git changes unless Mitun said fix/build/do it.
+- Author: Mitun only. No Co-Authored-By. No agent footers.
 
-## Android workflow (mandatory)
+## Project structure
 
-- Always use the `android-cli` skill for device, SDK, layout and doc-search work.
-- **Do not** start the WSL AVD with `android emulator start`. See **Emulator** below.
-- Device QA: `docs/testing.md` + `scripts/qa/gate.sh`. Wrap SDK adb + adb-bridge (`scripts/qa/wrap-adb.sh`).
-- Web search before non-trivial implementation decisions; cite sources in the report.
-- Load matching installed skills (compose/tv/wear/testing/profiler etc.) when the task touches their domain.
-- Verify on a device or emulator when runtime behavior changes; no blind refactors of state machines.
+- Top-level <20 entries: `app/`, `docs/`, `scripts/qa/`, `tasks/`, `gradle/`, `.github/`, `third_party/whisper.cpp`.
+- `app/src/main/java/app/openflow/` 17 pkgs. Entrypoints: `OpenFlowApp` → `bubble/FlowAccessibilityService` → `stt/`+`text/`+`audio/`; UI `ui/home|insights|setup|history`.
+- `app/build.gradle.kts`: `compileSdk 36 targetSdk 36 minSdk 26 versionName 0.1.9/10 room 2.8.4 ndk 28.2.13676358 graphics-path:1.1.0`. `dist/` `.scratch/` gitignored.
+- Specs `docs/specs/*.md`, audits `docs/audit/*.md`, tasks `tasks/{active,done}/`, store `docs/store/`, testing `docs/testing.md`. Freshness pinned by `DocsStaleScanTest`+`QaLoopScanTest` (versionName, targetSdk 36, NDK+16384, store title ≤30/short ≤80, privacy links).
 
-## Emulator (this laptop — WSL2 + Windows)
+## Android workflow
 
-WSL has **no `/dev/dri`**. `-gpu host` in WSL **crashes**. SwiftShader **boots but is CPU-slow**.
+- Use `android-cli` skill for device/SDK/layout/docs. Never `android emulator start` in WSL.
+- Device QA: `scripts/qa/gate.sh` (+ `wrap-adb.sh`+`adb-bridge.sh`). Web-search before non-trivial Android/audio/permission/storage decision; cite sources.
+- Verify on device/emulator when runtime behavior changes. No blind state-machine refactors.
+- Extract small policy/composables. Don't add one-function god files.
 
-**Run the Windows AVD with Intel Arc host GPU.** Keep that. Never "fix" it by switching to SwiftShader.
+## Architecture gates
 
-| Piece | Use |
-|-------|-----|
-| Start | `of-emu` → `scripts/qa/emu-up.sh up` |
-| AVD | `of_win` on the **Windows** SDK |
-| GPU | `-gpu host` (Intel Arc) |
-| Boot | Quick Boot. Do **not** pass `-no-snapshot-load`. Reuse if already up. Never `pkill qemu`. |
-| adb | Windows `adb.exe`. WSL SDK adb must be the wrap (`scripts/qa/wrap-adb.sh`). |
-| Sideload | `./gradlew :app:assembleDebug` then `adb install -r app/build/outputs/apk/debug/app-debug.apk` |
-| Ready | `adb devices` shows `emulator-5554` and `getprop sys.boot_completed` = `1` |
-| Gate | `scripts/qa/gate.sh` (or `--quick` after CI-like unit/lint) |
+See `docs/specs/architecture-gates.md`. Do not violate.
 
-**Never**
+- **M3-A** audio tee (`docs/specs/audio-tee-architecture.md` rev2)
+- **M7 PARKED** storage privacy (`docs/specs/storage-privacy-tradeoff.md` rev2)
+- Bubble / Home / Insights / Setup invariants
 
-- `android emulator start of_test` (WSL AVD)
-- WSL `emulator -gpu swiftshader` / `lavapipe` for daily test
-- A second qemu in WSL while `of_win` is up (fights adb port 5554)
-- Linux SDK `adb` daemon (empty devices; can steal Windows `:5037`)
+## Emulator path
 
-**Why**
-
-- Windows emulator: WHPX + Arc host GLES. Fast. Window on Windows.
-- WSL `of_test`: no host GL. Crash or SwiftShader crawl.
-- Snapshots need hardware GL.
-- Sources: [GPU modes](https://developer.android.com/studio/run/emulator-acceleration#command-gpu) · [Snapshots](https://developer.android.com/studio/run/emulator-snapshots) · [Test CLI](https://developer.android.com/studio/test/command-line)
-
-**RAM (do not "fix" WSL 12 GB cap)**
-
-- WSL apps ~2 GB. Cap 12 GB is headroom; Windows `vmmemWSL` can look fat when **cache** fills, then reclaim dumps it.
-- `of_win` guest 4 GB → Windows qemu ~5–6 GB. That is the real extra RAM.
-- Do not drop to software GPU to save RAM.
-
-**After start**
-
-```
-of-emu
-adb devices
-adb install -r app/build/outputs/apk/debug/app-debug.apk
-```
-
-Cold first boot can take ~1–2 min. Later starts = Quick Boot. Overlay + Accessibility still need granting on the emu.
-
-`android emulator list` only sees WSL `of_test`. Ignore it. After wrap-adb, `android layout` / `android screen` / `android install` talk to `of_win`.
-
-`of_win` is a **16 KB page** image. Native must stay 16 KB ELF-aligned (NDK r28 + `graphics-path:1.1.0`). Source: [16 KB page sizes](https://developer.android.com/guide/practices/page-sizes). Do not “fix” the compat dialog by tapping Don’t Show Again.
+See `docs/specs/architecture-gates.md#emulator-path-wsl2--windows`. WSL has no `/dev/dri` → use Windows AVD `of_win` via `of-emu`. Never `android emulator start of_test` in WSL. Bridge adb: `scripts/qa/wrap-adb.sh`.
 
 ## Verify before done
 
+Order: unit → lint → debug APK → (release: AAB + play-check + gate --release + visual).
+
 ```
 ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+# single test/package
+./gradlew :app:testDebugUnitTest --tests "app.openflow.audio.AppAudioCaptureTest"
+./gradlew :app:testDebugUnitTest --tests "app.openflow.bubble.*"
+# gate
+bash scripts/qa/gate.sh --quick
+bash scripts/qa/gate.sh --release
+bash scripts/qa/play-check.sh     # 17 Play checks
+bash scripts/qa/functional-check.sh # 6/6
+bash scripts/qa/visual-capture.sh # 4 PNGs + layout JSON → .scratch/
 ```
 
-Release builds additionally need `:app:assembleRelease` green.
+Device: `adb devices` → `emulator-5554`, `getprop sys.boot_completed`=1, `dumpsys window` bubble 252×126, no orphan `AudioRecord` after kill-mid-listen. `logcat -s OpenFlow.Probe` for 16k actual/min/frames.
 
-## Conventions
+## Code style
 
-- Pure logic goes in small `object` policy classes under `bubble/`, `ui/`, `stt/`, each with a Truth unit test.
-- Source-scan tests (`BubbleLayoutScanTest`, `UiSourceScan`) pin architecture — update their file targets when extracting code.
-- Overlay/window failures must never crash the service; retry or notify honestly.
-- Never touch opacity for visibility state — use `prefs.bubbleHidden`.
-- Commits: explicit paths only, no `git add -A`. Author = Mitun only. No Co-Authored-By footers, ever — including CI and bot configs.
+- Kotlin/Compose, `Dimen` (`PAGE_PAD` 20 `GAP` 12 `TOUCH_TARGET` 52 `CARD_ROUNDING` 0). Hard-edge, not soft 20dp.
+- `Modifier.size(12.dp).background(color, CircleShape)` not `then(Modifier.padding)`. Comments concise.
+
+## Git
+
+- Explicit paths only, never `git add -A`. Author Mitun only, no Co-Authored-By (CI blocks it + secret scan).
+- Commits: `feat:`/`fix:`/`ui:`/`setup:`/`qa:`/`docs:` with file paths in body. No Dependabot/bot commits. No push until GO.
+- Release `OPENFLOW_KEYSTORE_PATH` etc required for `assembleRelease`/`bundleRelease`; otherwise build fails loud (no debug-signed fallback).
+
+## Docs & Codegraph
+
+- After edits codegraph reindexes ~1s. Use `codegraph_explore` before reading; if banner says `auto-sync DISABLED` read files directly; if `⚠️ Some files...` re-Read those. No manual `codegraph init`.
+- Visual harness `scripts/qa/visual-capture.sh` until Paparazzi.
 
 ## Skills
 
-Use the global skill set in `~/.config/opencode/skills/` when it applies:
-spec-driven-development → planning-and-task-breakdown → incremental-implementation +
-test-driven-development → code-review-and-quality → code-simplification →
-git-workflow-and-versioning → shipping-and-launch.
+- `~/.config/opencode/skills/` per domain: `spec-driven-development`→`planning-and-task-breakdown`→`incremental-implementation`+`test-driven-development`→`code-review-and-quality`→`shipping-and-launch`. Meta-skill `using-agent-skills` maps task→skill.
+- Always load `android-cli` for device/SDK/docs; load `compose`/`testing`/`security`/`performance` when domain touches.
 
 ## Automation
 
-- CI (`.github/workflows/ci.yml`): unit tests + lint + debug APK + secret scan + authorship gate on every push/PR.
-- Pages (`.github/workflows/pages.yml`): deploys `docs/` to GitHub Pages.
-- No Dependabot. No bot commits. Author **Mitun only**. No Co-Authored-By. Dep bumps are Mitun commits.
+- CI `ci.yml`: unit+lint+debug APK+bundleRelease+play-check 17+changelog+secret/authorship+AAB artifact per push/PR (no emulator on ubuntu). `release.yml` on `v*` ships AAB+APK+mapping. `pages.yml` deploys `docs/`.
+- Gate `scripts/qa/gate.sh` stages WRAP-ADB/EMU/UNIT/LINT/BUILD-DEBUG/RELEASE/BUNDLE/PLAY-CHECK/APK-INFO/INSTALL/INSTRUMENT/CRASH.

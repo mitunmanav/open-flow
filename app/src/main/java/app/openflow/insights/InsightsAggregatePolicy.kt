@@ -131,7 +131,67 @@ object InsightsAggregatePolicy {
         return freq.maxByOrNull { it.value }?.key
     }
 
+    /** Average words per active day (day with ≥1 session) — momentum, not lifetime total. */
+    fun wordsPerActiveDay(sessions: List<InsightSession>, zone: TimeZone): Int {
+        if (sessions.isEmpty()) return 0
+        val byDay = HashMap<Long, Int>()
+        for (s in sessions) {
+            val day = startOfLocalDay(s.createdAtEpochMs, zone)
+            byDay[day] = (byDay[day] ?: 0) + s.wordCount
+        }
+        if (byDay.isEmpty()) return 0
+        return (byDay.values.sum() / byDay.size)
+    }
+
+    /** Best day word count + its day — "personal record" tile. */
+    fun bestDay(sessions: List<InsightSession>, zone: TimeZone): DayBucket? {
+        var best: DayBucket? = null
+        val byDay = HashMap<Long, Int>()
+        for (s in sessions) {
+            val day = startOfLocalDay(s.createdAtEpochMs, zone)
+            byDay[day] = (byDay[day] ?: 0) + s.wordCount
+        }
+        for ((day, words) in byDay) {
+            if (best == null || words > best!!.words) best = DayBucket(day, words)
+        }
+        return best
+    }
+
+    /** Time-of-day split: morning / afternoon / evening / night session counts. */
+    fun daypartCounts(sessions: List<InsightSession>, zone: TimeZone): Map<String, Int> {
+        val cal = Calendar.getInstance(zone)
+        var morning = 0; var afternoon = 0; var evening = 0; var night = 0
+        for (s in sessions) {
+            cal.timeInMillis = s.createdAtEpochMs
+            when (cal.get(Calendar.HOUR_OF_DAY)) {
+                in 5..11 -> morning++
+                in 12..16 -> afternoon++
+                in 17..21 -> evening++
+                else -> night++
+            }
+        }
+        return linkedMapOf(
+            "Morning" to morning,
+            "Afternoon" to afternoon,
+            "Evening" to evening,
+            "Night" to night,
+        )
+    }
+
     fun voiceUnlocked(totalWords: Long): Boolean = totalWords >= VOICE_UNLOCK_WORDS
+
+    /** Top apps by spoken word count (short label + words). Beat Wispr local-only. */
+    fun topAppsByWords(sessions: List<InsightSession>, n: Int = 5): List<Pair<String, Int>> {
+        val freq = HashMap<String, Int>()
+        for (s in sessions) {
+            val raw = s.packageName.trim()
+            if (raw.isEmpty()) continue
+            val label = raw.substringAfterLast('.').ifBlank { raw }
+            freq[label] = (freq[label] ?: 0) + s.wordCount.toInt()
+        }
+        return freq.entries.sortedByDescending { it.value }.take(n.coerceAtLeast(0))
+            .map { it.key to it.value }
+    }
 
     fun byokPayload(
         sessions: List<InsightSession>,

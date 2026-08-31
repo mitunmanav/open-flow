@@ -49,6 +49,7 @@ import app.openflow.R
 import app.openflow.bubble.BubbleChrome
 import app.openflow.bubble.BubbleIconPolicy
 import app.openflow.bubble.BubbleScaleSteps
+import app.openflow.bubble.BubbleShapeCatalog
 import app.openflow.prefs.FlowPrefs
 import app.openflow.ui.a11y.Dimen
 import app.openflow.ui.components.ButtonVariant
@@ -68,6 +69,7 @@ fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
     var opacity by remember { mutableFloatStateOf(prefs.bubbleOpacity) }
     var shape by remember { mutableStateOf(prefs.bubbleShape) }
     var showText by remember { mutableStateOf(prefs.bubbleShowText) }
+    var showLangChip by remember { mutableStateOf(prefs.bubbleShowLangChip) }
     var snap by remember { mutableStateOf(prefs.bubbleEdgeSnap) }
     var pulse by remember { mutableStateOf(prefs.bubblePulse) }
     var tint by remember { mutableStateOf(prefs.bubbleTint) }
@@ -79,6 +81,7 @@ fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
     var shrinkDot by remember { mutableStateOf(prefs.bubbleShrinkDot) }
     var shrinkSearch by remember { mutableStateOf(prefs.bubbleShrinkSearch) }
     var iconUri by remember { mutableStateOf(prefs.bubbleIconUri) }
+    var showAdvanced by remember { mutableStateOf(false) }
     val pickIcon = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
@@ -167,17 +170,13 @@ fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                 .testTag("bubble_preview"),
             contentAlignment = Alignment.Center,
         ) {
+            val shapeSpec = BubbleShapeCatalog.fromId(shape)
             val previewShape = when {
-                shape == "circle" || shape == "dot" -> CircleShape
+                shapeSpec.oval -> CircleShape
                 else -> RoundedCornerShape(percent = roundPct.coerceIn(0, 100))
             }
-            val baseW = when (shape) {
-                "dot" -> 22.dp
-                "circle" -> 44.dp
-                "square" -> 44.dp
-                else -> 76.dp
-            }
-            val baseH = if (shape == "pill") 34.dp else baseW
+            val baseW = (shapeSpec.idleWidthDp * 0.8f).dp
+            val baseH = (shapeSpec.idleHeightDp * 0.8f).dp
             val customBmp = remember(iconUri) {
                 val f = BubbleIconPolicy.localFile(ctx.filesDir)
                 if (!f.isFile || f.length() <= 0L) {
@@ -246,19 +245,14 @@ fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM),
                     verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM),
                 ) {
-                    listOf(
-                        "pill" to "Pill",
-                        "circle" to "Circle",
-                        "square" to "Squircle",
-                        "dot" to "Dot",
-                    ).forEach { (v, label) ->
+                    BubbleShapeCatalog.ALL.forEach { spec ->
                         OpenChip(
-                            label = label,
-                            isOn = shape == v,
+                            label = spec.label,
+                            isOn = shape == spec.id,
                             modifier = Modifier.wrapContentHeight(),
                             onClick = {
-                                shape = v
-                                prefs.bubbleShape = v
+                                shape = spec.id
+                                prefs.bubbleShape = spec.id
                                 onApplyBubble()
                             },
                         )
@@ -285,27 +279,18 @@ fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM),
                     verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM),
                 ) {
-                    listOf(
-                        BubbleTint.CHARCOAL to "Charcoal",
-                        BubbleTint.CREAM to "Cream",
-                        BubbleTint.INK to "Ink",
-                        BubbleTint.STONE to "Stone",
-                        BubbleTint.SKY to "Sky",
-                        BubbleTint.FOREST to "Forest",
-                        BubbleTint.CORAL to "Coral",
-                        BubbleTint.GRAPE to "Grape",
-                    ).forEach { (id, label) ->
+                    BubbleTint.ALL.forEach { tintSpec ->
                         OpenChip(
-                            label = label,
-                            isOn = tint == id,
+                            label = tintSpec.label,
+                            isOn = tint == tintSpec.id,
                             showCheckWhenOn = true,
                             modifier = Modifier.wrapContentHeight(),
                             onClick = {
-                                tint = id
-                                prefs.bubbleTint = id
-                                prefs.colorBubbleIdle = HexColor.format(BubbleTint.argb(id))
-                                prefs.colorBubbleListen = HexColor.format(BubbleTint.argb(id))
-                                prefs.colorBubbleText = HexColor.format(BubbleTint.onArgb(id))
+                                tint = tintSpec.id
+                                prefs.bubbleTint = tintSpec.id
+                                prefs.colorBubbleIdle = HexColor.format(tintSpec.fillArgb)
+                                prefs.colorBubbleListen = HexColor.format(tintSpec.fillArgb)
+                                prefs.colorBubbleText = HexColor.format(tintSpec.onArgb)
                                 onApplyBubble()
                             },
                         )
@@ -314,6 +299,16 @@ fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
             }
         }
 
+        OpenButton(
+            text = if (showAdvanced) "Hide advanced" else "Advanced",
+            onClick = { showAdvanced = !showAdvanced },
+            variant = ButtonVariant.Outlined,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("bubble_advanced"),
+        )
+
+        if (showAdvanced) {
         OpenCard {
             Column(
                 Modifier.padding(Dimen.MIN_PADDING),
@@ -418,6 +413,44 @@ fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                         prefs.bubbleShowText = showText
                         onApplyBubble()
                     },
+                )
+            }
+        }
+
+        OpenCard {
+            Column(
+                Modifier.padding(Dimen.MIN_PADDING),
+                verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM),
+            ) {
+                Text(
+                    "Language badge",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = SecUi.charcoal,
+                )
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight(),
+                    horizontalArrangement = Arrangement.spacedBy(Dimen.GAP_SM),
+                    verticalArrangement = Arrangement.spacedBy(Dimen.GAP_SM),
+                ) {
+                    OpenChip(
+                        label = if (showLangChip) "ON" else "OFF",
+                        isOn = showLangChip,
+                        modifier = Modifier.wrapContentHeight(),
+                        onClick = {
+                            showLangChip = !showLangChip
+                            prefs.bubbleShowLangChip = showLangChip
+                            onApplyBubble()
+                        },
+                    )
+                }
+                Text(
+                    "Show the dictation language (e.g. EN) on the idle bubble. Off = clean orb.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = SecUi.muted,
+                    softWrap = true,
                 )
             }
         }
@@ -627,6 +660,25 @@ fun BubbleSettings(prefs: FlowPrefs, onApplyBubble: () -> Unit) {
                 onApplyBubble()
             },
             variant = ButtonVariant.Outlined,
+        )
+        // L6: snooze discoverability — drag to top edge is hidden; surface it here and via TalkBack action.
+        Text(
+            "Tip: Drag bubble to top edge to snooze 10 min. Shake phone to wake. Or TalkBack → Actions → Snooze.",
+            style = MaterialTheme.typography.bodySmall,
+            color = SecUi.muted,
+            softWrap = true,
+            modifier = Modifier
+                .padding(top = Dimen.GAP_SM)
+                .testTag("bubble_snooze_hint"),
+        )
+        } // showAdvanced
+        // Always visible snooze hint outside advanced, for discoverability.
+        Text(
+            "Snooze: drag bubble to top edge for 10 min. Shake to wake. Accessibility → Snooze action also available.",
+            style = MaterialTheme.typography.bodySmall,
+            color = SecUi.muted,
+            softWrap = true,
+            modifier = Modifier.testTag("bubble_snooze_hint_always"),
         )
     }
 }

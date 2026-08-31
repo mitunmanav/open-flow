@@ -4,10 +4,13 @@ import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.PixelFormat
 import android.graphics.Rect
+import android.os.Bundle
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
+import androidx.core.view.ViewCompat
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import android.view.accessibility.AccessibilityWindowInfo
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.PathInterpolator
@@ -45,6 +48,16 @@ class BubbleWindowController(
     var bubbleChipLang: TextView? = null
     var params: WindowManager.LayoutParams? = null
     var snapAnimator: ValueAnimator? = null
+
+    companion object {
+        private const val ACTION_CANCEL = 0x1001
+        private const val ACTION_DONE = 0x1002
+        private const val ACTION_COPY = 0x1003
+        private const val ACTION_UNDO = 0x1004
+        private const val ACTION_PASTE = 0x1005
+        private const val ACTION_SNOOZE = 0x1006
+        private const val ACTION_LANG = 0x1007
+    }
 
     /** Soft keyboard present (Wispr: bubble lives with field + keyboard). */
     var imeVisible: Boolean = false
@@ -229,6 +242,73 @@ class BubbleWindowController(
         val v = view ?: return
         lp.y = parkedY(prefs?.bubbleY ?: lp.y)
         updateLayout(v, lp)
+    }
+
+    fun updateA11yActions(
+        listening: Boolean,
+        stopInProgress: Boolean,
+        chipState: PostStopChips.State? = null,
+        hasField: Boolean = false,
+        onCancel: () -> Unit = {},
+        onDone: () -> Unit = {},
+        onCopy: () -> Unit = {},
+        onUndo: () -> Unit = {},
+        onPaste: () -> Unit = {},
+        onSnooze: () -> Unit = {},
+        onLang: () -> Unit = {},
+    ) {
+        val root = bubbleRoot ?: view ?: return
+        root.isFocusable = true
+        root.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+        val desc = when {
+            listening -> "Listening, double tap Done, swipe for actions"
+            chipState?.any == true -> "Bubble idle, actions available"
+            hasField -> "Tap to talk"
+            else -> "Flow bubble, tap to talk"
+        }
+        root.contentDescription = desc
+        // Also keep icon contentDescription in sync for screen readers that focus the icon directly.
+        bubbleIcon?.contentDescription = if (listening) "Listening, tap to finish" else "Tap to talk"
+        bubbleWave?.contentDescription = if (listening) "Listening" else null
+        ViewCompat.setAccessibilityDelegate(root, object : androidx.core.view.AccessibilityDelegateCompat() {
+            override fun onInitializeAccessibilityNodeInfo(host: View, info: AccessibilityNodeInfoCompat) {
+                super.onInitializeAccessibilityNodeInfo(host, info)
+                info.className = "android.widget.Button"
+                info.isClickable = true
+                info.isFocusable = true
+                if (listening && !stopInProgress) {
+                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(ACTION_CANCEL, "Cancel"))
+                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(ACTION_DONE, "Done"))
+                } else {
+                    if (chipState?.copy == true) {
+                        info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(ACTION_COPY, "Copy"))
+                    }
+                    if (chipState?.undo == true) {
+                        info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(ACTION_UNDO, "Undo"))
+                    }
+                    if (chipState?.paste == true) {
+                        info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(ACTION_PASTE, "Paste"))
+                    }
+                }
+                if (!listening) {
+                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(ACTION_SNOOZE, "Snooze 10 minutes"))
+                }
+                info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(ACTION_LANG, "Change language"))
+            }
+
+            override fun performAccessibilityAction(host: View, action: Int, args: Bundle?): Boolean {
+                return when (action) {
+                    ACTION_CANCEL -> { onCancel(); true }
+                    ACTION_DONE -> { onDone(); true }
+                    ACTION_COPY -> { onCopy(); true }
+                    ACTION_UNDO -> { onUndo(); true }
+                    ACTION_PASTE -> { onPaste(); true }
+                    ACTION_SNOOZE -> { onSnooze(); true }
+                    ACTION_LANG -> { onLang(); true }
+                    else -> super.performAccessibilityAction(host, action, args)
+                }
+            }
+        })
     }
 
     private fun detectImeVisible(): Boolean {

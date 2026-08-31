@@ -28,6 +28,7 @@ import app.openflow.ui.theme.SecUi
 @Composable
 fun CleanupSettings(prefs: FlowPrefs) {
     var level by remember { mutableStateOf(prefs.cleanupLevel) }
+    var spokenEmoji by remember { mutableStateOf(prefs.spokenEmoji) }
     SettingsPage(intro = "Real-time local text cleanup applied before inserting into fields.") {
         listOf(
             "none" to ("None" to "Exact speech — zero edits."),
@@ -74,6 +75,45 @@ fun CleanupSettings(prefs: FlowPrefs) {
                             modifier = Modifier.size(20.dp),
                         )
                     }
+                }
+            }
+        }
+        OpenCard(
+            selected = spokenEmoji,
+            onClick = {
+                spokenEmoji = !spokenEmoji
+                prefs.spokenEmoji = spokenEmoji
+            },
+        ) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(Dimen.MIN_PADDING),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "Spoken emoji",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = SecUi.charcoal,
+                        softWrap = true,
+                    )
+                    Text(
+                        "Opt-in: “smile emoji” → 😄 (local map, off by default).",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = SecUi.muted,
+                        softWrap = true,
+                    )
+                }
+                if (spokenEmoji) {
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = "Selected",
+                        tint = SecUi.charcoal,
+                        modifier = Modifier.size(20.dp),
+                    )
                 }
             }
         }

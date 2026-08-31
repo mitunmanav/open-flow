@@ -213,11 +213,13 @@ import java.util.TimeZone
 /** Home layout row explainer. Used by ModuleEditor when a row is focused/moved. */
 object HomeFeelCopy {
     fun moduleWhat(id: String): String = when (id) {
-        "setup" -> "permissions"
-        "test" -> "practice field"
-        "keys" -> "cleanup chips"
-        "stats" -> "last dictation"
+        "banner" -> "status banner"
+        "search" -> "search transcripts"
         "recent" -> "history"
+        "howto" -> "first-run tip"
+        "stats" -> "word stats"
+        "note" -> "local note"
+        "honesty" -> "privacy footer"
         else -> ""
     }
 }
@@ -229,6 +231,18 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         _micGranted.value = granted
+    }
+    private val notifPermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { }
+
+    private fun maybeRequestNotifPermission() {
+        if (Build.VERSION.SDK_INT < 33) return
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) return
+        val prefs = (application as OpenFlowApp).prefs
+        if (prefs.notifAsked) return
+        prefs.notifAsked = true
+        notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
@@ -272,15 +286,22 @@ class MainActivity : ComponentActivity() {
                 var serviceAlive by remember {
                     mutableStateOf(FlowAccessibilityService.isRunning())
                 }
-                // Self-heal the rebind race: system may reconnect the service after
-                // this screen composes. Poll the in-process liveness flag while visible.
-                LaunchedEffect(Unit) {
-                    while (true) {
+                // Lifecycle-safe observer: AccessibilityManager state change replaces 2s polling.
+                // Resume still syncs in-process instance (rebind race) — see ON_RESUME below.
+                // Source: https://developer.android.com/reference/android/view/accessibility/AccessibilityManager#addAccessibilityStateChangeListener(android.view.accessibility.AccessibilityManager.AccessibilityStateChangeListener)
+                DisposableEffect(Unit) {
+                    val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as android.view.accessibility.AccessibilityManager
+                    val a11yListener = android.view.accessibility.AccessibilityManager.AccessibilityStateChangeListener { _ ->
+                        bubbleOn = FlowAccessibilityService.isRunning() ||
+                            FlowAccessibilityService.isEnabled(this@MainActivity)
                         serviceAlive = FlowAccessibilityService.isRunning()
-                        kotlinx.coroutines.delay(2_000)
                     }
+                    am.addAccessibilityStateChangeListener(a11yListener)
+                    onDispose { am.removeAccessibilityStateChangeListener(a11yListener) }
                 }
                 var batterySeen by remember { mutableStateOf(app.prefs.setupBatterySeen) }
+                // Replay setup from Settings — bypasses the DONE auto-exit until user leaves.
+                var setupReplay by remember { mutableStateOf(false) }
                 var navStack by rememberSaveable(stateSaver = NavStack.Saver) {
                     mutableStateOf(
                         NavStack.initial(
@@ -302,6 +323,29 @@ class MainActivity : ComponentActivity() {
                     batterySeen = true
                 }
                 val setupStep = FirstRunPolicy.step(bubbleOn, micOn, batterySeen)
+                // M14: wizard Back navigation — A11Y→exit, MIC→A11Y, BATTERY→MIC.
+                // Derived step is source of truth, but Back shows previous card even when already satisfied.
+                var wizardOverride by remember { mutableStateOf<FirstRunPolicy.Step?>(null) }
+                val displayStep = wizardOverride ?: setupStep
+                // Clear override once the underlying derived step advances past it (user completed the step).
+                androidx.compose.runtime.LaunchedEffect(setupStep) {
+                    val cur = wizardOverride
+                    if (cur != null) {
+                        val curOrd = when (cur) {
+                            FirstRunPolicy.Step.A11Y -> 0
+                            FirstRunPolicy.Step.MIC -> 1
+                            FirstRunPolicy.Step.BATTERY -> 2
+                            FirstRunPolicy.Step.DONE -> 3
+                        }
+                        val actualOrd = when (setupStep) {
+                            FirstRunPolicy.Step.A11Y -> 0
+                            FirstRunPolicy.Step.MIC -> 1
+                            FirstRunPolicy.Step.BATTERY -> 2
+                            FirstRunPolicy.Step.DONE -> 3
+                        }
+                        if (actualOrd > curOrd) wizardOverride = null
+                    }
+                }
                 // Cold start deep link (e.g., notification). Warm links go via onNewIntent.
                 androidx.compose.runtime.LaunchedEffect(intent) {
                     if (intent?.getBooleanExtra("open_history", false) == true) {
@@ -329,7 +373,21 @@ class MainActivity : ComponentActivity() {
                                 this@MainActivity,
                                 Manifest.permission.RECORD_AUDIO
                             ) == PackageManager.PERMISSION_GRANTED
+                            // Only mark battery step done after system grant; backing out keeps it pending.
+                            if (!app.prefs.setupBatterySeen) {
+                                val ignoringNow = try {
+                                    val pm = getSystemService(PowerManager::class.java)
+                                    pm.isIgnoringBatteryOptimizations(packageName)
+                                } catch (_: Exception) { false }
+                                if (ignoringNow) {
+                                    app.prefs.setupBatterySeen = true
+                                }
+                            }
                             batterySeen = app.prefs.setupBatterySeen
+                            // Ask POST_NOTIFICATIONS once after setup is done, so DictationNotifier can post.
+                            if (android.os.Build.VERSION.SDK_INT >= 33 && setupStep == FirstRunPolicy.Step.DONE) {
+                                maybeRequestNotifPermission()
+                            }
                             FlowAccessibilityService.instance?.applyPrefsVisual()
                             DisplayRefreshController.apply(
                                 this@MainActivity,
@@ -340,8 +398,8 @@ class MainActivity : ComponentActivity() {
                     owner.lifecycle.addObserver(obs)
                     onDispose { owner.lifecycle.removeObserver(obs) }
                 }
-                androidx.compose.runtime.LaunchedEffect(route, setupStep) {
-                    if (route == AppRoute.Setup && setupStep == FirstRunPolicy.Step.DONE) {
+                androidx.compose.runtime.LaunchedEffect(route, setupStep, setupReplay) {
+                    if (route == AppRoute.Setup && setupStep == FirstRunPolicy.Step.DONE && !setupReplay) {
                         goTo(AppRoute.Home)
                     }
                 }
@@ -386,7 +444,9 @@ class MainActivity : ComponentActivity() {
                     )
                 }
 
-                if (WalkthroughPolicy.needsWalkthrough(walkthroughSeen)) {
+                if (setupStep == FirstRunPolicy.Step.DONE &&
+                    WalkthroughPolicy.needsWalkthrough(walkthroughSeen)
+                ) {
                     WalkthroughPager(
                         page = walkPage,
                         onNext = {
@@ -412,7 +472,6 @@ class MainActivity : ComponentActivity() {
                     route = route,
                     onNavigate = { dest -> goTo(dest) },
                     onBack = { goBack() },
-                    isDrawerExtraVisible = { true }
                 ) { padding ->
                     val tabMs = rememberMotionMs(Motion.TAB_SWITCH_MS)
                     val animateTabs = rememberShouldAnimate()
@@ -437,6 +496,7 @@ class MainActivity : ComponentActivity() {
                                 serviceAlive = serviceAlive,
                                 onEnableBubble = { requestEnableBubble() },
                                 onMic = { micPermission.launch(Manifest.permission.RECORD_AUDIO) },
+                                onOpenHistory = { goTo(AppRoute.History) },
                             )
                             AppRoute.History -> HistoryScreen(app)
                             AppRoute.Dictionary -> DictionaryTab(app)
@@ -448,6 +508,10 @@ class MainActivity : ComponentActivity() {
                             )
                             AppRoute.Settings -> SettingsHub { item ->
                                 when (item) {
+                                    SettingsItem.Setup -> {
+                                        setupReplay = true
+                                        goTo(AppRoute.Setup)
+                                    }
                                     SettingsItem.SpeechAi -> goTo(AppRoute.SpeechAi)
                                     SettingsItem.Cleanup -> goTo(AppRoute.Cleanup)
                                     SettingsItem.Bubble -> goTo(AppRoute.BubbleSettings)
@@ -553,11 +617,13 @@ class MainActivity : ComponentActivity() {
                                 subtitle = "Show, hide, reorder Home cards",
                                 modules = app.prefs.homeModules(),
                                 labels = mapOf(
-                                    "setup" to "Setup",
+                                    "banner" to "Status banner",
+                                    "search" to "Search",
+                                    "recent" to "Recent history",
+                                    "howto" to "How-to tip",
                                     "stats" to "Stats",
-                                    "keys" to "Key actions",
-                                    "test" to "Test field",
-                                    "recent" to "Recent history"
+                                    "note" to "Local note",
+                                    "honesty" to "Privacy footer",
                                 ),
                                 defaultEncode = LayoutPrefs.DEFAULT_HOME,
                                 onChange = {
@@ -566,26 +632,53 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                             AppRoute.Setup -> {
+                                // M14: wizard Back within the single Setup route — A11Y→exit, MIC→A11Y, BATTERY→MIC.
+                                BackHandler(enabled = true) {
+                                    val cur = wizardOverride ?: setupStep
+                                    when (cur) {
+                                        FirstRunPolicy.Step.A11Y -> {
+                                            setupReplay = false
+                                            wizardOverride = null
+                                            goBack()
+                                        }
+                                        FirstRunPolicy.Step.MIC -> wizardOverride = FirstRunPolicy.Step.A11Y
+                                        FirstRunPolicy.Step.BATTERY -> wizardOverride = FirstRunPolicy.Step.MIC
+                                        FirstRunPolicy.Step.DONE -> {
+                                            setupReplay = false
+                                            wizardOverride = null
+                                            goBack()
+                                        }
+                                    }
+                                }
                                 SetupWizard(
-                                    step = setupStep,
+                                    step = displayStep,
                                     onEnableBubble = { requestEnableBubble() },
                                     onMic = { micPermission.launch(Manifest.permission.RECORD_AUDIO) },
                                     onBattery = { showBatteryDialog = true },
                                     onSkipBattery = {
+                                        wizardOverride = null
                                         markBatterySeen()
                                         goTo(AppRoute.Home)
-                                    }
+                                    },
+                                    onDone = {
+                                        wizardOverride = null
+                                        setupReplay = false
+                                        goTo(AppRoute.Home)
+                                    },
                                 )
                                 if (showBatteryDialog) {
                                     BatteryExemptionDialog(
                                         onAgree = {
                                             showBatteryDialog = false
-                                            app.prefs.setupBatterySeen = true
                                             val ignoring = try {
                                                 val pm = getSystemService(PowerManager::class.java)
                                                 pm.isIgnoringBatteryOptimizations(packageName)
                                             } catch (_: Exception) {
                                                 false
+                                            }
+                                            if (ignoring) {
+                                                app.prefs.setupBatterySeen = true
+                                                batterySeen = true
                                             }
                                             val batteryIntent = Intent(
                                                 BatteryExemption.action(ignoring)
@@ -631,6 +724,7 @@ private fun HomeHub(
     serviceAlive: Boolean = true,
     onEnableBubble: () -> Unit,
     onMic: () -> Unit,
+    onOpenHistory: () -> Unit,
 ) {
     HomeFeed(
         app = app,
@@ -639,6 +733,7 @@ private fun HomeHub(
         serviceAlive = serviceAlive,
         onEnableBubble = onEnableBubble,
         onMic = onMic,
+        onOpenHistory = onOpenHistory,
         dictationCard = { d, onDelete, onShare, onSave, onUseRaw ->
             DictationCard(
                 d = d,

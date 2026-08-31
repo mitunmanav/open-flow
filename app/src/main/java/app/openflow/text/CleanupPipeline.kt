@@ -21,10 +21,11 @@ object CleanupPipeline {
         style: WritingStyle = WritingStyle.CASUAL,
         custom: CustomStyleConfig = CustomStyleConfig(),
         messaging: Boolean = false,
+        spokenEmoji: Boolean = false,
     ): CleanupResult {
         // I3 totality: user text can be anything — the pipeline must never throw.
         return try {
-            runGated(raw, level, style, custom, messaging)
+            runGated(raw, level, style, custom, messaging, spokenEmoji)
         } catch (t: Throwable) {
             CleanupResult(raw = raw.trim(), clean = raw.trim(), level = level)
         }
@@ -36,6 +37,7 @@ object CleanupPipeline {
         style: WritingStyle,
         custom: CustomStyleConfig,
         messaging: Boolean,
+        spokenEmoji: Boolean,
     ): CleanupResult {
         val original = raw
         if (original.isBlank()) {
@@ -45,7 +47,7 @@ object CleanupPipeline {
             return CleanupResult(raw = original, clean = original, level = level)
         }
 
-        val result = converge(original, level, style, custom, messaging)
+        val result = converge(original, level, style, custom, messaging, spokenEmoji)
 
         // I4 stability + I1 no invention: an unstable or inventing run falls
         // back to the converged light pass (same gates); if even that fails,
@@ -54,7 +56,7 @@ object CleanupPipeline {
             return result.first
         }
         if (level != CleanupLevel.LIGHT) {
-            val light = converge(original, CleanupLevel.LIGHT, style, custom, messaging)
+            val light = converge(original, CleanupLevel.LIGHT, style, custom, messaging, spokenEmoji)
             if (light.second && InvariantGate.ok(original, light.first.clean)) {
                 return light.first
             }
@@ -81,14 +83,15 @@ object CleanupPipeline {
         style: WritingStyle,
         custom: CustomStyleConfig,
         messaging: Boolean,
+        spokenEmoji: Boolean,
     ): Pair<CleanupResult, Boolean> {
         var cur = input
-        var res = stages(cur, level, style, custom, messaging)
+        var res = stages(cur, level, style, custom, messaging, spokenEmoji)
         val first = res
         var passes = 1
         while (res.clean != cur && passes < MAX_PASSES) {
             cur = res.clean
-            res = stages(cur, level, style, custom, messaging)
+            res = stages(cur, level, style, custom, messaging, spokenEmoji)
             passes++
         }
         val stable = res.clean == cur
@@ -103,6 +106,7 @@ object CleanupPipeline {
         style: WritingStyle,
         custom: CustomStyleConfig,
         messaging: Boolean,
+        spokenEmoji: Boolean,
     ): CleanupResult {
         // Newline-preserving entry: sweeps 2+ must not undo inserted line breaks.
         var t = normalizeKeepNewlines(original.trim())
@@ -120,6 +124,7 @@ object CleanupPipeline {
         t = StutterCollapse.apply(t)
         t = repeatPhrase.replace(t, "$1")
         t = VoiceCommands.apply(t)
+        t = SpokenEmoji.apply(t, spokenEmoji)
         t = RunOnSplitPolicy.apply(t)
         t = lightGrammar(t)
 

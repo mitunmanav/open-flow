@@ -63,6 +63,7 @@ object TextPostProcessor {
         promptHint: String? = null,
         messaging: Boolean = false,
         budgetMs: Long = CleanupBudget.POLISH_MS,
+        spokenEmoji: Boolean = false,
     ): CleanupResult {
         val original = raw
         var t = raw
@@ -73,7 +74,7 @@ object TextPostProcessor {
             autoKeys = LearnEngine.autoKeys()
         )
         t = expandSnippets(t, snippets)
-        val result = CleanupPipeline.run(t, level, style, custom, messaging)
+        val result = CleanupPipeline.run(t, level, style, custom, messaging, spokenEmoji)
         val features = FeatureAuto.of(earId, brainId, languages)
         val useAi = brain != NoAI &&
             level != CleanupLevel.RAW &&
@@ -135,6 +136,7 @@ object TextPostProcessor {
         looksLikeCommand: Boolean = false,
         onBrainOutcome: (providerId: String, ok: Boolean) -> Unit = { _, _ -> },
         budgetMs: Long = CleanupBudget.POLISH_MS,
+        spokenEmoji: Boolean = false,
     ): CleanupResult {
         val original = raw
         val sides = LearnEngine.sideBags()
@@ -160,6 +162,7 @@ object TextPostProcessor {
                 languages = languages,
                 promptHint = promptHint,
                 messaging = messaging,
+                spokenEmoji = spokenEmoji,
             )
 
         fun hopAsk(cleaned: String, textLen: Int): BrainHopAsk =

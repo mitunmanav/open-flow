@@ -21,4 +21,10 @@ class TranscriptParts {
         last = r
         return r.text
     }
+
+    @Synchronized
+    fun clear() {
+        parts.clear()
+        last = HallucinationGuard.Result("", false, emptyList())
+    }
 }

@@ -39,7 +39,8 @@ class BubbleVisualPainter(
         val label = win.bubbleLabel ?: return
         val pulseRing = win.bubblePulseRing ?: return
         val cancel = win.bubbleCancel
-        val shape = FlowPrefs.normalizeBubbleShape(p.bubbleShape)
+        val shapeSpec = BubbleShapeCatalog.fromId(p.bubbleShape)
+        val shape = shapeSpec.id
 
         val mode = FlowPrefs.normalizeBubbleMode(p.bubbleMode)
         val orbDp = when (mode) {
@@ -75,9 +76,15 @@ class BubbleVisualPainter(
                 (18f * density).toInt(),
                 (18f * density).toInt()
             ).apply { gravity = Gravity.CENTER }
-            label.visibility = View.GONE
+            // Show live transcript when pref enabled; otherwise hide to keep bar compact.
+            label.visibility =
+                if (BubbleLabelVisibility.listening(p.bubbleShowText)) View.VISIBLE else View.GONE
+            if (BubbleLabelVisibility.listening(p.bubbleShowText)) {
+                label.setTextColor(on)
+                label.textSize = 12f
+            }
 
-            // Pulse WRAP_CONTENT was the grey veil. Idle-only; never on listen.
+            // Pulse never on listen — it was the grey veil.
             pulseRing.visibility = View.GONE
             win.bubbleChipCopy?.visibility = View.GONE
             win.bubbleChipUndo?.visibility = View.GONE
@@ -86,7 +93,8 @@ class BubbleVisualPainter(
             cancel?.visibility = View.GONE
             win.bubbleDone?.visibility = View.GONE
             win.bubbleWave?.visibility = View.GONE
-            label.visibility = View.GONE
+            label.visibility =
+                if (BubbleLabelVisibility.postStop()) View.VISIBLE else View.GONE
             pulseRing.visibility = View.GONE
             val bg = GradientDrawable().apply {
                 this.shape = GradientDrawable.RECTANGLE
@@ -115,8 +123,25 @@ class BubbleVisualPainter(
             cancel?.visibility = View.GONE
             win.bubbleDone?.visibility = View.GONE
             win.bubbleWave?.visibility = View.GONE
-            label.visibility = View.GONE
-            pulseRing.visibility = View.GONE
+            // Idle label only when show-text pref is on (else lang chip keeps pill compact).
+            label.visibility =
+                if (BubbleLabelVisibility.idle(p.bubbleShowText)) View.VISIBLE else View.GONE
+            if (BubbleLabelVisibility.idle(p.bubbleShowText)) {
+                label.setTextColor(on)
+                label.textSize = 12f
+            }
+            // Pulse ring: show subtle heartbeat when enabled, otherwise gone (no veil, no wake).
+            if (p.bubblePulse) {
+                pulseRing.visibility = View.VISIBLE
+                pulseRing.background = GradientDrawable().apply {
+                    setShape(GradientDrawable.OVAL)
+                    setColor(BubbleChrome.pulseArgb(on))
+                }
+                val pulsePx = (orbDp * 1.6f * density).toInt()
+                pulseRing.layoutParams = FrameLayout.LayoutParams(pulsePx, pulsePx, Gravity.CENTER)
+            } else {
+                pulseRing.visibility = View.GONE
+            }
             win.bubbleChipCopy?.visibility = View.GONE
             win.bubbleChipUndo?.visibility = View.GONE
             win.bubbleChipPaste?.visibility = View.GONE
@@ -124,17 +149,20 @@ class BubbleVisualPainter(
             val (w, h) = BubbleGeometry.overlaySizePx(listening = false, density = density, shape = shape)
             root.layoutParams = FrameLayout.LayoutParams(w, h, Gravity.CENTER)
             root.setPadding(0, 0, 0, 0)
-            val useOval = shape == "circle" || shape == "dot"
             root.background = GradientDrawable().apply {
-                this.shape = if (useOval) GradientDrawable.OVAL else GradientDrawable.RECTANGLE
-                if (!useOval) {
-                    cornerRadius = BubbleChrome.cornerPx(shape, density, p.bubbleRoundPct)
+                this.shape = if (shapeSpec.oval) GradientDrawable.OVAL else GradientDrawable.RECTANGLE
+                if (!shapeSpec.oval) {
+                    cornerRadius = shapeSpec.cornerPx(density, p.bubbleRoundPct)
                 }
                 setColor(fill)
                 setStroke(stroke, on)
             }
             icon.visibility = View.VISIBLE
-            val iconSz = ((if (shape == "pill") 22f else orbDp * 0.42f) * density).toInt()
+            val iconSz = ((if (shapeSpec.idleWidthDp > shapeSpec.idleHeightDp) {
+                24f
+            } else {
+                orbDp * 0.42f
+            }) * density).toInt()
             icon.layoutParams = LinearLayout.LayoutParams(iconSz, iconSz).apply {
                 gravity = Gravity.CENTER
             }

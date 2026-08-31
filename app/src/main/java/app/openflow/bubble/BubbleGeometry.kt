@@ -8,6 +8,8 @@ object BubbleGeometry {
 
     const val DEFAULT_MARGIN_PX = 32
 
+    /** @deprecated Use [BubbleShapeCatalog] / [BubbleShapeSpec]. */
+    @Deprecated("Use BubbleShapeCatalog", ReplaceWith("BubbleShapeCatalog"))
     enum class BubbleShape(val id: String, val label: String) {
         PILL("pill", "Pill"),
         CIRCLE("circle", "Circle"),
@@ -33,7 +35,7 @@ object BubbleGeometry {
         y: Int,
         screenHeightPx: Int,
         bubbleHeightPx: Int,
-        topMarginPx: Int = 120,
+        topMarginPx: Int = 200,
         bottomMarginPx: Int = 80
     ): Int {
         val minY = bottomMarginPx
@@ -48,7 +50,7 @@ object BubbleGeometry {
         return 0.95f + t * 0.10f
     }
 
-    /** Dynamic corner radius (px). Square = minimal hard 2dp. */
+    /** Dynamic corner radius (px). Delegates to [BubbleShapeCatalog]. */
     fun cornerRadiusDp(shape: String, density: Float): Float =
         BubbleChrome.cornerPx(shape, density)
 
@@ -71,12 +73,11 @@ object BubbleGeometry {
     fun overlaySizePx(
         listening: Boolean,
         density: Float,
-        shape: String = "pill",
+        shape: String = BubbleShapeCatalog.DEFAULT.id,
         chips: Boolean = false,
         cancel: Boolean = true,
         done: Boolean = true,
     ): Pair<Int, Int> {
-        val idleH = (48f * density).toInt()
         val listenH = (BubbleTouch.LISTEN_BAR_DP * density).toInt()
         if (listening) {
             val w = (BubbleTouch.listenWidthDp(cancel, done) * density).toInt()
@@ -86,16 +87,6 @@ object BubbleGeometry {
         if (chips) {
             return (196f * density).toInt() to listenH
         }
-        return when (shape) {
-            "pill" -> (96f * density).toInt() to idleH
-            "dot" -> {
-                val side = (28f * density).toInt()
-                side to side
-            }
-            else -> {
-                val side = (48f * density).toInt()
-                side to side
-            }
-        }
+        return BubbleShapeCatalog.fromId(shape).idleSizePx(density)
     }
 }

@@ -14,6 +14,7 @@ enum class SettingsItem(val title: String, val subtitle: String) {
     Feedback("Share feedback", "Ideas and questions on GitHub Discussions"),
     ReportIssue("Report an issue", "Bugs on GitHub Issues"),
     ReportSecurity("Report a vulnerability", "Private Security Advisories only — not a public issue"),
+    Setup("Replay setup", "Re-run the bubble, mic, and battery steps"),
 }
 
 data class SettingsGroup(
@@ -43,7 +44,12 @@ object SettingsCatalog {
         SettingsGroup(
             "help",
             "Help",
-            listOf(SettingsItem.Feedback, SettingsItem.ReportIssue, SettingsItem.ReportSecurity),
+            listOf(
+                SettingsItem.Setup,
+                SettingsItem.Feedback,
+                SettingsItem.ReportIssue,
+                SettingsItem.ReportSecurity,
+            ),
         ),
     )
 }

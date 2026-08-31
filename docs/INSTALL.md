@@ -1,6 +1,8 @@
 # Install Open Flow
 
-Android 8+ (API 26). Speech language in Settings (default en-US). **Debug-signed sideload is OK** for early launch.
+Android 8+ (API 26). Speech language in Settings (default en-US).
+
+**Primary build = release-signed APK** (not the debug cert). Debug APK is for developers on a cable only.
 
 **INTERNET** is declared in the APK; **unused** until you pick a net ear/brain or download a model. The phone’s speech engine may still use Google — that is not an Open Flow upload.
 
@@ -8,8 +10,9 @@ Android 8+ (API 26). Speech language in Settings (default en-US). **Debug-signed
 
 | Source | Where |
 |--------|--------|
-| GitHub Releases | Latest debug APK → [Releases](https://github.com/mitunmanav/open-flow/releases/latest) |
-| Fresh build | `app/build/outputs/apk/debug/app-debug.apk` |
+| GitHub Releases (users) | Latest **release-signed** APK → [Releases](https://github.com/mitunmanav/open-flow/releases/latest) |
+| Local release build | `source ~/.openflow/env` → `./gradlew :app:assembleRelease` → `app/build/outputs/apk/release/app-release.apk` |
+| Dev only (USB) | `app/build/outputs/apk/debug/app-debug.apk` — not for strangers |
 
 ## 2. Allow this one installer
 

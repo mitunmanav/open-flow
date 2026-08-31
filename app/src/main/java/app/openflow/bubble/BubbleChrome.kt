@@ -1,8 +1,10 @@
 package app.openflow.bubble
 
+import app.openflow.ui.theme.BubbleTint
+
 /**
  * Minimal brutal chrome for the Flow Bubble overlay.
- * Cream / charcoal, hard edges by default; roundness prefs softens corners.
+ * Corners come from [BubbleShapeCatalog]. Pulse uses tint on-color.
  */
 object BubbleChrome {
     /** Charcoal face — matches [app.openflow.ui.theme.BrutalColors.Charcoal]. */
@@ -17,12 +19,15 @@ object BubbleChrome {
     const val CANCEL = 0xFFE8E4DC.toInt()
     const val DONE = 0xFFF4F1EA.toInt()
 
-    /** Soft pulse tint (still monochrome). */
+    /** Soft pulse fallback (cream on). Prefer [pulseArgb]. */
     const val PULSE = 0x33F4F1EA.toInt()
 
     const val ROUND_HARD = "hard"
     const val ROUND_SOFT = "soft"
     const val ROUND_ROUND = "round"
+
+    /** Listen/post-stop bar uses square-ish corners (not a catalog idle shape). */
+    private val LISTEN_CORNER = BubbleShapeSpec.SQUARE
 
     fun normalizeRoundness(value: String): String = when (value.lowercase()) {
         ROUND_SOFT, ROUND_ROUND -> value.lowercase()
@@ -46,14 +51,11 @@ object BubbleChrome {
     ): Float = cornerPx(shape, density, pctFromLegacy(roundness))
 
     fun cornerPx(shape: String, density: Float, pct: Int): Float {
-        val t = pct.coerceIn(0, 100) / 100f
-        return when (shape) {
-            "circle", "dot" -> 999f * density
-            "pill" -> (12f + (24f - 12f) * t) * density
-            "listen", "square" -> (2f + (16f - 2f) * t) * density
-            else -> (2f + (16f - 2f) * t) * density
-        }
+        if (shape == "listen") return LISTEN_CORNER.cornerPx(density, pct)
+        return BubbleShapeCatalog.fromId(shape).cornerPx(density, pct)
     }
+
+    fun pulseArgb(onArgb: Int): Int = BubbleTint.pulseArgb(onArgb)
 
     fun strokePx(density: Float): Int =
         (2f * density).toInt().coerceAtLeast(2)

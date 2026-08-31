@@ -33,14 +33,14 @@ data class SttTuning(
         /** Locked product language — English (US) only. No other locales. */
         const val DEFAULT_LANGUAGE = "en-US"
 
-        // Balanced defaults — snappier than old 1200/700 without cutting mid-phrase hard.
-        const val DEFAULT_MIN_SPEECH_MS = 400L
-        const val DEFAULT_COMPLETE_SILENCE_MS = 850L
-        const val DEFAULT_POSSIBLY_COMPLETE_SILENCE_MS = 480L
+        // Balanced defaults — snappy partials; local cleanup still polishes punctuation.
+        const val DEFAULT_MIN_SPEECH_MS = 360L
+        const val DEFAULT_COMPLETE_SILENCE_MS = 720L
+        const val DEFAULT_POSSIBLY_COMPLETE_SILENCE_MS = 400L
         const val DEFAULT_MAX_RESULTS = 3
 
-        /** Default quality formatting (API 33+): better punctuation than latency mode. */
-        const val DEFAULT_PREFER_FORMATTING_QUALITY = true
+        /** Default latency formatting (API 33+); Accurate profile flips to quality. */
+        const val DEFAULT_PREFER_FORMATTING_QUALITY = false
 
         const val PROFILE_FAST = "fast"
         const val PROFILE_BALANCED = "balanced"

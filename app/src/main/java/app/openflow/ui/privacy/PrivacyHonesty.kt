@@ -8,7 +8,7 @@ object PrivacyHonesty {
         "Phone speech may send audio. A brain you pick can POST this line. History stays on this phone unless you share it."
 
     const val SETTINGS_BODY =
-        "History stays on this phone. Cloud speech stays off until you pick it. A cloud brain you pick can POST this line."
+        "History stays on this phone. Default phone speech may still send audio (often Google). Whisper on-phone = stay-on-device pick. Cloud brain off until you pick; then it can POST this line."
 
     const val KEEP_FOREVER =
         "History is stored on this phone (not encrypted). A cloud brain you pick can still POST this line."

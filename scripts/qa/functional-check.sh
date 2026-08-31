@@ -47,14 +47,22 @@ if [ "$rc" -eq 0 ] && [ "$rc2" -eq 0 ]; then rc=0; else
 fi
 check "DEEP_LINK_WARM  singleTop re-deliver" "$rc" "(top: $(cat "$OUT/top-warm.txt" 2>/dev/null | tr -d '\n'))"
 
-# 3 — bottom bar anti-clip (bug #1) — ensure Home tab active then check footer
+# 3 — bottom bar anti-clip (bug #1) — ensure Home tab active, scroll list to bottom, then check footer
 for attempt in 1 2; do
   qa_adb -s "$SERIAL" shell input tap 108 2266 >/dev/null 2>&1 || true
   sleep 3
   qa_adb -s "$SERIAL" shell uiautomator dump /sdcard/ui-home.xml >/dev/null 2>&1 || true
   qa_adb -s "$SERIAL" pull /sdcard/ui-home.xml "$OUT/ui-home.xml" >/dev/null 2>&1 || true
-  grep -q "History stays on this phone" "$OUT/ui-home.xml" 2>/dev/null && break
+  grep -q "Note on this phone" "$OUT/ui-home.xml" 2>/dev/null && break
   sleep 0.5
+done
+# Footer sits below history rows — swipe up hard a few times to reach the end of the feed.
+for swipe in 1 2 3 4 5 6; do
+  grep -q "History stays on this phone" "$OUT/ui-home.xml" 2>/dev/null && break
+  qa_adb -s "$SERIAL" shell input swipe 540 1800 540 400 200 >/dev/null 2>&1 || true
+  sleep 1
+  qa_adb -s "$SERIAL" shell uiautomator dump /sdcard/ui-home.xml >/dev/null 2>&1 || true
+  qa_adb -s "$SERIAL" pull /sdcard/ui-home.xml "$OUT/ui-home.xml" >/dev/null 2>&1 || true
 done
 # home_hub semantic: Home feed loaded + footer not clipped behind nav bar (check exact footer)
 grep -q "History stays on this phone" "$OUT/ui-home.xml" 2>/dev/null; rc=$?

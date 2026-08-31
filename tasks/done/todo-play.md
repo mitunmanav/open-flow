@@ -101,8 +101,8 @@ Spec: `docs/specs/play-store-readiness.md`. Success criteria 1-10.
 
 - [x] `./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:bundleRelease` — all 4 green (bundle 12M)
 - [x] `scripts/qa/play-check.sh` 17 PASS; `scripts/qa/functional-check.sh` 6 PASS; `scripts/qa/gate.sh --quick` PASS (9 stages) — DONE
-- [ ] `scripts/qa/gate.sh --release` full (unit+lint+release+bundle+play-check+install+instrument+crash) — next run ~2m
-- [ ] Report `.scratch/qa/<stamp>/report.txt` attached in PR
+- [x] `scripts/qa/gate.sh --release` full (unit+lint+release+bundle+play-check+install+instrument+crash) — PASS 20260827-020245 — DONE
+- [x] Report `.scratch/qa/<stamp>/report.txt` attached in PR — `.scratch/qa/20260827-020245/report.txt` exists — DONE
 
 ## Risks
 

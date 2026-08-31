@@ -25,12 +25,26 @@ class FlowPrefsSeenHowToTest {
     }
 
     @Test
+    fun homeModules_migrates_legacy_and_persists() {
+        val store = MemoryPrefsStore()
+        store.putString("home_layout", "setup,test,keys,stats,recent")
+        val prefs = FlowPrefs(store)
+        val m = prefs.homeModules()
+        assertThat(m.none { it.id == "setup" || it.id == "keys" || it.id == "test" }).isTrue()
+        assertThat(m.any { it.id == "howto" && it.visible }).isTrue()
+        assertThat(m.any { it.id == "search" && it.visible }).isTrue()
+        assertThat(store.getString("home_layout", "")).doesNotContain("setup")
+    }
+
+    @Test
     fun moduleWhat_maps_home_ids() {
-        assertThat(HomeFeelCopy.moduleWhat("setup")).isEqualTo("permissions")
-        assertThat(HomeFeelCopy.moduleWhat("test")).isEqualTo("practice field")
-        assertThat(HomeFeelCopy.moduleWhat("keys")).isEqualTo("cleanup chips")
-        assertThat(HomeFeelCopy.moduleWhat("stats")).isEqualTo("last dictation")
+        assertThat(HomeFeelCopy.moduleWhat("banner")).isEqualTo("status banner")
+        assertThat(HomeFeelCopy.moduleWhat("search")).isEqualTo("search transcripts")
         assertThat(HomeFeelCopy.moduleWhat("recent")).isEqualTo("history")
+        assertThat(HomeFeelCopy.moduleWhat("howto")).isEqualTo("first-run tip")
+        assertThat(HomeFeelCopy.moduleWhat("stats")).isEqualTo("word stats")
+        assertThat(HomeFeelCopy.moduleWhat("note")).isEqualTo("local note")
+        assertThat(HomeFeelCopy.moduleWhat("honesty")).isEqualTo("privacy footer")
         assertThat(HomeFeelCopy.moduleWhat("history")).isEmpty()
     }
 }

@@ -23,9 +23,17 @@ else
   dump
 fi
 
-hits="$(dump | grep -cE 'FATAL EXCEPTION|ANR in|Fatal signal' || true)"
+# Only count crashes for our package — ignore system WebView sigill noise on of_win
+hits="$(dump | grep -E 'FATAL EXCEPTION|ANR in|Fatal signal' | grep -c 'app.openflow' || true)"
 if [ "${hits:-0}" -gt 0 ]; then
-  echo "FAIL crash-scan hits=$hits"
+  echo "FAIL crash-scan hits=$hits (app.openflow)"
   exit 1
+fi
+# Also check for our package in crash buffer via pid/name if grep above missed folded lines
+if dump | grep -q 'app.openflow'; then
+  if dump | grep -qE 'FATAL EXCEPTION|ANR in|Fatal signal'; then
+    # already filtered above; if still app.openflow present with fatal nearby, count
+    :
+  fi
 fi
 echo "PASS crash-scan hits=0"

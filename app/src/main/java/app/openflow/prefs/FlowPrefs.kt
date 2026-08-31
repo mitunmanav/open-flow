@@ -7,6 +7,7 @@ import app.openflow.bubble.AppOverride
 import app.openflow.bubble.BubbleChrome
 import app.openflow.bubble.BubbleLook
 import app.openflow.bubble.BubbleScaleSteps
+import app.openflow.bubble.BubbleShapeCatalog
 import app.openflow.stt.LanguagePolicy
 import app.openflow.stt.SttTuning
 import app.openflow.text.CapsMode
@@ -38,6 +39,13 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         val raw = store.getString("learn_sides", "")
         if (raw.isNotEmpty()) LearnEngine.loadSides(raw)
         LearnEngine.loadPending(store.getString("learn_pending", ""))
+        // Legacy 0.8 default read as a grey ghost orb over dark apps — solid now.
+        if (store.getString("bubble_opacity_migrated", "") != "1") {
+            if (store.getFloat("bubble_opacity", -1f) == 0.80f) {
+                store.putFloat("bubble_opacity", 1.00f)
+            }
+            store.putString("bubble_opacity_migrated", "1")
+        }
         LearnEngine.persistHook = { encoded -> store.putString("learn_sides", encoded) }
         LearnEngine.pendingHook = { encoded -> store.putString("learn_pending", encoded) }
     }
@@ -47,7 +55,7 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         set(v) = store.putFloat("bubble_scale", v)
 
     var bubbleOpacity: Float
-        get() = store.getFloat("bubble_opacity", 0.80f).coerceIn(0.20f, 1.00f)
+        get() = store.getFloat("bubble_opacity", 1.00f).coerceIn(0.20f, 1.00f)
         set(v) = store.putFloat("bubble_opacity", v.coerceIn(0.20f, 1.00f))
 
     var bubbleHidden: Boolean
@@ -287,6 +295,11 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         get() = store.getString("bubble_show_done", "true") != "false"
         set(v) = store.putString("bubble_show_done", if (v) "true" else "false")
 
+    /** Lang badge on idle bubble. Optional — default off (clean orb). */
+    var bubbleShowLangChip: Boolean
+        get() = store.getString("bubble_show_lang_chip", "false") == "true"
+        set(v) = store.putString("bubble_show_lang_chip", if (v) "true" else "false")
+
     var bubbleIconUri: String
         get() = store.getString("bubble_icon_uri", "")
         set(v) = store.putString("bubble_icon_uri", v)
@@ -413,6 +426,11 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         get() = store.getString("auto_learn", "false") == "true"
         set(v) = store.putString("auto_learn", if (v) "true" else "false")
 
+    /** Spoken "smile emoji" → 😄 in cleanup. Opt-in — default OFF. */
+    var spokenEmoji: Boolean
+        get() = store.getString("spoken_emoji", "false") == "true"
+        set(v) = store.putString("spoken_emoji", if (v) "true" else "false")
+
     /**
      * Prominent-disclosure consent for the Accessibility service.
      * Must be accepted before we send the user to system Accessibility settings.
@@ -461,8 +479,12 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         lastSessionClean = clean
     }
 
-    fun homeModules(): List<LayoutPrefs.Module> =
-        LayoutPrefs.parseModules(homeLayout, LayoutPrefs.HOME_MODULES)
+    fun homeModules(): List<LayoutPrefs.Module> {
+        val raw = homeLayout
+        val normalized = LayoutPrefs.normalizeHomeRaw(raw)
+        if (normalized != raw) homeLayout = normalized
+        return LayoutPrefs.parseModules(normalized, LayoutPrefs.HOME_MODULES)
+    }
 
     fun setHomeModules(modules: List<LayoutPrefs.Module>) {
         homeLayout = LayoutPrefs.encodeModules(modules)
@@ -667,10 +689,7 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
             }
 
         fun normalizeBubbleShape(value: String): String =
-            when (value) {
-                "circle", "pill", "square", "dot" -> value
-                else -> "pill"
-            }
+            BubbleShapeCatalog.normalize(value)
 
         fun normalizeCleanupLevel(value: String): String =
             when (value.lowercase()) {

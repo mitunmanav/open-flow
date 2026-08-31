@@ -88,4 +88,60 @@ class InsightsAggregatePolicyTest {
         assertThat(days.size).isEqualTo(12 * 7)
         assertThat(days.sumOf { it.words }).isEqualTo(2)
     }
+
+    @Test
+    fun per_active_day_averages_only_days_with_sessions() {
+        val d0 = 0L
+        val d1 = 86_400_000L
+        val s = listOf(
+            InsightSession("a", "", d0 + 3_600_000, 1000, 10),
+            InsightSession("b", "", d0 + 7_200_000, 1000, 6),
+            InsightSession("c", "", d1 + 3_600_000, 1000, 8),
+        )
+        // 2 active days, 24 words total → 12
+        assertThat(InsightsAggregatePolicy.wordsPerActiveDay(s, utc)).isEqualTo(12)
+        assertThat(InsightsAggregatePolicy.wordsPerActiveDay(emptyList(), utc)).isEqualTo(0)
+    }
+
+    @Test
+    fun best_day_picks_peak_words() {
+        val d0 = 0L
+        val d1 = 86_400_000L
+        val s = listOf(
+            InsightSession("a", "", d0 + 3_600_000, 1000, 10),
+            InsightSession("b", "", d1 + 3_600_000, 1000, 25),
+            InsightSession("c", "", d1 + 7_200_000, 1000, 5),
+        )
+        val best = InsightsAggregatePolicy.bestDay(s, utc)!!
+        assertThat(best.words).isEqualTo(30)
+        assertThat(best.dayEpoch).isEqualTo(d1)
+        assertThat(InsightsAggregatePolicy.bestDay(emptyList(), utc)).isNull()
+    }
+
+    @Test
+    fun dayparts_bucket_four_slots() {
+        val s = listOf(
+            InsightSession("a", "", 6 * 3_600_000L, 1000, 1),   // morning
+            InsightSession("b", "", 14 * 3_600_000L, 1000, 1),  // afternoon
+            InsightSession("c", "", 19 * 3_600_000L, 1000, 1),  // evening
+            InsightSession("d", "", 2 * 3_600_000L, 1000, 1),   // night
+        )
+        val parts = InsightsAggregatePolicy.daypartCounts(s, utc)
+        assertThat(parts["Morning"]).isEqualTo(1)
+        assertThat(parts["Afternoon"]).isEqualTo(1)
+        assertThat(parts["Evening"]).isEqualTo(1)
+        assertThat(parts["Night"]).isEqualTo(1)
+        assertThat(parts.values.sum()).isEqualTo(4)
+    }
+
+    @Test
+    fun top_apps_by_words_ranks_short_labels() {
+        val s = listOf(
+            InsightSession("a", "", 0L, 1000, 10, packageName = "com.example.maps"),
+            InsightSession("b", "", 0L, 1000, 5, packageName = "com.example.maps"),
+            InsightSession("c", "", 0L, 1000, 8, packageName = "com.chat.app"),
+        )
+        val top = InsightsAggregatePolicy.topAppsByWords(s, n = 5)
+        assertThat(top).containsExactly("maps" to 15, "app" to 8).inOrder()
+    }
 }

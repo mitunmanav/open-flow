@@ -6,6 +6,14 @@ import org.junit.Test
 class LanguagePolicyTest {
 
     @Test
+    fun catalog_grows_past_wispr_gap_floor() {
+        assertThat(LanguagePolicy.SUPPORTED_LANGUAGES.size).isAtLeast(40)
+        assertThat(LanguagePolicy.isAllowed("ko-KR")).isTrue()
+        assertThat(LanguagePolicy.isAllowed("zh-TW")).isTrue()
+        assertThat(LanguagePolicy.normalize("es-mx")).isEqualTo("es-MX")
+    }
+
+    @Test
     fun force_keeps_catalog_langs() {
         assertThat(LanguagePolicy.force(null)).isEqualTo("en-US")
         assertThat(LanguagePolicy.force("")).isEqualTo("en-US")

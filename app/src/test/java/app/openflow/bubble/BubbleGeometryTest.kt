@@ -20,11 +20,11 @@ class BubbleGeometryTest {
 
     @Test
     fun clampVerticalOffset_bounds_properly() {
-        // Screen height 2400, bubble height 120, top 120, bottom 80 -> max Y = 2400 - 120 - 120 = 2160
+        // Screen height 2400, bubble height 120, top 200, bottom 80 -> max Y = 2400 - 120 - 200 = 2080
         assertThat(BubbleGeometry.clampVerticalOffset(50, screenHeightPx = 2400, bubbleHeightPx = 120))
             .isEqualTo(80)
         assertThat(BubbleGeometry.clampVerticalOffset(3000, screenHeightPx = 2400, bubbleHeightPx = 120))
-            .isEqualTo(2160)
+            .isEqualTo(2080)
         assertThat(BubbleGeometry.clampVerticalOffset(500, screenHeightPx = 2400, bubbleHeightPx = 120))
             .isEqualTo(500)
     }
@@ -128,7 +128,7 @@ class BubbleGeometryTest {
     fun listen_is_three_discs_regardless_of_shape() {
         val expectW = (BubbleTouch.listenWidthDp() * 2f).toInt()
         val expectH = (BubbleTouch.ACTION_DP * 2f).toInt()
-        for (shape in listOf("pill", "circle", "dot", "square")) {
+        for (shape in BubbleShapeCatalog.ids()) {
             val (w, h) = BubbleGeometry.overlaySizePx(listening = true, density = 2f, shape = shape)
             assertThat(w).isEqualTo(expectW)
             assertThat(h).isEqualTo(expectH)

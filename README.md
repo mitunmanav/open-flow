@@ -28,7 +28,7 @@ On **main** (not tagged yet): local cleanup v2 — N-best pick, spoken numbers, 
 
 Full list: [CHANGELOG.md](CHANGELOG.md).
 
-## Install
+## Install (users)
 
 1. APK from **[Releases](https://github.com/mitunmanav/open-flow/releases/latest)**.
 2. Open in Files. Play Protect “unknown” is normal.
@@ -39,6 +39,19 @@ Full list: [CHANGELOG.md](CHANGELOG.md).
 [Install](docs/INSTALL.md) · [Guide](docs/GUIDE.md) · [Privacy](docs/PRIVACY.md) · [Compare](docs/COMPARISON.md)
 
 Older text: **History** in the app.
+
+## Dev vs Launch
+
+| Track | What | Command / path |
+|-------|------|----------------|
+| **Dev** (this laptop) | Windows AVD `of_win` `-gpu host`, wrap-adb, debug APK | `of-emu` → `./gradlew :app:assembleDebug` → `adb install -r …` → `scripts/qa/gate.sh --quick` |
+| **Dev verify** | Unit + lint + visual + functional | `./gradlew :app:testDebugUnitTest :app:lintDebug` · `scripts/qa/visual-capture.sh` · `scripts/qa/functional-check.sh` |
+| **Launch (GitHub)** | CI on push/PR builds AAB + play-check; tag `v*` ships release | `.github/workflows/ci.yml` · `release.yml` · `pages.yml` |
+| **Launch (Play)** | Signed AAB, store listing, Data safety | `scripts/qa/play-check.sh` (17) · `docs/store/` · `docs/specs/play-store-readiness.md` |
+
+Author **Mitun only**. No `Co-Authored-By`. Push / tag only on explicit GO.
+
+Device loop detail: [docs/testing.md](docs/testing.md).
 
 ## Talk vs report
 
@@ -62,8 +75,6 @@ Full write-up: [docs/COMPARISON.md](docs/COMPARISON.md). Our niche is MIT + keep
 ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
 ```
 
-Device loop (this laptop): [docs/testing.md](docs/testing.md) — `scripts/qa/gate.sh`
-
-Debug-signed sideload. Not Play / F-Droid.
+See **Dev vs Launch** above for gate / Play / GitHub.
 
 MIT — [LICENSE](LICENSE) · [SECURITY.md](SECURITY.md)

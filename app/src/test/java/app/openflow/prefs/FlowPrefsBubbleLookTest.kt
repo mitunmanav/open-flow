@@ -29,6 +29,24 @@ class FlowPrefsBubbleLookTest {
     }
 
     @Test
+    fun opacity_default_is_solid() {
+        val p = FlowPrefs(MemoryPrefsStore())
+        assertThat(p.bubbleOpacity).isEqualTo(1.00f)
+    }
+
+    @Test
+    fun legacy_ghost_opacity_migrates_to_solid_once() {
+        val legacy = MemoryPrefsStore()
+        legacy.putFloat("bubble_opacity", 0.80f)
+        val p = FlowPrefs(legacy)
+        assertThat(p.bubbleOpacity).isEqualTo(1.00f)
+        // Migration runs once — a deliberate 0.8 set afterwards sticks.
+        p.bubbleOpacity = 0.80f
+        val again = FlowPrefs(legacy)
+        assertThat(again.bubbleOpacity).isEqualTo(0.80f)
+    }
+
+    @Test
     fun reset_scale_only() {
         val p = FlowPrefs(MemoryPrefsStore())
         p.bubbleScale = 1.15f

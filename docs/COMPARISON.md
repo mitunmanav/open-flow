@@ -1,56 +1,58 @@
-# Open Flow vs other open voice apps
+# Open Flow vs Wispr Flow
 
-**Date:** 2026-08-13. Public sources: F-Droid package pages, project READMEs, Android `SpeechRecognizer` docs, Play a11y policy notes.
+Honest side-by-side. Last updated 2026-09-03.
 
-**This is not marketing.** If you need audio to stay on the phone, **do not pick Open Flow first.**
+## Headline
 
----
+| Axis | Open Flow | Wispr Flow |
+|---|---|---|
+| Model | FOSS, AGPL-style licensed, auditable | Closed source, SOC 2 / ISO 27001 / HIPAA |
+| Distribution | Play + F-Droid (planned) + sideload | Play + App Store + sideload (paid) |
+| Free tier | Always free, no word cap | ~1000-2000 words/week, then paid |
+| On-device | Yes (system STT + on-device whisper.cpp path) | No, cloud only |
+| Offline | Yes (system STT, offline whisper model) | No |
+| RAM idle | Background AccessibilityService (no eager model) | ~800 MB idle (per How-To Geek, Apr 2026) |
+| Cold start | Already-running service | 8-10 s (per How-To Geek, Apr 2026) |
+| Languages | System STT (device-dependent) + whisper multilingual | 100+ cloud languages |
+| Bubble UI | `TYPE_ACCESSIBILITY_OVERLAY`. Keep your keyboard. | Floating bubble. Keep your keyboard (per Android Police). |
+| Per-app style | `text/StyleResolvePolicy.kt` (local, rule-based) | Cloud proprietary |
+| Snippets | Speak a trigger, expand to text | Speak a trigger, expand to text |
+| Personal dictionary | Yes (`text/LearnEngine.kt`) | Yes |
+| Cleanup stage | 8-stage local pipeline (AtomicTokens → Restore) + InvariantGate fallback | Proprietary post-processing |
+| Code-aware dictation | No (planned) | Yes (camelCase/snake_case, IDE files) |
+| Account / sign-in | None | Email + paid tiers + Teams/Enterprise SSO |
+| Data sold | Never (no collection at all) | Never (per privacy page; user opts in for model training) |
 
-## What Open Flow actually is
+## Where Wispr Flow wins (today)
 
-- Floating **bubble**. You keep your keyboard.
-- Uses Android **Accessibility** to type into the focused field.
-- Speech comes from the system **`SpeechRecognizer`**.
-- **INTERNET** is declared; Open Flow makes no network requests until the user opts into net ear/brain or model download.
-- Cleanup is **hand-written rules**, not a language model.
-- Speech language catalog in Settings (default en-US). MIT. No account.
+- Polished zero-edit rate (90% per their benchmark)
+- IDE / code-aware dictation in Cursor + Windsurf
+- Notetaker product (separate)
+- Cross-platform: Mac, Windows, iOS, Android
+- Team / Enterprise tier with admin + SSO
 
-**The hard truth about speech:**  
-Android’s own docs say the default recognizer is likely to stream audio to a remote service. Open Flow uses that default path. `createOnDeviceSpeechRecognizer()` is optional, not the default. **Declared-but-unused INTERNET does not mean your voice never leaves the device.**
+## Where Open Flow wins (today)
 
-If that sentence bothers you, use a Whisper/Vosk app below.
+- Fully offline, no internet required
+- No account, no email, no billing
+- Local-only processing; transcripts/audio never leave the device unless user opts in
+- FOSS; reproducible-build target (planned)
+- No word cap, no tier gate, no time-out
+- Hard-edge Compose UI; no Google services dependency
 
----
+## What we still need to close the gap
 
-## How to read the table
-
-- **Offline audio** = recognition can run with no network *after* you have a local model (or a proven on-device engine).
-- **Keep keyboard** = not an IME. You do not switch away from Gboard/HeliBoard.
-- **OSI FOSS** = MIT/Apache/GPL on F-Droid or GitHub, not a “source first / pay if you’re a company” license.
-
-| | Open Flow | Phone Whisper | FUTO Voice | Sayboard | Whisper IME | Kõnele | Wispr Flow |
-|---|---|---|---|---|---|---|---|
-| Keep your keyboard | **Yes** (bubble) | **Yes** (overlay) | No (voice IME / its keyboard) | No (it *is* a voice keyboard) | No (IME) | No (IME / provider) | Yes (bubble) |
-| Speech engine | System SpeechRecognizer | Local sherpa-onnx **or** OpenAI | Local Whisper (whisper.cpp) | Local Vosk | Local Whisper TFLite | Kaldi **server** (public default) | Cloud AI |
-| Audio can leave phone | **Yes, often** (Google STT) | Only if you turn on cloud | No (after model download) | No (after model download) | No (after model download) | **Yes** on default server (even unencrypted) | **Yes** (that is the product) |
-| INTERNET in the app | **Declared; unused until opt-in** | For models / optional API | For model download | For model download (can revoke) | For model download | Yes (server) | Yes |
-| Cleanup | Rule lists | Optional OpenAI | In-model / app | Weak / none | Weak / none | Server-side | Cloud LLM |
-| Languages | Catalog (en-US default) | Several (model-dependent) | Many | 20+ Vosk models | Many | Depends on server | Many |
-| License | **MIT** | Personal / permissive | Non-OSI (commercial restrictions) | GPL-3.0 | GPL-3.0 | Apache-2.0 | Closed |
-| On F-Droid | **No** | No | Their repo | **Yes** | **Yes** | **Yes** | No |
-| History + dict/snippets | **Yes** | Limited | Weak | No | No | No | Yes (their cloud) |
-| Maturity | Early 0.1.x, debug-signed | Small project | Polished | Stable | Active | Older | Commercial |
-
----
+- IDE / code-aware dictation
+- IDE / Cursor-style file tagging
+- Cross-platform (today: Android only)
+- Zero-edit rate at 90%+ on par with Wispr (currently measured by golden corpus; F1 gap to close)
+- Per-language polishing for non-English flows
 
 ## Sources
 
-- Android `SpeechRecognizer` / `createOnDeviceSpeechRecognizer` documentation
-- [Sayboard on F-Droid](https://f-droid.org/packages/com.elishaazaria.sayboard/)
-- [Whisper IME (woheller69) on F-Droid](https://f-droid.org/en/packages/org.woheller69.whisper/)
-- [Kõnele on F-Droid](https://f-droid.org/en/packages/ee.ioc.phon.android.speak/) + project privacy notes (default server)
-- [FUTO Voice Input](https://gitlab.futo.org/keyboard/voiceinput) / Play listing (Source First license, offline Whisper)
-- [Phone Whisper](https://github.com/kafkasl/phone-whisper) (overlay + sherpa-onnx / optional OpenAI)
-- This repo: [architecture page](https://mitunmanav.github.io/open-flow/architecture.html), `AndroidManifest.xml` (INTERNET declared; unused until opt-in)
-
-We did not run timed accuracy tests on one phone against all of these. Accuracy ranks above are **engine class**, not a lab bake-off.
+- Wispr Flow product page: https://wisprflow.ai/
+- Wispr Flow why-flow page: https://wisprflow.ai/why-flow
+- Wispr Flow privacy page: https://wisprflow.ai/privacy
+- Wikipedia: https://en.wikipedia.org/wiki/Wispr_Flow
+- Android Police review (Feb 2026): https://www.androidpolice.com/wispr-flow-app-android-voice-typing-experience/
+- How-To Geek competitive review (Apr 2026): https://www.howtogeek.com/i-tried-7-voice-typing-apps-on-windows-and-speechify-stood-out-for-an-important-reason/

@@ -3,57 +3,60 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#d4dbe2">
+  <meta name="theme-color" content="#FFFFEB">
+  <link rel="preload" href="fonts/big-shoulders-800.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/noto-sans.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Eb+Garamond:wght@500;700&family=Figtree:wght@400;500;700&display=swap" rel="stylesheet">
   <title>Install — Open Flow</title>
+  <meta name="description" content="Install Open Flow, the free Android dictation app, on Android 8 and up. Sideload the APK, allow microphone and accessibility.">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="site.css">
+  <link rel="canonical" href="https://mitunmanav.github.io/open-flow/install.html">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Open Flow">
+  <meta property="og:url" content="https://mitunmanav.github.io/open-flow/install.html">
+  <meta property="og:title" content="Install — Open Flow">
+  <meta property="og:description" content="Install Open Flow, the free Android dictation app, on Android 8 and up. Sideload the APK, allow microphone and accessibility.">
+  <meta property="og:image" content="https://mitunmanav.github.io/open-flow/icon.svg">
+  <meta name="twitter:card" content="summary">
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/motion.css">
+  <script src="js/partials.js" defer></script>
+  <script src="js/demo.js" defer></script>
+  <script src="js/core.js" defer></script>
 </head>
-<body>
-<header>
-  <div class="wrap">
-    <a class="brand" href="index.html"><img src="icon.svg" width="36" height="36" alt="">Open Flow</a>
-    <nav>
-      <a href="index.html">Home</a>
-      <a href="install.html" aria-current="page">Install</a>
-      <a href="guide.html">Guide</a>
-      <a href="privacy.html">Privacy</a>
-      <a href="https://github.com/mitunmanav/open-flow/discussions">Talk</a>
-    </nav>
-  </div>
-</header>
+<body data-page="install">
+<div data-partial="header">
+<noscript><p><a href="index.html">Home</a> · <a href="install.html">Install</a> · <a href="guide.html">Guide</a> · <a href="privacy.html">Privacy</a> · <a href="https://github.com/mitunmanav/open-flow/discussions">Talk</a> · <a href="https://github.com/mitunmanav/open-flow/releases/latest">Download</a></p></noscript>
+</div>
 <main class="wrap">
-  <h1>Install</h1>
-  <p class="lede">Android 8 and up. Pick speech language in the app (default English). This APK is a sideload, not Play Store.</p>
+  <h1>Up and talking in minutes</h1>
+  <p class="lede">Android 8 and up. Free. This is a sideload, not a Play Store install — your phone will ask a few extra questions.</p>
   <div class="row">
     <a class="btn" href="https://github.com/mitunmanav/open-flow/releases/latest">Download APK</a>
-    <a class="btn ghost" href="https://github.com/mitunmanav/open-flow/releases/latest">All releases</a>
+    <a class="btn ghost" href="https://github.com/mitunmanav/open-flow/releases">All releases</a>
   </div>
+  <div class="proof-box">v0.1.9 · Android 8 and up · publisher <code>github.com/mitunmanav</code> · free, no account</div>
   <div class="honest">INTERNET is declared. Unused until you pick a cloud path or a model download. The phone’s speech engine may still use Google.</div>
   <ol class="steps">
     <li>Download the APK from <a href="https://github.com/mitunmanav/open-flow/releases/latest">Releases</a>.</li>
     <li>Settings → Apps → Special access → <strong>Install unknown apps</strong> → Files → Allow.</li>
     <li>Open the file. Play Protect may warn. More details → Install anyway.</li>
-    <li>Open Open Flow. Read the five short screens.</li>
+    <li>Open Open Flow and read the five short screens.</li>
     <li>Turn on <strong>Accessibility</strong> for Open Flow.</li>
-    <li>If the switch is <strong>grey</strong>: Apps → Open Flow → <strong>⋮ → Allow restricted settings</strong> → phone unlock → try Accessibility again.</li>
+    <li>Switch <strong>greyed out</strong>? Apps → Open Flow → <strong>⋮ → Allow restricted settings</strong> → unlock → try again.</li>
     <li>Allow the microphone. Battery Unrestricted is optional.</li>
     <li>Open Notes → tap the bubble → speak → tap again.</li>
   </ol>
   <p>Samsung: Auto Blocker can block the install. Xiaomi / Oppo / Vivo: set battery to Unrestricted if the bubble dies after a minute.</p>
-  <p>Copy old text from <strong>History</strong> in the app. Updates: install the new APK over the old one.</p>
+  <p>Updates: install the new APK over the old one. Old words live in <strong>History</strong> in the app.</p>
   <p>Stuck? <a href="https://github.com/mitunmanav/open-flow/discussions">Talk on GitHub</a>.</p>
 </main>
-<footer>
-  <div class="wrap">
-    <span><img src="icon.svg" alt=""> Open Flow · MIT</span>
-    <span>
-      <a href="compare.html">Compare</a> ·
-      <a href="architecture.html">How it is built</a> ·
-      <a href="roadmap.html">Roadmap</a> ·
-      <a href="report.html">Report a bug</a> ·
-      <a href="https://github.com/mitunmanav/open-flow">GitHub</a>
-    </span>
-  </div>
-</footer>
+<div data-partial="footer">
+<noscript><p><a href="compare.html">Compare</a> · <a href="architecture.html">How it is built</a> · <a href="roadmap.html">Roadmap</a> · <a href="report.html">Report a bug</a></p></noscript>
+</div>
 </body>
 </html>

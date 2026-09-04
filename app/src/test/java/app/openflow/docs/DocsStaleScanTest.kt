@@ -48,9 +48,9 @@ class DocsStaleScanTest {
     fun privacy_links_exist() {
         assertThat(File(root, "docs/PRIVACY.md").isFile).isTrue()
         assertThat(File(root, "docs/privacy.html").isFile).isTrue()
-        val readme = File(root, "README.md").readText()
-        // README should link to testing gate
-        assertThat(readme).contains("testing.md")
+        val contributing = File(root, "CONTRIBUTING.md").readText()
+        // Contributor docs should link to testing gate
+        assertThat(contributing).contains("testing.md")
     }
 
     @Test
@@ -76,9 +76,10 @@ class DocsStaleScanTest {
 
     @Test
     fun tasks_todos_do_not_claim_done_without_marker() {
-        // tasks/todo-*.md checkboxes may exist, but a task file that is fully
+        // dev/tasks/todo-*.md checkboxes may exist, but a task file that is fully
         // checked must be renamed/archived — pins "no zombie task lists".
-        File(root, "tasks").listFiles { f -> f.name.startsWith("todo-") && f.extension == "md" }
+        val tasksDir = File(root, "dev/tasks").takeIf { it.isDirectory } ?: File(root, "tasks")
+        tasksDir.listFiles { f -> f.name.startsWith("todo-") && f.extension == "md" }
             ?.forEach { f ->
                 val text = f.readText()
                 val boxes = Regex("""^\s*- \[.\]""", RegexOption.MULTILINE).findAll(text).toList()
@@ -90,12 +91,12 @@ class DocsStaleScanTest {
     }
 
     @Test
-    fun readme_splits_dev_vs_launch() {
-        val readme = File(root, "README.md").readText()
-        assertThat(readme).contains("## Dev vs Launch")
-        assertThat(readme).contains("of_win")
-        assertThat(readme).contains("release.yml")
-        assertThat(readme).contains("No `Co-Authored-By`")
+    fun contributing_splits_dev_vs_launch() {
+        val contributing = File(root, "CONTRIBUTING.md").readText()
+        assertThat(contributing).contains("## Dev vs Launch")
+        assertThat(contributing).contains("of_win")
+        assertThat(contributing).contains("release.yml")
+        assertThat(contributing).contains("No `Co-Authored-By`")
     }
 
     @Test

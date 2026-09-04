@@ -103,7 +103,11 @@ class SitePagesTest {
 
     @Test
     fun site_css_is_not_ai_landing_template() {
-        val css = File(UiSourceScan.projectRoot(), "docs/site.css").readText()
+        val css = File(UiSourceScan.projectRoot(), "docs/css")
+            .listFiles().orEmpty()
+            .filter { it.extension == "css" }
+            .sortedBy { it.name }
+            .joinToString("\n") { it.readText() }
         assertThat(css).doesNotContain("#f4efe6")
         assertThat(css).doesNotContain("#0f1c22")
         assertThat(css).doesNotContain("#e8a54b")
@@ -120,7 +124,11 @@ class SitePagesTest {
     @Test
     fun site_loads_local_fonts_not_google_import() {
         val root = File(UiSourceScan.projectRoot(), "docs")
-        val css = File(root, "site.css").readText()
+        val css = File(root, "css")
+            .listFiles().orEmpty()
+            .filter { it.extension == "css" }
+            .sortedBy { it.name }
+            .joinToString("\n") { it.readText() }
         assertThat(css).doesNotContain("@import")
         assertThat(css).doesNotContain("fonts.googleapis.com")
         assertThat(css).contains("@font-face")

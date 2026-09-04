@@ -1,5 +1,6 @@
 package app.openflow.runtime
 
+import app.openflow.core.common.TrimPolicy
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 

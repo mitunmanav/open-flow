@@ -3,74 +3,71 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#d4dbe2">
+  <meta name="theme-color" content="#FFFFEB">
+  <link rel="preload" href="fonts/big-shoulders-800.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/noto-sans.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Eb+Garamond:wght@500;700&family=Figtree:wght@400;500;700&display=swap" rel="stylesheet">
   <title>Roadmap — Open Flow</title>
+  <meta name="description" content="Where Open Flow is going. Dates are not promises.">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="site.css">
+  <link rel="canonical" href="https://mitunmanav.github.io/open-flow/roadmap.html">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Open Flow">
+  <meta property="og:url" content="https://mitunmanav.github.io/open-flow/roadmap.html">
+  <meta property="og:title" content="Roadmap — Open Flow">
+  <meta property="og:description" content="Where Open Flow is going. Dates are not promises.">
+  <meta property="og:image" content="https://mitunmanav.github.io/open-flow/icon.svg">
+  <meta name="twitter:card" content="summary">
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/motion.css">
+  <script src="js/partials.js" defer></script>
+  <script src="js/demo.js" defer></script>
+  <script src="js/core.js" defer></script>
 </head>
-<body>
-<header>
-  <div class="wrap">
-    <a class="brand" href="index.html"><img src="icon.svg" width="36" height="36" alt="">Open Flow</a>
-    <nav>
-      <a href="index.html">Home</a>
-      <a href="install.html">Install</a>
-      <a href="guide.html">Guide</a>
-      <a href="privacy.html">Privacy</a>
-      <a href="https://github.com/mitunmanav/open-flow/discussions">Talk</a>
-    </nav>
-  </div>
-</header>
+<body data-page="roadmap">
+<div data-partial="header">
+<noscript><p><a href="index.html">Home</a> · <a href="install.html">Install</a> · <a href="guide.html">Guide</a> · <a href="privacy.html">Privacy</a> · <a href="https://github.com/mitunmanav/open-flow/discussions">Talk</a> · <a href="https://github.com/mitunmanav/open-flow/releases/latest">Download</a></p></noscript>
+</div>
 <main class="wrap">
-  <h1>Roadmap</h1>
-  <p>Shipped first as a GitHub sideload. Dates are not promises.</p>
+  <h1>Where this is going</h1>
+  <p class="lede">A GitHub sideload today. Dates are not promises — direction is. Current app: v0.1.9, Sep 2026.</p>
 
-  <h2>Now (0.1.9)</h2>
+  <h2>Now</h2>
   <ul>
-    <li>Bubble + Accessibility insert. Not a keyboard. Stays while the keyboard is up.</li>
-    <li>Home · Dictionary · Snippets · Style. Listen Done. Press enter to send.</li>
-    <li>History copy/share. Cleanup levels. Optional cloud you pick.</li>
-    <li>INTERNET is declared; unused until you pick a cloud path.</li>
-    <li>Debug-signed APK on GitHub Releases.</li>
+    <li>Floating bubble that inserts into any text box. Not a keyboard.</li>
+    <li>Dictionary, snippets, and styles. Voice edits like “strike that”.</li>
+    <li>Local history with copy, share, and 24-hour auto-clear.</li>
+    <li>Optional fully-offline Whisper on phone.</li>
   </ul>
 
   <h2>Next</h2>
   <ul>
-    <li>A real <strong>release keystore</strong> (this APK is debug-signed).</li>
-    <li>Install path tested from <strong>Files</strong> (Restricted Settings), not only USB.</li>
-    <li>Optional <strong>on-device model</strong>. Until then, audio privacy is not fully ours.</li>
-    <li>F-Droid when the signed build is clean enough.</li>
+    <li>More install paths tested, fewer scary screens.</li>
+    <li>Better offline accuracy out of the box.</li>
+    <li>F-Droid listing.</li>
   </ul>
 
   <h2>Later, only if we mean it</h2>
   <ul>
-    <li>Play Store (Accessibility declaration + video — hard, slow).</li>
+    <li>Play Store — needs an Accessibility declaration and video. Hard and slow.</li>
     <li>More languages.</li>
-    <li>Google 2026–27 developer verification on stock phones.</li>
   </ul>
 
   <h2>Not planned</h2>
   <ul>
     <li>Becoming a keyboard.</li>
     <li>Accounts, ads, analytics.</li>
-    <li>Stripping declared INTERNET (it stays unused until you pick a cloud path).</li>
     <li>Calling this a Wispr clone.</li>
   </ul>
 
   <p>Talk about this in <a href="https://github.com/mitunmanav/open-flow/discussions">Discussions</a>.</p>
-  <p>Also: <a href="ROADMAP.md">ROADMAP.md</a></p>
 </main>
-<footer>
-  <div class="wrap">
-    <span><img src="icon.svg" alt=""> Open Flow · MIT</span>
-    <span>
-      <a href="compare.html">Compare</a> ·
-      <a href="architecture.html">How it is built</a> ·
-      <a href="roadmap.html">Roadmap</a> ·
-      <a href="report.html">Report a bug</a> ·
-      <a href="https://github.com/mitunmanav/open-flow">GitHub</a>
-    </span>
-  </div>
-</footer>
+<div data-partial="footer">
+<noscript><p><a href="compare.html">Compare</a> · <a href="architecture.html">How it is built</a> · <a href="roadmap.html">Roadmap</a> · <a href="report.html">Report a bug</a></p></noscript>
+</div>
 </body>
 </html>

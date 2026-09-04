@@ -3,116 +3,274 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#d4dbe2">
+  <meta name="theme-color" content="#FFFFEB">
   <link rel="preload" href="fonts/big-shoulders-800.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="fonts/noto-sans.woff2" as="font" type="font/woff2" crossorigin>
-  <title>Open Flow — speak, it types</title>
-  <meta name="description" content="Free Android dictation. Floating bubble, not a keyboard. MIT. No account.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Eb+Garamond:wght@500;700&family=Figtree:wght@400;500;700&display=swap" rel="stylesheet">
+  <title>Open Flow — Don’t type, just speak</title>
+  <meta name="description" content="Free open-source Android dictation app. A floating bubble turns messy speech into clean text in any app. Rules cleanup on your phone.">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="canonical" href="https://mitunmanav.github.io/open-flow/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Open Flow">
+  <meta property="og:url" content="https://mitunmanav.github.io/open-flow/">
+  <meta name="twitter:card" content="summary">
   <link rel="apple-touch-icon" href="icon.svg">
-  <meta property="og:title" content="Open Flow">
-  <meta property="og:description" content="A floating bubble types what you say. Keep your keyboard.">
+  <meta property="og:title" content="Open Flow — Don’t type, just speak">
+  <meta property="og:description" content="Free open-source Android dictation app. Talk messy, get clean writing in any app.">
   <meta property="og:image" content="https://mitunmanav.github.io/open-flow/icon.svg">
-  <link rel="stylesheet" href="site.css">
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/motion.css">
+  <script src="js/partials.js" defer></script>
+  <script src="js/demo.js" defer></script>
+  <script src="js/core.js" defer></script>
 </head>
-<body>
-<a class="skip" href="#main">Skip to text</a>
-<header>
-  <div class="wrap">
-    <a class="brand" href="index.html"><img src="icon.svg" width="36" height="36" alt="">Open Flow</a>
-    <nav>
-      <a href="index.html" aria-current="page">Home</a>
-      <a href="install.html">Install</a>
-      <a href="guide.html">Guide</a>
-      <a href="privacy.html">Privacy</a>
-      <a href="https://github.com/mitunmanav/open-flow/discussions">Talk</a>
-    </nav>
-  </div>
-</header>
+<body data-page="index">
+<div data-partial="header">
+<noscript><p><a href="index.html">Home</a> · <a href="install.html">Install</a> · <a href="guide.html">Guide</a> · <a href="privacy.html">Privacy</a> · <a href="https://github.com/mitunmanav/open-flow/discussions">Talk</a> · <a href="https://github.com/mitunmanav/open-flow/releases/latest">Download</a></p></noscript>
+</div>
+
 <section class="hero">
   <div class="wrap">
-    <h1>Speak.<br>It types.</h1>
-    <p class="lede">Keep Gboard. A bubble sits on the app you already have open. Tap, talk, tap again.</p>
-    <div class="row">
-      <a class="btn" href="https://github.com/mitunmanav/open-flow/releases/latest">
+    <a class="hero-badge" href="compare.html" data-enter>
+      <span class="hero-badge-dot"></span>
+      <span>Free · Open source · MIT</span> &rarr;
+    </a>
+    <h1 data-enter>Don’t type, just speak.</h1>
+    <p class="lede" data-enter>A floating voice bubble for Android. Ramble out loud — clean, punctuated writing lands wherever you were typing. Your keyboard stays.</p>
+    <div class="row" data-enter>
+      <a class="btn" href="install.html">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 11l5 5 5-5M5 21h14"/></svg>
-        Download APK
+        Download for free
       </a>
-      <a class="btn ghost" href="install.html">Install help</a>
+      <a class="btn ghost" href="#watch-action">See how it works</a>
     </div>
-    <p class="muted">Sideload. Debug-signed. Not Play. Custom bubble, speak edits, Insights. <a href="https://github.com/mitunmanav/open-flow/blob/main/CHANGELOG.md">What changed</a>.</p>
-    <div class="demo kb" aria-hidden="true">
+    <p class="proof-strip">v0.1.9 · refreshed Sep 2026 · free forever</p>
+    <p class="platform-detail" data-enter>Free for Android 8 and up. iPhone, Mac, and Windows are not supported yet.</p>
+
+    <div class="demo kb" id="watch-action" aria-label="Simulated preview keyboard demo">
       <div class="phone">
+        <div class="phone-header">
+          <span>Chat · Simulated preview</span>
+          <span class="wave-bars" aria-hidden="true">
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+          </span>
+        </div>
         <div class="compose">Meet you at 6. Don't forget milk.<span class="caret"></span></div>
         <div class="kb-row"><i>q</i><i>w</i><i>e</i><i>r</i><i>t</i><i>y</i><i>u</i><i>i</i><i>o</i><i>p</i></div>
         <div class="kb-row"><i>a</i><i>s</i><i>d</i><i>f</i><i>g</i><i>h</i><i>j</i><i>k</i><i>l</i></div>
         <div class="kb-row"><i class="sp"></i><i class="mic"></i></div>
-        <div class="bubble">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <rect x="9" y="4" width="6" height="10" rx="3" fill="#f4f6f8"/>
-            <path d="M7 11a5 5 0 0 0 10 0" fill="none" stroke="#f4f6f8" stroke-width="1.8" stroke-linecap="round"/>
-            <path d="M12 16v3" fill="none" stroke="#f4f6f8" stroke-width="1.8" stroke-linecap="round"/>
+        <div class="copy-chip" id="copy-chip" aria-live="polite"><span>✓ Copied</span></div>
+        <button type="button" class="bubble" aria-label="Tap to speak">
+          <span class="bubble-pulse-layer"></span>
+          <svg viewBox="0 0 24 24">
+            <rect x="9" y="4" width="6" height="10" rx="3" fill="#ffffff"/>
+            <path d="M7 11a5 5 0 0 0 10 0" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M12 16v3" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round"/>
           </svg>
-        </div>
+        </button>
       </div>
     </div>
   </div>
 </section>
-<main class="wrap" id="main">
-  <h2>How you use it</h2>
-  <ol class="steps">
-    <li>Install the APK. Turn on Accessibility. Allow the mic.</li>
-    <li>Open a normal text field — not a password or bank app.</li>
-    <li>Tap the bubble → speak → tap again. Words go in that field.</li>
-  </ol>
-  <p><a href="guide.html">Guide</a> · <a href="install.html">If Accessibility is grey</a></p>
 
-  <h2>What stays on this phone</h2>
-  <dl class="facts">
+<main class="wrap" id="main">
+  <h2>Turn rambling speech into clear writing</h2>
+  <p class="lede">Filler, stutters, and false starts are cleaned on your phone. This loop runs on its own — watch it.</p>
+
+  <div class="cleanup-status" data-cleanup-status aria-live="polite">Listening…</div>
+  <div class="speech-transform reveal-on-scroll" data-cleanup>
+    <div class="speech-bubble-raw" data-stage="raw">
+      <span class="speech-label raw">What you speak</span>
+      <p class="speech-text">“um hey team so i was thinking maybe we should move our sync to thursday because uh wednesday looks completely packed for john and sarah anyway let me know what works”</p>
+    </div>
+    <div class="speech-bubble-clean" data-stage="clean">
+      <span class="speech-label clean">What Open Flow types</span>
+      <p class="speech-text">“Hey team, let’s reschedule our sync to Thursday — Wednesday is packed for John and Sarah. Let me know if that works for you.”</p>
+      <div class="cleanup-tags" data-cleanup-tags>
+        <span>Filler removed</span>
+        <span>Repetition removed</span>
+        <span>Punctuated</span>
+      </div>
+    </div>
+  </div>
+
+  <h2>Write faster in all your apps</h2>
+  <p class="lede">The bubble floats over anything with a text box. Tap a pill to preview it in the demo above.</p>
+
+  <!-- App logos: Simple Icons (CC0). Browser keeps a plain globe. -->
+  <div class="marquee reveal-on-scroll" aria-label="Apps Open Flow works in">
+    <div class="app-matrix" data-marquee>
+      <div class="app-pill">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+        <span>WhatsApp</span>
+      </div>
+      <div class="app-pill">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"/></svg>
+        <span>Gmail</span>
+      </div>
+      <div class="app-pill">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/></svg>
+        <span>Slack</span>
+      </div>
+      <div class="app-pill">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+        <span>Telegram</span>
+      </div>
+      <div class="app-pill">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 1.968c-.42-.326-.981-.7-2.055-.607L3.01 2.295c-.466.046-.56.28-.374.466zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.046.935-.56.935-1.167V6.354c0-.606-.233-.933-.748-.887l-15.177.887c-.56.047-.747.327-.747.933zm14.337.745c.093.42 0 .84-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.952L12.21 19s0 .84-1.168.84l-3.222.186c-.093-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.456-.233 4.764 7.279v-6.44l-1.215-.139c-.093-.514.28-.887.747-.933zM1.936 1.035l13.31-.98c1.634-.14 2.055-.047 3.082.7l4.249 2.986c.7.513.934.653.934 1.213v16.378c0 1.026-.373 1.634-1.68 1.726l-15.458.934c-.98.047-1.448-.093-1.962-.747l-3.129-4.06c-.56-.747-.793-1.306-.793-1.96V2.667c0-.839.374-1.54 1.447-1.632z"/></svg>
+        <span>Notion</span>
+      </div>
+      <div class="app-pill">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14.727 6.727H14V0H4.91c-.905 0-1.637.732-1.637 1.636v20.728c0 .904.732 1.636 1.636 1.636h14.182c.904 0 1.636-.732 1.636-1.636V6.727h-6zm-.545 10.455H7.09v-1.364h7.09v1.364zm2.727-3.273H7.091v-1.364h9.818v1.364zm0-3.273H7.091V9.273h9.818v1.364zM14.727 6h6l-6-6v6z"/></svg>
+        <span>Docs</span>
+      </div>
+      <div class="app-pill">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+        <span>Browser</span>
+      </div>
+      <div class="app-pill">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M2.886 4.18A11.982 11.982 0 0 1 11.99 0C18.624 0 24 5.376 24 12.009c0 3.64-1.62 6.903-4.18 9.105L2.887 4.18ZM1.817 5.626l16.556 16.556c-.524.33-1.075.62-1.65.866L.951 7.277c.247-.575.537-1.126.866-1.65ZM.322 9.163l14.515 14.515c-.71.172-1.443.282-2.195.322L0 11.358a12 12 0 0 1 .322-2.195Zm-.17 4.862 9.823 9.824a12.02 12.02 0 0 1-9.824-9.824Z"/></svg>
+        <span>Linear</span>
+      </div>
+      <div class="app-pill" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+        <span>WhatsApp</span>
+      </div>
+      <div class="app-pill" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"/></svg>
+        <span>Gmail</span>
+      </div>
+      <div class="app-pill" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/></svg>
+        <span>Slack</span>
+      </div>
+      <div class="app-pill" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+        <span>Telegram</span>
+      </div>
+      <div class="app-pill" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 1.968c-.42-.326-.981-.7-2.055-.607L3.01 2.295c-.466.046-.56.28-.374.466zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.046.935-.56.935-1.167V6.354c0-.606-.233-.933-.748-.887l-15.177.887c-.56.047-.747.327-.747.933zm14.337.745c.093.42 0 .84-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.952L12.21 19s0 .84-1.168.84l-3.222.186c-.093-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.456-.233 4.764 7.279v-6.44l-1.215-.139c-.093-.514.28-.887.747-.933zM1.936 1.035l13.31-.98c1.634-.14 2.055-.047 3.082.7l4.249 2.986c.7.513.934.653.934 1.213v16.378c0 1.026-.373 1.634-1.68 1.726l-15.458.934c-.98.047-1.448-.093-1.962-.747l-3.129-4.06c-.56-.747-.793-1.306-.793-1.96V2.667c0-.839.374-1.54 1.447-1.632z"/></svg>
+        <span>Notion</span>
+      </div>
+      <div class="app-pill" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14.727 6.727H14V0H4.91c-.905 0-1.637.732-1.637 1.636v20.728c0 .904.732 1.636 1.636 1.636h14.182c.904 0 1.636-.732 1.636-1.636V6.727h-6zm-.545 10.455H7.09v-1.364h7.09v1.364zm2.727-3.273H7.091v-1.364h9.818v1.364zm0-3.273H7.091V9.273h9.818v1.364zM14.727 6h6l-6-6v6z"/></svg>
+        <span>Docs</span>
+      </div>
+      <div class="app-pill" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+        <span>Browser</span>
+      </div>
+      <div class="app-pill" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M2.886 4.18A11.982 11.982 0 0 1 11.99 0C18.624 0 24 5.376 24 12.009c0 3.64-1.62 6.903-4.18 9.105L2.887 4.18ZM1.817 5.626l16.556 16.556c-.524.33-1.075.62-1.65.866L.951 7.277c.247-.575.537-1.126.866-1.65ZM.322 9.163l14.515 14.515c-.71.172-1.443.282-2.195.322L0 11.358a12 12 0 0 1 .322-2.195Zm-.17 4.862 9.823 9.824a12.02 12.02 0 0 1-9.824-9.824Z"/></svg>
+        <span>Linear</span>
+      </div>
+    </div>
+  </div>
+
+  <section class="watch-stage reveal-on-scroll" aria-label="Simulated preview">
+    <div class="watch-badge-row">
+      <span class="watch-indicator"><span class="hero-badge-dot" aria-hidden="true"></span>Simulated preview</span>
+      <span class="platform-detail">60-sec sim</span>
+    </div>
+    <h3>See messy talk turn clean</h3>
+    <p class="lede">A simulation — tap the bubble. The real app looks the same on your phone.</p>
+    <div class="watch-stream-box">
+      <span class="speech-label clean">Polished text</span>
+      <p class="speech-text">“um let me know what works” → “Let me know what works for you.”</p>
+    </div>
+    <div class="row">
+      <a class="btn" href="#watch-action">Play simulation</a>
+      <a class="btn ghost" href="compare.html">Why Flow fits &rarr;</a>
+    </div>
+  </section>
+
+  <div class="promo-panel reveal-on-scroll">
+    <div>
+      <span class="promo-tag">Promo · Comparison</span>
+      <h3>Cleaner than built-in voice typing</h3>
+      <p>Built-in dictation writes every um. Open Flow hands you the sentence you meant — and keeps your keyboard.</p>
+    </div>
+    <a class="btn ghost" href="compare.html">Read breakdown &rarr;</a>
+  </div>
+
+  <h2>How to use it</h2>
+  <ol class="steps reveal-on-scroll">
+    <li>Install the APK. Turn on Accessibility. Allow the microphone.</li>
+    <li>Open any normal text box — not a password or bank app.</li>
+    <li>Tap the bubble, speak, tap again. Words land right there.</li>
+  </ol>
+  <p><a href="guide.html">User Guide</a> · <a href="install.html">Install help</a></p>
+
+  <h2>What stays on your phone</h2>
+  <dl class="facts reveal-on-scroll">
     <div>
       <dt>Keyboard</dt>
-      <dd>We sit on top. We do not replace Gboard.</dd>
+      <dd>We float on top. Gboard and SwiftKey stay.</dd>
     </div>
     <div>
       <dt>History</dt>
-      <dd>Search, copy, share, JSON export. Copy lives here — not on the bubble.</dd>
+      <dd>Search, copy, share, JSON export. Saved on your phone only.</dd>
     </div>
     <div>
-      <dt>Edits</dt>
-      <dd>“Strike that”, “X not Y”, lists, caps. Rules run on the phone.</dd>
+      <dt>Voice edits</dt>
+      <dd>“Strike that”, “new paragraph”, number formats. Rules run on device.</dd>
     </div>
     <div>
-      <dt>Retention</dt>
-      <dd>Keep, wipe in 24 hours, or never save. No account. MIT. No ads.</dd>
+      <dt>Data</dt>
+      <dd>Keep always, auto-clear in 24 hours, or never save. No account. MIT. No ads.</dd>
     </div>
   </dl>
 
-  <div class="honest">
-    <strong>Honest.</strong> INTERNET is declared. Open Flow does not use the network until you pick a cloud path or a model download.
-    Speech still uses the phone’s system recognizer. On many phones that is Google, and audio <em>can</em> leave the device.
-    Need voice to stay on this phone? Use a local Whisper or Vosk app — not this one, yet.
-    <a href="compare.html">Compare</a>.
+  <div class="honest reveal-on-scroll">
+    <strong>Honest about speech.</strong> INTERNET is declared. Open Flow does not use the network until you pick a cloud path or a model download.
+    Speech uses the phone’s system recognizer by default. On many phones that is Google, and audio can leave the phone.
+    Need voice to stay 100% on device? Select Whisper on phone in Settings.
+    <a href="compare.html">Compare details</a>.
   </div>
 
-  <h2>What it is not</h2>
+  <h2>asked a lot</h2>
+  <div class="faq reveal-on-scroll">
+    <details>
+      <summary>Is the APK safe to sideload?</summary>
+      <p>Yes. Code is MIT open source, built in public. Publisher is <code>github.com/mitunmanav</code>. Android warns on all sideloads — that is normal.</p>
+    </details>
+    <details>
+      <summary>Why not on the Play Store yet?</summary>
+      <p>Play review is slow and strict. Direct APK keeps us fast. Store listing is on the roadmap.</p>
+    </details>
+    <details>
+      <summary>Does offline voice cost much?</summary>
+      <p>Whisper is a single model download on Wi-Fi. Default mode uses your phone's recognizer instead — no download, but speech may use the network.</p>
+    </details>
+    <details>
+      <summary>Which tongues work?</summary>
+      <p>40+ through your phone's recognizer. Offline Whisper covers fewer — check settings after install.</p>
+    </details>
+    <details>
+      <summary>What about bank apps and passwords?</summary>
+      <p>The bubble hides in password and bank fields. Mic runs only after you tap. No iPhone app — Android only.</p>
+    </details>
+  </div>
+
+  <h2>Open source</h2>
   <ul>
-    <li>Not Wispr Flow (closed, cloud).</li>
-    <li>Not an on-device Whisper model.</li>
-    <li>Not on F-Droid or Play yet.</li>
-    <li>Not a way around bank-app security warnings.</li>
+    <li>MIT licensed on GitHub.</li>
+    <li>No tracking, no analytics, no subscription paywalls.</li>
+    <li>Whisper on phone for fully offline transcription.</li>
   </ul>
 </main>
-<footer>
-  <div class="wrap">
-    <span><img src="icon.svg" alt=""> Open Flow · MIT</span>
-    <span>
-      <a href="compare.html">Compare</a> ·
-      <a href="architecture.html">How it is built</a> ·
-      <a href="roadmap.html">Roadmap</a> ·
-      <a href="report.html">Report a bug</a> ·
-      <a href="https://github.com/mitunmanav/open-flow">GitHub</a>
-    </span>
-  </div>
-</footer>
+
+<div data-partial="footer">
+<noscript><p><a href="compare.html">Compare</a> · <a href="architecture.html">How it is built</a> · <a href="roadmap.html">Roadmap</a> · <a href="report.html">Report a bug</a></p></noscript>
+</div>
 </body>
 </html>

@@ -3,113 +3,86 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#d4dbe2">
+  <meta name="theme-color" content="#FFFFEB">
+  <link rel="preload" href="fonts/big-shoulders-800.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="fonts/noto-sans.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Eb+Garamond:wght@500;700&family=Figtree:wght@400;500;700&display=swap" rel="stylesheet">
   <title>How it is built — Open Flow</title>
+  <meta name="description" content="How Open Flow works. A bubble owned by Accessibility listens, tidies words on the phone, and inserts them.">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="site.css">
-  <style>
-    .flow { display: flex; flex-direction: column; gap: 0; margin: 1rem 0 1.5rem; }
-    .flow .box,
-    .pipe .box {
-      border: 1px solid var(--line);
-      background: var(--card);
-      padding: 0.75rem 0.9rem;
-    }
-    .flow .box strong, .pipe .box strong { display: block; margin-bottom: 0.15rem; }
-    .flow .box span, .pipe .box span { color: var(--muted); font-size: 0.92rem; }
-    .flow .box.fill,
-    .pipe .box.fill { background: var(--idle); color: var(--foam); }
-    .flow .box.fill span,
-    .pipe .box.fill span { color: var(--field); }
-    .arrow {
-      text-align: center;
-      font-size: 1.1rem;
-      line-height: 1.4;
-      color: var(--mute);
-    }
-    .pipe {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 0.5rem;
-    }
-    @media (min-width: 640px) {
-      .pipe { grid-template-columns: 1fr 1fr; }
-    }
-  </style>
+  <link rel="canonical" href="https://mitunmanav.github.io/open-flow/architecture.html">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Open Flow">
+  <meta property="og:url" content="https://mitunmanav.github.io/open-flow/architecture.html">
+  <meta property="og:title" content="How it is built — Open Flow">
+  <meta property="og:description" content="How Open Flow works. A bubble owned by Accessibility listens, tidies words on the phone, and inserts them.">
+  <meta property="og:image" content="https://mitunmanav.github.io/open-flow/icon.svg">
+  <meta name="twitter:card" content="summary">
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/motion.css">
+  <script src="js/partials.js" defer></script>
+  <script src="js/demo.js" defer></script>
+  <script src="js/core.js" defer></script>
 </head>
-<body>
-<header>
-  <div class="wrap">
-    <a class="brand" href="index.html"><img src="icon.svg" width="36" height="36" alt="">Open Flow</a>
-    <nav>
-      <a href="index.html">Home</a>
-      <a href="install.html">Install</a>
-      <a href="guide.html">Guide</a>
-      <a href="privacy.html">Privacy</a>
-      <a href="https://github.com/mitunmanav/open-flow/discussions">Talk</a>
-    </nav>
-  </div>
-</header>
+<body data-page="architecture">
+<div data-partial="header">
+<noscript><p><a href="index.html">Home</a> · <a href="install.html">Install</a> · <a href="guide.html">Guide</a> · <a href="privacy.html">Privacy</a> · <a href="https://github.com/mitunmanav/open-flow/discussions">Talk</a> · <a href="https://github.com/mitunmanav/open-flow/releases/latest">Download</a></p></noscript>
+</div>
 <main class="wrap">
-  <h1>How it is built</h1>
-  <p class="lede">Keep the user’s keyboard. A bubble owned by Accessibility listens, tidies words on the phone, and inserts them. Not a keyboard.</p>
+  <h1>Small app, honest pipes</h1>
+  <p class="lede">Your keyboard stays. A bubble listens, tidies your words on the phone, and inserts them. That is the whole trick.</p>
 
-  <h2 class="rule">1. Where it sits</h2>
-  <p class="muted">The speech engine is outside our process. INTERNET is declared. That is not the same as “audio never leaves.”</p>
+  <h2 class="rule">Where your words travel</h2>
+  <p class="muted">The speech engine lives outside our app. INTERNET is declared — that is not the same as “audio never leaves.”</p>
   <div class="flow">
     <div class="box fill"><strong>You</strong><span>Tap the bubble. Speak.</span></div>
     <div class="arrow">↓</div>
-    <div class="box"><strong>Other app</strong><span>Notes, chat, browser — your keyboard stays.</span></div>
+    <div class="box"><strong>Your app</strong><span>Notes, chat, browser — keyboard untouched.</span></div>
     <div class="arrow">↓</div>
-    <div class="box"><strong>Open Flow</strong><span>Bubble + app. Accessibility overlay. Insert only.</span></div>
+    <div class="box"><strong>Open Flow</strong><span>Bubble overlay. Inserts text only.</span></div>
     <div class="arrow">↓</div>
-    <div class="box"><strong>Phone speech</strong><span>On-device if the phone has it. Often still Google. May leave the device.</span></div>
+    <div class="box"><strong>Phone speech</strong><span>On-device if the phone has it. Often Google. May leave the device.</span></div>
   </div>
 
-  <h2 class="rule">2. One dictation</h2>
+  <h2 class="rule">One dictation, six steps</h2>
   <div class="pipe">
     <div class="box fill"><strong>1 · Tap</strong><span>Start listening</span></div>
     <div class="box"><strong>2 · Speak</strong><span>Phone speech engine</span></div>
     <div class="box"><strong>3 · Tap again</strong><span>Or hold-to-talk, then release</span></div>
     <div class="box"><strong>4 · Cleanup</strong><span>Dictionary → snippet → rules → style</span></div>
     <div class="box"><strong>5 · Insert</strong><span>Into the focused field</span></div>
-    <div class="box"><strong>6 · History</strong><span>Saved on this phone, unless you chose never</span></div>
+    <div class="box"><strong>6 · History</strong><span>On this phone, unless you chose never</span></div>
   </div>
-  <p class="muted">X while listening throws the words away. The bubble stays while the keyboard is up.</p>
+  <p class="muted">X while listening throws the words away. The bubble stays up while the keyboard is up.</p>
 
-  <h2 class="rule">3. Cleanup on the phone</h2>
-  <p>All on the phone. No language model. Style runs last.</p>
+  <h2 class="rule">Cleanup runs on the phone</h2>
+  <p>No language model. No server. Style runs last.</p>
   <table>
-    <tr><th>Step</th><th>What it does</th></tr>
+    <tr><th scope="col">Step</th><th scope="col">What it does</th></tr>
     <tr><td>Raw speech</td><td>Whatever the phone recognizer returned</td></tr>
     <tr><td>Dictionary</td><td>One word → another word</td></tr>
-    <tr><td>Snippet</td><td>Exact trigger → a whole block</td></tr>
-    <tr><td>Cleanup</td><td>None / Light / Medium / High (rules)</td></tr>
+    <tr><td>Snippet</td><td>Exact trigger → a whole saved block</td></tr>
+    <tr><td>Cleanup</td><td>None / Light / Medium / High</td></tr>
     <tr><td>Style</td><td>Formal / Casual / Very casual / Excited / Custom</td></tr>
   </table>
 
-  <h2 class="rule">4. Main pieces</h2>
+  <h2 class="rule">The pieces</h2>
   <table>
-    <tr><th>Piece</th><th>Job</th></tr>
+    <tr><th scope="col">Piece</th><th scope="col">Job</th></tr>
     <tr><td>App screens</td><td>Walkthrough, setup, Home, History, Dictionary, Settings</td></tr>
     <tr><td>Accessibility service</td><td>Bubble, field detect, listen, insert</td></tr>
-    <tr><td>Speech</td><td>Phone SpeechRecognizer. Fast / Balanced / Accurate</td></tr>
+    <tr><td>Speech</td><td>Phone recognizer. Fast / Balanced / Accurate</td></tr>
     <tr><td>Room database</td><td>History, dictionary, snippets — on this phone</td></tr>
-    <tr><td>Hide rules</td><td>Hide on banks. Skip passwords.</td></tr>
+    <tr><td>Hide rules</td><td>Hides on banks. Skips passwords.</td></tr>
   </table>
   <p><a href="https://github.com/mitunmanav/open-flow">Source on GitHub</a></p>
 </main>
-<footer>
-  <div class="wrap">
-    <span><img src="icon.svg" alt=""> Open Flow · MIT</span>
-    <span>
-      <a href="compare.html">Compare</a> ·
-      <a href="architecture.html">How it is built</a> ·
-      <a href="roadmap.html">Roadmap</a> ·
-      <a href="report.html">Report a bug</a> ·
-      <a href="https://github.com/mitunmanav/open-flow">GitHub</a>
-    </span>
-  </div>
-</footer>
+<div data-partial="footer">
+<noscript><p><a href="compare.html">Compare</a> · <a href="architecture.html">How it is built</a> · <a href="roadmap.html">Roadmap</a> · <a href="report.html">Report a bug</a></p></noscript>
+</div>
 </body>
 </html>

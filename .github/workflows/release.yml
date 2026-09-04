@@ -1,8 +1,10 @@
-name: Release notes
+name: Release
 
 on:
   push:
+    branches: [main]
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -12,24 +14,59 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - uses: actions/setup-java@v4
+      - name: Determine version and release intent
+        id: check_version
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+            V="${GITHUB_REF_NAME#v}"
+            TAG="${GITHUB_REF_NAME}"
+            echo "Explicit tag push: $TAG"
+            echo "DO_RELEASE=true" >> "$GITHUB_ENV"
+            echo "RELEASE_VERSION=$V" >> "$GITHUB_ENV"
+            echo "RELEASE_TAG=$TAG" >> "$GITHUB_ENV"
+          else
+            V=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
+            TAG="v${V}"
+            echo "Current app versionName: $V ($TAG)"
+            if git rev-parse "$TAG" >/dev/null 2>&1 || git ls-remote --tags origin "refs/tags/$TAG" | grep -q "$TAG"; then
+              echo "Release $TAG already exists on remote. Skipping auto-release."
+              echo "DO_RELEASE=false" >> "$GITHUB_ENV"
+            else
+              echo "New version $V detected without release tag. Triggering auto-release."
+              echo "DO_RELEASE=true" >> "$GITHUB_ENV"
+              echo "RELEASE_VERSION=$V" >> "$GITHUB_ENV"
+              echo "RELEASE_TAG=$TAG" >> "$GITHUB_ENV"
+            fi
+          fi
+
+      - name: Setup Java
+        if: env.DO_RELEASE == 'true'
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
-      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Setup Gradle
+        if: env.DO_RELEASE == 'true'
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Extract changelog section
+        if: env.DO_RELEASE == 'true'
         run: |
-          V="${GITHUB_REF_NAME#v}"
+          V="${RELEASE_VERSION}"
           awk "/^## ${V}\b/{f=1;next} /^## /{f=0} f" CHANGELOG.md > notes.md
           if [ ! -s notes.md ]; then
             echo "::warning::No CHANGELOG section for ${V}; using fallback text"
-            echo "Release ${GITHUB_REF_NAME}" > notes.md
+            echo "Release ${RELEASE_TAG}" > notes.md
           fi
           cat notes.md
 
       - name: Build release AAB + APK + mapping
+        if: env.DO_RELEASE == 'true'
         run: |
           ./gradlew :app:bundleRelease :app:assembleRelease --console=plain
           ls -lh app/build/outputs/bundle/release/app-release.aab
@@ -38,16 +75,20 @@ jobs:
           bash scripts/qa/play-check.sh
 
       - name: Rename artifacts with version
+        if: env.DO_RELEASE == 'true'
         run: |
-          V="${GITHUB_REF_NAME#v}"
+          V="${RELEASE_VERSION}"
           cp app/build/outputs/bundle/release/app-release.aab "openflow-${V}.aab"
           cp app/build/outputs/apk/release/app-release.apk "openflow-${V}.apk"
           cp app/build/outputs/mapping/release/mapping.txt "mapping-${V}.txt" 2>/dev/null || echo "no mapping"
           ls -lh openflow-* mapping-* || true
 
       - name: Create GitHub release
+        if: env.DO_RELEASE == 'true'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: Open Flow ${{ env.RELEASE_VERSION }}
           body_path: notes.md
           files: |
             openflow-*.aab

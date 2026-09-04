@@ -1,80 +1,47 @@
-# Open Flow
+<p align="center">
+  <img src="docs/icon.svg" width="96" height="96" alt="Open Flow logo">
+</p>
 
-[![Release](https://img.shields.io/github/v/release/mitunmanav/open-flow)](https://github.com/mitunmanav/open-flow/releases/latest)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+<h1 align="center">Open Flow</h1>
 
-**Site:** [mitunmanav.github.io/open-flow](https://mitunmanav.github.io/open-flow/)
+<p align="center"><strong>Don't type, just speak.</strong></p>
 
-Android app. A **floating bubble** types what you say. **Not a keyboard** — keep yours.
+<p align="center">
+  <a href="https://github.com/mitunmanav/open-flow/releases/latest"><img src="https://img.shields.io/github/v/release/mitunmanav/open-flow" alt="Latest release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
+</p>
 
-No account. No ads. MIT. INTERNET is **declared** and unused until you pick a cloud path or a model download.
+<p align="center">
+  Open-source AI voice dictation for Android.<br>
+  Talk messy, get clean writing in any app.<br>
+  <a href="https://mitunmanav.github.io/open-flow/">Website</a> ·
+  <a href="https://github.com/mitunmanav/open-flow/releases/latest">Download APK</a>
+</p>
 
-## Honest about speech
+---
 
-Speech still uses the **phone’s recognizer**. On many phones that is Google. Audio **can leave the device**. That is the phone, not an Open Flow server.
+| You say | It types |
+|---------|----------|
+| *"um hey team maybe move sync to thursday uh wednesday is slammed for john and sarah let me know"* | *"Hey team, let's move our sync to Thursday — Wednesday is packed for John and Sarah. Let me know."* |
 
-Need “voice never leaves this phone”? Pick **Whisper on phone** in Settings — or FUTO / Sayboard / Whisper IME.
+---
 
-## What’s new in 0.1.9
+- **Bubble, not keyboard.** Floats over WhatsApp, Gmail, Slack, Docs. Tap, speak, tap. Gboard stays.
+- **Cleans as you talk.** Fillers gone. Punctuation, lists, and numbers handled.
+- **Voice edits.** *"Strike that."* *"New paragraph."*
+- **Private by default.** No account, no telemetry, no ads. History stays on your phone: keep, auto-clear in 24h, or never save.
+- **40+ languages** from the bubble badge.
 
-Since **0.1.8**:
+---
 
-- **Copy chip** after dictation (Wispr-style, 10 s).
-- **Stale-service banner** when the toggle is on but the process died.
-- **Overlay retry** on addView fail, then an honest notice.
-- **Language badge** on the idle bubble.
+**Start:** install APK → allow Microphone + Accessibility → tap the bubble in any text box.
+Help: [Install](docs/INSTALL.md) · [Guide](docs/GUIDE.md) · [Privacy](docs/PRIVACY.md) · [Comparison](docs/COMPARISON.md)
 
-On **main** (not tagged yet): local cleanup v2 — N-best pick, spoken numbers, invariant gate, 5 s polish timeout, whisper loop guard.
+**Honest note:** default uses your phone's system recognizer (often Google), so audio can leave the phone. For fully offline, turn on **Whisper on phone** in Settings. `INTERNET` exists only for optional cloud paths and model downloads.
 
-Full list: [CHANGELOG.md](CHANGELOG.md).
+---
 
-## Install (users)
+*Contributors: see [CONTRIBUTING.md](CONTRIBUTING.md).*
+*Author **Mitun only**.*
 
-1. APK from **[Releases](https://github.com/mitunmanav/open-flow/releases/latest)**.
-2. Open in Files. Play Protect “unknown” is normal.
-3. App → five screens → Accessibility → mic.
-4. Grey switch: App info → **⋮ → Allow restricted settings**.
-5. Text field → tap bubble → speak → **tap again**.
-
-[Install](docs/INSTALL.md) · [Guide](docs/GUIDE.md) · [Privacy](docs/PRIVACY.md) · [Compare](docs/COMPARISON.md)
-
-Older text: **History** in the app.
-
-## Dev vs Launch
-
-| Track | What | Command / path |
-|-------|------|----------------|
-| **Dev** (this laptop) | Windows AVD `of_win` `-gpu host`, wrap-adb, debug APK | `of-emu` → `./gradlew :app:assembleDebug` → `adb install -r …` → `scripts/qa/gate.sh --quick` |
-| **Dev verify** | Unit + lint + visual + functional | `./gradlew :app:testDebugUnitTest :app:lintDebug` · `scripts/qa/visual-capture.sh` · `scripts/qa/functional-check.sh` |
-| **Launch (GitHub)** | CI on push/PR builds AAB + play-check; tag `v*` ships release | `.github/workflows/ci.yml` · `release.yml` · `pages.yml` |
-| **Launch (Play)** | Signed AAB, store listing, Data safety | `scripts/qa/play-check.sh` (17) · `docs/store/` · `docs/specs/play-store-readiness.md` |
-
-Author **Mitun only**. No `Co-Authored-By`. Push / tag only on explicit GO.
-
-Device loop detail: [docs/testing.md](docs/testing.md).
-
-## Talk vs report
-
-| Use | Where |
-|-----|--------|
-| Install help, “how do I…”, ideas | **[Discussions](https://github.com/mitunmanav/open-flow/discussions)** |
-| Something is broken | **[Issues → Bug](https://github.com/mitunmanav/open-flow/issues/new/choose)** |
-| Security hole | Repo **Security** tab — not public |
-
-Start here: [Discussion #9](https://github.com/mitunmanav/open-flow/discussions/9).
-
-Do not post names, emails, bank screens, or private dictation.
-
-## Vs others
-
-Full write-up: [docs/COMPARISON.md](docs/COMPARISON.md). Our niche is MIT + keep your keyboard + history / dictionary / snippets on the phone.
-
-## Build
-
-```bash
-./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
-```
-
-See **Dev vs Launch** above for gate / Play / GitHub.
-
-MIT — [LICENSE](LICENSE) · [SECURITY.md](SECURITY.md)
+[Discussions](https://github.com/mitunmanav/open-flow/discussions) · [Issues](https://github.com/mitunmanav/open-flow/issues/new/choose) · [MIT](LICENSE) · [SECURITY.md](SECURITY.md)

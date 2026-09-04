@@ -26,7 +26,7 @@ class CloudFallbackNoticeTest {
 
     @Test
     fun message_mentions_recovery_and_kept_text() {
-        assertThat(CloudFallbackNotice.MESSAGE).contains("next listen")
+        assertThat(CloudFallbackNotice.MESSAGE).contains("try another ear")
         assertThat(CloudFallbackNotice.MESSAGE).contains("Kept")
     }
 }

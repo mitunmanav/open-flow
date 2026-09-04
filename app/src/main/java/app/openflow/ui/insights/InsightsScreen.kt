@@ -27,6 +27,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -52,6 +54,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
@@ -465,11 +469,13 @@ private fun HeatmapGrid(days: List<app.openflow.insights.DayBucket>, streakDays:
                 week.forEach { day ->
                     val t = day.words.toFloat() / max
                     val bg = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f + 0.55f * t)
+                    val desc = dayLabel(day)
                     Box(
                         Modifier
                             .weight(1f)
                             .aspectRatio(1f)
                             .background(bg)
+                            .semantics { contentDescription = desc }
                             .then(
                                 if (glow && day.words > 0) {
                                     Modifier.border(1.dp, MaterialTheme.colorScheme.primary)
@@ -485,4 +491,11 @@ private fun HeatmapGrid(days: List<app.openflow.insights.DayBucket>, streakDays:
             }
         }
     }
+}
+
+/** Accessible speech for one heatmap cell: date + word count. */
+private fun dayLabel(day: app.openflow.insights.DayBucket): String {
+    val fmt = SimpleDateFormat("EEE MMM d", Locale.getDefault())
+    val date = fmt.format(Date(day.dayEpoch))
+    return if (day.words > 0) "$date, ${day.words} words" else "$date, no dictation"
 }

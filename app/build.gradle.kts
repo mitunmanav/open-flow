@@ -1,3 +1,5 @@
+import org.gradle.api.GradleException
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -43,12 +45,40 @@ android {
             enableV2Signing = true
             enableV3Signing = true
         }
+        // Release: real upload keystore only. NO fallback to debug key.
+        // Env: OPENFLOW_KEYSTORE_PATH / _PASS / _ALIAS / _KEY_PASS
+        // gradle.properties: openflow.keystore.path/pass/alias/pass
+        // Missing → build fails loudly (better than shipping a debug-signed artifact).
+        create("release") {
+            enableV1Signing = true
+            enableV2Signing = true
+            enableV3Signing = true
+            val ksPath = findProperty("openflow.keystore.path") as String?
+                ?: System.getenv("OPENFLOW_KEYSTORE_PATH")
+            val ksPass = findProperty("openflow.keystore.pass") as String?
+                ?: System.getenv("OPENFLOW_KEYSTORE_PASS")
+            val alias = findProperty("openflow.key.alias") as String?
+                ?: System.getenv("OPENFLOW_KEY_ALIAS")
+            val keyPass = findProperty("openflow.key.pass") as String?
+                ?: System.getenv("OPENFLOW_KEY_PASS") ?: ksPass
+            if (ksPath != null && file(ksPath).exists() &&
+                ksPass != null && alias != null
+            ) {
+                storeFile = file(ksPath)
+                storePassword = ksPass
+                keyAlias = alias
+                keyPassword = keyPass
+            }
+            // Missing keystore → signingConfig is incomplete. The `release` buildType
+            // below asserts and fails the build at variant-config time only.
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = true
-            signingConfig = signingConfigs.getByName("localRelease")
+            isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -60,6 +90,8 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    buildToolsVersion = "36.0.0"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -81,6 +113,28 @@ android {
         unitTests.isReturnDefaultValues = true
         animationsDisabled = true
     }
+
+    // Release-signing fail-loud guard: refuse to ship a debug-signed release artifact.
+// Runs before the AGP signing check so the user sees a clear message instead of
+// the cryptic "SigningConfig is missing required property storeFile".
+    fun guardReleaseSigning() {
+        val sc = android.signingConfigs.findByName("release")
+        if (sc == null || sc.storeFile == null) {
+            throw GradleException(
+                "OPENFLOW_KEYSTORE_PATH (or openflow.keystore.path) is required " +
+                    "to build a release artifact. Debug-signed releases ship a " +
+                    "publicly-known cert; the build refuses to ship that."
+            )
+        }
+    }
+    tasks.matching {
+        it.name in setOf(
+            "assembleRelease",
+            "bundleRelease",
+            "packageRelease",
+            "signingConfigWriterRelease",
+        )
+    }.configureEach { doFirst { guardReleaseSigning() } }
     lint {
         abortOnError = false
     }

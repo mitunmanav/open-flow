@@ -4,6 +4,8 @@
     <string name="a11y_service_label">Open Flow Bubble</string>
     <string name="a11y_service_description">Open Flow uses Accessibility only to detect focused text fields and insert speech-to-text. It does not replace your keyboard. Speak as long as you want while the bubble is listening — sessions auto-restart after OS pauses. OpenFlow has no server and no analytics. Android system STT may process audio on-device or remotely depending on your device. Password fields skipped.</string>
     <string name="flow_bubble_idle">🎙 Tap to talk</string>
+    <string name="flow_bubble_desc_idle">Tap to talk</string>
+    <string name="flow_bubble_desc_listening">Listening, tap to finish</string>
     <string name="flow_bubble_listening">Listening…</string>
     <string name="flow_bubble_cancel">Cancel dictation</string>
     <string name="flow_bubble_done">Insert text</string>
@@ -18,7 +20,7 @@
     <string name="flow_bubble_undone">Undid last insert</string>
     <string name="flow_bubble_lang_set">Dictation language: %s</string>
     <string name="flow_bubble_saved_in_app">Saved in Open Flow — open app to Copy</string>
-    <string name="flow_bubble_fail_saved">Could not transcribe — saved in Open Flow. Tap bubble to retry.</string>
+    <string name="flow_bubble_fail_saved">Could not transcribe — saved in Open Flow. Tap bubble to try again.</string>
     <string name="flow_cleanup_fallback">Cleanup timed out — inserted raw text</string>
     <string name="restore_raw">Restore raw</string>
 </resources>

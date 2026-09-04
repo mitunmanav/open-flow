@@ -9,16 +9,19 @@ import org.junit.Test
 class ProviderRegistryTest {
 
     @Test
-    fun empty_registry_returns_system_ear_and_no_ai() {
+    fun empty_registry_returns_null_for_unregistered() {
+        // The registry is honest about wiring: missing factories return null.
+        // Callers that want a fallback (system ear / no-AI) must resolve the id
+        // through EarGate or use AppEngineWire.currentEar/currentBrain.
         val system = FakeEar("system")
         val registry = ProviderRegistry(
             fallbackEar = { system },
             fallbackBrain = { NoAI },
         )
-        assertThat(registry.ear(EarId.OPENAI)).isSameInstanceAs(system)
-        assertThat(registry.ear("missing")).isSameInstanceAs(system)
-        assertThat(registry.brain(BrainId.GROK)).isSameInstanceAs(NoAI)
-        assertThat(registry.brain("nope")).isSameInstanceAs(NoAI)
+        assertThat(registry.ear(EarId.OPENAI)).isNull()
+        assertThat(registry.ear("missing")).isNull()
+        assertThat(registry.brain(BrainId.GROK)).isNull()
+        assertThat(registry.brain("nope")).isNull()
     }
 
     @Test
@@ -30,7 +33,9 @@ class ProviderRegistryTest {
             fallbackEar = { system },
             fallbackBrain = { NoAI },
         )
+        registry.registerEar(EarId.SYSTEM) { system }
         registry.registerEar(EarId.DEEPGRAM) { cloud }
+        registry.registerBrain(BrainId.NONE) { NoAI }
         registry.registerBrain(BrainId.OPENAI) { fakeBrain }
         assertThat(registry.ear(EarId.DEEPGRAM)).isSameInstanceAs(cloud)
         assertThat(registry.ear("deepgram")).isSameInstanceAs(cloud)
@@ -38,6 +43,9 @@ class ProviderRegistryTest {
         assertThat(registry.brain("openai")).isSameInstanceAs(fakeBrain)
         assertThat(registry.ear(EarId.SYSTEM)).isSameInstanceAs(system)
         assertThat(registry.brain(BrainId.NONE)).isSameInstanceAs(NoAI)
+        // Unregistered ids stay null (the new contract).
+        assertThat(registry.ear(EarId.OPENAI)).isNull()
+        assertThat(registry.brain(BrainId.GROK)).isNull()
     }
 
     @Test

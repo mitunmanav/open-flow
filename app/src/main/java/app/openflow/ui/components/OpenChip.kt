@@ -60,7 +60,7 @@ fun OpenChip(
 
     Box(
         modifier = modifier
-            .defaultMinSize(minHeight = Dimen.MIN_TOUCH)
+            .defaultMinSize(minHeight = Dimen.MIN_TOUCH, minWidth = Dimen.TOUCH_TARGET)
             .alpha(if (enabled || isOn) 1f else 0.38f)
             .background(color = bgColor, shape = shape)
             .border(BorderStroke(Dimen.HAIRLINE, borderColor), shape)

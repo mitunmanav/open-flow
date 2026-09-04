@@ -119,6 +119,10 @@ class FlowPrefs internal constructor(private val store: PrefsStore) {
         get() = store.getString("seen_how_to", "false") == "true"
         set(v) = store.putString("seen_how_to", if (v) "true" else "false")
 
+    var notifAsked: Boolean
+        get() = store.getString("notif_asked", "false") == "true"
+        set(v) = store.putString("notif_asked", if (v) "true" else "false")
+
     /** Home local scratch note (device-only). */
     var homeNote: String
         get() = store.getString(KEY_HOME_NOTE, "")

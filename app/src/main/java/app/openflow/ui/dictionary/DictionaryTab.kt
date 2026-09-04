@@ -70,6 +70,7 @@ fun DictionaryTab(app: OpenFlowApp) {
     var showAdd by rememberSaveable { mutableStateOf(false) }
     var word by rememberSaveable { mutableStateOf("") }
     var repl by rememberSaveable { mutableStateOf("") }
+    var confirmClear by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val ctx = LocalContext.current
     val sort = DictListPolicy.fromPref(dictSort)
@@ -148,9 +149,7 @@ fun DictionaryTab(app: OpenFlowApp) {
                         OpenButton(
                             text = "Clear all learned",
                             modifier = Modifier.testTag("dict_clear_learned"),
-                            onClick = {
-                                scope.launch { app.dictations.clearLearned() }
-                            }
+                            onClick = { confirmClear = true }
                         )
                     }
                 }
@@ -340,6 +339,47 @@ fun DictionaryTab(app: OpenFlowApp) {
                             variant = ButtonVariant.Outlined,
                             onClick = { showAdd = false },
                             modifier = Modifier.testTag("dict_add_close")
+                        )
+                    }
+                }
+            }
+        }
+
+        if (confirmClear) {
+            Dialog(onDismissRequest = { confirmClear = false }) {
+                OpenCard {
+                    Column(
+                        Modifier
+                            .padding(Dimen.MIN_PADDING)
+                            .fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            "Clear all learned words?",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = SecUi.charcoal,
+                            softWrap = true
+                        )
+                        Text(
+                            "This removes every learned and auto-learned Dict pair. This cannot be undone.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = SecUi.ink,
+                            softWrap = true
+                        )
+                        OpenButton(
+                            text = "Clear all",
+                            modifier = Modifier.testTag("dict_clear_confirm"),
+                            onClick = {
+                                scope.launch { app.dictations.clearLearned() }
+                                confirmClear = false
+                            }
+                        )
+                        OpenButton(
+                            text = "Cancel",
+                            variant = ButtonVariant.Outlined,
+                            onClick = { confirmClear = false },
+                            modifier = Modifier.testTag("dict_clear_cancel")
                         )
                     }
                 }

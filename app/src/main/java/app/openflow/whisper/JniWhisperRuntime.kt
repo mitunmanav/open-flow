@@ -1,6 +1,7 @@
 package app.openflow.whisper
 
 import android.util.Log
+import app.openflow.BuildConfig
 import java.io.File
 
 class JniWhisperRuntime(
@@ -27,11 +28,13 @@ class JniWhisperRuntime(
         val ms = (System.nanoTime() - t0) / 1_000_000L
         val audioMs = WhisperMetrics.audioMs(samples.size)
         val metrics = WhisperMetrics(loadMs = 0, transcribeMs = ms, audioMs = audioMs)
-        Log.i(
-            TAG,
-            "transcribe_ms=$ms audio_ms=$audioMs rtf=${"%.3f".format(metrics.rtf)} " +
-                "samples=${samples.size} audio_ctx=$ctx threads=$threads",
-        )
+        if (BuildConfig.DEBUG) {
+            Log.i(
+                TAG,
+                "transcribe_ms=$ms audio_ms=$audioMs rtf=${"%.3f".format(metrics.rtf)} " +
+                    "samples=${samples.size} audio_ctx=$ctx threads=$threads",
+            )
+        }
         val n = WhisperLib.getTextSegmentCount(ptr)
         return buildString {
             for (i in 0 until n) {
@@ -45,10 +48,12 @@ class JniWhisperRuntime(
             val t0 = System.nanoTime()
             ptr = WhisperLib.initContext(model.absolutePath)
             val ms = (System.nanoTime() - t0) / 1_000_000L
-            Log.i(TAG, "load_ms=$ms path=${model.absolutePath} ptr=$ptr")
+            if (BuildConfig.DEBUG) {
+                Log.i(TAG, "load_ms=$ms path=${model.absolutePath} ptr=$ptr")
+            }
             if (!loggedSys && ptr != 0L) {
                 loggedSys = true
-                Log.i(TAG, "sys=${WhisperLib.getSystemInfo()}")
+                if (BuildConfig.DEBUG) Log.i(TAG, "sys=${WhisperLib.getSystemInfo()}")
             }
         }
         return ptr

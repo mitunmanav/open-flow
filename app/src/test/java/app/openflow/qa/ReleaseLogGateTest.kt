@@ -6,13 +6,13 @@ import org.junit.Test
 
 /**
  * Release-log hygiene (LAUNCH_CHECKLIST #10):
- * Log.w / Log.e in release builds must be skipped via `if (BuildConfig.DEBUG)`.
+ * Log.w / Log.e / Log.i in release builds must be skipped via `if (BuildConfig.DEBUG)`.
  * Idiom source: FlowAccessibilityService (`if (BuildConfig.DEBUG) { Log.x(...) }`).
  * Read-only source scan. No writes.
  */
 class ReleaseLogGateTest {
 
-    /** The 7 files owned by this hygiene pass. Add future owners here. */
+    /** The files owned by this hygiene pass. Add future owners here. */
     private val ownedFiles = listOf(
         "app/src/main/java/app/openflow/OpenFlowApp.kt",
         "app/src/main/java/app/openflow/display/DisplayRefreshController.kt",
@@ -21,9 +21,12 @@ class ReleaseLogGateTest {
         "app/src/main/java/app/openflow/ai/providers/cloud/AnthropicBrain.kt",
         "app/src/main/java/app/openflow/ai/providers/host/LaptopBrain.kt",
         "app/src/main/java/app/openflow/bubble/FlowAccessibilityService.kt",
+        "app/src/main/java/app/openflow/stt/providers/ondevice/OnDeviceEar.kt",
+        "app/src/main/java/app/openflow/whisper/JniWhisperRuntime.kt",
     )
 
-    private val logCall = Regex("""Log\.[we]\(""")
+    /** Log.w / Log.e / Log.i in release builds must be skipped via `if (BuildConfig.DEBUG)`. */
+    private val logCall = Regex("""Log\.[wei]\(""")
     private val debugGate = Regex("""if\s*\(\s*BuildConfig\.DEBUG\s*\)""")
 
     /**

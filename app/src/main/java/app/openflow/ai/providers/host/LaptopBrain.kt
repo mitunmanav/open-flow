@@ -54,7 +54,8 @@ class LaptopBrain(
         } else {
             BrainSystemPrompt.cleanup(mode)
         }
-        return """{"model":${jsonStr(model)},"messages":[{"role":"system","content":${jsonStr(system)}},{"role":"user","content":${jsonStr(text)}}]}"""
+        val safe = app.openflow.engine.SendPolicy.forBrain(text)
+        return """{"model":${jsonStr(model)},"messages":[{"role":"system","content":${jsonStr(system)}},{"role":"user","content":${jsonStr(safe)}}]}"""
     }
 
     private fun parseContent(json: String): String? {

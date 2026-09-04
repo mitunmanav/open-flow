@@ -96,6 +96,13 @@ class FieldPolicyTest {
     }
 
     @Test
+    fun webview_container_is_not_editable() {
+        // A raw WebView is a container, not a text field. Real inputs inside
+        // surface as EditText/AutoComplete children found by FieldFocusResolver.
+        assertThat(FieldPolicy.isEditableClass("android.webkit.WebView")).isFalse()
+    }
+
+    @Test
     fun merge_session_skips_overlapping_prefix() {
         val piece = "Does naren know if ram know if narendra on the call?"
         assertThat(FieldPolicy.mergeSession("Does", piece)).isEqualTo(piece)

@@ -18,7 +18,7 @@ object CloudFallbackNotice {
     )
 
     const val MESSAGE =
-        "Speech service busy. Kept what was heard — next listen uses a working ear."
+        "Speech service busy. Kept what was heard — try another ear in Speech + AI if it keeps failing."
 
     fun forFatal(earId: String): String? =
         if (ProviderId.parseEar(earId) in CLOUD) MESSAGE else null

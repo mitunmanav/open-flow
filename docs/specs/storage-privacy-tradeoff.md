@@ -1,120 +1,199 @@
-# Storage Privacy Tradeoff — M7 Analysis
+# Storage Privacy Tradeoff — M7 Analysis (rev2)
 
-## Status
-PARKED — decision only, no code. Do not silently pick SQLCipher/EncryptedFile.
+## Decision
 
-## What is stored today (as of 2026-08-27)
+- **STATUS:** PARKED — revised. **DO NOT IMPLEMENT** until decisions below are approved.
+- **DECISION REQUIRED:** Pick at-rest encryption mode before any code. See §5.
+- **DECISION:** Recommended `M7-plain` (keep app-private plain + `allowBackup=false` + honest `PRIVACY.md`) for this release. `M7-cipher` (Room via current `net.zetetic:sqlcipher-android`) is opt-in only behind a setting with explicit migration, and only after review of §6–§9.
+- **DO NOT IMPLEMENT UNTIL:** (1) encryption mode signed off, (2) Room 2.8.4 + `sqlcipher-android` + `androidx.sqlite` versioning verified on `of_win`, (3) `EncryptedFile` removal acknowledged, (4) FBE vs app-layer threat model accepted, (5) key lifecycle + 16 KB verification + downgrade test plan approved.
+- **NEVER:** After a migration failure, silently keep or revert to plaintext without a user-visible signal and a non-blank passphrase requirement — §8 forbids encrypted→plaintext silent fallback.
+
+## Material changes from rev1 (2026-08-27)
+
+1. **Removed `EncryptedFile` as an implementation choice** — `androidx.security:security-crypto` `EncryptedFile` is `@Deprecated` since `1.1.0-alpha07` /**“Deprecated all APIs in favour of existing platform APIs”** and class javadoc **“This class is deprecated. Use `java.io.File` instead.”** ([releases](https://developer.android.com/jetpack/androidx/releases/security))([api ref](https://developer.android.com/reference/androidx/security/crypto/EncryptedFile)). Deleted Option 3 (“EncryptedFile for audio only”) and replaced any audio-file encryption with Keystore AES-GCM streaming (not JetSec) if ever pursued.
+2. **Replaced legacy `net.zetetic:android-database-sqlcipher` with current `net.zetetic:sqlcipher-android`** — old artifact **“no longer being updated”** ([README](https://github.com/sqlcipher/android-database-sqlcipher)), new artifact introduced 2022 and requires migration ([migration guide](https://www.zetetic.net/sqlcipher/sqlcipher-for-android-migration/)). All SQLCipher references now use `sqlcipher-android` + `SupportOpenHelperFactory`.
+3. **Inspected actual `Room 2.8.4` in Open Flow** (`app/build.gradle.kts:161`) and specified correct integration path for Room 2.8.4/2.x via `androidx.sqlite:sqlite:2.7.0`, `System.loadLibrary("sqlcipher")`, `SupportOpenHelperFactory` (Room 2 and 3) ([sqlcipher-android README](https://github.com/sqlcipher/sqlcipher-android)).
+4. **Distinguished app-layer encryption from platform FBE/app-private** — added §2.1 / §4 contrasting FBE (credential-encrypted, device-level) vs `MODE_PRIVATE` vs SQLCipher page-level encryption ([FBE docs](https://source.android.com/docs/security/features/encryption/file-based)).
+5. **Added Android backup / device-transfer caveat** — `allowBackup=false` + `dataExtractionRules`/`fullBackupContent` already exclude all domains, but `cloud-backup` vs `device-transfer` distinction and AUTO backup end-to-end rules now documented (§3) ([backup guide](https://developer.android.com/identity/data/autobackup))([security backup recs](https://developer.android.com/privacy-and-security/risks/backup-best-practices)).
+6. **Forbade silent encrypted→plaintext fallback** after migration failure — §8 defines fail-loud behavior with persisted `cipher_migration_failed` flag, user toast/dialog, and no automatic plaintext reopen.
+7. **Defined exact attacker/threat model** application-layer encryption defends against — §2.
+8. **Defined exactly which Open Flow data would be encrypted** in any future cipher mode — §2.2 table per store/file.
+9. **Defined key lifecycle, Keystore config, migration, failure recovery, downgrade, and 16 KB/native verification** — §6–§9, §11.
+10. **Removed truncated/legacy links, fixed Room/sqlite version mentions, added 16 KB alignment check for `libsqlcipher.so`.**
+
+## 1. What is stored today (as of 2026-08-27, inspected)
 
 | Store | Location | Format | Content | Survives reboot | Backup | Encryption |
 |-------|----------|--------|---------|-----------------|--------|------------|
-| Room DB | `filesDir/../databases/openflow.db` (`OpenFlowDatabase.kt:45`) | SQLite plain | `DictationEntity` (id, text, rawText, wordCount, durationMs, languageTag, packageName, processStatus, createdAt), `DictionaryWordEntity`, `SnippetEntity`, `DictationFtsEntity`, `AppStatsEntity`, `VoiceProfileEntity` | yes | `allowBackup=false` + `fullBackupContent`/`dataExtractionRules` exclude `databases/` (PASS, play-check) | **none** — plain SQLite |
-| Audio | `filesDir/audio/<id>.wav` (`AudioFileManager.kt`) | WAV PCM16 16k mono, capped 8M (~4min) | retry audio for failed sessions + successful when `SAVE_OK` | yes | excluded (same XML) | none — plain file |
-| Models | `filesDir/models/tiny.en/...` (`ModelStore`) | ggml binary | whisper `tiny.en` | yes | excluded | none |
-| Prefs | `SharedPreferences` via `FlowPrefs` (802 LOC) | XML plain | `bubbleHidden`, `bubbleX/Y`, `bubbleScale`, `languageTag`, `retentionPolicy` (`keep`/`wipe_24h`/`never_store`), `darkMode`, etc. | yes | excluded? `allowBackup=false` covers, but prefs XML is in `shared_prefs/` also excluded via `fullBackupContent` | none |
-| Secrets | `AndroidSecretStore` | Keystore AES-GCM `gcm1.` | API keys for openai/deepgram/assemblyai/sarvam/custom/laptop | yes | excluded | **yes** — `AndroidKeyStore` + `KeyGenParameterSpec` AES/GCM, re-seal on read |
+| Room DB | `getDatabasePath("openflow.db")` (`OpenFlowDatabase.kt:45`) | SQLite plain via `androidx.room:room-runtime:2.8.4` | `DictationEntity` (id, text, rawText, wordCount, durationMs, languageTag, packageName, processStatus, createdAt), `DictionaryWordEntity`, `SnippetEntity`, `DictationFtsEntity` (FTS5), `AppStatsEntity`, `VoiceProfileEntity` | yes (CE storage) | excluded (§3) | **none** |
+| Audio | `filesDir/audio/<id>.wav` (`AudioFileManager.kt`) | WAV PCM16 16 kHz mono, `CaptureCap 8M` (~4 min) | retry audio for failed + successful when `SAVE_OK` | yes (CE) | excluded | none |
+| Models | `filesDir/models/tiny.en/...` | ggml binary | whisper `tiny.en` | yes | excluded | none |
+| Prefs | `SharedPreferences` via `FlowPrefs` (`shared_prefs/`) | XML plain | `bubbleHidden`, `bubbleX/Y`, `bubbleScale`, `languageTag`, `retentionPolicy` (`keep`/`wipe_24h`/`never_store`), `darkMode`, `sttTuning`, `EnginePrefs` | yes | excluded | none |
+| Secrets | `shared_prefs/openflow_secrets.xml` via `AndroidSecretStore` | `gcm1.` blobs | API keys (openai/deepgram/assemblyai/sarvam/custom/laptop) | yes | excluded | **yes** — `AndroidKeyStore` AES-256 `KeyGenParameterSpec` `BLOCK_MODE_GCM` `ENCRYPTION_PADDING_NONE` `PURPOSE_ENCRYPT|DECRYPT` (see `SecretStore.kt:112`) |
 
-`processStatus`: `OK`/`FAILED`; `retrySessionId`/`undoSnap` are in-memory only (lost on process death).
+`processStatus: OK/FAILED`; `retrySessionId`/`undoSnap` in-memory only.
 
-## Privacy promise today
+## 2. Threat model (exact)
 
-- `README.md` + `docs/PRIVACY.md` + `privacy.html`: “local-first, no server, no analytics. Android system STT may process audio on-device or remotely depending on device. INTERNET declared but unused until you pick a cloud ear/brain.”
-- `PRIVACY.md` honest about `SpeechRecognizer` system path: may leave device.
-- No account, no `GET_ACCOUNTS`, no analytics SDK.
-- Play Data Safety: INTERNET + RECORD_AUDIO disclosed; `POST_NOTIFICATIONS` optional.
+Application-layer SQLCipher protects against:
 
-Threat model implications:
-- **Rooted/physical access**: `openflow.db` + `audio/*.wav` readable via `adb root` or forensic dump. Secrets are not, because Keystore-bound.
-- **Unrooted other apps**: cannot read `filesDir` (app-private, `MODE_PRIVATE`), but any vulnerability that bypasses sandbox (e.g., backup trick) is already mitig blocked by `allowBackup=false`. Plain SQLite is still at risk on rooted.
-- **User expectation**: Wispr is cloud-only, HIPAA/SOC2, audio leaves device; Open Flow’s “offline first” is a stronger local promise, so users store sensitive dictations (passwords are skipped via `FieldPolicy.isSensitive`, but many dictations are still sensitive). Some users will expect “encrypted” because secrets are encrypted — but history is not.
+- **(T1) Offline forensic dump of app-private files after device loss/theft with unlocked CE storage readable** — attacker gets `filesDir` bytes (e.g., via `adb root`, chip-off, or privileged backup exploit). With FBE alone, CE files are decrypted once device is booted and user has unlocked once; physical dump after first unlock yields plaintext. SQLCipher page encryption defends here.
+- **(T2) Rooted device or privilege escalation where sandbox (`MODE_PRIVATE`) is bypassed but Keystore remains hardware-backed** — other apps or `run-as` bypass could read plain SQLite but cannot extract Keystore AES key material without TEE/StrongBox compromise.
+- **Not** defended: (N1) live memory compromise while DB is open (key in process RAM), (N2) Keystore wiped/factory-reset, (N3) compromised OS that exfiltrates during `open()`, (N4) cloud STT audio already sent off-device when cloud ear chosen (out of scope).
 
-## Options
+Platform FBE + `MODE_PRIVATE` already defends unrooted, non-forensic case (locked or not-rooted). Application-layer adds defense only for T1/T2. That is the intended payoff, and its cost is justified only if users store sensitive dictations on devices at risk of loss with `keep` retention.
 
-### 1) Keep plain + document honestly (current, lowest cost)
+## 2.1 FBE vs app-private vs app-layer
 
-- Keep Room plain, files plain, `allowBackup=false`.
-- Add explicit section in `PRIVACY.md` + Settings → Privacy: “History and audio are stored unencrypted in app-private storage. On rooted or physically-compromised devices they can be read. Use `never_store` or `wipe_24h` if sensitive. Secrets (API keys) are Keystore-encrypted.”
-- Add in-app toggle explanation for retention policies (already exists).
+- **FBE (File-Based Encryption):** Since Android 7, `filesDir` is credential-encrypted (CE) and device-encrypted (DE). All devices launching with Android 10+ **must** use FBE ([FBE docs](https://source.android.com/docs/security/features/encryption/file-based)). CE unlock requires LSKF (PIN/pattern/password) after boot (`vold` + `Keymaster HAL`). While locked, CE files are not readable. After first unlock, CE files are decryptable by kernel, so a live-unlocked forensic dump sees plaintext unless app-layer encrypts.
+- **App-private (`MODE_PRIVATE`):** Kernel DAC + SELinux prevents unrooted other apps from reading `filesDir`. No crypto.
+- **App-layer (SQLCipher):** Page-level AES-256 with PBKDF2-HMAC-SHA512 per DB salt (SQLCipher docs). Transparent to Room queries; DB header is randomized, not SQLite magic. Protects T1/T2 even after CE unlock, at cost of key lifecycle.
 
-Pros: zero migration, zero perf/reliability risk, Play page fast, easy to debug via `adb pull` for QA.
-Cons: does not satisfy “encrypted at rest” expectation on rooted; may be flagged by privacy auditors.
+## 2.2 Exactly what would be encrypted in M7-cipher
 
-Effort: 1 doc edit + 1 string, 0 deps.
+If `M7-cipher` is ever built, it encrypts:
 
-### 2) SQLCipher for Room (full DB encryption)
+- **Encrypted:** Room DB file + WAL (`openflow.db`, `openflow.db-wal`, `openflow.db-shm`) — all dictations, dictionary words, snippets, FTS index, app stats, voice profiles. Each is DB page data.
+- **Not encrypted in M7-cipher (still plain):** `filesDir/audio/*.wav`, `filesDir/models/*`, `shared_prefs/*.xml` (`FlowPrefs`, `openflow_secrets.xml` ciphertext blobs are already Keystore-wrapped but prefs file structure is plain), `no-backup` caches, logs. Audio encryption would be a separate `M7-file` mode (not `EncryptedFile`, see §5) — not included in this spec’s `M7-cipher`.
+- **Already encrypted:** `openflow_secrets` values (`gcm1.`) at rest via `AndroidKeyStore`.
 
-- Add `net.zetetic:android-database-sqlcipher:4.x` + `androidx.sqlite:sqlite-ktx` with `SupportFactory(SQLiteDatabase.getBytes(passphrase))`.
-- Passphrase: generate 256-bit random, store in `AndroidKeyStore` (same as secrets), wrap with `MasterKey` pattern. On first launch, generate, store; on upgrade, re-key via `PRAGMA rekey`.
-- Migrate: `ATTACH DATABASE` plain → `sqlcipher_export`, or copy rows via `db.transact` (we already have `OpenFlowDb.transact`). For existing installs, on upgrade detect plain `openflow.db` → export → delete plain → use cipher. If export fails, fall back to plain with log + toast “migration failed, history kept unencrypted”.
-- Audio: still plain files unless also encrypted (see Option 4).
-- Size: + ~3.5MB AAB (native `.so` for arm64 + x86_64), 16KB page aligned already (NDK 28 + 16384).
+Saying “everything at rest encrypted” would be false for `M7-cipher` — audio and prefs remain plain by design.
 
-Pros: at-rest encryption for dictations/dictionary/snippets/stats; satisfies strict privacy audits.
-Cons: migration complexity (first open + passphrase), perf overhead ~5-15% on writes (FTS indexing) and ~10% on reads, extra native crash surface (SQLCipher NDK mismatch), harder to `adb pull` debug, key loss (Keystore wipe on factory reset) → DB unreadable (must delete and start fresh, with user-visible error).
+## 3. Backup / transfer caveat
 
-Risk: Keystore-backed passphrase can be invalidated by lock-screen change on some OEMs (requires `setUserAuthenticationRequired(false)` to avoid). Must test on Samsung/Xiaomi.
+Current posture (verified `AndroidManifest.xml:36-38`):
 
-### 3) EncryptedFile for audio only
+- `android:allowBackup="false"`, `android:fullBackupContent="@xml/backup_rules"`, `android:dataExtractionRules="@xml/data_extraction_rules"`
+- `data_extraction_rules.xml` and `backup_rules.xml` exclude `<cloud-backup>` and `<device-transfer>` for domains `root`/`file`/`database`/`sharedpref`/`external`. This is the “exclude all” pattern for `allowBackup=false` equivalent on Android 12+ ([Auto Backup docs](https://developer.android.com/identity/data/autobackup))([SO allowBackup](https://stackoverflow.com/questions/70365809/how-to-specify-to-not-allow-any-data-backup-with-androiddataextractionrules)).
+- Standard backup, when used, is encrypted in transit and at rest, and end-to-end with lock-screen secret on Android 9+ if set ([security recs](https://developer.android.com/privacy-and-security/risks/backup-best-practices)). Our exclusion makes those guarantees moot — no history leaves via backup.
 
-- Keep Room plain, wrap `AudioFileManager` writes via `androidx.security:security-crypto:1.1` `EncryptedFile` (AES256_GCM_HKDF_4KB).
-- Key: same `MasterKey` (Keystore). File name stays `<id>.wav.enc`, read via `EncryptedFile.openFileInput()`.
-- `transcribeWavFile` must decrypt to `ByteArray` then `unwrap`.
+**Caveat:** If a future `M7-cipher` is shipped, backup exclusion must remain. If backup is ever re-enabled, encrypted DB backup without the Keystore key (which is not backed up) would be unrecoverable — restore would see `SQLiteException: file is not a database`. Device-to-device (`device-transfer`) transfer also excluded today; enabling it would have same key-loss implication. Spec recommends keeping exclusion forever for encrypted builds.
 
-Pros: protects most sensitive artifact (raw voice) without DB migration.
-Cons: still leaves transcript text plain in DB; `EncryptedFile` overhead per 8M file (~streaming, okay), but adds dependency + key handling duplication.
+## 4. Privacy promise today (unchanged)
 
-### 4) Both DB + audio encrypted (full at-rest)
+- `README.md` + `docs/PRIVACY.md`: “local-first, no server, no analytics. Android system STT may process audio on-device or remotely. INTERNET declared but unused until you pick a cloud ear/brain.”
+- `PRIVACY.md` honest about `SpeechRecognizer` may leave device.
+- No account, no `GET_ACCOUNTS`, no SDK.
+- Play Data Safety: `RECORD_AUDIO` + `INTERNET` disclosed.
 
-- Combine 2 + 3, single `MasterKey`.
+With `M7-plain`, need explicit `PRIVACY.md` + Settings → Privacy row: “History, dictionary, snippets, and audio are stored **unencrypted** in app-private storage, protected by Android sandbox and FBE while locked. On rooted or physically-dumped unlocked devices they can be read. Use `never_store` / `wipe_24h` if sensitive. API keys are `AndroidKeyStore`-encrypted.”
 
-Pros: strongest promise (“everything at rest encrypted except prefs/models”).
-Cons: sum of complexities + double key handling; prefs still plain (low risk, but inconsistent).
+## 5. Options (revised — EncryptedFile removed)
 
-### 5) No encryption, rely on OS file-based encryption (FBE)
+### M7-plain — Keep plain + document honestly (current, recommended this release)
 
-- Android 7+ already encrypts `filesDir` with FBE (credential-encrypted). Document that OS provides at-rest encryption when device is locked, and `allowBackup=false` prevents cloud backup. This is honest for unrooted, non-forensic.
+- Keep Room 2.8.4 plain, files plain, `allowBackup=false` + exclusions.
+- Docs change only (§4).
 
-Pros: zero code, already true, no deps.
-Cons: does not defend against root/physical dump with unlocked device, which is the same threat SQLCipher defends.
+Pros: zero migration, zero native crash surface, `adb pull` debuggable, `gate.sh` green.
+Cons: T1/T2 not defended; auditors expecting “encrypted at rest” will flag.
 
-## Migration analysis
+Effort: 1 doc + 1 string.
 
-| Aspect | Plain (1/5) | SQLCipher (2) | EncryptedFile (3) | Both (4) |
-|--------|-------------|---------------|-------------------|----------|
-| Existing installs | no op | need export + rekey, handle plain→cipher + cipher→cipher rekey, test on 1M-row DB (we have 1000+ row handle) | rename + encrypt existing `audio/*.wav`, handle partial | both |
-| New installs | no op | create cipher directly | write enc directly | both |
-| Downgrade | no op | cannot open cipher with old APK → must wipe or keep plain fallback | old APK cannot read `.enc` | both |
-| Key loss | n/a | Keystore wipe → DB lost → catch `SQLiteException` → delete DB + toast, stats lost | same for audio → delete `audio/` | both |
-| Backup restore | excluded already, no effect | same | same | same |
+### M7-cipher — SQLCipher for Room via current `sqlcipher-android` (opt-in later)
 
-## Complexity / performance / reliability
+- **Deps (verified for Room 2.8.4):**
 
-- **Deps**: SQLCipher adds `libsqlcipher.so` 2 ABIs, `security-crypto` adds `tink` transitive. Both increase AAB from 12M → ~15-16M, still under Play limit, but must verify 16KB alignment (`aapt2` ELF16 check).
-- **Perf**: Measured on `of_win` (x86_64 emulator, 4GB guest): Room plain `searchFts` 200 rows ~12ms; with SQLCipher ~14ms (+15%). `saveDictation` with FTS indexing ~18ms → ~21ms. Acceptable, but must test on low-end device (e.g., Android Go) with 1000 rows.
-- **Reliability**: SQLCipher native crashes are distinct from app crashes (tombstone), need `Play Console` monitoring and fallback to plain on `UnsatisfiedLinkError`.
-- **Complexity**: 1 file vs ~5 files (SupportFactory, MasterKey, migration, error handling, tests). Maintenance cost ongoing (NDK bumps).
+  ```kotlin
+  implementation("net.zetetic:sqlcipher-android:4.18.0@aar")
+  implementation("androidx.sqlite:sqlite:2.7.0") // required by sqlcipher-android; works with Room 2.8.4 (Room 2 + 3 support)
+  // Room 2.8.4 already: androidx.room:room-runtime:2.8.4 + room-ktx
+  ```
 
-## User expectations
+  Legacy `net.zetetic:android-database-sqlcipher:4.x` is **not** used ([Zetetic migration](https://www.zetetic.net/sqlcipher/sqlcipher-for-android-migration/) — “introduced… 2022 … replacement API”).
 
-- Users who pick `on_phone` whisper explicitly want offline/privacy; they will be most disappointed if history is plain and phone is lost/rooted.
-- Users who pick cloud ears already accept audio leaving device; encrypting local history is still valued but less critical.
-- Retention policies `never_store` and `wipe_24h` already give user control without encryption; many will use `never_store` for sensitive.
-- Showing “encrypted at rest” badge may be expected for “local-first privacy” positioning vs Wispr’s cloud.
+- **Load:** `System.loadLibrary("sqlcipher")` before any `Room.databaseBuilder` (must precede `SupportOpenHelperFactory` use) ([README](https://github.com/sqlcipher/sqlcipher-android)).
 
-## Recommendation (decision to make before code)
+- **Passphrase:** 32-byte CSPRNG (`SecureRandom`) generated on first launch, wrapped via `AndroidKeyStore` AES-GCM (same pattern as `SecretStore.KeystoreAes`: `KeyGenParameterSpec` `BLOCK_MODE_GCM` `ENCRYPTION_PADDING_NONE` 256-bit, `setUserAuthenticationRequired(false)`, no `setUserAuthenticationValidityDurationSeconds`). Store wrapped passphrase in `SharedPreferences` as `gcm1.` blob (like secrets), **not** as char. Alternative: generate raw passphrase and derive via `PBKDF2-HMAC-SHA512` inside SQLCipher (SQLCipher does this per DB salt); spec stores the random passphrase bytes, not a user password.
 
-- **Default to Option 1** (document honestly) for this release: lowest risk, keeps `dist/` and QA green, matches current Play “no encryption” disclosure. Add 3-line update to `PRIVACY.md` + `PrivacySettings` screen with the honest table above.
-- **Offer Option 2 behind a setting** in next release if user research shows demand: add “Encrypt history (beta)” toggle in PrivacySettings that triggers one-time migration via `WorkManager` with progress + backup warning (“key tied to device lock screen, factory reset will clear history”). Keep plain as default to avoid migration risk for existing installs.
-- Do not pick Option 4 now — too much for one release, and prefs/models remain plain anyway (inconsistent).
+- **Factory:**
 
-## Verification if we pick encryption later
+  ```kotlin
+  val passphrase = SQLiteDatabase.getBytes(storedPassphraseChars) // or ByteArray variant
+  val factory = SupportOpenHelperFactory(passphrase, hook = null, clearPassphrase = true) // single-use if true
+  // or val factory = net.zetetic.database.sqlcipher.SupportOpenHelperFactory(passphrase)
+  Room.databaseBuilder(ctx, OpenFlowDatabase::class.java, "openflow.db")
+      .openHelperFactory(factory)
+      .build()
+  ```
 
-- Instrument: log `cipher_migration_success/failure`, `db_open_time_ms` via `SessionLatency`-style trace.
-- Tests: `DictationRepositoryTest` with in-memory cipher DB, migration test plain→cipher with 1000 rows, key-loss test (clear Keystore → open → expect wipe).
-- QA: `gate.sh --release` must still pass `AAB` + `ELF16`; `adb shell run-as app.openflow.debug ls files` after migration shows only `.db` cipher file, no plain.
-- Rollback: shipped APK with `useCipher=false` flag can open plain DB after downgrade? Test downgrade from cipher APK to plain APK (should detect cipher file and offer “clear history”).
+  Three-ctor form (`passphrase`, `hook`, `clearPassphrase`) mirrors legacy `SupportFactory` — set `clearPassphrase=true` means single-use; document single-use. New code uses `SupportOpenHelperFactory` ([integration guide](https://github.com/sqlcipher/android-database-sqlcipher#using-sqlcipher-for-android-with-room) legacy vs [new README](https://github.com/sqlcipher/sqlcipher-android)).
 
-## References
+- **Scope:** DB only. Audio stays plain (no `EncryptedFile`). If audio encryption is needed later, use platform `Cipher` streaming (`AES/GCM/NoPadding` with `KeystoreAes` key + per-file IV) — not `EncryptedFile` ([deprecated](https://developer.android.com/reference/androidx/security/crypto/EncryptedFile)).
 
-- `OpenFlowDatabase.kt:45` plain Room, `AudioFileManager.kt:13` `filesDir/audio`, `AndroidSecretStore` Keystore, `FlowPrefs` retention, `PRIVACY.md`.
-- Play Data Safety + `allowBackup=false` already PASS (play-check).
-- `net.zetetic:android-database-sqlcipher` docs, `androidx.security:security-crypto` `EncryptedFile` docs.
+- **Size:** `libsqlcipher.so` for `arm64-v8a` + `x86_64` adds ~3–4 MB AAB; NDK `28.2.13676358` + `-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON` + `graphics-path:1.1.0` must still pass 16 KB alignment check (`scripts/qa/play-check.sh` `aapt2` `ELF16`).
+
+Pros: defends T1/T2 for transcript history (most-sensitive text).
+Cons: migration complexity, perf +5–15% writes (FTS), native crash surface, key-loss → DB lost, debug `adb pull` requires key, Play AAB larger, ongoing dep bumps.
+
+### M7-file — (not proposed) App-layer file encryption for `audio/*.wav`
+
+Would use `javax.crypto` streaming (`AES/GCM` per file, IV per file, Keystore key). Not in current triage because `EncryptedFile` is deprecated and duplication is high, and `M7-plain` retention policies already give users `never_store`. If pursued later, specify Tink or `Cipher` streaming with streaming-AAD and file-name `*.wav.gcm` — not part of this `M7-cipher` spec.
+
+### M7-fbeDoc — Rely on FBE + app-private only (documented variant of M7-plain)
+
+Zero code, but make FBE explicit in `PRIVACY.md` (§2.1). Already covered by `M7-plain`. Listed separately only to contrast with `M7-cipher`.
+
+## 6. Key lifecycle (for any future M7-cipher)
+
+- **Generation:** `SecureRandom().nextBytes(32)` once, on first `Room` open under `M7-cipher` preference enabled. No user password, no `PBKDF2` in app (SQLCipher does its own PBKDF2 per DB salt).
+- **Storage:** Wrap with `KeystoreAes` (same `ALIAS="openflow_secrets_aes"` or dedicated `openflow_db_passphrase` alias; if dedicated, same `KeyGenParameterSpec` as `SecretStore.kt:112-119`: `BLOCK_MODE_GCM`, `ENCRYPTION_PADDING_NONE`, `256`, `PURPOSE_ENCRYPT|DECRYPT`, `setUserAuthenticationRequired(false)` to avoid lock-screen-change invalidation on Samsung/Xiaomi). Persist wrapped blob in `SharedPreferences` (`M7_PREFS="m7_cipher"` key `passphrase_gcm`) as `gcm1.` base64 (IV+CT). Not in plaintext.
+- **Use:** On each `Room` init, unwrap passphrase via `KeystoreAes`, `SQLiteDatabase.getBytes()` or direct `ByteArray`, pass to `SupportOpenHelperFactory`. If `clearPassphrase=true`, recreate factory per `Room` instance (do not reuse bytes after zeroed).
+- **Rotation / rekey:** Not scheduled. `PRAGMA rekey` only if future passphrase rotation UX added. Not in v1.
+- **Invalidation:** If `KeyStore` `getKey()` throws `KeyPermanentlyInvalidatedException` (rare with `setUserAuthenticationRequired(false)` but possible on hardware reset), treat as key loss (§8). Do not attempt `MasterKey` `setUserAuthenticationValidityDurationSeconds`.
+- **Hardware:** Prefer `isStrongBoxBacked` if available, but do not require it; Keystore without StrongBox still defends T2 against `MODE_PRIVATE` bypass.
+
+## 7. Migration (§8 failure handling forbids silent fallback)
+
+- **Detection:** On open, try `SupportOpenHelperFactory(passphrase)` open. If `SQLiteException: file is not a database` / `not a database` or header is plain SQLite `SQLite format 3\x00`, run migration.
+- **Migration path (existing plain → cipher):** Inside `SQLiteDatabaseHook` or helper: `ATTACH DATABASE plain AS plain KEY '' ; SELECT sqlcipher_export('main', 'plain'); DETACH plain;` then atomic rename: plain file → `openflow.db.plain.bak`, cipher file → `openflow.db`. Or row-copy via `OpenFlowDb.transact` for small DB. For new installs, create cipher directly.
+- **Atomicity:** Write cipher to `openflow.db.cipher.tmp`, `fsync`, then `rename` over `openflow.db`. Delete tmp on failure. Never partially-overwrite original plain until cipher integrity verified (`PRAGMA cipher_integrity_check` or `SELECT count(*) FROM sqlite_master`).
+- **No silent fallback:** If migration fails (e.g., `ATTACH` fails, disk full, `sqlcipher_export` error), **do not** reopen as plain and pretend success. Persist `m7_migration_failed=true` in prefs, keep plain DB intact, notify user: toast/dialog “History encryption failed — history kept unencrypted. Retry or keep plain?” Log `cipher_migration_failure`. Require explicit user action to retry or to keep plain (which sets `M7_PREFS cipher_enabled=false`). The DB remains plain and next launch will offer migration again; the app must never write new rows to an assumed-cipher DB while actually plain.
+
+## 8. Failure recovery / downgrade
+
+- **Key loss (Keystore wipe, factory reset, `secdiscardable` loss):** `KeystoreAes.getOrCreateOrNull()` returns null or unwrap fails → DB cannot be opened (`SQLiteException`). Catch, persist `m7_key_lost=true`, show blocking dialog: “Encryption key unavailable — history cannot be opened. Delete history to continue or uninstall.” Offer `Delete history (wipe openflow.db* and audio/ + prefs flag)` vs `Close app`. **Never** create a new DB silently over the old cipher file without user consent (would leak old cipher bytes undeleted).
+- **Downgrade (cipher APK → plain APK):** Plain APK cannot open cipher file — will get `file is not a database`. Must detect header not SQLite and show “History is encrypted. Please update or clear history.” via `Play` update prompt. Not silent wipe.
+- **Plain → cipher Downgrade after flag flipped false:** If user disables `M7-cipher` after migration, not in v1 — require “Disable encryption requires clearing history” confirmation; do not decrypt-to-plain silently.
+
+## 9. 16 KB / native-library verification
+
+- **Build:** Still `ndkVersion = "28.2.13676358"` with `externalNativeBuild.cmake.arguments += "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON"` (`app/build.gradle.kts:28`). All native `.so` must be 16 KB ELF aligned (Android 15+ 16 KB page requirement). `sqlcipher-android` 4.18.0+ is expected 16 KB-compatible; verify per Zetetic post ([16KB page support](https://www.zetetic.net/blog/2025/06/26/sqlcipher-for-android-16kb-page-size-support/)). Verify alongside `graphics-path:1.1.0` (already 16 KB aligned).
+- **Checks:** `scripts/qa/play-check.sh` must pass `AAB` + `ELF16` after adding `libsqlcipher.so` for `arm64-v8a` + `x86_64`. CI should run `aapt2` / `readelf --program-headers` or `play-check.sh`’s `ELF16` check. If `libsqlcipher.so` is not 16 KB aligned, **do not ship** — pin to fixed version with alignment.
+- **Testing:** `gate.sh --release` still passes `bundleRelease` + `aapt2` target 36 + page size 16384.
+
+## 10. User expectations / retention
+
+- `on_phone` users (offline-first) most sensitive to T1; `cloud` users already accept audio leaving device but still value local text encryption.
+- `retentionPolicy = never_store` / `wipe_24h` already gives local control without crypto; many will use `never_store` for sensitive utterances. `M7-plain` makes this explicit in UI.
+
+## 11. Complexity / performance / reliability (revised)
+
+- **Deps:** `sqlcipher-android` adds `libsqlcipher.so` 2 ABIs + `androidx.sqlite:sqlite:2.7.0`. `security-crypto` is **not** added ( `EncryptedFile` deprecated ) — avoids `tink` transitive. AAB ~ +3–4 MB.
+- **Perf:** Same estimate as rev1 — Room plain `searchFts` 200 rows ~12 ms → ~14 ms cipher (+~15%), `saveDictation` with FTS indexing ~18 ms → ~21 ms. Acceptable, but must measure on low-end device (Android Go) with 1000 rows and on `of_win`. No claim of improvement.
+- **Reliability:** Native crashes are tombstones distinct from Java crashes; monitor via Play Console. Do not add `UnsatisfiedLinkError` fallback to plain (that would be silent fallback). `System.loadLibrary("sqlcipher")` failure is fatal for `M7-cipher` mode → show dialog and fall back to `M7-plain` only with user-visible failure flag (§8).
+
+## 12. Recommendation (decision to make before code) — unchanged
+
+- **Default to `M7-plain`** for this release: lowest risk, QA green, honest `PRIVACY.md`. One doc edit + one string.
+- **Offer `M7-cipher` behind a `Settings → Privacy → Encrypt history (beta)` toggle next release** if research shows demand. Behind toggle: one-time `WorkManager` migration with progress + warning “key tied to this device, factory reset will clear history.” Default off to avoid migration risk for existing installs. Do not ship auto-migrate on first launch.
+
+## 13. Verification if M7-cipher is pursued later
+
+- Instrument: `cipher_migration_success/failure`, `db_open_time_ms` via `SessionLatency`-style trace; no PII in logs.
+- Tests: `DictationRepositoryTest` with in-memory cipher DB via `SupportOpenHelperFactory`; migration test plain→cipher with 1000 rows; key-loss test (clear Keystore → open → expect `m7_key_lost` dialog, not silent plain).
+- QA: `gate.sh --release` must still pass `ELF16`; `adb shell run-as app.openflow.debug ls databases/` shows `openflow.db` + `openflow.db-wal` with header not `SQLite format 3`, no `openflow.db.plain` leak; downgrade test plain→cipher→plain shows correct dialog.
+- Rollback: shipped APK with `M7-cipher` flag `false` does not open cipher DB silently; test downgrade from cipher APK to plain APK detects cipher and offers clear.
+
+## 14. References (authoritative)
+
+- `Room 2.8.4` in `app/build.gradle.kts:161-163` + `androidx.sqlite:sqlite:2.7.0` requirement for `sqlcipher-android` ([sqlcipher-android README](https://github.com/sqlcipher/sqlcipher-android)).
+- Legacy vs current artifact: `android-database-sqlcipher` **no longer updated** ([README](https://github.com/sqlcipher/android-database-sqlcipher)) vs `sqlcipher-android` replacement ([migration guide](https://www.zetetic.net/sqlcipher/sqlcipher-for-android-migration/)).
+- `Room + SQLCipher` via `SupportOpenHelperFactory` / `SupportFactory` + `System.loadLibrary("sqlcipher")` ([legacy guide](https://github.com/sqlcipher/android-database-sqlcipher#using-sqlcipher-for-android-with-room)) and ([current README](https://github.com/sqlcipher/sqlcipher-android)).
+- `EncryptedFile` **deprecated** since `security-crypto 1.1.0-alpha07` /**“Deprecated all APIs…”** ([releases](https://developer.android.com/jetpack/androidx/releases/security)) and class deprecation notice ([api ref](https://developer.android.com/reference/androidx/security/crypto/EncryptedFile)).
+- FBE: All Android 10+ devices **required** to use FBE, CE/DE, `Keymaster HAL` ([FBE docs](https://source.android.com/docs/security/features/encryption/file-based)).
+- Backup: `dataExtractionRules`/`fullBackupContent` cloud + device-transfer exclusion pattern ([Auto Backup](https://developer.android.com/identity/data/autobackup)) and security guidance ([security recs](https://developer.android.com/privacy-and-security/risks/backup-best-practices)).
+- Open Flow impl: `OpenFlowDatabase.kt:45`, `AudioFileManager.kt:13`, `AndroidSecretStore` `KeystoreAes` `KeyGenParameterSpec` (`SecretStore.kt:112`), `FlowPrefs` retention.
+- 16 KB: NDK `28.2.13676358` + `ANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON` + `graphics-path:1.1.0` ([page sizes](https://developer.android.com/guide/practices/page-sizes)) and SQLCipher 16 KB page support ([Zetetic](https://www.zetetic.net/blog/2025/06/26/sqlcipher-for-android-16kb-page-size-support/)).
+- Play checks: `allowBackup=false` PASS (`play-check.sh`).
+

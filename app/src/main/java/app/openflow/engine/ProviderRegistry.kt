@@ -6,7 +6,16 @@ import app.openflow.stt.SpeechEngine
 
 /**
  * Factories for the picked ear and brain.
- * Missing or broken factory → system ear / [NoAI]. Never throws to callers.
+ *
+ * Lookup contract (honest about wiring):
+ * - `ear(id)` / `brain(id)` return `null` when no factory is registered for [id].
+ * - When a factory IS registered but throws (e.g. cloud ear without an API key),
+ *   the registry falls back to `fallbackEar` / `fallbackBrain` so the app still
+ *   works on system STT / no-AI.
+ *
+ * Callers that want a non-null instance should resolve their id through
+ * [EarGate] (for ears) or `EarGate.resolveBrain` (for brains) before lookup —
+ * the gate keeps stale preferences from reaching this registry.
  */
 class ProviderRegistry(
     private val fallbackEar: () -> SpeechEngine,
@@ -23,25 +32,24 @@ class ProviderRegistry(
         brains[id] = factory
     }
 
-    fun ear(id: EarId): SpeechEngine = firstWorking(ears[id], fallbackEar)
+    fun ear(id: EarId): SpeechEngine? = firstWorking(ears[id], fallbackEar)
 
-    fun ear(id: String): SpeechEngine = ear(ProviderId.parseEar(id))
+    fun ear(id: String): SpeechEngine? = ear(ProviderId.parseEar(id))
 
-    fun brain(id: BrainId): TextAIProvider = firstWorking(brains[id], fallbackBrain)
+    fun brain(id: BrainId): TextAIProvider? = firstWorking(brains[id], fallbackBrain)
 
-    fun brain(id: String): TextAIProvider = brain(ProviderId.parseBrain(id))
+    fun brain(id: String): TextAIProvider? = brain(ProviderId.parseBrain(id))
 
-    private fun <T> firstWorking(preferred: (() -> T)?, fallback: () -> T): T {
-        if (preferred != null) {
-            try {
-                return preferred()
-            } catch (_: Exception) {
-            }
-        }
+    private fun <T> firstWorking(preferred: (() -> T)?, fallback: () -> T): T? {
+        if (preferred == null) return null
         return try {
-            fallback()
+            preferred()
         } catch (_: Exception) {
-            fallback()
+            try {
+                fallback()
+            } catch (_: Exception) {
+                null
+            }
         }
     }
 }

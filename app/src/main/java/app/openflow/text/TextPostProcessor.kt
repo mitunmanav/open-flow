@@ -64,6 +64,24 @@ object TextPostProcessor {
         messaging: Boolean = false,
         budgetMs: Long = CleanupBudget.POLISH_MS,
         spokenEmoji: Boolean = false,
+    ): CleanupResult = runBlocking { polishSessionResultAsync(raw, style, level, custom, dictionary, snippets, brain, brainRewrite, earId, brainId, languages, promptHint, messaging, budgetMs, spokenEmoji) }
+
+    suspend fun polishSessionResultAsync(
+        raw: String,
+        style: WritingStyle = WritingStyle.CASUAL,
+        level: CleanupLevel = CleanupLevel.NORMAL,
+        custom: CustomStyleConfig = CustomStyleConfig(),
+        dictionary: Map<String, String> = emptyMap(),
+        snippets: Map<String, String> = emptyMap(),
+        brain: TextAIProvider = NoAI,
+        brainRewrite: Boolean = false,
+        earId: String = "system",
+        brainId: String = "none",
+        languages: Set<String> = emptySet(),
+        promptHint: String? = null,
+        messaging: Boolean = false,
+        budgetMs: Long = CleanupBudget.POLISH_MS,
+        spokenEmoji: Boolean = false,
     ): CleanupResult {
         val original = raw
         var t = raw
@@ -86,10 +104,8 @@ object TextPostProcessor {
                 append(if (!promptHint.isNullOrBlank()) "cleanup: $promptHint" else "cleanup")
                 if (hints.isNotEmpty()) append(" spell: ").append(hints)
             }
-            val enhanced = runBlocking {
-                CleanupBudget.within(budgetMs) { brain.enhance(result.clean, systemContext) }
-                    .orEmpty()
-            }
+            val enhanced = CleanupBudget.within(budgetMs) { brain.enhance(result.clean, systemContext) }
+                .orEmpty()
             val sanitized = sanitizeBrainOutput(enhanced, result.clean)
             if (InvariantGate.ok(original, sanitized)) sanitized else result.clean
         } else {
@@ -100,11 +116,9 @@ object TextPostProcessor {
         cleaned = CommandMode.applyLocal(cleaned)
 
         if (useAi && Feature.COMMAND in features) {
-            cleaned = runBlocking {
-                CleanupBudget.within(budgetMs) {
-                    CommandMode.apply(cleaned, brainCommand = true, brain = brain)
-                } ?: cleaned
-            }
+            cleaned = CleanupBudget.within(budgetMs) {
+                CommandMode.apply(cleaned, brainCommand = true, brain = brain)
+            } ?: cleaned
         }
 
         cleaned = applyDictionary(
@@ -137,6 +151,28 @@ object TextPostProcessor {
         onBrainOutcome: (providerId: String, ok: Boolean) -> Unit = { _, _ -> },
         budgetMs: Long = CleanupBudget.POLISH_MS,
         spokenEmoji: Boolean = false,
+    ): CleanupResult = runBlocking { polishRoutedAsync(raw, style, level, custom, dictionary, snippets, brain, earId, brainId, languages, promptHint, messaging, mode, aiWhen, signals, looksLikeCommand, onBrainOutcome, budgetMs, spokenEmoji) }
+
+    suspend fun polishRoutedAsync(
+        raw: String,
+        style: WritingStyle = WritingStyle.CASUAL,
+        level: CleanupLevel = CleanupLevel.NORMAL,
+        custom: CustomStyleConfig = CustomStyleConfig(),
+        dictionary: Map<String, String> = emptyMap(),
+        snippets: Map<String, String> = emptyMap(),
+        brain: TextAIProvider = NoAI,
+        earId: String = "system",
+        brainId: String = "none",
+        languages: Set<String> = emptySet(),
+        promptHint: String? = null,
+        messaging: Boolean = false,
+        mode: RouteMode = RouteMode.LOCAL_THEN_AI,
+        aiWhen: AiWhen = AiWhen.EVERY,
+        signals: RouteSignals = RouteSignals(false, emptySet(), emptySet()),
+        looksLikeCommand: Boolean = false,
+        onBrainOutcome: (providerId: String, ok: Boolean) -> Unit = { _, _ -> },
+        budgetMs: Long = CleanupBudget.POLISH_MS,
+        spokenEmoji: Boolean = false,
     ): CleanupResult {
         val original = raw
         val sides = LearnEngine.sideBags()
@@ -147,8 +183,8 @@ object TextPostProcessor {
         )
         val rawLevel = level == CleanupLevel.RAW
 
-        fun localRules(): CleanupResult =
-            polishSessionResult(
+        suspend fun localRules(): CleanupResult =
+            polishSessionResultAsync(
                 raw = raw,
                 style = style,
                 level = level,
@@ -198,11 +234,9 @@ object TextPostProcessor {
         if (mode == RouteMode.AI_FIRST) {
             val hop = BrainHop.pick(hopAsk(vocab, vocab.length))
             if (hop.providerId != "none") {
-                val artifact = runBlocking {
-                    CleanupBudget.within(budgetMs) {
-                        PipelineArtifactPolicy.build(original, vocab) { t ->
-                            brain.enhance(t, contextFor(t))
-                        }
+                val artifact = CleanupBudget.within(budgetMs) {
+                    PipelineArtifactPolicy.build(original, vocab) { t ->
+                        brain.enhance(t, contextFor(t))
                     }
                 } ?: return localRules()
                 val ok = artifact.ai.isNotBlank()
@@ -221,11 +255,9 @@ object TextPostProcessor {
         val local = localRules()
         val hop = BrainHop.pick(hopAsk(local.clean, local.clean.length))
         if (hop.providerId == "none") return local
-        val artifact = runBlocking {
-            CleanupBudget.within(budgetMs) {
-                PipelineArtifactPolicy.build(local.raw, local.clean) { t ->
-                    brain.enhance(t, contextFor(t))
-                }
+        val artifact = CleanupBudget.within(budgetMs) {
+            PipelineArtifactPolicy.build(local.raw, local.clean) { t ->
+                brain.enhance(t, contextFor(t))
             }
         } ?: return local
         val ok = artifact.ai.isNotBlank()

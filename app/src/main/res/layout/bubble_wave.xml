@@ -4,7 +4,7 @@
     android:layout_width="48dp"
     android:layout_height="48dp"
     android:layout_marginEnd="8dp"
-    android:contentDescription="@string/app_name"
+    android:contentDescription="@string/flow_bubble_desc_listening"
     android:gravity="center"
     android:orientation="horizontal"
     android:visibility="gone">

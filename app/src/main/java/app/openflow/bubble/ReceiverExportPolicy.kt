@@ -11,6 +11,7 @@ import android.content.Context
  */
 object ReceiverExportPolicy {
     const val NOT_EXPORTED = Context.RECEIVER_NOT_EXPORTED
+    const val PRIVATE_PERMISSION = "app.openflow.permission.PRIVATE_BROADCAST"
 
     fun copyFlags(): Int = NOT_EXPORTED
 

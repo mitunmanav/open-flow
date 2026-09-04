@@ -14,7 +14,7 @@ class PostStopChipsTest {
             canUndo = true,
         )
         assertThat(s.copy).isTrue()
-        assertThat(s.undo).isFalse()
+        assertThat(s.undo).isTrue()
         assertThat(s.paste).isFalse()
         assertThat(s.any).isTrue()
     }
@@ -42,7 +42,7 @@ class PostStopChipsTest {
             canUndo = true,
         )
         assertThat(s.copy).isTrue()
-        assertThat(s.undo).isFalse()
+        assertThat(s.undo).isTrue()
         assertThat(s.paste).isTrue()
         assertThat(s.any).isTrue()
     }

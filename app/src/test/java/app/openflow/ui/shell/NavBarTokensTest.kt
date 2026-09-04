@@ -25,13 +25,16 @@ class NavBarTokensTest {
         assertThat(NavBarTokens.shortLabel(AppRoute.Dictionary)).isEqualTo("Dict")
         assertThat(NavBarTokens.shortLabel(AppRoute.Snippets)).isEqualTo("Snips")
         assertThat(NavBarTokens.shortLabel(AppRoute.Style)).isEqualTo("Style")
-        assertThat(NavBarTokens.shortLabel(AppRoute.Insights)).isEqualTo("Stats")
+        // Visible tab label matches the route / screen title (L5 audit fix).
+        assertThat(NavBarTokens.shortLabel(AppRoute.Insights)).isEqualTo("Insights")
     }
 
     @Test
-    fun every_bottom_tab_has_a_short_label() {
+    fun every_bottom_tab_fits_in_a_five_tab_bar() {
+        // Bottom-bar nav wraps two rows when labels get too wide on narrow phones.
+        // Keep tabs compact: 8 chars is the upper bound, with most being ≤ 6.
         BottomBarRoutes.forEach { route ->
-            assertThat(NavBarTokens.shortLabel(route).length).isAtMost(6)
+            assertThat(NavBarTokens.shortLabel(route).length).isAtMost(8)
         }
     }
 }

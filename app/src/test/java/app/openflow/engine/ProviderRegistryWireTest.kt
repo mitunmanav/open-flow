@@ -16,7 +16,6 @@ import app.openflow.stt.providers.cloud.DeepgramEar
 import app.openflow.stt.providers.cloud.FailSoftSocket
 import app.openflow.stt.providers.cloud.OpenAiRealtimeEar
 import app.openflow.stt.providers.cloud.SarvamEar
-import app.openflow.stt.providers.host.LaptopEar
 import app.openflow.stt.providers.ondevice.OnDeviceEar
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
@@ -24,7 +23,7 @@ import org.junit.Test
 class ProviderRegistryWireTest {
 
     private val ears = listOf(
-        "system", "on_phone", "laptop", "openai", "deepgram", "assemblyai", "sarvam",
+        "system", "on_phone", "openai", "deepgram", "assemblyai", "sarvam",
     )
     private val brains = listOf(
         "none", "on_phone", "laptop", "openai", "grok", "minimax", "deepseek",
@@ -43,7 +42,8 @@ class ProviderRegistryWireTest {
         }
         assertThat(wired.registry.ear("system")).isSameInstanceAs(wired.system)
         assertThat(wired.registry.ear("on_phone")).isInstanceOf(OnDeviceEar::class.java)
-        assertThat(wired.registry.ear("laptop")).isInstanceOf(LaptopEar::class.java)
+        // No LAN STT ear implemented; "laptop" must stay unregistered.
+        assertThat(wired.registry.ear("laptop")).isNull()
         assertThat(wired.registry.ear("openai")).isInstanceOf(OpenAiRealtimeEar::class.java)
         assertThat(wired.registry.ear("deepgram")).isInstanceOf(DeepgramEar::class.java)
         assertThat(wired.registry.ear("assemblyai")).isInstanceOf(AssemblyEar::class.java)
@@ -53,9 +53,11 @@ class ProviderRegistryWireTest {
         assertThat(wired.registry.brain("laptop")).isInstanceOf(LaptopBrain::class.java)
         assertThat(wired.registry.brain("openai")).isInstanceOf(OpenAiCompatBrain::class.java)
         assertThat(wired.registry.brain("grok")).isInstanceOf(OpenAiCompatBrain::class.java)
-        assertThat(wired.registry.brain("grok").name).isEqualTo("grok")
+        assertThat(wired.registry.brain("grok")?.name).isEqualTo("grok")
         assertThat(wired.registry.brain("anthropic")).isInstanceOf(AnthropicBrain::class.java)
         assertThat(wired.registry.brain("custom")).isInstanceOf(OpenAiCompatBrain::class.java)
+        // parseBrain normalizes unknown ids (e.g. typo "groq") to BrainId.NONE,
+        // which is wired to NoAI. That is the safety net — NOT a null response.
         assertThat(wired.registry.brain("groq")).isSameInstanceAs(NoAI)
     }
 
@@ -64,9 +66,11 @@ class ProviderRegistryWireTest {
         val wired = wired()
         wired.prefs.earId = "deepgram"
         wired.prefs.brainId = "grok"
+        // currentEar/currentBrain return nullable; the live WireFakeEar system
+        // is registered, so EarGate.resolve(earId) → live id → non-null.
         assertThat(AppEngineWire.currentEar(wired.registry, wired.prefs))
             .isInstanceOf(DeepgramEar::class.java)
-        assertThat(AppEngineWire.currentBrain(wired.registry, wired.prefs).name).isEqualTo("grok")
+        assertThat(AppEngineWire.currentBrain(wired.registry, wired.prefs)?.name).isEqualTo("grok")
         wired.prefs.earId = "system"
         wired.prefs.brainId = "none"
         assertThat(AppEngineWire.currentEar(wired.registry, wired.prefs))

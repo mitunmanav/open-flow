@@ -54,11 +54,13 @@ object FieldPolicy {
     fun isEditableClass(className: String?): Boolean {
         if (className.isNullOrBlank()) return false
         val c = className.lowercase()
-        return c.contains("edittext") ||
+        // WebView container is not an editable node itself — real inputs inside
+        // surface as EditText/AutoCompleteTextView children. Treating a raw
+        // WebView as editable risks dictating into login/logout overlays.
+        return (c.contains("edittext") ||
             c.contains("textfield") ||
             c.contains("autocompletetextview") ||
-            c.contains("textinputedittext") ||
-            c.contains("webView".lowercase()) // WebView may host inputs; still try insert
+            c.contains("textinputedittext")) && !c.contains("webview")
     }
 
     /**

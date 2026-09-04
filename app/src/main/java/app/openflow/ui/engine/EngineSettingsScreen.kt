@@ -10,11 +10,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -64,6 +66,18 @@ fun EngineSettingsScreen(
     tinyEnError: String = "",
     onDownloadTinyEn: () -> Unit = {},
 ) {
+    // API key fields (ear/brain) and the LAN URL are visible here — keep them
+    // out of Recents/screen captures while this screen is on top.
+    val ctx = LocalContext.current
+    DisposableEffect(Unit) {
+        val activity = ctx as? android.app.Activity
+        val window = activity?.window
+        window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        onDispose {
+            window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        }
+    }
+
     var ear by remember { mutableStateOf(initialEar) }
     var brain by remember { mutableStateOf(initialBrain) }
     var routeMode by remember { mutableStateOf(initialRouteMode) }

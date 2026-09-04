@@ -36,7 +36,7 @@
             android:layout_width="22dp"
             android:layout_height="22dp"
             android:layout_gravity="center"
-            android:contentDescription="@string/app_name"
+            android:contentDescription="@string/flow_bubble_desc_idle"
             android:scaleType="centerInside"
             android:src="@drawable/ic_mic" />
 

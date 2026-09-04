@@ -16,7 +16,9 @@ object NavBarTokens {
         AppRoute.Dictionary -> "Dict"
         AppRoute.Snippets -> "Snips"
         AppRoute.Style -> "Style"
-        AppRoute.Insights -> "Stats"
+        // Tab label matches the route + screen title (L5). a11y description
+        // in AppShell stays "Insights tab" — short and visible use the same word.
+        AppRoute.Insights -> "Insights"
         else -> route.title.take(6)
     }
 }

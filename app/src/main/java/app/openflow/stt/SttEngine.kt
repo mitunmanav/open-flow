@@ -210,7 +210,7 @@ class SttEngine(
                 completeFlush()
                 return@post
             }
-            mainHandler.postDelayed(flushTimeout, timeoutMs.coerceIn(100L, 2_000L))
+            mainHandler.postDelayed(flushTimeout, timeoutMs.coerceIn(100L, 5_000L))
         }
     }
 
@@ -700,6 +700,6 @@ class SttEngine(
     }
 
     companion object {
-        const val DEFAULT_FLUSH_TIMEOUT_MS = 550L
+        const val DEFAULT_FLUSH_TIMEOUT_MS = 3_000L
     }
 }

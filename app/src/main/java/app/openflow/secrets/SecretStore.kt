@@ -88,14 +88,17 @@ object KeystoreAes {
     const val PROVIDER = "AndroidKeyStore"
 
     @Synchronized
-    fun getOrCreate(): SecretKey {
+    fun getOrCreateOrNull(): SecretKey? {
         load().getSecret()?.let { return it }
         return try {
             generate()
         } catch (_: Exception) {
-            load().getSecret() ?: error("secret wrap key missing")
+            load().getSecret()
         }
     }
+
+    @Synchronized
+    fun getOrCreate(): SecretKey = getOrCreateOrNull() ?: error("secret wrap key missing")
 
     private fun load(): KeyStore =
         KeyStore.getInstance(PROVIDER).apply { load(null) }
@@ -125,14 +128,14 @@ object KeystoreAes {
  */
 class AndroidSecretStore(
     private val prefs: PrefsStore,
-    master: () -> SecretKey,
+    master: () -> SecretKey?,
 ) : SecretStore {
     constructor(context: Context) : this(
         SharedPrefsStore(context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)),
-        KeystoreAes::getOrCreate,
+        KeystoreAes::getOrCreateOrNull,
     )
 
-    private val wrapKey: SecretKey by lazy(master)
+    private val wrapKey: SecretKey? by lazy(master)
     private val plainCache = java.util.concurrent.ConcurrentHashMap<String, String>()
 
     override fun put(id: String, key: String) {
@@ -141,7 +144,8 @@ class AndroidSecretStore(
             prefs.putString(id, "")
             return
         }
-        prefs.putString(id, AesGcmWrap.seal(wrapKey, key))
+        val k = wrapKey ?: return
+        prefs.putString(id, AesGcmWrap.seal(k, key))
         plainCache[id] = key
     }
 
@@ -149,12 +153,19 @@ class AndroidSecretStore(
         plainCache[id]?.let { return it }
         val raw = prefs.getString(id, "")
         if (raw.isEmpty()) return null
-        AesGcmWrap.open(wrapKey, raw)?.let {
-            plainCache[id] = it
-            return it
+        val k = wrapKey
+        if (k != null) {
+            AesGcmWrap.open(k, raw)?.let {
+                plainCache[id] = it
+                return it
+            }
+            if (raw.startsWith(AesGcmWrap.PREFIX)) return null
+            // Migrate plaintext leftovers: re-seal as gcm1 if key became available.
+            plainCache[id] = raw
+            runCatching { prefs.putString(id, AesGcmWrap.seal(k, raw)) }
+            return raw
         }
         if (raw.startsWith(AesGcmWrap.PREFIX)) return null
-        plainCache[id] = raw
         return raw
     }
 

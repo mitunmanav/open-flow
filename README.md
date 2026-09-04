@@ -5,76 +5,114 @@
 
 **Site:** [mitunmanav.github.io/open-flow](https://mitunmanav.github.io/open-flow/)
 
-Android app. A **floating bubble** types what you say. **Not a keyboard** — keep yours.
+> **Don’t type, just speak.** An open-source AI voice dictation app for Android that turns messy speech into clean, polished writing in any app.
 
-No account. No ads. MIT. INTERNET is **declared** and unused until you pick a cloud path or a model download.
+---
 
-## Honest about speech
+## Why Open Flow?
 
-Speech still uses the **phone’s recognizer**. On many phones that is Google. Audio **can leave the device**. That is the phone, not an Open Flow server.
+Traditional mobile voice typing requires switching to a dedicated keyboard, struggles with filler words, and often sends your data into closed cloud silos.
 
-Need “voice never leaves this phone”? Pick **Whisper on phone** in Settings — or FUTO / Sayboard / Whisper IME.
+**Open Flow is different:**
+- **Keep your keyboard:** A subtle, draggable bubble floats over whatever app you are using (WhatsApp, Slack, Gmail, browser). Tap to speak, tap to finish.
+- **Speaks your language:** Transforms rambling speech, hesitations, and stutters into structured, punctuated, clear sentences.
+- **Privacy first:** No account required. Zero telemetry. No ads. `INTERNET is declared` only for optional cloud transcription and offline model downloads; default dictation runs directly via your phone's speech engine or on-device Whisper.
+- **MIT Open Source:** Built in modern Kotlin, Jetpack Compose, and Whisper C++ integration.
 
-## What’s new in 0.1.9
+---
 
-Since **0.1.8**:
+## Before & After
 
-- **Copy chip** after dictation (Wispr-style, 10 s).
-- **Stale-service banner** when the toggle is on but the process died.
-- **Overlay retry** on addView fail, then an honest notice.
-- **Language badge** on the idle bubble.
+| Raw Rambling Speech | Clean Polished Text |
+|---------------------|---------------------|
+| *"um hey team so i was thinking maybe we should move the sync to thursday because uh wednesday looks completely slammed for john and sarah anyway let me know what works"* | *"Hey team, let's reschedule our sync to Thursday — Wednesday is packed for John and Sarah. Let me know if that works for you."* |
+| *"bullet points buy eggs milk bread and oh yeah also paper towels"* | • Eggs<br>• Milk<br>• Bread<br>• Paper towels |
 
-On **main** (not tagged yet): local cleanup v2 — N-best pick, spoken numbers, invariant gate, 5 s polish timeout, whisper loop guard.
+---
 
-Full list: [CHANGELOG.md](CHANGELOG.md).
+## Key Features
 
-## Install (users)
+1. **Floating Bubble Dictation**
+   - Floats over any application without replacing your favorite keyboard (Gboard, SwiftKey, Samsung).
+   - Drag to dock anywhere along the screen edges.
+   - Quick copy chip appears after dictation for 10 seconds.
 
-1. APK from **[Releases](https://github.com/mitunmanav/open-flow/releases/latest)**.
-2. Open in Files. Play Protect “unknown” is normal.
-3. App → five screens → Accessibility → mic.
-4. Grey switch: App info → **⋮ → Allow restricted settings**.
-5. Text field → tap bubble → speak → **tap again**.
+2. **Spoken Edits & Formatting**
+   - Natural voice commands: say *"strike that"* to erase the last sentence, *"new paragraph"* to break, or *"capitalize that"*.
+   - Automatic number formatting and list detection.
 
-[Install](docs/INSTALL.md) · [Guide](docs/GUIDE.md) · [Privacy](docs/PRIVACY.md) · [Compare](docs/COMPARISON.md)
+3. **Searchable Local History**
+   - Every dictation is saved securely on your device.
+   - Search, copy, share, or export your history to JSON.
+   - Configurable retention: keep indefinitely, auto-clear after 24 hours, or never save.
 
-Older text: **History** in the app.
+4. **Multi-Language Support**
+   - 40+ languages supported out of the box with quick language switching directly from the bubble badge.
+
+---
+
+## Quickstart & Installation
+
+1. **Download APK:** Grab the latest release APK from **[Releases](https://github.com/mitunmanav/open-flow/releases/latest)**.
+2. **Install & Allow:**
+   - Open the downloaded APK in your Files app (Play Protect prompt is normal for sideloaded apps).
+   - Grant **Microphone** and **Accessibility Service** permissions.
+   - *If the Accessibility toggle is greyed out:* Go to **App info → ⋮ (top right) → Allow restricted settings**.
+3. **Start Dictating:** Tap any text box in any app, tap the floating bubble, speak your thought, and tap again to insert.
+
+Detailed documentation:
+- [Installation Guide](docs/INSTALL.md)
+- [User Guide](docs/GUIDE.md)
+- [Privacy Policy](docs/PRIVACY.md)
+- [Feature Comparison vs Others](docs/COMPARISON.md)
+
+---
+
+## Honest Speech Privacy
+
+- By default, Open Flow uses your phone’s system speech recognizer (on many Android devices, this is Google).
+- Audio processing follows your device recognizer settings.
+- For complete offline privacy where audio never leaves your device, enable **Whisper on phone** in Open Flow Settings.
+
+---
 
 ## Dev vs Launch
 
-| Track | What | Command / path |
-|-------|------|----------------|
-| **Dev** (this laptop) | Windows AVD `of_win` `-gpu host`, wrap-adb, debug APK | `of-emu` → `./gradlew :app:assembleDebug` → `adb install -r …` → `scripts/qa/gate.sh --quick` |
-| **Dev verify** | Unit + lint + visual + functional | `./gradlew :app:testDebugUnitTest :app:lintDebug` · `scripts/qa/visual-capture.sh` · `scripts/qa/functional-check.sh` |
-| **Launch (GitHub)** | CI on push/PR builds AAB + play-check; tag `v*` ships release | `.github/workflows/ci.yml` · `release.yml` · `pages.yml` |
-| **Launch (Play)** | Signed AAB, store listing, Data safety | `scripts/qa/play-check.sh` (17) · `docs/store/` · `docs/specs/play-store-readiness.md` |
+| Track | Target | Tools & Path | Verification |
+|-------|--------|--------------|--------------|
+| **Dev** | Local development | Windows AVD `of_win` (`-gpu host`), wrap-adb | `./gradlew :app:assembleDebug` · `scripts/qa/gate.sh --quick` |
+| **Dev Verify** | Quality gates | Unit tests, Lint, Layout inspection | `./gradlew :app:testDebugUnitTest :app:lintDebug` · `scripts/qa/visual-capture.sh` · `scripts/qa/functional-check.sh` |
+| **Launch (GitHub)** | Automated Releases | GitHub Actions CI & release pipeline | `.github/workflows/ci.yml` · `release.yml` · `pages.yml` |
+| **Launch (Play)** | Store Readiness | Signed AAB, Data Safety, 17 policy checks | `scripts/qa/play-check.sh` · `docs/store/` · `docs/specs/play-store-readiness.md` |
 
 Author **Mitun only**. No `Co-Authored-By`. Push / tag only on explicit GO.
 
 Device loop detail: [docs/testing.md](docs/testing.md).
 
-## Talk vs report
+---
 
-| Use | Where |
-|-----|--------|
-| Install help, “how do I…”, ideas | **[Discussions](https://github.com/mitunmanav/open-flow/discussions)** |
-| Something is broken | **[Issues → Bug](https://github.com/mitunmanav/open-flow/issues/new/choose)** |
-| Security hole | Repo **Security** tab — not public |
+## Building from Source
 
-Start here: [Discussion #9](https://github.com/mitunmanav/open-flow/discussions/9).
-
-Do not post names, emails, bank screens, or private dictation.
-
-## Vs others
-
-Full write-up: [docs/COMPARISON.md](docs/COMPARISON.md). Our niche is MIT + keep your keyboard + history / dictionary / snippets on the phone.
-
-## Build
+Prerequisites: Android SDK 36, NDK 28.2.13676358, JDK 17+.
 
 ```bash
-./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+# Run unit tests and lint
+./gradlew :app:testDebugUnitTest :app:lintDebug
+
+# Assemble debug APK
+./gradlew :app:assembleDebug
 ```
 
-See **Dev vs Launch** above for gate / Play / GitHub.
+---
 
-MIT — [LICENSE](LICENSE) · [SECURITY.md](SECURITY.md)
+## Community & Support
+
+- **Questions & Ideas:** [GitHub Discussions](https://github.com/mitunmanav/open-flow/discussions)
+- **Bug Reports:** [GitHub Issues](https://github.com/mitunmanav/open-flow/issues/new/choose)
+- **Security Disclosures:** Report privately via the repo [Security](https://github.com/mitunmanav/open-flow/security) tab.
+
+---
+
+## License
+
+Open Flow is licensed under the [MIT License](LICENSE) · [SECURITY.md](SECURITY.md).

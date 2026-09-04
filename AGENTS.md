@@ -12,10 +12,10 @@ Wispr-Flow-style Android dictation (floating bubble, Kotlin/Compose, accessibili
 
 ## Project structure
 
-- Top-level <20 entries: `app/`, `docs/`, `scripts/qa/`, `tasks/`, `gradle/`, `.github/`, `third_party/whisper.cpp`.
+- Top-level <20 entries: `app/`, `core/`, `build-logic/`, `dev/`, `docs/`, `scripts/qa/`, `fastlane/`, `gradle/`, `.github/`, `third_party/whisper.cpp`.
 - `app/src/main/java/app/openflow/` 17 pkgs. Entrypoints: `OpenFlowApp` → `bubble/FlowAccessibilityService` → `stt/`+`text/`+`audio/`; UI `ui/home|insights|setup|history`.
 - `app/build.gradle.kts`: `compileSdk 36 targetSdk 36 minSdk 26 versionName 0.1.9/10 room 2.8.4 ndk 28.2.13676358 graphics-path:1.1.0`. `dist/` `.scratch/` gitignored.
-- Specs `docs/specs/*.md`, audits `docs/audit/*.md`, tasks `tasks/{active,done}/`, store `docs/store/`, testing `docs/testing.md`. Freshness pinned by `DocsStaleScanTest`+`QaLoopScanTest` (versionName, targetSdk 36, NDK+16384, store title ≤30/short ≤80, privacy links).
+- Specs `dev/specs/*.md`, audits `dev/audit/*.md`, tasks `dev/tasks/active/`, store `docs/store/`, testing `docs/testing.md`. Freshness pinned by `DocsStaleScanTest`+`QaLoopScanTest` (versionName, targetSdk 36, NDK+16384, store title ≤30/short ≤80, privacy links).
 
 ## Android workflow
 
@@ -26,15 +26,15 @@ Wispr-Flow-style Android dictation (floating bubble, Kotlin/Compose, accessibili
 
 ## Architecture gates
 
-See `docs/specs/architecture-gates.md`. Do not violate.
+See `dev/specs/architecture-gates.md`. Do not violate.
 
-- **M3-A** audio tee (`docs/specs/audio-tee-architecture.md` rev2)
-- **M7 PARKED** storage privacy (`docs/specs/storage-privacy-tradeoff.md` rev2)
+- **M3-A** audio tee (`dev/specs/audio-tee-architecture.md` rev2)
+- **M7 PARKED** storage privacy (`dev/specs/storage-privacy-tradeoff.md` rev2)
 - Bubble / Home / Insights / Setup invariants
 
 ## Emulator path
 
-See `docs/specs/architecture-gates.md#emulator-path-wsl2--windows`. WSL has no `/dev/dri` → use Windows AVD `of_win` via `of-emu`. Never `android emulator start of_test` in WSL. Bridge adb: `scripts/qa/wrap-adb.sh`.
+See `dev/specs/architecture-gates.md#emulator-path-wsl2--windows`. WSL has no `/dev/dri` → use Windows AVD `of_win` via `of-emu`. Never `android emulator start of_test` in WSL. Bridge adb: `scripts/qa/wrap-adb.sh`.
 
 ## Verify before done
 
@@ -76,7 +76,10 @@ Device: `adb devices` → `emulator-5554`, `getprop sys.boot_completed`=1, `dump
 - `~/.config/opencode/skills/` per domain: `spec-driven-development`→`planning-and-task-breakdown`→`incremental-implementation`+`test-driven-development`→`code-review-and-quality`→`shipping-and-launch`. Meta-skill `using-agent-skills` maps task→skill.
 - Always load `android-cli` for device/SDK/docs; load `compose`/`testing`/`security`/`performance` when domain touches.
 
-## Automation
+## Automation & Releases
 
-- CI `ci.yml`: unit+lint+debug APK+bundleRelease+play-check 17+changelog+secret/authorship+AAB artifact per push/PR (no emulator on ubuntu). `release.yml` on `v*` ships AAB+APK+mapping. `pages.yml` deploys `docs/`.
-- Gate `scripts/qa/gate.sh` stages WRAP-ADB/EMU/UNIT/LINT/BUILD-DEBUG/RELEASE/BUNDLE/PLAY-CHECK/APK-INFO/INSTALL/INSTRUMENT/CRASH.
+- CI `ci.yml`: unit+lint+debug APK+bundleRelease+play-check 17+changelog+secret/authorship+AAB artifact per push/PR (no emulator on ubuntu).
+- Release `release.yml`: triggers on push to `main` and `v*` tags. Auto-detects `versionName` bump in `app/build.gradle.kts`, validates changelog, tags `v<version>`, and publishes GitHub release with APK & AAB.
+- Pages `pages.yml`: deploys public site from `docs/` on changes.
+- Gate `scripts/qa/gate.sh`: stages WRAP-ADB/EMU/UNIT/LINT/BUILD-DEBUG/RELEASE/BUNDLE/PLAY-CHECK/APK-INFO/INSTALL/INSTRUMENT/CRASH.
+- Auto-managed `.gitignore`: covers all build outputs, models (`*.bin`), IDEs, secrets, and agent scratches (`.superpowers/`, `.opencode/`, `graphify-out/`).

@@ -4,6 +4,10 @@ package app.openflow.core.common
  * When to drop idle STT / UI caches on memory pressure.
  * Pure Kotlin. No Android imports.
  * Levels mirror ComponentCallbacks2: UI_HIDDEN = 20, BACKGROUND = 40.
+ * API 34+ only delivers these two; older constants are deprecated.
+ * - UI_HIDDEN: UI not visible. Release UI caches. Keep idle STT
+ *   (bubble / a11y may still be listening).
+ * - BACKGROUND: process in LRU, kill candidate. Drop idle STT.
  */
 object TrimPolicy {
     const val TRIM_MEMORY_UI_HIDDEN = 20

@@ -76,9 +76,10 @@ class DocsStaleScanTest {
 
     @Test
     fun tasks_todos_do_not_claim_done_without_marker() {
-        // tasks/todo-*.md checkboxes may exist, but a task file that is fully
+        // dev/tasks/todo-*.md checkboxes may exist, but a task file that is fully
         // checked must be renamed/archived — pins "no zombie task lists".
-        File(root, "tasks").listFiles { f -> f.name.startsWith("todo-") && f.extension == "md" }
+        val tasksDir = File(root, "dev/tasks").takeIf { it.isDirectory } ?: File(root, "tasks")
+        tasksDir.listFiles { f -> f.name.startsWith("todo-") && f.extension == "md" }
             ?.forEach { f ->
                 val text = f.readText()
                 val boxes = Regex("""^\s*- \[.\]""", RegexOption.MULTILINE).findAll(text).toList()

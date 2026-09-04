@@ -3,18 +3,24 @@
 **/build/
 build/
 .cxx/
+**/.cxx/
 .externalNativeBuild/
 captures/
 out/
 *.apk
 *.aab
-ggml-*.bin
-**/*.part
 *.ap_
 *.dex
 *.hprof
 
-# Kotlin / IDE
+# Models and ML assets
+ggml-*.bin
+*.bin
+*.onnx
+*.tflite
+**/*.part
+
+# Kotlin / IDE / Editors
 .kotlin/
 .idea/
 *.iml
@@ -24,14 +30,20 @@ ggml-*.bin
 *.classpath
 .settings/
 local.properties
+*.code-workspace
+.vscode/
 
-# Machine / secrets
+# Machine / Secrets / Keys
 .sdk/
 *.jks
 *.keystore
 keystore.properties
 google-services.json
 *.pem
+*.key
+.env
+.env.*
+!.env.example
 
 # Worktrees (feature checkouts — never commit)
 .worktrees/
@@ -40,35 +52,48 @@ google-services.json
 dist/*
 !dist/.gitkeep
 
-# Logs / OS junk
+# Logs, OS junk & temp files
 *.log
 .DS_Store
 Thumbs.db
 *~
 *.swp
 *.swo
+*.bak
+*.orig
+*.tmp
+*.patch
+*.diff
 
-# Optional editor
-*.code-workspace
-
-# Python
+# Python & Node
 **/__pycache__/
 *.py[cod]
 *.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+node_modules/
+package-lock.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Codegraph index (regenerate with `codegraph init`)
 .codegraph/
 
-# Agent tool scratch (play-policy audit runs etc.)
+# Agent tools & scratch
 .scratch/
 .serena/
 .grok/
 .claude/
 .cursor/
-.vscode/
-.env
-.env.*
-!.env.example
-*.orig
-*.bak
+.superpowers/
+.opencode/
+.antigravity/
+.agy/
+.gemini/
+graphify-out/
+**/graphify-out/
 sessions/

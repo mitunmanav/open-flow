@@ -86,7 +86,7 @@ Threading/lifecycle notes:
 - Demos bundle models in `app/src/main/assets/` (APK size grows by the model footprint — whisper-tiny int8 ≈ 40 MB, base ≈ 75 MB, zipformer small models tens of MB; Silero VAD ~2 MB).
 - Packaging options for OpenFlow:
   1. Bundle a default V1 model in `assets/` — simplest, offline-first, but +30–100 MB APK.
-  2. Download on first launch to app-internal storage and use `newFromFile` paths — smaller APK, needs download manager + integrity check + "model missing" degraded state in SpeechProvider.health().
+  2. Download on first launch to app-internal storage and use `newFromFile` paths — smaller APK, needs download manager + integrity check + a `MODEL_MISSING` Provider Health state in `SpeechProvider.health()` (ADR-0001), distinct from `DEGRADED` because its fix is a download prompt rather than a retry.
   3. Hybrid: bundle VAD (tiny), download ASR model(s) on demand.
 - No official runtime downloader in the Android artifact; you write the fetch/verify/extract code yourself. iOS/macOS use the same manual approach.
 

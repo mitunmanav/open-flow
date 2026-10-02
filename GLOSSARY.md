@@ -32,14 +32,27 @@ The component that finds the target editable field again at insertion time, veri
 
 A normalized event from a `SpeechProvider` during a transcription: `Preparing`, `Listening`, `Partial(text)` (cumulative snapshot, conflated), `Final(text, startedAtMs, endedAtMs)`, `Failure(reason, recoverable)`.
 
-## ProviderState
+`recoverable` means the Dictation can still complete by another route — not that the same call will succeed. A missing model is recoverable because another provider can serve the request.
 
-Lifecycle of a `SpeechProvider` instance: `NOT_PREPARED`, `PREPARING`, `READY`, `CLOSED`. One instance serves one model configuration; language is per request.
+## Provider State
+
+Lifecycle of a `SpeechProvider` instance: `NOT_PREPARED`, `PREPARING`, `READY`, `CLOSED`. One instance serves one model configuration; language is per request. A `READY` instance is warmed up, not necessarily able to serve — see Provider Health.
+_Avoid_: readiness, health, ready
 
 ## Provider Health
 
-The readiness verdict `health()` returns about whether a provider can serve a dictation right now, and if not, why. A separate concept from Provider State, which tracks an instance's lifecycle; `READY` and `NOT_READY` are not two values of one enum. Cheap local truth — V1 does no active network probing.
+The readiness verdict `health()` returns about whether a provider can serve a dictation right now, and if not, why: `HEALTHY`, `DEGRADED`, `UNAVAILABLE`, `MODEL_MISSING`. A separate concept from Provider State, which tracks an instance's lifecycle; `READY` and `HEALTHY` are not two values of one enum, and no health value mirrors a lifecycle value. Cheap local truth — V1 does no active network probing.
 _Avoid_: ProviderState, health state, ready
+
+## Declared Rate
+
+What a provider charges for audio, declared as micros of USD per second. `null` means it cannot estimate, which is not the same as free — free is `0`, and local providers declare `0`.
+_Avoid_: estimated cost availability, pricing flag
+
+## Cost Ceiling
+
+The most a single Dictation may cost, in micros of USD, and no ceiling at all when unset. Compared against the worst case a request could reach, not the cost it turns out to have, so the ceiling holds from the moment a provider is chosen.
+_Avoid_: cost limit, budget
 
 ## Provider Adapter
 
@@ -48,7 +61,7 @@ _Avoid_: plugin, extension, backend
 
 ## Capabilities Honesty
 
-The rule that a declared capability is binding. A provider advertising `partialTranscripts` must emit Partial, and a declared language must not fail `UnsupportedLanguage`. Enforced by Contract Tests, because SpeechProvider capabilities drive all app behavior and nothing else verifies them.
+The rule that a declared capability is binding. A provider advertising `partialTranscripts` must emit Partial, a declared language must not fail `UnsupportedLanguage`, and a Declared Rate must be the rate actually charged. Enforced by Contract Tests, because SpeechProvider capabilities drive all app behavior and nothing else verifies them.
 _Avoid_: feature detection
 
 ## Contract Test
@@ -58,11 +71,11 @@ _Avoid_: integration test, end-to-end test
 
 ## RouterContext
 
-Inputs to one routing decision: `privacyMode` (local-only / cloud-allowed), `offline`, `costCeiling`, `preferredProviderId`.
+Inputs to one routing decision: `privacyMode` (local-only / cloud-allowed), `offline`, `costCeilingMicrosUsd`, `preferredProviderId`.
 
 ## RoutingDecision
 
-The router's output: chosen provider, candidates considered, deciding rule, and the eligible fallback chain. Recorded on every dictation.
+The router's output: chosen provider, candidates considered, deciding rule, and the eligible fallback chain — or, when nothing survives, which rule excluded everything and why each candidate went. Recorded on every dictation.
 
 ## FakeProvider
 

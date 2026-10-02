@@ -1,7 +1,7 @@
 # Onboarding & permission-health flow
 
 Type: prototype
-Status: open
+Status: claimed
 Blocked by: none
 
 ## Question

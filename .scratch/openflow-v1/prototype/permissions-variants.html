@@ -1,0 +1,410 @@
+<!doctype html>
+<!--
+  PROTOTYPE — throwaway. VARIANT EXPLORER.
+
+  Two axes, because they are separable questions:
+    1. WHICH ACCENT  — six, each AA on both themes. Switch with ?accent= or the bar.
+    2. HOW "GRANTED" IS EXPRESSED — the integration question. Six mechanisms,
+       because a bar down the side was an arbitrary choice:
+         around  the row's own perimeter draws itself, clockwise from top-left
+         top     a bar wipes across the row's top edge
+         side    the 4px bar wipes down the row's left edge
+         invert  the granted row inverts to ink/ground — brutalist, zero extra marks
+         rule    the whole row's rules flip to accent (structure carries state)
+         type    the row's name goes accent; nothing else changes
+
+  Everything else is fixed, so you are comparing like with like.
+
+  Rules held: zero radius, no shadows, flat ground, one accent, mono for the
+  limit clause. Odometer at 116px is the one celebratory overshoot. Rows 76px.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenFlow — permissions — variants</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ── base: brutalist. Only --accent varies. ── */
+:root {
+  --ground: #F4F4F2;
+  --ink:    #0A0A0A;
+  --mid:    #4A4A48;
+  --low:    #6E6E6B;
+  --rule:   rgba(10,10,10,.16);
+  --rule-hi:rgba(10,10,10,.34);
+  --bar:    rgba(10,10,10,.14);
+  --field:  rgba(10,10,10,.05);
+  --accent: #C22E00;
+  --on-accent: #FFFFFF;
+  --font-mega: "Archivo", system-ui, sans-serif;
+  --font-ui:   "Archivo", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+:root[data-theme="dark"] {
+  --ground: #0A0A0A;
+  --ink:    #F4F4F2;
+  --mid:    #B4B4B0;
+  --low:    #8E8E8A;
+  --rule:   rgba(244,244,242,.18);
+  --rule-hi:rgba(244,244,242,.4);
+  --bar:    rgba(244,244,242,.16);
+  --field:  rgba(244,244,242,.06);
+  --on-accent: #0A0A0A;
+}
+:root[data-accent="orange"]  { --accent: #C22E00; --on-accent: #FFFFFF; }
+:root[data-accent="yellow"]  { --accent: #7A6100; --on-accent: #FFFFFF; }
+:root[data-accent="magenta"] { --accent: #C4007F; --on-accent: #FFFFFF; }
+:root[data-accent="cyan"]    { --accent: #00707A; --on-accent: #FFFFFF; }
+:root[data-accent="violet"]  { --accent: #5B21D6; --on-accent: #FFFFFF; }
+:root[data-accent="forest"]  { --accent: #1B5E20; --on-accent: #FFFFFF; }
+:root[data-theme="dark"][data-accent="orange"]  { --accent: #FF7A3D; --on-accent: #0A0A0A; }
+:root[data-theme="dark"][data-accent="yellow"]  { --accent: #FFD400; --on-accent: #0A0A0A; }
+:root[data-theme="dark"][data-accent="magenta"] { --accent: #FF5CC8; --on-accent: #0A0A0A; }
+:root[data-theme="dark"][data-accent="cyan"]    { --accent: #3FD9E6; --on-accent: #0A0A0A; }
+:root[data-theme="dark"][data-accent="violet"]  { --accent: #A78BFA; --on-accent: #0A0A0A; }
+:root[data-theme="dark"][data-accent="forest"]  { --accent: #5FD07A; --on-accent: #0A0A0A; }
+
+* { box-sizing: border-box; border-radius: 0; }
+html, body { margin: 0; }
+body {
+  background: var(--ground); color: var(--ink);
+  font-family: var(--font-ui); font-size: 16px; line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  transition: background .2s linear, color .2s linear, --accent .2s linear;
+}
+.stage { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px 96px; }
+.sheet { width: 430px; max-width: 100%; border: 2px solid var(--ink); background: var(--ground); }
+
+.rail { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-bottom: 2px solid var(--ink);
+        font-family: var(--font-mono); font-size: 12px; }
+.rail .brand { font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: -.02em; }
+.rail .sep { color: var(--low); }
+.rail .grow { flex: 1; }
+.rail button { width: 34px; height: 34px; display: grid; place-items: center; background: transparent;
+               border: 1px solid var(--rule-hi); color: var(--ink); cursor: pointer; }
+.rail button:hover { background: var(--field); }
+.rail button:active { background: var(--ink); color: var(--ground); }
+.rail button svg { display: block; }
+
+.hero { padding: 26px 18px 22px; display: flex; align-items: flex-end; gap: 18px; }
+.odo { display: block; height: 1em; overflow: hidden; }
+.odo-strip { display: block; will-change: transform; }
+.odo-strip i { display: block; height: 1em; line-height: 1; font-style: normal; }
+.hero .num { font-family: var(--font-mega); font-weight: 800; font-size: 116px; line-height: 1;
+             letter-spacing: -.05em; font-variant-numeric: tabular-nums; }
+.hero .of .l2 { font-family: var(--font-mono); font-size: 12px; color: var(--low); }
+
+.list { margin: 0; padding: 0; list-style: none; border-top: 2px solid var(--ink); }
+.row { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 2px 12px;
+       min-height: 76px; padding: 15px 14px 15px 18px; border-bottom: 1px solid var(--rule);
+       position: relative; cursor: pointer; transition: background .1s linear, color .1s linear;
+       -webkit-tap-highlight-color: transparent; }
+.row:hover { background: var(--field); }
+.row.pressed { background: var(--field); }
+.row .name { grid-column: 1; font-weight: 700; font-size: 17px; letter-spacing: -.02em; }
+.row .state { grid-column: 2; font-family: var(--font-mono); font-size: 11.5px; color: var(--low); }
+.row .does { grid-column: 1 / span 2; font-size: 14.5px; color: var(--mid); margin-top: 2px; }
+.row .nots { grid-column: 1 / span 2; font-family: var(--font-mono); font-size: 12px; color: var(--low); margin-top: 5px; }
+.row .meter { grid-column: 1 / span 2; height: 3px; background: var(--bar); margin-top: 9px; }
+.row .meter i { display: block; height: 100%; background: var(--accent); width: 100%; transform: scaleX(0); transform-origin: left; }
+
+/* ══════════════════════════════════════════════════════════════
+   THE AXIS: four ways to express "granted".
+   All four keep the 76px target and the copy identical.
+   ══════════════════════════════════════════════════════════════ */
+
+/* A — side: the 4px bar wipes down the row's left edge. Spring-driven. */
+:root[data-mark="side"] .row::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+  background: var(--accent); transform: scaleY(var(--w, 0)); transform-origin: top;
+}
+:root[data-mark="side"] .row[data-on="1"] .state { color: var(--accent); }
+
+/* B — invert: the granted row inverts to ink/ground. No extra marks at all;
+       the state is the row itself turning over. */
+:root[data-mark="invert"] .row[data-on="1"] { background: var(--ink); }
+:root[data-mark="invert"] .row[data-on="1"] .name,
+:root[data-mark="invert"] .row[data-on="1"] .state,
+:root[data-mark="invert"] .row[data-on="1"] .does,
+:root[data-mark="invert"] .row[data-on="1"] .nots { color: var(--ground); }
+:root[data-mark="invert"] .row[data-on="1"] .state { color: var(--accent); }
+:root[data-mark="invert"] .row[data-on="1"] .meter { background: rgba(128,128,128,.35); }
+
+/* C — rule: the row's own rules flip to accent, so the structure carries state. */
+:root[data-mark="rule"] .row { border-bottom-color: var(--bar); }
+:root[data-mark="rule"] .row[data-on="1"] { border-bottom-color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
+:root[data-mark="rule"] .row[data-on="1"] .state { color: var(--accent); }
+
+/* D — type: only the name goes accent. Quietest option; nothing else moves. */
+:root[data-mark="type"] .row[data-on="1"] .name { color: var(--accent); }
+:root[data-mark="type"] .row[data-on="1"] .state { color: var(--accent); }
+
+/* E — around: the row's OWN perimeter draws itself, clockwise from the top.
+   A conic-gradient mask sweeps the border clockwise; the interior stays
+   transparent, so nothing can ever paint over the row's text.
+   --sweep is a real angle written from JS each frame: 0deg = invisible,
+   360deg = the full ring. */
+:root[data-mark="around"] .row::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  border: 2px solid var(--accent);
+  -webkit-mask-image: conic-gradient(from -90deg, #000 0 var(--sweep, 0deg), transparent var(--sweep, 0deg) 360deg);
+          mask-image: conic-gradient(from -90deg, #000 0 var(--sweep, 0deg), transparent var(--sweep, 0deg) 360deg);
+  will-change: mask-image;
+}
+:root[data-mark="around"] .row[data-on="1"] .state { color: var(--accent); }
+
+/* F — top: a bar wipes across the row's TOP edge. Reads as the row being
+   ticked off from above, and leaves the left margin clean. */
+:root[data-mark="top"] .row::before {
+  content: ""; position: absolute; left: 0; top: 0; height: 4px; width: 100%;
+  background: var(--accent); transform: scaleX(var(--w, 0)); transform-origin: left;
+}
+:root[data-mark="top"] .row[data-on="1"] .state { color: var(--accent); }
+
+.foot { padding: 18px 14px 20px; }
+.cta { width: 100%; padding: 17px; background: var(--ink); color: var(--ground); border: 2px solid var(--ink);
+       font-family: var(--font-ui); font-weight: 700; font-size: 16px; letter-spacing: -.015em; cursor: pointer;
+       transition: background .1s linear, color .1s linear, transform .06s ease-out; }
+.cta:hover { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.cta:active { transform: scale(.985); }
+.cta.ready { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.cta.ready:hover { background: var(--ink); border-color: var(--ink); color: var(--ground); }
+.promise { margin: 16px 0 0; font-family: var(--font-mono); font-size: 11.5px; line-height: 1.7; color: var(--low); }
+.promise b { color: var(--ink); font-weight: 500; }
+
+/* ── prototype chrome ── */
+.tools { position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px;
+         align-items: center; background: var(--ink); color: var(--ground); padding: 7px 10px; z-index: 9;
+         font-family: var(--font-mono); font-size: 11px; }
+:root[data-theme="dark"] .tools { background: var(--ground); color: var(--ink); }
+.grp { display: flex; gap: 2px; align-items: center; }
+.grp > span { opacity: .55; margin-right: 3px; }
+.tools button { background: transparent; border: 0; color: inherit; cursor: pointer; padding: 5px 8px;
+                font-family: var(--font-mono); font-size: 11px; display: flex; align-items: center; gap: 5px; }
+.tools button:hover { background: rgba(140,140,140,.25); }
+.tools button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.sw { width: 10px; height: 10px; display: inline-block; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; }
+  .cta:active { transform: none; }
+}
+@media (prefers-contrast: more) {
+  :root { --rule: currentColor; --rule-hi: currentColor; --bar: currentColor; }
+  .row, .sheet, .cta { border-width: 3px; }
+}
+@media (max-width: 462px) {
+  .stage { padding: 0 0 90px; }
+  .sheet { width: 100%; border-left: 0; border-right: 0; }
+}
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="sheet">
+    <div class="rail">
+      <span class="brand">OpenFlow</span>
+      <span class="sep">/</span>
+      <span>permissions</span>
+      <span class="grow"></span>
+      <button id="theme" aria-label="Change theme"></button>
+    </div>
+
+    <div class="hero">
+      <div class="num" aria-hidden="true"><span class="odo"><span class="odo-strip" id="odoStrip"><i>0</i><i>1</i><i>2</i><i>3</i><i>4</i></span></span></div>
+      <div class="of"><div class="l2" id="ofL2">nothing granted yet</div></div>
+    </div>
+
+    <ol class="list" id="list"></ol>
+
+    <div class="foot">
+      <button class="cta" id="go">Grant all four</button>
+      <p class="promise"><b>Four asks, and that is all.</b> No location, contacts, photos, or network. Audio is deleted the moment it becomes text.</p>
+    </div>
+  </div>
+</div>
+
+<div class="tools">
+  <span>accent</span>
+  <div class="grp" id="accents"></div>
+  <span>granted</span>
+  <div class="grp" id="marks"></div>
+  <div class="grp">
+    <button id="t-light" aria-pressed="false">lt</button>
+    <button id="t-dark" aria-pressed="false">dk</button>
+    <button id="t-auto" aria-pressed="true">au</button>
+    <button id="t-reset">rs</button>
+  </div>
+</div>
+
+<script>
+const ASKS = [
+  { id:'mic',    name:'Microphone',  does:'hears you while you hold it', nots:'silent otherwise' },
+  { id:'overlay',name:'Bubble',      does:'one circle over your apps', nots:'cannot see inside them' },
+  { id:'a11y',   name:'Dictation',   does:'reads the box you type in',  nots:'nothing else on screen' },
+  { id:'model',  name:'Voice model', does:'45 MB once, then offline',   nots:'never uploaded', bytes:true },
+];
+const P = { mic:false, overlay:false, a11y:false, model:false };
+const $ = s => document.querySelector(s);
+const nDone = () => ASKS.filter(a => P[a.id]).length;
+
+const ACCENTS = [
+  ['orange','#C22E00','#FF7A3D'], ['yellow','#7A6100','#FFD400'],
+  ['magenta','#C4007F','#FF5CC8'],['cyan','#00707A','#3FD9E6'],
+  ['violet','#5B21D6','#A78BFA'],['forest','#1B5E20','#5FD07A'],
+];
+const MARKS = [
+  ['around','perimeter draws clockwise'], ['top','bar wipes across the top'],
+  ['side','4px bar down the edge'],     ['invert','row inverts'],
+  ['rule','rules flip'],                ['type','name turns'],
+];
+
+const q = new URLSearchParams(location.search);
+let accent = q.get('accent') || 'orange';
+let mark   = q.get('mark')   || 'around';
+if (!ACCENTS.some(a => a[0] === accent)) accent = 'orange';
+if (!MARKS.some(m => m[0] === mark)) mark = 'around';
+document.documentElement.dataset.accent = accent;
+document.documentElement.dataset.mark = mark;
+
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)');
+class Spring {
+  constructor(x, r = .3, z = 1) { this.x = x; this.v = 0; this.to = x; this.r = r; this.z = z; }
+  set(to) { this.to = to; }
+  kick(dv) { this.v += dv; }
+  step(dt) {
+    if (REDUCED.matches) { this.x = this.to; this.v = 0; return this.x; }
+    const w = 2 * Math.PI / this.r, k = w * w, c = 2 * this.z * w;
+    this.v += (-k * (this.x - this.to) - c * this.v) * dt;
+    this.x += this.v * dt; return this.x;
+  }
+}
+const odo = new Spring(0, .42, .88);      // the one celebratory overshoot
+const wipes = ASKS.map(() => new Spring(0, .34));
+const fillS = new Spring(0, .42);
+
+let raf = null, last = performance.now();
+function frame(now) {
+  const dt = Math.min((now - last) / 1000, 1 / 60); last = now;
+  odo.step(dt);
+  let busy = Math.abs(odo.x - odo.to) > .0005 || Math.abs(odo.v) > .0005;
+  wipes.forEach((s, i) => {
+    s.set(P[ASKS[i].id] ? 1 : 0); s.step(dt);
+    const w = Math.max(0, Math.min(1, s.x));
+    const row = document.querySelector(`[data-ask="${ASKS[i].id}"]`);
+    /* --w drives the transform-based marks (side/top); --sweep is the angle the
+       around mark's conic mask needs. Written together so they never disagree. */
+    if (row) { row.style.setProperty('--w', w.toFixed(4));
+               row.style.setProperty('--sweep', (w * 360).toFixed(1) + 'deg'); }
+    if (Math.abs(s.x - s.to) > .0005 || Math.abs(s.v) > .0005) busy = true;
+  });
+  fillS.set(P.model ? 1 : 0); fillS.step(dt);
+  const m = document.querySelector('[data-meter]');
+  if (m) m.style.transform = `scaleX(${Math.max(0, Math.min(1, fillS.x)).toFixed(4)})`;
+  if (Math.abs(fillS.x - fillS.to) > .0005 || Math.abs(fillS.v) > .0005) busy = true;
+  $('#odoStrip').style.transform = `translateY(${(-odo.x).toFixed(4)}em)`;
+  if (busy) raf = requestAnimationFrame(frame); else raf = null;
+}
+function wake() { if (raf === null) { last = performance.now(); raf = requestAnimationFrame(frame); } }
+function buzz(ms) { if (navigator.vibrate) try { navigator.vibrate(ms); } catch (_) {} }
+
+const SUN='<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.2" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+const MOON='<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 14.4A8.4 8.4 0 0 1 9.6 4a8.4 8.4 0 1 0 10.4 10.4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
+
+function setTheme(mode) {
+  const root = document.documentElement;
+  if (mode === 'auto') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', mode);
+  const dark = mode === 'dark' || (mode === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+  $('#theme').innerHTML = dark ? SUN : MOON;
+  for (const m of ['light','dark','auto']) $('#t-' + m).setAttribute('aria-pressed', String(m === mode));
+  buildTools();
+}
+$('#theme').addEventListener('click', () => {
+  const c = document.documentElement.getAttribute('data-theme') || 'auto';
+  setTheme(c === 'dark' ? 'light' : c === 'light' ? 'auto' : 'dark');
+  buzz(5);
+});
+for (const m of ['light','dark','auto']) $('#t-' + m).addEventListener('click', () => setTheme(m));
+$('#t-reset').addEventListener('click', () => {
+  ASKS.forEach(a => P[a.id] = false); odo.set(0); render(); buzz(5);
+});
+
+function buildTools() {
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark' ||
+    (document.documentElement.getAttribute('data-theme') === 'auto' &&
+     matchMedia('(prefers-color-scheme: dark)').matches);
+  $('#accents').innerHTML = ACCENTS.map(([n, l, d]) =>
+    `<button data-accent="${n}" aria-pressed="${n === accent}" title="${n}"><i class="sw" style="background:${dark ? d : l}"></i>${n}</button>`).join('');
+  $('#marks').innerHTML = MARKS.map(([n, label]) =>
+    `<button data-mark="${n}" aria-pressed="${n === mark}" title="${label}">${n}</button>`).join('');
+}
+
+const LEFT = ['all four granted','three left to grant','two left to grant','one left to grant','nothing granted yet'];
+function render() {
+  const n = nDone(), all = n === ASKS.length, left = ASKS.length - n;
+  odo.set(n);
+  $('#ofL2').textContent = LEFT[left];
+  $('#list').innerHTML = ASKS.map(a => `
+    <li class="row" role="button" tabindex="0" data-ask="${a.id}" data-on="${P[a.id] ? 1 : 0}"
+        aria-pressed="${P[a.id]}" aria-label="${a.name}: ${a.does}, ${a.nots}">
+      <span class="name">${a.name}</span>
+      <span class="state">${P[a.id] ? 'on' : 'needed'}</span>
+      <span class="does">${a.does}</span>
+      <span class="nots">${a.nots}</span>
+      ${a.bytes ? `<span class="meter"><i data-meter></i></span>` : ''}
+    </li>`).join('');
+  const go = $('#go');
+  go.textContent = all ? 'Start dictating' : n ? 'Grant the rest' : 'Grant all four';
+  go.classList.toggle('ready', all);
+  wake();
+}
+
+function toggle(id) {
+  const to = !P[id];
+  P[id] = to;
+  if (id === 'model') fillS.kick(to ? 2 : -2);
+  if (to && nDone() === ASKS.length) { buzz([8,30,14,30,18]); odo.kick(2.4); }
+  else buzz(to ? [6,22,9] : 4);
+  render();
+}
+
+document.addEventListener('click', e => {
+  const a = e.target.closest('[data-accent]');
+  if (a) { accent = a.dataset.accent; document.documentElement.dataset.accent = accent;
+           history.replaceState(null,'','?accent='+accent+'&mark='+mark); return buildTools(); }
+  const m = e.target.closest('[data-mark]');
+  if (m) { mark = m.dataset.mark; document.documentElement.dataset.mark = mark;
+           history.replaceState(null,'','?accent='+accent+'&mark='+mark); return buildTools(); }
+});
+$('#list').addEventListener('pointerdown', e => { const r = e.target.closest('.row'); if (r) r.classList.add('pressed'); });
+const up = e => { const r = e.target.closest('.row'); if (r) r.classList.remove('pressed'); };
+$('#list').addEventListener('pointerup', up);
+$('#list').addEventListener('pointercancel', up);
+$('#list').addEventListener('pointerleave', up);
+$('#list').addEventListener('click', e => { const r = e.target.closest('.row'); if (r) toggle(r.dataset.ask); });
+$('#list').addEventListener('keydown', e => {
+  const r = e.target.closest('.row');
+  if (r && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggle(r.dataset.ask); }
+});
+$('#go').addEventListener('click', () => {
+  if (nDone() === ASKS.length) { buzz([10,40,18]); $('#ofL2').textContent = 'bubble would open here'; return; }
+  buzz([8,30,14,30,18]);
+  ASKS.forEach(a => P[a.id] = true);
+  fillS.kick(2.4); odo.kick(2.4); render();
+});
+
+addEventListener('resize', wake);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  if (!document.documentElement.getAttribute('data-theme')) setTheme('auto');
+});
+REDUCED.addEventListener('change', wake);
+
+setTheme('auto');
+render();
+</script>
+</body>
+</html>

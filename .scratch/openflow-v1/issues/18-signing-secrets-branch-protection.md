@@ -53,6 +53,10 @@ how the two failures below were found at all.
   supported on this repository"*. Re-run after enabling: green. This is a fifth
   real defect the gates surfaced, after the four ticket 23 found on first run.
 - **Unfiltered `docs-check`** (`b35196b`), which is what made requiring it possible.
+- **Fixed `check_attribution.py` (`a25045f`)**, which had made the repo unmergeable
+  the moment `attribution` became required. Required checks that cannot pass block
+  every merge while looking correctly configured; this one had never been seen to
+  pass because the gates had never actually run.
 
 ### Two findings worth reading before merging anything
 
@@ -63,15 +67,35 @@ how the two failures below were found at all.
    did have — the filter made the gate decorative. Filter removed; it is a ~2s
    Python script and now runs on every PR.
 
-2. **`attribution` fails every Dependabot PR, by design.** Dependabot PR #1 failed
-   with `R3: author 'dependabot[bot]' is a bot account` and a `Signed-off-by:`
-   naming the bot. That is the AGENTS.md rule working, and the check says so
-   itself: *"Dependabot PRs are welcome; the bot's commits must not be merged into
-   main as-is."* Now that `attribution` is **required**, no Dependabot PR can merge
-   until a human re-authors it. That is coherent — but ticket 23 enabled Dependabot
-   without deciding how its PRs are ever meant to land, and making the check
-   required turned that gap into a blocked queue. The policy is its own decision:
-   **ticket 29.**
+2. **`attribution` failed every pull request, not just Dependabot's.** Requiring it
+   made the repo unmergeable: nothing could merge, ever. `BOT_EMAIL_RE` matches
+   `noreply@github.com`, so GitHub's own identity counted as a bot — and that
+   identity appears in two unavoidable places. Every `pull_request` event ships a
+   synthetic test-merge commit committed by `GitHub <noreply@github.com>`, so R3
+   fired on GitHub's scaffolding rather than on anything an author wrote; and a
+   squash through the web UI commits as the same identity, so the push-triggered
+   check would then fail on `main` itself. AGENTS.md already tolerates this —
+   "the trailers GitHub appends by itself when squashing".
+
+   Fixed in `a25045f`: `GitHub <noreply@github.com>` is exempt as **committer
+   only** (authoring as GitHub is still a violation, and `dependabot[bot]` /
+   `github-actions[bot]` still fail in either position), and the workflow now checks
+   out the PR head sha so `BASE...HEAD` is the commits actually proposed. Verified
+   against real commits, then in the live repo: PR #2 went red → green, merged, and
+   the push check on `main` passed for a squash commit committed by GitHub.
+
+   The Dependabot-specific failure is a *separate*, genuine one: on PR #1 the bot
+   author is correctly flagged (`R3: author 'dependabot[bot]'`). That part was never
+   a malfunction, and ticket 29 still has to decide how such a PR ever lands.
+
+3. **A squash through the web UI re-attributes the author email.** The squash
+   landed as `Mitun Manav G Y <mitunmanav933@gmail.com>`, not the identity pinned in
+   AGENTS.md (`238927830+mitunmanav@users.noreply.github.com`), because GitHub
+   stamps the account's public email onto the squash commit. Nothing is broken —
+   `attribution` passes because `is_owner` matches on *name* — but R2 would fail if
+   the account's display name ever diverged from `OWNER_NAME`. Worth knowing before
+   someone trusts that check as an identity guarantee. Left alone: it is the GitHub
+   account's own setting, not a repo one.
 
 ### Remaining (owner)
 

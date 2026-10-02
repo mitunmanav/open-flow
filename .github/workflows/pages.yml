@@ -31,7 +31,7 @@ jobs:
     outputs:
       site: ${{ steps.probe.outputs.site }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Probe for a site
         id: probe
@@ -45,7 +45,7 @@ jobs:
 
       - name: Upload Pages artifact
         if: steps.probe.outputs.site == 'true'
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: ./website
 
@@ -60,4 +60,4 @@ jobs:
     steps:
       - name: Deploy
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

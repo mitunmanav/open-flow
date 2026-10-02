@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>OpenFlow bubble — prototype</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; background: #222; color: #eee; }
+  #stage { position: relative; height: 70vh; background: linear-gradient(135deg,#3a3f44,#23272b); }
+  #switcher { position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); background: #000c; padding: 8px 14px; border-radius: 20px; }
+  #statebar { padding: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+  #statebar button { background: #444; color: #eee; border: 0; padding: 6px 10px; border-radius: 6px; cursor: pointer; }
+  #statebar button.on { background: #4c9aff; }
+  .bubble { position: absolute; border-radius: 999px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 600; cursor: pointer; user-select: none; touch-action: none; transition: background .2s, transform .2s; }
+  .listening { box-shadow: 0 0 0 0 rgba(255,80,80,.7); animation: pulse 1.2s infinite; }
+  @keyframes pulse { 100% { box-shadow: 0 0 0 18px rgba(255,80,80,0); } }
+  .legend { padding: 10px; font-size: 13px; color: #ccc; }
+</style>
+</head>
+<body>
+<div id="statebar"></div>
+<div id="stage">
+  <div id="bubble" class="bubble"></div>
+</div>
+<div class="legend">tap = start/stop · hold = push-to-talk · drag = move · ✕ = cancel · ←/→ switches variant</div>
+<div id="switcher"></div>
+<script>
+const states = ['Idle','Listening','Processing','Done','Problem'];
+let state = 'Idle';
+const params = new URLSearchParams(location.search);
+let variant = params.get('variant') || 'A';
+
+const variants = {
+  A: { name: 'Minimal pill', size: [64,64], style: s => ({Idle:'#4c9aff',Listening:'#ff5252',Processing:'#ffb300',Done:'#2fbf71',Problem:'#d32f2f'}[s]), label: s => ({Idle:'🎤',Listening:'●',Processing:'…',Done:'✓',Problem:'!'}[s]) },
+  B: { name: 'Glass ring', size: [80,80], style: s => ({Idle:'rgba(255,255,255,.25)',Listening:'rgba(255,82,82,.85)',Processing:'rgba(255,179,0,.85)',Done:'rgba(47,191,113,.85)',Problem:'rgba(211,47,47,.9)'}[s]), label: s => ({Idle:'Say it',Listening:'REC',Processing:'Thinking',Done:'Inserted',Problem:'Retry?'}[s]) },
+  C: { name: 'Chip with tail', size: [110,44], style: s => ({Idle:'#333',Listening:'#b71c1c',Processing:'#7a5c00',Done:'#1b5e20',Problem:'#6d1414'}[s]), label: s => ({Idle:'Dictate',Listening:'Listening…',Processing:'Working…',Done:'Done ✓',Problem:'Problem'}[s]) },
+};
+
+const stage = document.getElementById('stage'), bubble = document.getElementById('bubble');
+function render(){
+  const v = variants[variant];
+  bubble.style.width = v.size[0]+'px'; bubble.style.height = v.size[1]+'px';
+  bubble.style.background = v.style(state);
+  bubble.textContent = v.label(state);
+  bubble.className = 'bubble' + (state==='Listening' ? ' listening' : '');
+  bubble.style.left = (stage.clientWidth/2 - v.size[0]/2)+'px';
+  bubble.style.top = (stage.clientHeight/2 - v.size[1]/2)+'px';
+  document.querySelectorAll('#statebar button').forEach(b => b.classList.toggle('on', b.dataset.s===state));
+  document.querySelectorAll('#switcher button').forEach(b => b.classList.toggle('on', b.dataset.v===variant));
+}
+states.forEach(s => { const b=document.createElement('button'); b.textContent=s; b.dataset.s=s; b.onclick=()=>{state=s;render();}; document.getElementById('statebar').appendChild(b); });
+Object.keys(variants).forEach(k => { const b=document.createElement('button'); b.textContent=k+' '+variants[k].name; b.dataset.v=k; b.onclick=()=>{location.search='?variant='+k;}; document.getElementById('switcher').appendChild(b); });
+
+// drag
+let drag=null;
+bubble.addEventListener('pointerdown', e => { drag={x:e.clientX-bubble.offsetLeft, y:e.clientY-bubble.offsetTop}; bubble.setPointerCapture(e.pointerId); });
+bubble.addEventListener('pointermove', e => { if(!drag) return; bubble.style.left=(e.clientX-drag.x)+'px'; bubble.style.top=(e.clientY-drag.y)+'px'; });
+bubble.addEventListener('pointerup', () => drag=null);
+bubble.addEventListener('click', () => { state = state==='Idle' ? 'Listening' : (state==='Listening' ? 'Processing' : (state==='Processing' ? 'Done' : 'Idle')); render(); });
+
+document.addEventListener('keydown', e => { const ks=Object.keys(variants); let i=ks.indexOf(variant); if(e.key==='ArrowRight') variant=ks[(i+1)%ks.length]; if(e.key==='ArrowLeft') variant=ks[(i-1+ks.length)%ks.length]; if(['ArrowLeft','ArrowRight'].includes(e.key)) location.search='?variant='+variant; });
+render();
+</script>
+</body>
+</html>

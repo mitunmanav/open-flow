@@ -1,0 +1,28 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/mitunmanav/open-flow/security/advisories/new
+    about: >-
+      Please report privately through GitHub Security Advisories rather than a
+      public issue. Do not open a public issue for an unfixed vulnerability.
+      See SECURITY.md.
+
+  - name: Propose a speech provider
+    url: https://github.com/mitunmanav/open-flow/issues/new?template=provider_proposal.md
+    about: >-
+      Provider adapters are the point of this project. Use the provider proposal
+      template — it is the single source of truth for what a proposal must show,
+      and the one that disqualifies engines on model licensing.
+
+  - name: Read the architecture before filing
+    url: https://github.com/mitunmanav/open-flow/blob/main/docs/README.md
+    about: >-
+      Bubble, state machine, router, refiner, and insertion are all decided in
+      docs/adr/. Most reports and proposals are answered by a decision that
+      already exists.
+
+  - name: Contributing guide
+    url: https://github.com/mitunmanav/open-flow/blob/main/CONTRIBUTING.md
+    about: >-
+      The dependency rule, the provider contract, and the commit attribution
+      rules that CI enforces.

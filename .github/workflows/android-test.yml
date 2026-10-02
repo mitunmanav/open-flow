@@ -1,0 +1,86 @@
+name: android-test
+
+# Instrumented tests on an emulator. Kept out of the required-merge path
+# because an emulator run is slow and flaky; it runs on demand, on a schedule,
+# and before a release tag, which is when it has to be trustworthy.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+  schedule:
+    # 05:17 UTC daily. Off the hour on purpose: the top of the hour is when
+    # every scheduled job on the platform competes for the same runners.
+    - cron: '17 5 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  instrumented:
+    name: Instrumented tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Probe for the Gradle wrapper
+        id: probe
+        run: |
+          if [ -f gradlew ]; then
+            echo "gradle=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "gradle=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No gradlew yet — nothing to instrument."
+          fi
+
+      - name: Enable KVM
+        if: steps.probe.outputs.gradle == 'true'
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Set up JDK
+        if: steps.probe.outputs.gradle == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        if: steps.probe.outputs.gradle == 'true'
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant runtime permissions
+        # The bubble needs overlay and microphone before it can dictate; CI
+        # cannot grant those interactively, so they are pre-granted here.
+        if: steps.probe.outputs.gradle == 'true'
+        run: |
+          adb shell pm grant dev.openflow.dictation android.permission.RECORD_AUDIO || true
+
+      - name: Run instrumented tests
+        if: steps.probe.outputs.gradle == 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          profile: pixel_6
+          script: ./gradlew --no-daemon connectedDebugAndroidTest
+          disable-animations: true
+
+      - name: Upload test report
+        if: always() && steps.probe.outputs.gradle == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-test-report
+          path: |
+            app/build/reports/androidTests/
+            app/build/outputs/androidTest-results/
+          retention-days: 14
+          if-no-files-found: ignore

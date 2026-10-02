@@ -1,0 +1,65 @@
+name: docs-check
+
+# "Strictly no stale documents." A document that points at a file that does not
+# exist, or promises a file nobody wrote, is worse than no document: it is
+# confidently wrong. This gate is the ratchet that keeps that from accumulating.
+#
+# Known violations are listed in .github/docs-baseline.txt so the gate could
+# land without going red on day one. The baseline is one-shot: an entry that
+# stops matching a real violation fails the build, so the file cannot rot into
+# a permanent exemption list. Deleting the last entry deletes the baseline.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "**/*.md"
+      - ".github/scripts/check_docs.py"
+      - ".github/workflows/docs-check.yml"
+      - ".github/docs-baseline.txt"
+  pull_request:
+    paths:
+      - "**/*.md"
+      - ".github/scripts/check_docs.py"
+      - ".github/workflows/docs-check.yml"
+      - ".github/docs-baseline.txt"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs-check:
+    name: Documentation integrity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check documentation
+        run: python3 .github/scripts/check_docs.py
+
+      - name: ADR inventory
+        run: |
+          echo "### Architecture decision records" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          for adr in docs/adr/[0-9]*.md; do
+            [ -e "$adr" ] || continue
+            printf -- '- `%s` — %s\n' "$(basename "$adr")" \
+              "$(sed -n 's/^# [0-9]\{4\}: //p' "$adr" | head -1)" \
+              >> "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Baseline must shrink
+        if: github.ref == 'refs/heads/main'
+        run: |
+          if [ -f .github/docs-baseline.txt ]; then
+            count=$(grep -cv '^\s*\(#.*\)\?$' .github/docs-baseline.txt || true)
+            echo "Baselined documentation violations still outstanding: $count" \
+              >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Baseline empty — every documented reference resolves." \
+              >> "$GITHUB_STEP_SUMMARY"
+          fi

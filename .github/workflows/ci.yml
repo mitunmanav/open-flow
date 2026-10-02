@@ -1,0 +1,77 @@
+name: ci
+
+# Required before merge (see ticket 15). Green from the first commit: the
+# Gradle steps are gated on the wrapper actually existing, so the gate is usable
+# while the Android shell is still being written and turns real the day
+# gradlew lands. No edit to this file is needed at that point.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Lint, test, assemble
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Probe for the Gradle wrapper
+        id: probe
+        run: |
+          if [ -f gradlew ]; then
+            echo "gradle=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "gradle=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No gradlew yet — skipping the Android build. This gate goes" \
+              "live on its own when the wrapper is committed; nothing here needs editing."
+          fi
+
+      - name: Set up JDK
+        if: steps.probe.outputs.gradle == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        if: steps.probe.outputs.gradle == 'true'
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Lint
+        if: steps.probe.outputs.gradle == 'true'
+        run: ./gradlew --no-daemon lint
+
+      - name: Unit tests
+        if: steps.probe.outputs.gradle == 'true'
+        run: ./gradlew --no-daemon test
+
+      - name: Assemble debug
+        if: steps.probe.outputs.gradle == 'true'
+        run: ./gradlew --no-daemon assembleDebug
+
+      - name: Upload debug APK
+        if: steps.probe.outputs.gradle == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: openflow-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 14
+          if-no-files-found: warn
+
+# docs-check, attribution, and dependency-review are deliberately NOT called from
+# here. Each runs on its own triggers so it reports its own status: branch
+# protection can require "docs-check" without depending on the Android build,
+# which is still skipped until gradlew exists. A reusable call would also require
+# every callee to declare `workflow_call`, which would let one push run the same
+# checks twice.

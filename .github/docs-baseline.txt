@@ -1,0 +1,23 @@
+# Known documentation violations.
+#
+# One violation per line, as `<rule>:<path>:<detail>` — exactly what
+# `python3 .github/scripts/check_docs.py --no-baseline` prints.
+#
+# This file exists so the docs gate could land while the repository already had
+# outstanding problems, without going red on day one and blocking every pull
+# request. It is a ratchet, not an exemption list:
+#
+#   - A violation not listed here fails the build.
+#   - A line here that no longer matches a real violation ALSO fails the build,
+#     because an exemption that outlives its problem is itself a stale document.
+#
+# Every entry below is one gap, tracked by a ticket. When the gap is closed the
+# line must be deleted in the same commit that closes it; the gate will tell you
+# if you forget. When the last entry is deleted, delete this file.
+
+# --- Ticket 24: the three provider guides ADR-0006 promised were never written.
+# Ticket 21 is marked resolved on the strength of a decision, not the deliverable.
+missing-file-ref:docs/adr/0006-provider-authoring-no-sdk.md:docs/providers/provider-authoring.md
+missing-file-ref:docs/adr/0006-provider-authoring-no-sdk.md:docs/providers/provider-testing.md
+missing-file-ref:docs/adr/0006-provider-authoring-no-sdk.md:docs/providers/provider-proposal.md
+missing-file-ref:.github/ISSUE_TEMPLATE/provider_proposal.md:docs/providers/provider-proposal.md

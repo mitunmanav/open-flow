@@ -1,0 +1,63 @@
+name: pages
+
+# Publishes website/ to GitHub Pages.
+#
+# website/ does not exist yet. Choosing a generator before the doc set is stable
+# is the same premature-module mistake ADR-0006 avoided with provider-api, so
+# this workflow is written and gated: it deploys nothing until a site exists,
+# then needs no edit. See ROADMAP.md — the docs site is still an open decision.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "website/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build site
+    runs-on: ubuntu-latest
+    outputs:
+      site: ${{ steps.probe.outputs.site }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Probe for a site
+        id: probe
+        run: |
+          if [ -f website/index.html ] || [ -f website/mkdocs.yml ]; then
+            echo "site=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "site=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No website/ site yet — nothing to publish."
+          fi
+
+      - name: Upload Pages artifact
+        if: steps.probe.outputs.site == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./website
+
+  deploy:
+    name: Deploy to Pages
+    needs: build
+    if: needs.build.outputs.site == 'true'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

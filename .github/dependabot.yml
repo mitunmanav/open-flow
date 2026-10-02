@@ -1,0 +1,51 @@
+# Dependencies are proposed by automation and merged by a human. Dependabot may
+# open pull requests here; its commits must never be merged into main with a bot
+# author, which is why attribution.yml distinguishes R3 (no bot commits) from a
+# welcome bot pull request.
+
+version: 2
+
+updates:
+  # Gradle wrapper and plugins. Once gradlew exists this becomes the main source
+  # of dependency updates, since the Android build is Gradle-based.
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - android
+    commit-message:
+      prefix: 'build'
+    groups:
+      android-gradle-plugin:
+        patterns:
+          - 'com.android.*'
+          - 'androidx.*'
+      kotlin:
+        patterns:
+          - 'org.jetbrains.kotlin*'
+
+  # GitHub Actions. Pinned actions are a supply-chain surface of their own, and
+  # a stale action is a silent one.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+    labels:
+      - dependencies
+      - ci
+    commit-message:
+      prefix: 'ci'
+    groups:
+      actions:
+        patterns:
+          - '*'
+
+  # No npm/pip ecosystem yet: OpenFlow has no JavaScript or Python build. Remove
+  # these blocks when one exists rather than letting them sit as dead config.

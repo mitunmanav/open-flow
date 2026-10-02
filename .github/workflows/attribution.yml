@@ -1,0 +1,58 @@
+name: attribution
+
+# Enforces the attribution rules in AGENTS.md, which until now were a convention
+# with nothing behind them:
+#
+#   R1  No Co-authored-by / Signed-off-by trailer may name a bot or an AI
+#       assistant. GitHub counts trailer names as contributors, and an agent is
+#       not a contributor. This repository's contributor list is people only.
+#   R2  Only the repo owner authors commits that land on main. A collaborator's
+#       work arrives as a pull request, which is where the review happens.
+#   R3  Automation must never write to a branch here. Dependabot may open pull
+#       requests; its commits must not be merged into main with a bot author.
+#
+# Human co-authors are deliberately not a violation. GitHub appends co-author
+# trailers by itself when squashing a multi-author pull request, and rewriting
+# GitHub's own merge commits is not this repository's business.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: attribution-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  attribution:
+    name: Commit attribution
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history and trailers: shallow clone would hide the commits
+          # that actually carry the offending trailer.
+          fetch-depth: 0
+
+      - name: Attribution rules on this push
+        if: github.event_name == 'push'
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            # First push of a branch: fall back to the commits on HEAD.
+            python3 .github/scripts/check_attribution.py --main "HEAD"
+          else
+            python3 .github/scripts/check_attribution.py --main "$BEFORE..HEAD"
+          fi
+
+      - name: Attribution rules on this pull request
+        if: github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: python3 .github/scripts/check_attribution.py "$BASE...HEAD"

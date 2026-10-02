@@ -18,12 +18,18 @@ The intelligence underneath is replaceable, measurable, and user-controlled. A p
 
 | Doc | What's in it |
 | --- | --- |
+| [docs/README.md](docs/README.md) | Index of every document in `docs/` |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Module layout, seams, diagrams |
 | [docs/adr/](docs/adr/) | Architecture decision records |
 | [docs/architecture/](docs/architecture/) | Provider contract, refiner, modules, reference-app teardown |
 | [docs/providers/](docs/providers/) | sherpa-onnx capabilities and model selection |
 | [docs/privacy/](docs/privacy/) | Privacy policy and Android permission/Play policy |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute, and the rules CI enforces |
 | [GLOSSARY.md](GLOSSARY.md) | Shared vocabulary |
+
+Documentation is gated in CI: `docs-check` fails the build if a document points
+at a file that does not exist, promises a file nobody wrote, or drifts out of
+the index. Run it locally with `python3 .github/scripts/check_docs.py`.
 
 ## License
 

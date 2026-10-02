@@ -1,0 +1,12 @@
+# OpenFlow is built by its owner. CODEOWNERS documents that for the GitHub UI;
+# `attribution.yml` is what actually enforces it.
+
+# Every file requires the owner's review.
+* @mitunmanav
+
+# Documentation and automation carry the repository's voice and its rules, so
+# they are deliberately not a grab bag of drive-by edits.
+/.github/            @mitunmanav
+/docs/               @mitunmanav
+GLOSSARY.md          @mitunmanav
+ARCHITECTURE.md      @mitunmanav

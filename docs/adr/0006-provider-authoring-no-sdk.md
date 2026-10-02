@@ -16,9 +16,9 @@ That gap invites two opposite mistakes. Ship a `provider-api` module before any 
 
 V1 ships provider-authoring **documentation only**, written to be genuinely public-facing:
 
-- Three guides in `docs/providers/`: `provider-authoring.md` (contract + registry entry), `provider-testing.md` (capabilities honesty + contract tests), `provider-proposal.md` (licensing obligations + when to propose).
+- Three guides in `docs/providers/`: `docs/providers/provider-authoring.md` (contract + registry entry), `docs/providers/provider-testing.md` (capabilities honesty + contract tests), `docs/providers/provider-proposal.md` (licensing obligations + when to propose).
 - **No `provider-api` module.** The contract types stay in `core/stt` per ADR-0005.
-- **No compatibility promise.** `provider-authoring.md` states up front that `SpeechProvider` is an internal contract, not a stable API; it may change within the 1.x line, and ADR-0001 revisions plus the CHANGELOG announce changes.
+- **No compatibility promise.** `docs/providers/provider-authoring.md` states up front that `SpeechProvider` is an internal contract, not a stable API; it may change within the 1.x line, and ADR-0001 revisions plus the CHANGELOG announce changes.
 - Capabilities honesty is enforced by the shared Contract Tests in `core`'s test fixtures, not by runtime validation at `prepare()`.
 - Third-party providers land as pull requests. V1 has no plugin system and no external write access.
 

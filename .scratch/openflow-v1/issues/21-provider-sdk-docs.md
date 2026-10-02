@@ -37,3 +37,5 @@ Provider-authoring docs are **docs-only and public-facing** in V1. No SDK artifa
 **Third-party providers land as PRs.** V1 has no plugin system and no external write access. A provider arrives as `providers/<name>/` plus one registry entry in `app/` (ADR-0005, `docs/architecture/modules.md`), subject to CI and review.
 
 Glossary terms added: Provider Adapter, Provider Health, Capabilities Honesty, Contract Test.
+
+> **Corrected 2026-10-02 (ticket 23).** The decision above stands and ADR-0006 was written. The three guides were **never written** — `docs/providers/` contains only `sherpa-onnx.md` and `model-selection.md`. This ticket was closed on the strength of the decision rather than the deliverable, which is a false record on the map. The guides are now ticket 24, and ADR-0006's references to them were amended to full paths so they are locatable once written.

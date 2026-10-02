@@ -18,7 +18,10 @@ A locked, executable plan for shipping **OpenFlow V1**: an open-source Android v
   - **Design language: brutalist.** Zero radius, no shadows, flat ground, one accent, hairline rules, 2px structural borders, sentence case, mono for machine-voice copy (set limits in mono against capabilities in the UI face). Accent: electric violet, a separate value per theme, verified WCAG AA for every text role.
   - **Granted/permitted state is shown by the row's own perimeter drawing clockwise** (conic-gradient mask), never a bar bolted to the side of the row.
   - Permissions are requested **contextually, not at first launch** (settled in ticket 03) — so any onboarding flow must justify its order against this, not against a generic wizard.
-- Acceptance gate for "shipped": three device classes (Pixel-like, Samsung-class, Xiaomi-class) × ten common text-entry scenarios (short chat, long paragraph, names/jargon, numbers, self-correction, lists, noisy room, weak connection, no connection, multiple languages) all start → record → transcribe → clean → insert → recover cleanly.
+  - **CI is green from the first commit.** Workflows whose steps need files that do not exist yet probe for them and skip rather than failing, so a required check is usable while the code is still being written. Settled in ticket 23; this is the standing rule for any workflow added later.
+  - **No stale documents.** A document that points at a file that does not exist, or promises one nobody wrote, is a bug — a reader cannot tell it from a correct one. `docs-check` enforces it; see ticket 23.
+  - **No bots in the contributor list — enforced, not just intended** (settled in ticket 23, which put `attribution.yml` behind the rule AGENTS.md already stated). No `Co-authored-by` or `Signed-off-by` trailer may name a bot, an automation account, or an AI assistant; `main` is owner-authored only; automation never writes to a branch here. Human co-authors are fine, including the trailers GitHub appends by itself when squashing.
+- Acceptance gate for "shipped": three device classes (Pixel-like, Samsung-class, Xiaomi-class) × ten common text-entry scenarios (short chat, long paragraph, names/jargon, numbers, self-correction, lists, noisy room, weak connection, no connection, multiple languages) all start → record → transcribe → clean → insert → recover cleanly. **The protocol for running and recording that gate is still undecided — ticket 28.**
 
 ## Decisions so far
 
@@ -44,15 +47,42 @@ A locked, executable plan for shipping **OpenFlow V1**: an open-source Android v
 - 04 SpeechProvider contract: Flow<SpeechEvent> cold flow with conflated Partial, typed FailureReason, capability-driven behavior, one instance per model config, utterance-level timestamps, scriptable FakeProvider — see `docs/adr/0001-speech-provider-contract.md`
 - 21 Provider SDK docs: docs-only and public-facing, three files in `docs/providers/`, **no `provider-api` module** and no compatibility promise in V1; capabilities honesty enforced by Contract Tests in core's test fixtures — see `docs/adr/0006-provider-authoring-no-sdk.md`
 - 19 Onboarding & permission-health: brutalist permissions page, electric violet, granted state = the row's own perimeter drawing clockwise via conic mask; each ask states what it touches **and** what it cannot do, limit clause set in mono; **flow order deliberately left undecided** — prototype at `.scratch/openflow-v1/prototype/onboarding.html`
+- 22 ProviderHealth & cost shape: two vocabularies not one — `ProviderHealth` (`HEALTHY/DEGRADED/UNAVAILABLE/MODEL_MISSING`) separate from `ProviderState`, `health()` a plain cached-truth method; `DEGRADED` ranks last rather than sinking; router rules now ordered and empty sets attributed to a rule; `estimatedCostAvailability` deleted for `pricing: Pricing?` (micros-USD/sec, `0` = free, `null` = cannot estimate) with the ceiling compared against a worst-case bound — see `docs/adr/0001-speech-provider-contract.md` and `docs/adr/0004-adaptive-dictation-router.md`
+- 23 Repo automation files: seven workflows (the six from ticket 15 plus `attribution.yml`), four issue templates, PR template, CODEOWNERS, dependabot, ten labels live on the repo; `release.yml` names the four signing secrets ticket 18 sets; **stale-document gate is a ratchet, not an exemption list** (`.github/scripts/check_docs.py` + `.github/docs-baseline.txt`); attribution rules now CI-enforced. Found four real defects on first run, including ticket 21's unwritten guides (now ticket 24) and the never-run model benchmark (now ticket 25). Board still needs `gh auth refresh -s project` (folded into ticket 18). **Not pushed** — left for the owner.
 
 ## Not yet specified
 
-_(empty — fog cleared; remaining work is ticketed)_
+Fog, in scope but not yet sharp enough to ticket. Expect these to graduate as
+the frontier advances.
+
+- **How the bubble is actually built.** Ticket 07 settled shape, size, opacity,
+  position, and the tap/hold/drag/cancel interactions; ticket 20 is claiming the
+  motion. Nothing has been said about the overlay window's technical shape —
+  `TYPE_APPLICATION_OVERLAY` bounds, whether it survives rotation and keyboard
+  resize, and how it avoids being captured in screenshots. Likely becomes
+  several tickets once the Android shell exists.
+- **What "recovery" looks like on screen.** Ticket 14 settled that recoverable
+  errors resurface in History with a re-insert retry, and ticket 05 settled that
+  the refiner degrades to raw rather than failing. The UI for either — what the
+  user sees, and what they can do about it — is untouched.
+- **The dictionary, snippets, and styles feature surface.** Ticket 10 put full
+  parity in V1 and ticket 12 settled the refiner stage that consumes a dictionary,
+  but what a user actually types into a dictionary entry, and whether snippets
+  are per-app, is unspecified. Sharpens once ticket 27 lands.
+- **Onboarding flow order.** Deliberately left undecided in ticket 19 pending
+  the contextual-permission decision in Notes. This is the one place the map has
+  recorded leaving something open on purpose, and ticket 19's prototype is the
+  asset to react to.
+
 ## Out of scope
 
 - Meeting notetaker / always-on transcription product.
 - Monetization, accounts, cloud sync.
 - iOS / desktop / web clients.
 - Automatic ML-based provider routing (V1 router is rules + measurement only).
+- Automatic health-based rerouting mid-dictation (V1 reads a health snapshot at `PREPARING`).
+- A user-facing cost ceiling control (no billable provider in V1; the field exists so the first cloud adapter is a drop-in).
+- Multi-currency cost conversion (micros-USD only; a non-USD provider converts at its own boundary or reports unknown).
+- Monthly spend budgets (V1's ceiling is per-dictation; a budget needs metering and a period).
 - Local LLM rewriting in V1.
 - Any Wispr code/asset reuse.

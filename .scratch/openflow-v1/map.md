@@ -39,6 +39,7 @@ A locked, executable plan for shipping **OpenFlow V1**: an open-source Android v
 - 07 Bubble UX: Wispr-style interactions (tap/hold/drag/cancel) with fully customizable shape/size/opacity/position in settings; live transcript adjacent bubble, toggleable — see `.scratch/openflow-v1/prototype/bubble.html`
 - 05 Dictation state machine: payload-carrying sealed states, single event-channel writer, Inserting non-cancellable, per-step timeouts, refiner failure degrades to raw transcript — see `docs/adr/0002-dictation-state-machine.md`
 - 04 SpeechProvider contract: Flow<SpeechEvent> cold flow with conflated Partial, typed FailureReason, capability-driven behavior, one instance per model config, utterance-level timestamps, scriptable FakeProvider — see `docs/adr/0001-speech-provider-contract.md`
+- 21 Provider SDK docs: docs-only and public-facing, three files in `docs/providers/`, **no `provider-api` module** and no compatibility promise in V1; capabilities honesty enforced by Contract Tests in core's test fixtures — see `docs/adr/0006-provider-authoring-no-sdk.md`
 
 ## Not yet specified
 

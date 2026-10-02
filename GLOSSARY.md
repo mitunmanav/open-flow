@@ -36,6 +36,26 @@ A normalized event from a `SpeechProvider` during a transcription: `Preparing`, 
 
 Lifecycle of a `SpeechProvider` instance: `NOT_PREPARED`, `PREPARING`, `READY`, `CLOSED`. One instance serves one model configuration; language is per request.
 
+## Provider Health
+
+The readiness verdict `health()` returns about whether a provider can serve a dictation right now, and if not, why. A separate concept from Provider State, which tracks an instance's lifecycle; `READY` and `NOT_READY` are not two values of one enum. Cheap local truth — V1 does no active network probing.
+_Avoid_: ProviderState, health state, ready
+
+## Provider Adapter
+
+A concrete `SpeechProvider` implementation, as distinct from the contract itself. V1 has two, both written by us: FakeProvider for tests and SherpaOnnxProvider for real dictation. Future third-party adapters land as pull requests, not plugins.
+_Avoid_: plugin, extension, backend
+
+## Capabilities Honesty
+
+The rule that a declared capability is binding. A provider advertising `partialTranscripts` must emit Partial, and a declared language must not fail `UnsupportedLanguage`. Enforced by Contract Tests, because SpeechProvider capabilities drive all app behavior and nothing else verifies them.
+_Avoid_: feature detection
+
+## Contract Test
+
+A test that runs a provider's own behaviour against the shared suite in core's test fixtures, asserting its events and capabilities hold together. What makes Capabilities Honesty enforceable rather than aspirational.
+_Avoid_: integration test, end-to-end test
+
 ## RouterContext
 
 Inputs to one routing decision: `privacyMode` (local-only / cloud-allowed), `offline`, `costCeiling`, `preferredProviderId`.

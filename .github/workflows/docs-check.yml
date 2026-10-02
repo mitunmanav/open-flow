@@ -9,20 +9,16 @@ name: docs-check
 # stops matching a real violation fails the build, so the file cannot rot into
 # a permanent exemption list. Deleting the last entry deletes the baseline.
 
+# Deliberately NOT path-filtered. This was once filtered to "**/*.md" plus this
+# gate's own files, which made it unrequireable: branch protection blocks a PR
+# forever when a required check never reports, and on a Kotlin-only PR this
+# check would never have reported. Requiring it is the whole point — the check is
+# cheap (one Python script plus a step summary), and stale docs are exactly the
+# defect a code change can introduce by renaming or deleting something.
 on:
   push:
     branches: [main]
-    paths:
-      - "**/*.md"
-      - ".github/scripts/check_docs.py"
-      - ".github/workflows/docs-check.yml"
-      - ".github/docs-baseline.txt"
   pull_request:
-    paths:
-      - "**/*.md"
-      - ".github/scripts/check_docs.py"
-      - ".github/workflows/docs-check.yml"
-      - ".github/docs-baseline.txt"
 
 permissions:
   contents: read

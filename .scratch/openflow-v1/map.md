@@ -15,6 +15,9 @@ A locked, executable plan for shipping **OpenFlow V1**: an open-source Android v
   - V1 TranscriptRefiner is deterministic only (no local LLM).
   - History storage: Room once complexity warrants; keep simple at first.
   - Audio deleted after successful processing by default; never retain by default.
+  - **Design language: brutalist.** Zero radius, no shadows, flat ground, one accent, hairline rules, 2px structural borders, sentence case, mono for machine-voice copy (set limits in mono against capabilities in the UI face). Accent: electric violet, a separate value per theme, verified WCAG AA for every text role.
+  - **Granted/permitted state is shown by the row's own perimeter drawing clockwise** (conic-gradient mask), never a bar bolted to the side of the row.
+  - Permissions are requested **contextually, not at first launch** (settled in ticket 03) — so any onboarding flow must justify its order against this, not against a generic wizard.
 - Acceptance gate for "shipped": three device classes (Pixel-like, Samsung-class, Xiaomi-class) × ten common text-entry scenarios (short chat, long paragraph, names/jargon, numbers, self-correction, lists, noisy room, weak connection, no connection, multiple languages) all start → record → transcribe → clean → insert → recover cleanly.
 
 ## Decisions so far
@@ -40,6 +43,7 @@ A locked, executable plan for shipping **OpenFlow V1**: an open-source Android v
 - 05 Dictation state machine: payload-carrying sealed states, single event-channel writer, Inserting non-cancellable, per-step timeouts, refiner failure degrades to raw transcript — see `docs/adr/0002-dictation-state-machine.md`
 - 04 SpeechProvider contract: Flow<SpeechEvent> cold flow with conflated Partial, typed FailureReason, capability-driven behavior, one instance per model config, utterance-level timestamps, scriptable FakeProvider — see `docs/adr/0001-speech-provider-contract.md`
 - 21 Provider SDK docs: docs-only and public-facing, three files in `docs/providers/`, **no `provider-api` module** and no compatibility promise in V1; capabilities honesty enforced by Contract Tests in core's test fixtures — see `docs/adr/0006-provider-authoring-no-sdk.md`
+- 19 Onboarding & permission-health: brutalist permissions page, electric violet, granted state = the row's own perimeter drawing clockwise via conic mask; each ask states what it touches **and** what it cannot do, limit clause set in mono; **flow order deliberately left undecided** — prototype at `.scratch/openflow-v1/prototype/onboarding.html`
 
 ## Not yet specified
 

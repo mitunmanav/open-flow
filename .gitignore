@@ -14,6 +14,10 @@ captures/
 *.keystore
 keystore.properties
 
+# Python bytecode from .github/scripts/ (the docs and attribution checkers)
+__pycache__/
+*.pyc
+
 # Local agent tooling (not part of the product)
 .agents/
 .commandcode/

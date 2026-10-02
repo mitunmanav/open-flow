@@ -37,6 +37,13 @@ jobs:
           # Full history and trailers: shallow clone would hide the commits
           # that actually carry the offending trailer.
           fetch-depth: 0
+          # On a pull_request event the default checkout lands on GitHub's
+          # synthetic test-merge commit (refs/pull/N/merge), which is scaffolding
+          # rather than anything the author wrote -- checking it reports on a
+          # commit nobody authored and is not part of the proposal. Check out the
+          # PR head instead, so `BASE...HEAD` is exactly the commits being
+          # proposed. Empty on a push event, where it falls back to github.sha.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Attribution rules on this push
         if: github.event_name == 'push'

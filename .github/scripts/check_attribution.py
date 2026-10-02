@@ -100,6 +100,23 @@ def is_bot(name: str, email: str) -> bool:
     return bool(BOT_ACCOUNT_RE.search(name) or BOT_ACCOUNT_RE.search(email.split("@")[0]) or BOT_EMAIL_RE.search(email))
 
 
+# GitHub's own merge machinery, not an automation account. When a PR is merged or
+# squashed through the web UI, GitHub commits on the owner's behalf and records
+# itself as committer; and every `pull_request` event carries a synthetic
+# test-merge commit whose committer is this same identity. Flagging it as a bot
+# made the check unsatisfiable -- it failed every PR, and would then fail on
+# `main` the moment an owner merged through the UI. AGENTS.md tolerates exactly
+# this: "the trailers GitHub appends by itself when squashing".
+#
+# Exempt as COMMITTER only. Nothing may author a commit as GitHub, and the real
+# automation accounts ([bot] accounts, dependabot, github-actions) stay flagged.
+GITHUB_MERGE_IDENTITY = ("github", "noreply@github.com")
+
+
+def is_github_merge_committer(name: str, email: str) -> bool:
+    return name.strip().casefold() == GITHUB_MERGE_IDENTITY[0] and email.strip().casefold() == GITHUB_MERGE_IDENTITY[1]
+
+
 def is_ai(name: str, email: str) -> bool:
     return bool(AI_IDENTITY_RE.search(name) or AI_IDENTITY_RE.search(email))
 
@@ -138,7 +155,7 @@ def check_commit(commit: Commit, on_main: bool) -> list[str]:
     # R3 — no bot-authored or bot-committed commits.
     if is_bot(a_name, a_email):
         problems.append(f"{short} R3: author '{commit.author}' is a bot account. Automation must not commit here.")
-    if is_bot(c_name, c_email):
+    if is_bot(c_name, c_email) and not is_github_merge_committer(c_name, c_email):
         problems.append(f"{short} R3: committer '{commit.committer}' is a bot account.")
 
     # Attribution integrity — an assistant must never appear as the author.

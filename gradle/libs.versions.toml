@@ -1,0 +1,30 @@
+# Version catalogue. Every version the build depends on is stated exactly once
+# here, so `compileSdk` and the plugin versions cannot drift between the three
+# modules. Recorded in ADR-0007.
+[versions]
+# Android Gradle Plugin. Pinned to the newest version proven to work on this
+# project's toolchain; compileSdk 36 is only "tested" by AGP 8.9+, and 8.13.0
+# is what this repository builds with.
+agp = "8.13.0"
+# The Kotlin Gradle Plugin. Note the age gap against AGP 8.13: KGP may print an
+# "AGP not fully supported" warning, which is a warning and not a failure. Bumping
+# this one line is the fix if it ever becomes one.
+kotlin = "2.0.21"
+# Used by core's public contract (SpeechProvider returns Flow<SpeechEvent>), so
+# it is an `api` dependency of core, not an `implementation` one. ADR-0001, ADR-0005.
+coroutines = "1.10.2"
+junit = "4.13.2"
+# sherpa-onnx AAR. Pin the TAG, never `master`: upstream's jitpack.yml hardcodes
+# the version it mirrors, so an unpinned coordinate can silently resolve to an AAR
+# whose contents do not match the coordinate. See ADR-0007.
+sherpaOnnx = "v1.13.8"
+
+[libraries]
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+junit = { module = "junit:junit", version.ref = "junit" }
+sherpa-onnx = { module = "com.github.k2-fsa.sherpa-onnx:sherpa-onnx", version.ref = "sherpaOnnx" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }

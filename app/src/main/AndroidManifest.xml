@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  OpenFlow V1 application manifest.
+
+  Scope: this file declares the SDK levels the build chose and the permissions
+  ticket 03 settled. It declares no component, because this is the build skeleton —
+  the bubble overlay, the accessibility service and the foreground dictation service
+  are application code and arrive with the features that need them.
+
+  Deliberately absent: android:icon. Ticket 17 settled an icon brief; nothing has
+  been drawn yet, and an icon that does not exist is better reported by lint than
+  faked with a placeholder.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Microphone. Dangerous runtime permission, requested at the moment of first
+         use, never at first launch: docs/privacy/permissions-policy.md. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Dictation records while the app is not in the foreground, because the whole
+         product is a bubble over another app. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+
+    <!-- The bubble. A special permission, not runtime-prompted: the app must check
+         whether it is granted and route the user to Settings when it is not. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <application
+        android:label="OpenFlow"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+
+</manifest>

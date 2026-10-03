@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="OpenFlow">
+  <!--
+    The bubble. Zero radius, because the icon brief in ticket 17 asked for an
+    abstract speech bubble and the design language does not allow soft edges;
+    a single flowing waveform stroke knocked out of it, no gradients.
+  -->
+  <rect width="32" height="32" fill="#5B21D6"/>
+  <g fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="square">
+    <path d="M6 16h2"/>
+    <path d="M11 16v-5"/>
+    <path d="M16 16v-10"/>
+    <path d="M21 16v-7"/>
+    <path d="M26 16h-2"/>
+  </g>
+</svg>

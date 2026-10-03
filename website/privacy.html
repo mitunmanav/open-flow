@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy — OpenFlow</title>
+<meta name="description" content="What leaves your device in OpenFlow, what is stored locally, what is deleted by default, and the four Android capabilities it needs along with what each one cannot do.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+<script>
+/* Applied before first paint so the page never flashes the wrong theme. */
+document.documentElement.classList.add("js");
+(function(){var t=null;try{t=localStorage.getItem("openflow-theme")}catch(e){}
+document.documentElement.setAttribute("data-theme",t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"))})();
+</script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <div class="topbar__in">
+    <a class="brand" href="index.html">
+      <span class="brand__mark" aria-hidden="true"></span>
+      OpenFlow
+    </a>
+    <nav class="nav" aria-label="Sections">
+      <a href="index.html">Home</a>
+      <a href="how-it-works.html">How it works</a>
+      <a href="privacy.html" aria-current="page">Privacy</a>
+      <a href="get-involved.html">Get involved</a>
+    </nav>
+    <button class="theme-btn" data-theme-toggle type="button">Dark</button>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ── the strongest line leads ─────────────────────────────── -->
+  <section class="hero hero--tall">
+    <div class="wrap">
+      <h1>Nothing leaves your&nbsp;device.</h1>
+      <p class="hero__lede">
+        That is the default answer, not a promise. Below it are the exceptions,
+        the storage, and the four things Android requires before a floating
+        bubble can exist at all.
+      </p>
+    </div>
+  </section>
+
+  <section class="band band--close">
+    <div class="wrap">
+      <div class="cols cols--2">
+        <div class="prose">
+          <h3>Audio</h3>
+          <p>
+            Deleted after successful processing. Two opt-in settings exist and
+            both are off: keep all recordings, or keep audio for the last N
+            failures. Anything kept is visible and deletable in Settings &rarr;
+            Privacy.
+          </p>
+        </div>
+        <div class="prose">
+          <h3>Telemetry</h3>
+          <p>
+            None. No Firebase, no usage analytics, no crash-reporting vendor.
+            Any future anonymous quality telemetry would be off by default and
+            clearly disclosed.
+          </p>
+        </div>
+        <div class="prose">
+          <h3>Surrounding text</h3>
+          <p>
+            Not read. Only the metadata insertion needs &mdash; package, view id,
+            input type &mdash; captured at the start of a dictation, held for the
+            insertion attempt, and not persisted.
+          </p>
+        </div>
+        <div class="prose">
+          <h3>Stored locally</h3>
+          <p>
+            The final transcript, raw text when available for retry, which
+            provider answered, timings, outcome, language, and optional
+            feedback. Raw and refined are marked deletable together.
+          </p>
+        </div>
+      </div>
+
+      <p class="callout" style="margin-top: var(--s7);">
+        A cloud provider is not excluded by principle, only by default. One would
+        have to be switched on by you explicitly, document its own data handling,
+        and sit behind the router&rsquo;s rules &mdash; where cloud counts as
+        consent-required. The <code>offline</code> switch excludes it outright.
+      </p>
+      <p class="srcnote">From <a href="https://github.com/mitunmanav/open-flow/blob/main/docs/privacy/privacy-policy.md">docs/privacy/privacy-policy.md</a></p>
+    </div>
+  </section>
+
+  <!-- ── capabilities, in the same claim/limit form ───────────── -->
+  <section class="band band--open">
+    <div class="wrap">
+      <div class="band__head" data-draw>
+        <span class="draw" aria-hidden="true"></span>
+        <h2>Four things Android&nbsp;requires.</h2>
+        <p>
+          A floating bubble that dictates into other apps needs all four, and
+          each is asked for at the moment you first need it &mdash; not in a wall
+          of toggles at first launch. Same form as the claims on the home page:
+          what it touches, then what it cannot do.
+        </p>
+      </div>
+
+      <ul class="claims">
+        <li class="claim">
+          <p class="claim__text">Microphone</p>
+          <p class="claim__limit">Records while you hold the bubble. Android shows its own indicator; nothing here suppresses it.</p>
+        </li>
+        <li class="claim">
+          <p class="claim__text">Overlay</p>
+          <p class="claim__limit">Draws the bubble and nothing else. Revoke it in system settings and the app keeps working &mdash; without a bubble.</p>
+        </li>
+        <li class="claim">
+          <p class="claim__text">Accessibility service</p>
+          <p class="claim__limit">Writes into the focused field, and only that. Never used to read a screen or work around Android security.</p>
+        </li>
+        <li class="claim">
+          <p class="claim__text">Notifications</p>
+          <p class="claim__limit">A foreground-service notification must be visible while recording. That is the notification.</p>
+        </li>
+      </ul>
+      <p class="srcnote">From <a href="https://github.com/mitunmanav/open-flow/blob/main/docs/privacy/permissions-policy.md">docs/privacy/permissions-policy.md</a></p>
+    </div>
+  </section>
+
+  <!-- ── the disclosure ───────────────────────────────────────── -->
+  <section class="band band--open">
+    <div class="wrap">
+      <div class="band__head" data-draw>
+        <span class="draw" aria-hidden="true"></span>
+        <h2>It is not an accessibility&nbsp;tool.</h2>
+        <p>
+          And it is not eligible to be one. Voice-activated assistants
+          explicitly do not qualify, and claiming otherwise risks suspension.
+        </p>
+      </div>
+
+      <div class="cols cols--2">
+        <div class="prose">
+          <h3>If a dictation app tells you it is one</h3>
+          <p>
+            That is a lie about what it is doing with the service. Play&rsquo;s
+            own guidance is that a dictation helper is not an accessibility tool,
+            and that a wrong claim can get an app suspended.
+          </p>
+        </div>
+        <div class="prose">
+          <h3>What happens instead</h3>
+          <p>
+            Before the service is enabled, a standalone disclosure of exactly
+            what it reads and writes, shown in normal use rather than buried in
+            settings, and an affirmative consent you have to tap.
+          </p>
+        </div>
+      </div>
+
+      <p class="srcnote">From <a href="https://github.com/mitunmanav/open-flow/blob/main/docs/privacy/permissions-policy.md">docs/privacy/permissions-policy.md</a> and <a href="https://github.com/mitunmanav/open-flow/blob/main/docs/privacy/privacy-policy.md">docs/privacy/privacy-policy.md</a></p>
+    </div>
+  </section>
+
+  <!-- ── fields and controls ──────────────────────────────────── -->
+  <section class="band">
+    <div class="wrap">
+      <div class="cols cols--2">
+        <div class="prose">
+          <h3>Refused before recording</h3>
+          <p>
+            Password fields, card fields, and anything else on your blocked list
+            of sensitive packages. The microphone does not open, so there is no
+            audio to hold and nothing to leak later.
+          </p>
+          <p>
+            If the focused field turns sensitive while you are already talking,
+            the transcript is destroyed entirely and never written to history.
+          </p>
+        </div>
+        <div class="prose">
+          <h3>Your settings, and retention</h3>
+          <p>
+            Settings &rarr; Privacy holds the JSON history export, clear all
+            history and settings, the audio retention toggles, cloud-provider
+            consent, and the list of blocked sensitive packages.
+          </p>
+          <p>
+            History is kept indefinitely by default, with optional auto-delete
+            after N days that is never on by default.
+          </p>
+        </div>
+      </div>
+
+      <div class="hero__actions" style="margin-top: var(--s7);">
+        <a class="btn btn--primary" href="https://github.com/mitunmanav/open-flow/blob/main/docs/privacy/privacy-policy.md">Read the full policy</a>
+        <a class="btn" href="https://github.com/mitunmanav/open-flow/blob/main/PRIVACY.md">PRIVACY.md</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot__grid">
+      <div>
+        <h3>OpenFlow</h3>
+        <p>
+          Open-source Android voice dictation that floats over your existing
+          keyboard. Offline by default, no account, provider neutral.
+        </p>
+      </div>
+      <div>
+        <h3>Pages</h3>
+        <ul data-nav>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="how-it-works.html">How it works</a></li>
+          <li><a href="privacy.html">Privacy</a></li>
+          <li><a href="get-involved.html">Get involved</a></li>
+        </ul>
+      </div>
+      <div>
+        <h3>Repository</h3>
+        <ul>
+          <li><a href="https://github.com/mitunmanav/open-flow">Source</a></li>
+          <li><a href="https://github.com/mitunmanav/open-flow/blob/main/docs/README.md">Documentation</a></li>
+          <li><a href="https://github.com/mitunmanav/open-flow/issues">Issues</a></li>
+          <li><a href="https://github.com/mitunmanav/open-flow/blob/main/CONTRIBUTING.md">Contributing</a></li>
+        </ul>
+      </div>
+      <div>
+        <h3>Licence</h3>
+        <ul>
+          <li><a href="https://github.com/mitunmanav/open-flow/blob/main/LICENSE">Apache-2.0</a></li>
+          <li><a href="https://github.com/mitunmanav/open-flow/blob/main/PRIVACY.md">Privacy</a></li>
+          <li><a href="https://github.com/mitunmanav/open-flow/blob/main/THIRD_PARTY_NOTICES.md">Third-party notices</a></li>
+          <li><a href="https://github.com/mitunmanav/open-flow/blob/main/SECURITY.md">Security</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot__note">
+      <span>Apache-2.0</span>
+      <span>sherpa-onnx models ship under their own licence</span>
+      <span>Pre-alpha &mdash; not downloadable</span>
+      <span>No third party is contacted when this page loads</span>
+    </div>
+  </div>
+</footer>
+
+<script src="site.js"></script>
+<script src="motion.js"></script>
+</body>
+</html>

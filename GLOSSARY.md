@@ -80,3 +80,23 @@ The router's output: chosen provider, candidates considered, deciding rule, and 
 ## FakeProvider
 
 A test SpeechProvider implementation used to run the whole dictation pipeline without a real speech engine.
+
+## Acceptance Gate
+
+The protocol that decides whether OpenFlow may claim a release. Fourteen scenarios per device class, judged on whether **the pipeline behaved** — state machine, insertion, router degradation, recovery — and never on transcription accuracy, which belongs to the model. Two bars: *Releasable* (a prerelease tag, one class) and *Shipped* (`v1.0.0`, all three). See `docs/quality/acceptance-gate.md`.
+_Avoid_: test suite, QA pass, release checklist
+
+## Device Class
+
+One of **Pixel-like**, **Samsung-class**, or **Xiaomi-class**, decided by behaviour rather than brand: how aggressively the OEM kills background apps, whether an overlay survives, and whether background microphone access is restricted. A Samsung with "never sleeping apps" enabled is still Samsung-class; a Xiaomi-branded phone with aggressive killing turned off may be Pixel-like. Recorded with OEM skin and Android major version.
+_Avoid_: device model, phone type, OEM tier
+
+## Recover Cleanly
+
+The post-conditions a Dictation must satisfy after a deliberately injected failure: no stranded Bubble, no orphaned recording on disk, the transcript discarded or preserved exactly as the privacy policy requires, the clipboard holding what it held before, re-insert from History working or the entry cleanly abandonable, no duplicated text in the target field, and a state trace that reached a terminal outcome. A gate cannot judge this without splitting it from *how* the failure is injected.
+_Avoid_: handles errors, recovers gracefully, fails safe
+
+## Gate Status
+
+The machine-readable half of the acceptance gate's record: which device classes have been run, on which commit and `version_code`, and how many scenarios are green in each. The **only** thing CI parses. Empty is not a pass — it is an absence of evidence, and it blocks both bars.
+_Avoid_: gate results, coverage report, test status

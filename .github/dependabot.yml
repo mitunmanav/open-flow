@@ -2,12 +2,19 @@
 # open pull requests here; its commits must never be merged into main with a bot
 # author, which is why attribution.yml distinguishes R3 (no bot commits) from a
 # welcome bot pull request.
+#
+# Every group below is deliberately narrowed to minor and patch. Dependabot gives
+# a dependency that matches no group rule its own pull request, so leaving majors
+# ungrouped is what makes a breaking bump arrive alone — see ADR-0009, and the
+# security-updates default on `applies-to` below, which keeps this to version
+# updates and exempts nothing.
 
 version: 2
 
 updates:
-  # Gradle wrapper and plugins. Once gradlew exists this becomes the main source
-  # of dependency updates, since the Android build is Gradle-based.
+  # Gradle wrapper and plugins. `gradlew` and `gradle/libs.versions.toml` have both
+  # existed since the build landed, so this block is a live source of updates rather
+  # than the placeholder it was written as.
   - package-ecosystem: gradle
     directory: /
     schedule:
@@ -21,13 +28,25 @@ updates:
     commit-message:
       prefix: 'build'
     groups:
+      # An AGP or Kotlin major is at least as consequential as a GitHub Actions one,
+      # so it arrives alone too. The Gradle wrapper matches neither pattern and the
+      # sherpa-onnx AAR is pinned to a `v`-prefixed tag rather than plain SemVer;
+      # both are already ungrouped, which is the outcome wanted for each.
       android-gradle-plugin:
+        applies-to: version-updates
         patterns:
           - 'com.android.*'
           - 'androidx.*'
+        update-types:
+          - minor
+          - patch
       kotlin:
+        applies-to: version-updates
         patterns:
           - 'org.jetbrains.kotlin*'
+        update-types:
+          - minor
+          - patch
 
   # GitHub Actions. Pinned actions are a supply-chain surface of their own, and
   # a stale action is a silent one.
@@ -43,9 +62,18 @@ updates:
     commit-message:
       prefix: 'ci'
     groups:
+      # `patterns: ['*']` with no `update-types` bundled every bump into one pull
+      # request; PR #1 is eight major bumps into the workflows that build and publish
+      # the release. Narrowing to minor/patch is the whole fix.
       actions:
+        applies-to: version-updates
         patterns:
           - '*'
+        update-types:
+          - minor
+          - patch
 
-  # No npm/pip ecosystem yet: OpenFlow has no JavaScript or Python build. Remove
-  # these blocks when one exists rather than letting them sit as dead config.
+  # No npm or pip ecosystem here, and none is planned: OpenFlow has no JavaScript
+  # or Python build, and Gradle plus GitHub Actions above are the whole dependency
+  # surface. Add a block when a build that needs one exists rather than leaving an
+  # empty one here as dead config.

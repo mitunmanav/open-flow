@@ -1,7 +1,7 @@
 # Dependabot PRs vs the required attribution check
 
 Type: grilling
-Status: open
+Status: resolved
 Blocked by: none
 
 ## Question
@@ -64,3 +64,79 @@ PRs. Nothing is broken; something is undecided.
 - `dependency-review` (which runs on Dependabot PRs) was fixed in ticket 18 by
   enabling the dependency graph, so the security signal is available on those PRs
   regardless of how this resolves.
+
+## Answer
+
+**Automation proposes; a human authors; a human merges.** The rule binds the landed
+commit's attribution, not the diff's provenance — which is the reading `AGENTS.md`'s own
+text supports, and the only one under which the rule and Dependabot coexist without a
+carve-out. Full reasoning in `docs/adr/0009-automated-dependency-landing-path.md`, which is the
+index of this answer rather than a copy of it.
+
+Settled, in the order the questions were asked:
+
+1. **The rule is about attribution.** `AGENTS.md` forbids a bot from being a commit
+   author or a `Co-authored-by` trailer, and forbids automation writing to a branch.
+   Neither is a claim about where a diff came from. A provenance reading would have made
+   "re-author by hand" a violation rather than a solution.
+2. **The policy is general, Dependabot as the worked example** — `AGENTS.md` names
+   `github-actions[bot]` too, and this repo already has Actions committing releases and
+   Pages deploys.
+3. **Dependabot stays.** A floor maintained a few times a month is cheap; floors set by
+   hand drift silently.
+4. **The bot's `Signed-off-by` is stripped on re-author; the trailer stays policed.**
+   This one is a correction to what the ticket assumed. The trailer is appended by
+   Dependabot to commits it authors itself — verified in the head commit of PR #1 — not by
+   GitHub's merge machinery, so the existing `GitHub <noreply@github.com>` committer
+   exemption does not reach it and it is not what that carve-out was for.
+5. **A non-authorship `Refs:` pointer is required.** GitHub links a squash-merged PR as
+   `(#7)` in the subject for free; the manual route loses it, so without an explicit
+   pointer the audit trail for every bump vanishes the moment the landing path goes
+   manual.
+6. **No security-fix carve-out.** `automated-security-fixes` arrives as
+   `github-actions[bot]` PRs too, so a critical CVE waits for the owner. Ticket 28's
+   `gate_waiver_reason` precedent deliberately does **not** transfer: a skipped acceptance
+   gate is recoverable, a bot-authored commit in `main`'s history is not. The latency is
+   minutes of commands, not a review cycle.
+7. **A script, plus documentation.** `enforce_admins` is on and the repo is
+   solo-maintained, so a remotely-red run has no cheap escape hatch while a local one
+   costs a minute. This check has already produced one false positive that made the repo
+   unmergeable.
+
+### What the investigation changed
+
+Three findings from reading the code and the live repository reshaped the answer:
+
+- **No GitHub-native merge can land a bot PR.** Squash-merge attributes the squash to the
+  PR's *author* — which is why PRs #2 and #3 landed as `Mitun Manav G Y` — so a Dependabot
+  squash would be bot-authored and fail R3 *and* R2. Rebase-and-merge preserves the bot
+  author and also fails. Only a local owner-authored commit works, which makes the
+  re-author route forced rather than preferred.
+- **`git cherry-pick` preserves the original author**, so the obvious implementation of
+  "re-author by hand" produces exactly the commit the check exists to reject. It also
+  copies the message verbatim, dragging the sign-off line along.
+- **`main` needs no history repair.** Ten commits, all owner-authored; the two web-UI
+  squashes carry the owner's name and pass R2 on name match alone. The three-line failure
+  quote in this ticket's Context predates the `a25045f` committer exemption and is not
+  current output.
+
+### Consequences worth carrying
+
+- A bot-authored commit can still be pushed to an open branch; it simply will not merge.
+  The check is a merge gate, not a branch guard.
+- `Signed-off-by` remains policed **even though its R1 rationale is wrong** — "GitHub
+  counts trailer names as contributors" is true of `Co-authored-by` and false of a DCO
+  sign-off. Correctness does not need the rationale fixed here, so it was not bundled in.
+
+### What this decision sent back out
+
+Two follow-ups, both execution rather than decision:
+
+- **`.scratch/openflow-v1/issues/38-narrow-dependabot-groups.md`** — split major bumps
+  from routine ones in `.github/dependabot.yml`, and close PR #1. Neither is blocked: it
+  is simply cheaper, and it reduces the blast radius of whatever lands first.
+- **`.scratch/openflow-v1/issues/39-dependabot-landing-procedure.md`** — the script, the
+  documented procedure, and the `CONTRIBUTING.md` rule.
+
+Nothing graduated from the map's fog. The bubble, the recovery surface, and onboarding
+order are untouched by this decision.

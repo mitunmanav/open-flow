@@ -34,4 +34,13 @@ dependencies {
     // JitPack mirrors the AAR that sherpa-onnx's own release pipeline produced.
     // Its Kotlin metadata is 1.7.x, which the Kotlin 2.0.21 compiler reads.
     implementation(libs.sherpa.onnx)
+
+    // The ModelStore's tar.bz2 extraction (ticket 46). `implementation`, not
+    // `api`: the module's public signatures name only File, String and Map, so
+    // commons-compress never reaches this module's consumers.
+    implementation(libs.commons.compress)
+
+    // Unit tests for the ModelStore (ticket 46): the download/verify/extract
+    // path is exercised against a fake downloader and real tiny archives.
+    testImplementation(libs.junit)
 }

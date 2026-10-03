@@ -90,6 +90,27 @@ Threading/lifecycle notes:
   3. Hybrid: bundle VAD (tiny), download ASR model(s) on demand.
 - No official runtime downloader in the Android artifact; you write the fetch/verify/extract code yourself. iOS/macOS use the same manual approach.
 
+### Measured archive layout (ticket 46)
+
+The `asr-models` release assets were fetched and measured, not read from
+prose. For the V1 default, `sherpa-onnx-streaming-zipformer-en-20M-2023-02-17.tar.bz2`
+(127,887,156 bytes, SHA-256 `9c559283e8498d3fe95913c79ca1cb454bb26281ac2b102b41306c7d752765d9`,
+pinned in `providers/sherpa`'s `modelstore/ModelSpec.kt`):
+
+- One top-level directory named after the model, containing **both** fp32
+  and int8 variants: `encoder-epoch-99-avg-1.onnx` and
+  `encoder-epoch-99-avg-1.int8.onnx`, likewise
+  `decoder-epoch-99-avg-1(.int8).onnx` and
+  `joiner-epoch-99-avg-1(.int8).onnx`. The entry names are the
+  `-epoch-99-avg-1` forms — not an `encoder.int8.onnx` shorthand — so
+  model config paths must be taken from the spec, not typed from memory.
+- `tokens.txt`, `README.md`, an export script, and a `test_wavs/`
+  directory.
+- OpenFlow extracts only the int8 trio and `tokens.txt` (~45 MB of the
+  ~210 MB unpacked archive); the archive as a whole remains the unit of
+  integrity, because the pinned SHA-256 covers every byte of it. The
+  pinned set lives in `modelstore/ModelSpec.kt`.
+
 ## Prebuilt Android demo lessons
 
 | Demo (android/) | Teaches |

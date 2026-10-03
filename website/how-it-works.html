@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How it works — OpenFlow</title>
+<meta name="description" content="OpenFlow's dictation state machine, the eight deterministic refiner stages, the five ordered routing rules, and how text gets inserted. Every claim links to the decision record it comes from.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+<script>
+/* Applied before first paint so the page never flashes the wrong theme. */
+document.documentElement.classList.add("js");
+(function(){var t=null;try{t=localStorage.getItem("openflow-theme")}catch(e){}
+document.documentElement.setAttribute("data-theme",t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"))})();
+</script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <div class="topbar__in">
+    <a class="brand" href="index.html">
+      <span class="brand__mark" aria-hidden="true"></span>
+      OpenFlow
+    </a>
+    <nav class="nav" aria-label="Sections">
+      <a href="index.html">Home</a>
+      <a href="how-it-works.html" aria-current="page">How it works</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="get-involved.html">Get involved</a>
+    </nav>
+    <button class="theme-btn" data-theme-toggle type="button">Dark</button>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ── the machine leads, because the machine is the page ────── -->
+  <section class="hero hero--tall">
+    <div class="wrap">
+      <h1>Seven states, and nothing else may write to them.</h1>
+      <p class="hero__lede">
+        Dictation fans out across the bubble, the microphone, the provider, the
+        refiner and the inserter. Left alone that becomes scattered booleans
+        which admit impossible combinations &mdash; so one component owns the
+        state.
+      </p>
+    </div>
+  </section>
+
+  <section class="band band--close">
+    <div class="wrap">
+      <svg class="diagram" data-draw viewBox="0 0 900 246" role="img"
+           aria-label="The dictation state machine. The happy path runs Idle, Preparing, Recording, Transcribing, Refining, Inserting, Done. From any state you can reach Cancelled, Error Recoverable or Error Fatal, and every terminal outcome returns to Idle.">
+        <!-- The happy path. Seven boxes, 108 wide with 24 gaps: 7*108 + 6*24 = 900. -->
+        <g>
+          <rect class="box" x="0"   y="44" width="108" height="44"/>
+          <rect class="box" x="132" y="44" width="108" height="44"/>
+          <rect class="box" x="264" y="44" width="108" height="44"/>
+          <rect class="box" x="396" y="44" width="108" height="44"/>
+          <rect class="box" x="528" y="44" width="108" height="44"/>
+          <rect class="box" x="660" y="44" width="108" height="44"/>
+          <rect class="box" x="792" y="44" width="108" height="44"/>
+
+          <text x="54"  y="71" text-anchor="middle">IDLE</text>
+          <text x="186" y="71" text-anchor="middle">PREPARING</text>
+          <text x="318" y="71" text-anchor="middle">RECORDING</text>
+          <text x="450" y="71" text-anchor="middle">TRANSCRIBING</text>
+          <text x="582" y="71" text-anchor="middle">REFINING</text>
+          <text x="714" y="71" text-anchor="middle">INSERTING</text>
+          <text x="846" y="71" text-anchor="middle">DONE</text>
+
+          <path class="wire wire--accent" pathLength="1" d="M108 66 H126"/>
+          <path class="wire wire--accent" pathLength="1" d="M240 66 H258"/>
+          <path class="wire wire--accent" pathLength="1" d="M372 66 H390"/>
+          <path class="wire wire--accent" pathLength="1" d="M504 66 H522"/>
+          <path class="wire wire--accent" pathLength="1" d="M636 66 H654"/>
+          <path class="wire wire--accent" pathLength="1" d="M768 66 H786"/>
+        </g>
+
+        <!-- One bus rather than seven wires, because the claim is true of every
+             state and not of any particular one. It drops from the middle so it
+             reads as "the whole row", not "only transcribing". -->
+        <g>
+          <path class="wire wire--accent" pathLength="1" d="M450 88 V120"/>
+          <path class="wire wire--accent" pathLength="1" d="M54 120 H846"/>
+          <text class="lbl" x="54" y="112" text-anchor="start">any state</text>
+        </g>
+
+        <!-- Terminal outcomes. Three boxes, 260 wide with 60 gaps: 3*260 + 2*60 = 900. -->
+        <g>
+          <path class="wire wire--accent" pathLength="1" d="M130 120 V156"/>
+          <path class="wire wire--accent" pathLength="1" d="M450 120 V156"/>
+          <path class="wire wire--accent" pathLength="1" d="M770 120 V156"/>
+
+          <rect class="box" x="0"   y="156" width="260" height="40"/>
+          <rect class="box" x="320" y="156" width="260" height="40"/>
+          <rect class="box" x="640" y="156" width="260" height="40"/>
+
+          <text x="130" y="181" text-anchor="middle">CANCELLED</text>
+          <text x="450" y="181" text-anchor="middle">ERROR_RECOVERABLE</text>
+          <text x="770" y="181" text-anchor="middle">ERROR_FATAL</text>
+
+          <text class="lbl" x="130" y="218" text-anchor="middle">audio discarded, nothing persisted</text>
+          <text class="lbl" x="450" y="218" text-anchor="middle">retry or copy, transcript kept</text>
+          <text class="lbl" x="770" y="218" text-anchor="middle">next start re-enters preparing</text>
+        </g>
+      </svg>
+      <p class="srcnote">From <a href="https://github.com/mitunmanav/open-flow/blob/main/docs/adr/0002-dictation-state-machine.md">docs/adr/0002-dictation-state-machine.md</a></p>
+    </div>
+  </section>
+
+  <section class="band band--close">
+    <div class="wrap">
+      <dl class="deflist">
+        <div>
+          <dt>one transition per pair</dt>
+          <dd>Every (state, event) pair has exactly one defined transition, or is explicitly ignored. A transition-table test covers it.</dd>
+        </div>
+        <div>
+          <dt>inserting is not cancellable</dt>
+          <dd>Insertion either lands or fails, and the bubble shows which. You cannot back out halfway and leave a field in pieces.</dd>
+        </div>
+        <div>
+          <dt>cancel discards everything</dt>
+          <dd>Cancel during recording, transcribing or refining stops capture, cancels the provider flow, drops the audio, and persists no transcript.</dd>
+        </div>
+        <div>
+          <dt>every step times out</dt>
+          <dd>A suspending step that hangs becomes ErrorRecoverable(Timeout) rather than a dictation that never ends.</dd>
+        </div>
+        <div>
+          <dt>cleanup never eats your words</dt>
+          <dd>A refiner failure degrades to the raw transcript, marked unprocessed. Losing what someone said to a punctuation bug is the worst outcome available.</dd>
+        </div>
+      </dl>
+    </div>
+  </section>
+
+  <!-- ── the refiner ──────────────────────────────────────────── -->
+  <section class="band band--open">
+    <div class="wrap">
+      <div class="band__head" data-draw>
+        <span class="draw" aria-hidden="true"></span>
+        <h2>Eight deterministic&nbsp;stages.</h2>
+        <p>
+          No language model. Every stage is a rule you could implement on a
+          Tuesday, which is the point: the same transcript cleans the same way
+          every time, and you can read exactly what changed.
+        </p>
+      </div>
+
+      <ol class="stages">
+        <li><div><b>Normalization</b><span>Whitespace, casing baseline.</span></div></li>
+        <li><div><b>Spoken-command expansion</b><span>&ldquo;full stop&rdquo; becomes a period; new line, new paragraph, quotes, parentheses.</span></div></li>
+        <li><div><b>Backtracking resolution</b><span>&ldquo;scratch that&hellip;&rdquo; deletes back to the last sentence boundary. <em>No</em>, <em>I mean</em> and <em>actually</em> are soft markers only &mdash; in V1 the next clause does not replace the last one.</span></div></li>
+        <li><div><b>Filler removal</b><span>&ldquo;um&rdquo;, &ldquo;uh&rdquo;, &ldquo;you know&rdquo;, &ldquo;like&rdquo;. Per-language lists, user toggle.</span></div></li>
+        <li><div><b>List detection</b><span>&ldquo;number one&rdquo;, &ldquo;first&rdquo; become a numbered list; a line-leading &ldquo;dash&rdquo; becomes a bulleted one.</span></div></li>
+        <li><div><b>Dictionary</b><span>Your wrong&rarr;right map, whole phrase, case-insensitive.</span></div></li>
+        <li><div><b>Snippets</b><span>Your shorthand&rarr;expansion map, user-toggled.</span></div></li>
+        <li><div><b>App-style formatting</b><span>One of Casual, Neutral or Formal &mdash; capitalisation and ending punctuation, assigned per app category.</span></div></li>
+      </ol>
+
+      <div class="panel" style="margin-top: var(--s7);">
+        <div class="panel__bar">
+          <strong>worked example</strong>
+          <span>the demo in the hero, annotated</span>
+        </div>
+        <div class="panel__body">
+<pre><code><span class="dim">raw      </span>i'm sorry <span class="hit">scratch that friday works too.</span> um like thursday at ten am
+
+<span class="dim">stage 3  </span><span class="term">scratch that friday works too.</span>   <span class="dim">false start deleted</span>
+<span class="dim">stage 4  </span><span class="term">um</span> <span class="term">like</span>                        <span class="dim">fillers removed</span>
+<span class="dim">stage 8  </span>thursday at 10am               <span class="dim">&rarr; Neutral preset applied</span>
+
+<span class="hit">result   </span>Thursday at 10am.</code></pre>
+        </div>
+        <p class="panel__foot">
+          Style runs last so it sees the final content. A refiner exception
+          anywhere in the pipeline degrades to the raw transcript marked
+          unprocessed &mdash; it never fails the dictation.
+        </p>
+      </div>
+      <p class="srcnote">From <a href="https://github.com/mitunmanav/open-flow/blob/main/docs/architecture/refiner.md">docs/architecture/refiner.md</a></p>
+    </div>
+  </section>
+
+  <!-- ── the router ───────────────────────────────────────────── -->
+  <section class="band band--open">
+    <div class="wrap">
+      <div class="band__head" data-draw>
+        <span class="draw" aria-hidden="true"></span>
+        <h2>Five rules, in a fixed&nbsp;order.</h2>
+        <p>
+          The order is part of the contract, because &ldquo;which rule excluded
+          this provider&rdquo; is the explanation you are owed. Consent comes
+          before capability; capability before cost; health last, because it is
+          the most volatile and least authoritative signal.
+        </p>
+      </div>
+
+      <dl class="deflist">
+        <div>
+          <dt>1 &middot; manual preference</dt>
+          <dd>A ranking override among eligible providers. Never a way over a hard exclusion.</dd>
+        </div>
+        <div>
+          <dt>2 &middot; privacy and offline</dt>
+          <dd><code>local-only</code> excludes cloud. <code>offline</code> excludes online. These are your instructions, not the router&rsquo;s judgement, so they come first.</dd>
+        </div>
+        <div>
+          <dt>3 &middot; capability match</dt>
+          <dd>Does this provider actually support the language you asked for, and work without a network if you said so.</dd>
+        </div>
+        <div>
+          <dt>4 &middot; cost ceiling</dt>
+          <dd>Compared against the worst case &mdash; rate &times; maximum audio duration &mdash; not the amount it turns out to be. A ceiling you can exceed after the router commits is not a ceiling.</dd>
+        </div>
+        <div>
+          <dt>5 &middot; health</dt>
+          <dd><code>UNAVAILABLE</code> and <code>MODEL_MISSING</code> skip. <code>DEGRADED</code> is eligible but ranked last. Health never empties the candidate set: if skipping would leave nothing, degraded providers are admitted and the decision is recorded as <code>DEGRADED_LAST_RESORT</code>.</dd>
+        </div>
+      </dl>
+
+      <p class="callout" style="margin-top: var(--s7);">
+        There is no user-facing cost slider in V1. With no billable provider, a
+        ceiling would control nothing &mdash; the field exists so the first cloud
+        adapter is a drop-in rather than a rewrite. Automatic routing by
+        measurement is explicitly out of V1; when it arrives it reads the same
+        decision log.
+      </p>
+      <p class="srcnote">From <a href="https://github.com/mitunmanav/open-flow/blob/main/docs/adr/0004-adaptive-dictation-router.md">docs/adr/0004-adaptive-dictation-router.md</a></p>
+    </div>
+  </section>
+
+  <!-- ── insertion ────────────────────────────────────────────── -->
+  <section class="band band--open">
+    <div class="wrap">
+      <div class="band__head" data-draw>
+        <span class="draw" aria-hidden="true"></span>
+        <h2>Getting the text&nbsp;in.</h2>
+        <p>
+          Writing into a field that belongs to another app is the part that can
+          actually break, so it degrades in three steps and re-resolves its
+          target rather than trusting a stale handle.
+        </p>
+      </div>
+
+      <ol class="stages">
+        <li><div><b>SET_TEXT</b><span>Set the field&rsquo;s contents directly. Fast, and it replaces a selection rather than inserting into it.</span></div></li>
+        <li><div><b>PASTE</b><span>Write to the clipboard and paste, which preserves a caret inside existing text.</span></div></li>
+        <li><div><b>Copy and prompt</b><span>Put it on the clipboard, tell you it is there, and let you paste. The clipboard is preserved beforehand and restored afterwards.</span></div></li>
+      </ol>
+
+      <p class="callout" style="margin-top: var(--s7);">
+        <strong>Sensitive fields are refused before the microphone opens.</strong>
+        If the focused field turns out to be sensitive partway through, the audio
+        and the transcript are discarded and nothing is written. And if you
+        cancel, there is nothing to find later &mdash; no transcript, no audio,
+        no record that a dictation ever started.
+      </p>
+      <p class="srcnote">From <a href="https://github.com/mitunmanav/open-flow/blob/main/docs/adr/0003-safe-text-insertion.md">docs/adr/0003-safe-text-insertion.md</a></p>
+    </div>
+  </section>
+
+  <section class="band band--close">
+    <div class="wrap">
+      <div class="cols cols--2">
+        <div class="prose">
+          <h3>Read the decisions</h3>
+          <p>Six ADRs and seventeen documents, all in the repository.</p>
+          <p><a href="https://github.com/mitunmanav/open-flow/blob/main/docs/README.md">Documentation index</a></p>
+        </div>
+        <div class="prose">
+          <h3>Read the privacy rules</h3>
+          <p>What leaves the device, what is stored, and what it refuses to do.</p>
+          <p><a href="privacy.html">Privacy</a></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot__grid">
+      <div>
+        <h3>OpenFlow</h3>
+        <p>
+          Open-source Android voice dictation that floats over your existing
+          keyboard. Offline by default, no account, provider neutral.
+        </p>
+      </div>
+      <div>
+        <h3>Pages</h3>
+        <ul data-nav>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="how-it-works.html">How it works</a></li>
+          <li><a href="privacy.html">Privacy</a></li>
+          <li><a href="get-involved.html">Get involved</a></li>
+        </ul>
+      </div>
+      <div>
+        <h3>Repository</h3>
+        <ul>
+          <li><a href="https://github.com/mitunmanav/open-flow">Source</a></li>
+          <li><a href="https://github.com/mitunmanav/open-flow/blob/main/docs/README.md">Documentation</a></li>
+          <li><a href="https://github.com/mitunmanav/open-flow/issues">Issues</a></li>
+          <li><a href="https://github.com/mitunmanav/open-flow/blob/main/CONTRIBUTING.md">Contributing</a></li>
+        </ul>
+      </div>
+      <div>
+        <h3>Licence</h3>
+        <ul>
+          <li><a href="https://github.com/mitunmanav/open-flow/blob/main/LICENSE">Apache-2.0</a></li>
+          <li><a href="https://github.com/mitunmanav/open-flow/blob/main/PRIVACY.md">Privacy</a></li>
+          <li><a href="https://github.com/mitunmanav/open-flow/blob/main/THIRD_PARTY_NOTICES.md">Third-party notices</a></li>
+          <li><a href="https://github.com/mitunmanav/open-flow/blob/main/SECURITY.md">Security</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot__note">
+      <span>Apache-2.0</span>
+      <span>sherpa-onnx models ship under their own licence</span>
+      <span>Pre-alpha &mdash; not downloadable</span>
+      <span>No third party is contacted when this page loads</span>
+    </div>
+  </div>
+</footer>
+
+<script src="site.js"></script>
+<script src="motion.js"></script>
+</body>
+</html>

@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenFlow — dictation that floats over your keyboard</title>
+<meta name="description" content="Open-source Android voice dictation that floats over your existing keyboard. Offline by default, no account, and it tells you which speech engine answered.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+<script>
+/* Applied before first paint so the page never flashes the wrong theme. */
+document.documentElement.classList.add("js");
+(function(){var t=null;try{t=localStorage.getItem("openflow-theme")}catch(e){}
+document.documentElement.setAttribute("data-theme",t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"))})();
+</script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <div class="topbar__in">
+    <a class="brand" href="index.html">
+      <span class="brand__mark" aria-hidden="true"></span>
+      OpenFlow
+    </a>
+    <nav class="nav" aria-label="Sections">
+      <a href="index.html" aria-current="page">Home</a>
+      <a href="how-it-works.html">How it works</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="get-involved.html">Get involved</a>
+    </nav>
+    <button class="theme-btn" data-theme-toggle type="button">Dark</button>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ══════════════════════════════════════════════════════════
+     The story: the device is pinned and the claims scroll past it,
+     so you read each limit while watching the thing it is about.
+     ══════════════════════════════════════════════════════════ -->
+  <section class="story">
+    <div class="wrap">
+      <div class="story__grid">
+
+        <div class="story__lede">
+          <h1>Dictation that floats over your keyboard.</h1>
+          <p class="hero__lede">
+            Open source, offline first, provider neutral. Tap or hold the
+            bubble, speak, and cleaned text lands where your cursor already is
+            &mdash; in whatever app you happen to be using.
+          </p>
+          <div class="hero__meta">
+            <span class="hero__status">Pre-alpha</span>
+            <span>Nothing to install yet.</span>
+          </div>
+          <div class="hero__actions">
+            <a class="btn btn--primary" href="how-it-works.html">See how a dictation runs</a>
+            <a class="btn" href="https://github.com/mitunmanav/open-flow">Star on GitHub</a>
+          </div>
+        </div>
+
+      <aside class="story__aside">
+        <div class="stage__device">
+          <div class="device">
+            <div class="device__bar">
+              <b>OpenFlow</b>
+              <span>floating over Messages</span>
+            </div>
+
+            <div class="demo" id="demo">
+              <div class="demo__thread">
+                <p class="demo__msg">Running about ten minutes late, sorry.</p>
+                <p class="demo__msg demo__msg--them">No rush. See you there.</p>
+                <p class="demo__msg demo__msg--them">Are we still on for Thursday?</p>
+                <p class="demo__msg demo__msg--them">I can push it back to 11.</p>
+              </div>
+              <div class="demo__compose">
+                <div class="demo__field" id="field" data-placeholder="Hold the bubble"></div>
+                <div class="bubble" id="bubble" data-state="idle" role="button" tabindex="0"
+                     aria-label="Dictation bubble. Press and hold to talk, drag to move.">
+                  <span class="bubble__label" id="bubbleLabel">Hold<br>to talk</span>
+                  <span class="level" id="level" aria-hidden="true" hidden><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                  <span class="bubble__sweep" id="sweep" aria-hidden="true"></span>
+                </div>
+              </div>
+              <div class="rail">
+                <span class="rail__state" id="railState">IDLE</span>
+                <span class="rail__detail" id="railDetail">hold to talk, or throw it to move</span>
+              </div>
+            </div>
+
+            <!-- Names whichever claim you are reading. The scroll narrative. -->
+            <p class="device__caption" id="deviceCaption">Hold the bubble. It is the whole product.</p>
+          </div>
+        </div>
+      </aside>
+
+        <section class="claims-band">
+          <div class="band__head" data-draw>
+            <span class="draw" aria-hidden="true"></span>
+            <h2>Every claim, and the limit it&nbsp;cannot cross.</h2>
+            <p>
+              Six of them. Each sets the promise against what it does not do,
+              in a different typeface &mdash; the same rule the app&rsquo;s
+                permission screen follows.
+            </p>
+          </div>
+
+          <ul class="claims">
+            <li class="claim" data-caption="sherpa-onnx runs on the device. A cloud adapter would not.">
+              <p class="claim__text">Works with no network.<span class="draw" aria-hidden="true"></span></p>
+              <p class="claim__limit">The default engine, sherpa-onnx, runs on the device. A cloud adapter would not.</p>
+            </li>
+            <li class="claim" data-caption="no account, no sign-in, nothing to leak">
+              <p class="claim__text">No account, ever.<span class="draw" aria-hidden="true"></span></p>
+              <p class="claim__limit">None in V1. A sync provider would need one.</p>
+            </li>
+            <li class="claim" data-caption="every dictation logs which provider answered">
+              <p class="claim__text">Nothing leaves the device.<span class="draw" aria-hidden="true"></span></p>
+              <p class="claim__limit">Every dictation records which provider answered, how long it took, and whether anything left the device.</p>
+            </li>
+            <li class="claim" data-caption="Apache-2.0 for the app. The ~45 MB model has its own licence.">
+              <p class="claim__text">Open source.<span class="draw" aria-hidden="true"></span></p>
+              <p class="claim__limit">Apache-2.0 covers the app. The ~45&nbsp;MB speech model ships under its own licence.</p>
+            </li>
+            <li class="claim" data-caption="secure fields are refused before the microphone opens">
+              <p class="claim__text">Inserts text anywhere.<span class="draw" aria-hidden="true"></span></p>
+              <p class="claim__limit">Not into secure fields. It refuses before it opens the microphone.</p>
+            </li>
+            <li class="claim" data-caption="export as JSON, or delete all of it">
+              <p class="claim__text">Your history is yours.<span class="draw" aria-hidden="true"></span></p>
+              <p class="claim__limit">Export it as JSON, or delete all of it, from Settings &rarr; Privacy.</p>
+            </li>
+          </ul>
+        </section>
+
+
+      </div>
+    </div>
+  </section>
+
+<!-- ── routing ──────────────────────────────────────────────── -->
+  <section class="band band--open">
+    <div class="wrap">
+      <div class="band__head" data-draw>
+        <span class="draw" aria-hidden="true"></span>
+        <h2>It tells you which engine&nbsp;answered.</h2>
+        <p>
+          Most dictation apps hide the speech engine. OpenFlow picks one from a
+          fixed, ordered set of rules and writes down what it decided &mdash;
+          including when the answer was <em>nothing</em>.
+        </p>
+      </div>
+
+      <div class="panel">
+        <div class="panel__bar">
+          <strong>RoutingDecision</strong>
+          <span>the rules are the ADR&rsquo;s; this combination is illustrative</span>
+        </div>
+        <div class="panel__body">
+<pre><code><span class="dim">request     </span>en-US &middot; offline &middot; privacyMode local-only
+
+<span class="dim">candidates  </span>sherpa-onnx &hellip; en-20M   local   MODEL_MISSING
+            cloud-whisper            cloud   HEALTHY
+
+<span class="dim">chosen      </span><span class="hit">none</span>
+<span class="dim">blockedBy   </span><span class="hit">rule 2</span>
+
+<span class="dim">rejected    </span>cloud-whisper           rule 2   privacyMode is local-only
+            sherpa-onnx &hellip; en-20M  rule 5   MODEL_MISSING</code></pre>
+        </div>
+        <p class="panel__foot">
+          An empty candidate set is still a decision. Without one, the honest
+          answer collapses into &ldquo;no provider available&rdquo; &mdash; when
+          the truth might be <em>no speech model installed</em>,
+          <em>nothing allowed offline</em>, or <em>over your cost ceiling</em>.
+          Three failures, three completely different fixes.
+        </p>
+      </div>
+      <p class="srcnote">From <a href="https://github.com/mitunmanav/open-flow/blob/main/docs/adr/0004-adaptive-dictation-router.md">docs/adr/0004-adaptive-dictation-router.md</a></p>
+    </div>
+  </section>
+
+  <!-- ── status ───────────────────────────────────────────────── -->
+  <section class="band">
+    <div class="wrap">
+      <div class="band__head">
+        <h2>Where it&nbsp;is.</h2>
+        <p>
+          The contracts are written and locked: the speech provider interface,
+          the dictation state machine, the router, the refiner, the privacy
+          rules, and the text-insertion strategy. The Android app does not exist
+          yet.
+        </p>
+      </div>
+
+      <div class="cols cols--2">
+        <div class="prose">
+          <h3>Written down</h3>
+          <p>
+            Six architecture decision records and seventeen documents, all
+            checked in CI for links that do not resolve and files nobody wrote.
+            The glossary defines every term the project uses.
+          </p>
+          <p><a href="how-it-works.html">How it works</a></p>
+        </div>
+        <div class="prose">
+          <h3>Not built</h3>
+          <p>
+            No Gradle project, no APK, no signing config. Before a release can
+            claim to ship, it has to pass an acceptance gate on three device
+            classes across ten text-entry scenarios &mdash; and the person
+            building it has one phone.
+          </p>
+          <p><a href="get-involved.html">Get involved</a></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot__grid">
+      <div>
+        <h3>OpenFlow</h3>
+        <p>
+          Open-source Android voice dictation that floats over your existing
+          keyboard. Offline by default, no account, provider neutral.
+        </p>
+      </div>
+      <div>
+        <h3>Pages</h3>
+        <ul data-nav>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="how-it-works.html">How it works</a></li>
+          <li><a href="privacy.html">Privacy</a></li>
+          <li><a href="get-involved.html">Get involved</a></li>
+        </ul>
+      </div>
+      <div>
+        <h3>Repository</h3>
+        <ul>
+          <li><a href="https://github.com/mitunmanav/open-flow">Source</a></li>
+          <li><a href="https://github.com/mitunmanav/open-flow/blob/main/docs/README.md">Documentation</a></li>
+          <li><a href="https://github.com/mitunmanav/open-flow/issues">Issues</a></li>
+          <li><a href="https://github.com/mitunmanav/open-flow/blob/main/CONTRIBUTING.md">Contributing</a></li>
+        </ul>
+      </div>
+      <div>
+        <h3>Licence</h3>
+        <ul>
+          <li><a href="https://github.com/mitunmanav/open-flow/blob/main/LICENSE">Apache-2.0</a></li>
+          <li><a href="https://github.com/mitunmanav/open-flow/blob/main/PRIVACY.md">Privacy</a></li>
+          <li><a href="https://github.com/mitunmanav/open-flow/blob/main/THIRD_PARTY_NOTICES.md">Third-party notices</a></li>
+          <li><a href="https://github.com/mitunmanav/open-flow/blob/main/SECURITY.md">Security</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot__note">
+      <span>Apache-2.0</span>
+      <span>sherpa-onnx models ship under their own licence</span>
+      <span>Pre-alpha &mdash; not downloadable</span>
+      <span>No third party is contacted when this page loads</span>
+    </div>
+  </div>
+</footer>
+
+<script src="site.js"></script>
+<script src="motion.js"></script>
+<script src="demo.js"></script>
+</body>
+</html>

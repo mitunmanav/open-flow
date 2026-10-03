@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Get involved — OpenFlow</title>
+<meta name="description" content="OpenFlow is pre-alpha: the architecture is locked and the app does not exist yet. What you can actually help with, and what the acceptance gate needs before it means anything.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+<script>
+/* Applied before first paint so the page never flashes the wrong theme. */
+document.documentElement.classList.add("js");
+(function(){var t=null;try{t=localStorage.getItem("openflow-theme")}catch(e){}
+document.documentElement.setAttribute("data-theme",t||(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"))})();
+</script>
+</head>
+<body>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="topbar">
+  <div class="topbar__in">
+    <a class="brand" href="index.html">
+      <span class="brand__mark" aria-hidden="true"></span>
+      OpenFlow
+    </a>
+    <nav class="nav" aria-label="Sections">
+      <a href="index.html">Home</a>
+      <a href="how-it-works.html">How it works</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="get-involved.html" aria-current="page">Get involved</a>
+    </nav>
+    <button class="theme-btn" data-theme-toggle type="button">Dark</button>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ── the most unusual true thing leads ────────────────────── -->
+  <section class="hero hero--tall">
+    <div class="wrap">
+      <h1>Three phones and three&nbsp;days.</h1>
+      <p class="hero__lede">
+        That is the most useful thing anyone could contribute right now, and it
+        is not code. This project has six locked architecture decisions and no
+        application code at all.
+      </p>
+      <div class="hero__actions">
+        <a class="btn btn--primary" href="https://github.com/mitunmanav/open-flow">Open the repository</a>
+        <a class="btn" href="#gate">See why</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="band band--close">
+    <div class="wrap">
+      <dl class="deflist">
+        <div>
+          <dt>Android hardware</dt>
+          <dd>
+            The acceptance gate needs three device classes &mdash; Pixel-like,
+            Samsung-class, Xiaomi-class. The person building this has one phone,
+            so a Pixel, a Samsung and a Xiaomi on hand for a few days is worth
+            more than any other contribution available right now.
+          </dd>
+        </div>
+        <div>
+          <dt>Disagree with a decision</dt>
+          <dd>
+            The architecture decision records are the project&rsquo;s real product
+            so far, and they are meant to be argued with. If one is wrong,
+            opening an issue against the reasoning is a real contribution
+            &mdash; especially if you can say what breaks.
+          </dd>
+        </div>
+        <div>
+          <dt>Write a provider</dt>
+          <dd>
+            The <code>SpeechProvider</code> contract is documented and there is a
+            shared test suite for capability honesty. V1 ships two adapters, both
+            written by the project: a fake one for tests and a sherpa-onnx one. A
+            third &mdash; whisper.cpp, or a cloud engine &mdash; arrives as a pull
+            request, not a plugin.
+          </dd>
+        </div>
+        <div>
+          <dt>Report what a phone does</dt>
+          <dd>
+            Overlay permission behaves differently across vendors and Android
+            versions, and nobody has tested this on anything but one device. Real
+            failure reports about the bubble on your handset are worth having.
+          </dd>
+        </div>
+        <div>
+          <dt>Read it and tell someone</dt>
+          <dd>
+            If the concept is new to you, the hardest part of this project is
+            whether anyone other than the author can follow the reasoning. A
+            confused reader finding a confusing document is a bug report.
+          </dd>
+        </div>
+      </dl>
+    </div>
+  </section>
+
+  <!-- ── the gate ─────────────────────────────────────────────── -->
+  <section class="band band--open" id="gate">
+    <div class="wrap">
+      <div class="band__head" data-draw>
+        <span class="draw" aria-hidden="true"></span>
+        <h2>Thirty runs, no&nbsp;exceptions.</h2>
+        <p>
+          Before a release can claim to ship, every one of these has to start,
+          record, transcribe, clean, insert and recover cleanly &mdash; on three
+          device classes, ten scenarios each.
+        </p>
+      </div>
+
+      <div class="panel">
+        <div class="panel__bar">
+          <strong>the ten scenarios</strong>
+          <span>each on Pixel-like, Samsung-class and Xiaomi-class</span>
+        </div>
+        <div class="panel__body">
+<pre><code>short chat          long paragraph       names and jargon
+numbers              self-correction       lists
+noisy room           weak connection       no connection
+multiple languages</code></pre>
+        </div>
+        <p class="panel__foot">
+          The honest caveat: this gate is aspirational until the hardware exists.
+          And the V1 default model has not been benchmarked on a real device yet,
+          so the threshold it was chosen against has nothing to measure yet either.
+          Both are named rather than quietly redefined to fit what is to hand.
+        </p>
+      </div>
+      <p class="srcnote">From <a href="https://github.com/mitunmanav/open-flow/blob/main/ROADMAP.md">ROADMAP.md</a></p>
+    </div>
+  </section>
+
+  <!-- ── roadmap ──────────────────────────────────────────────── -->
+  <section class="band band--open">
+    <div class="wrap">
+      <div class="band__head" data-draw>
+        <span class="draw" aria-hidden="true"></span>
+        <h2>The order of&nbsp;work.</h2>
+      </div>
+      <ol class="stages">
+        <li><div><b>Gradle project skeleton</b><span>Nothing builds until this exists. The CI workflow is green today only because it checks for a wrapper and skips.</span></div></li>
+        <li><div><b>Android shell, onboarding, permission health</b><span>The permissions screen this site&rsquo;s honesty rule came from.</span></div></li>
+        <li><div><b>Floating bubble</b><span>Overlay window, tap/hold/drag/cancel, across rotation and keyboard resize.</span></div></li>
+        <li><div><b>Audio capture and VAD</b><span>Where a dictation starts and stops being sound.</span></div></li>
+        <li><div><b>FakeProvider pipeline, then sherpa-onnx</b><span>The whole loop runs without a real engine first, so the engine is the last variable.</span></div></li>
+        <li><div><b>Refinement, insertion, history</b><span>The eight stages, the three-step inserter, and recovery that resurfaces with a retry.</span></div></li>
+        <li><div><b>Router, dictionary, snippets, styles</b><span>Full parity, not a demo-thin slice.</span></div></li>
+        <li><div><b>Public release</b><span>CI, signed APK, and this site &mdash; after the acceptance gate, not before.</span></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="band band--close">
+    <div class="wrap">
+      <div class="cols cols--3">
+        <div class="prose">
+          <h3>Issues</h3>
+          <p>Everything is tracked as a file in the repository, not a separate tracker.</p>
+          <p><a href="https://github.com/mitunmanav/open-flow/issues">Open issues</a></p>
+        </div>
+        <div class="prose">
+          <h3>Contributing</h3>
+          <p>Attribution rules, the documentation gate, and how decisions get made.</p>
+          <p><a href="https://github.com/mitunmanav/open-flow/blob/main/CONTRIBUTING.md">Read the guide</a></p>
+        </div>
+        <div class="prose">
+          <h3>Provider guide</h3>
+          <p>How to implement the contract and register an adapter.</p>
+          <p><a href="https://github.com/mitunmanav/open-flow/blob/main/docs/providers/provider-authoring.md">Author a provider</a></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot__grid">
+      <div>
+        <h3>OpenFlow</h3>
+        <p>
+          Open-source Android voice dictation that floats over your existing
+          keyboard. Offline by default, no account, provider neutral.
+        </p>
+      </div>
+      <div>
+        <h3>Pages</h3>
+        <ul data-nav>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="how-it-works.html">How it works</a></li>
+          <li><a href="privacy.html">Privacy</a></li>
+          <li><a href="get-involved.html">Get involved</a></li>
+        </ul>
+      </div>
+      <div>
+        <h3>Repository</h3>
+        <ul>
+          <li><a href="https://github.com/mitunmanav/open-flow">Source</a></li>
+          <li><a href="https://github.com/mitunmanav/open-flow/blob/main/docs/README.md">Documentation</a></li>
+          <li><a href="https://github.com/mitunmanav/open-flow/issues">Issues</a></li>
+          <li><a href="https://github.com/mitunmanav/open-flow/blob/main/CONTRIBUTING.md">Contributing</a></li>
+        </ul>
+      </div>
+      <div>
+        <h3>Licence</h3>
+        <ul>
+          <li><a href="https://github.com/mitunmanav/open-flow/blob/main/LICENSE">Apache-2.0</a></li>
+          <li><a href="https://github.com/mitunmanav/open-flow/blob/main/PRIVACY.md">Privacy</a></li>
+          <li><a href="https://github.com/mitunmanav/open-flow/blob/main/THIRD_PARTY_NOTICES.md">Third-party notices</a></li>
+          <li><a href="https://github.com/mitunmanav/open-flow/blob/main/SECURITY.md">Security</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot__note">
+      <span>Apache-2.0</span>
+      <span>sherpa-onnx models ship under their own licence</span>
+      <span>Pre-alpha &mdash; not downloadable</span>
+      <span>No third party is contacted when this page loads</span>
+    </div>
+  </div>
+</footer>
+
+<script src="site.js"></script>
+<script src="motion.js"></script>
+</body>
+</html>

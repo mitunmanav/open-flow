@@ -161,3 +161,9 @@ The ticket instructed the session to verify the `update-types` value because an 
 might be silently ignored — and the value it supplied was itself the invalid one. A worked
 example in the charter is not a checked fact. When a ticket warns about a silent failure
 mode, the warning applies to the ticket's own proposed remedy as much as to the config.
+
+Nothing graduated from fog. No new ticket either: the one live consequence worth watching —
+whether Dependabot honours the new grouping — is an observation on this ticket's own work,
+not a decision, so it belongs in a future session's verification rather than in a new
+question. Ticket 39 is unblocked and is the natural next step, and it was already the
+designated first outing for whatever lands after this.

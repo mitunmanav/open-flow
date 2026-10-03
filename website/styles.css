@@ -1,0 +1,1618 @@
+@import url("fonts/fonts.css");
+
+/*
+  OpenFlow — four hand-written pages, no generator, no build step.
+
+  ── The one idea ──────────────────────────────────────────────────────────
+  This product is a 2px violet bar and a floating object that interrupts
+  somebody else's text field. So the caret is the motif: it is the text cursor,
+  the focus ring, the marker on a limit, and the tick in a diagram. Everything
+  structural on the site is either that bar or a rule, because that is what the
+  product is made of.
+
+  ── The typography ────────────────────────────────────────────────────────
+  Archivo carries a width axis. Display type is set EXTENDED (125%) at weight
+  800 against body text at normal width — a contrast, not a scale. A
+  single-width family would give a page with nothing to say about itself.
+
+  ── What this is not ──────────────────────────────────────────────────────
+  It is not a card grid, it is not a broadsheet spec sheet, and it does not
+  put a tracked-out label above every heading. Sources are cited at the *foot*
+  of the band they support, never as an eyebrow above it.
+*/
+
+/* ══════════════════════════════════════════════════════════════
+   Tokens
+   ══════════════════════════════════════════════════════════════ */
+:root {
+  --ground: #eeeeef;         /* cool neutral — a warm cream would read as a tell */
+  --ink: #08080a;
+  --mid: #45454a;
+  --low: #6b6b72;
+  --rule: rgba(8, 8, 10, 0.14);
+  --rule-hi: rgba(8, 8, 10, 0.32);
+  --field: rgba(8, 8, 10, 0.045);
+  --accent: #5b21d6;          /* 8.0:1 on this ground */
+  --accent-soft: rgba(91, 33, 214, 0.09);
+  --on-accent: #ffffff;
+
+  --measure: 66ch;
+  --frame: 62rem;            /* the width at which a band stops widening */
+
+  --s1: 0.25rem;
+  --s2: 0.5rem;
+  --s3: 0.75rem;
+  --s4: 1rem;
+  --s5: 1.5rem;
+  --s6: 2rem;
+  --s7: 2.5rem;
+  --s8: 3rem;
+  --s9: 4rem;
+  --s10: 5rem;
+  --s11: 6.5rem;
+  --s12: 8rem;
+
+  --font-ui: "Archivo", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --rule-w: 2px;
+
+  /* Registered so the perimeter can sweep a real angle, and so the typewriter
+     reveal below can count. Browsers without @property draw the ring at once
+     and the reveal becomes a plain appear — both fine. */
+  @property --sweep {
+    syntax: "<angle>";
+    inherits: false;
+    initial-value: 0deg;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground: #08080a;
+  --ink: #f2f2f4;
+  --mid: #b2b2b8;
+  --low: #85858c;
+  --rule: rgba(242, 242, 244, 0.16);
+  --rule-hi: rgba(242, 242, 244, 0.38);
+  --field: rgba(242, 242, 244, 0.055);
+  --accent: #a78bfa;          /* 7.1:1 on this ground */
+  --accent-soft: rgba(167, 139, 250, 0.15);
+  --on-accent: #08080a;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  border-radius: 0;
+}
+
+/* `.level` sets display:flex, which outranks the UA rule for [hidden]. */
+[hidden] {
+  display: none !important;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Type — the width axis is the idea
+   ══════════════════════════════════════════════════════════════ */
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 800;
+  font-variation-settings: "wdth" 125, "wght" 800;
+  letter-spacing: -0.025em;
+  line-height: 0.98;
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: clamp(2.5rem, 5vw, 4.25rem);
+  letter-spacing: -0.035em;
+  line-height: 0.95;
+}
+
+h2 {
+  font-size: clamp(1.75rem, 3.6vw, 2.75rem);
+  letter-spacing: -0.03em;
+  line-height: 0.96;
+}
+
+/* Third-level and card-scale heads pull back toward normal width, so the
+   extended setting reads as deliberate rather than as a global default. */
+h3 {
+  font-size: 1.1875rem;
+  font-variation-settings: "wdth" 100, "wght" 700;
+  letter-spacing: -0.012em;
+  line-height: 1.24;
+}
+
+p {
+  margin: 0;
+  max-width: var(--measure);
+}
+
+p + p {
+  margin-top: var(--s4);
+}
+
+a {
+  color: inherit;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+a:hover {
+  text-decoration-thickness: 2px;
+}
+
+strong {
+  font-weight: 700;
+}
+
+/* Accent means "follow this" or "this is data". Never a tinted panel. */
+p a,
+li a,
+dd a {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+code,
+kbd,
+.mono {
+  font-family: var(--font-mono);
+  font-size: 0.8125em;
+  font-weight: 400;
+  letter-spacing: 0.005em;
+  font-variant-ligatures: none;
+}
+
+:not(pre) > code {
+  background: var(--field);
+  padding: 0.1em 0.3em;
+}
+
+pre {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.75;
+  letter-spacing: 0.005em;
+  font-variant-ligatures: none;
+  overflow-x: auto;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+/* The caret. One object, four jobs. */
+.caret {
+  display: inline-block;
+  width: 2px;
+  height: 1.05em;
+  vertical-align: -0.16em;
+  background: var(--accent);
+}
+
+:where(a, button, [tabindex], [contenteditable]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Chrome
+   ══════════════════════════════════════════════════════════════ */
+.skip {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--accent);
+  color: var(--on-accent);
+  padding: var(--s3) var(--s4);
+  font-weight: 700;
+  z-index: 20;
+}
+
+.skip:focus {
+  left: var(--s4);
+  top: var(--s4);
+}
+
+.topbar {
+  border-bottom: var(--rule-w) solid var(--ink);
+}
+
+.topbar__in {
+  max-width: 78rem;
+  margin: 0 auto;
+  padding: var(--s3) var(--s5);
+  display: flex;
+  align-items: center;
+  gap: var(--s5);
+}
+
+.brand {
+  font-weight: 800;
+  font-size: 1.125rem;
+  font-variation-settings: "wdth" 118, "wght" 800;
+  letter-spacing: -0.03em;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.brand__mark {
+  width: 15px;
+  height: 15px;
+  border: var(--rule-w) solid var(--accent);
+  display: inline-block;
+}
+
+.nav {
+  display: flex;
+  gap: var(--s5);
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.nav a {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  text-decoration: none;
+  color: var(--mid);
+  padding: var(--s1) 0;
+  border-bottom: 2px solid transparent;
+}
+
+.nav a:hover {
+  color: var(--ink);
+}
+
+.nav a[aria-current="page"] {
+  color: var(--ink);
+  font-weight: 700;
+  border-bottom-color: var(--accent);
+}
+
+/* A real control, but it should not compete with the nav for attention. */
+.theme-btn {
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: var(--s1) var(--s3);
+  border: 1px solid var(--rule-hi);
+  background: transparent;
+  color: var(--mid);
+  cursor: pointer;
+  transition: color 0.1s linear, border-color 0.1s linear;
+}
+
+.theme-btn:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Frame — bands vary their rhythm deliberately
+   ══════════════════════════════════════════════════════════════ */
+.wrap {
+  max-width: 78rem;
+  margin: 0 auto;
+  padding: 0 var(--s5);
+}
+
+.wrap--narrow {
+  max-width: 68rem;
+}
+
+main {
+  padding-bottom: var(--s12);
+}
+
+.band {
+  padding: var(--s10) 0;
+  border-top: var(--rule-w) solid var(--ink);
+}
+
+.band--open {
+  padding: var(--s11) 0;
+}
+
+.band--close {
+  padding: var(--s8) 0;
+}
+
+/* Sourced at the foot of the band it supports, never as an eyebrow above a
+   heading — an unearned label above a heading is decoration. */
+.srcnote {
+  margin-top: var(--s6);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.02em;
+  color: var(--low);
+}
+
+.srcnote a {
+  color: var(--low);
+}
+
+.band__head {
+  max-width: 58ch;
+  margin-bottom: var(--s8);
+}
+
+.band__head > .draw {
+  width: 4.5rem;
+}
+
+.band__head p {
+  margin-top: var(--s4);
+  color: var(--mid);
+  font-size: 1.125rem;
+  line-height: 1.55;
+}
+
+.prose > * + * {
+  margin-top: var(--s4);
+}
+
+.prose h3 {
+  margin-bottom: var(--s2);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Hero — asymmetric, and the demo is the point
+   ══════════════════════════════════════════════════════════════ */
+.hero {
+  padding: var(--s9) 0 var(--s10);
+}
+
+.hero--tall {
+  padding: var(--s10) 0;
+}
+
+.hero__grid {
+  display: grid;
+  gap: var(--s9);
+  align-items: center;
+}
+
+/* A grid item defaults to min-width:auto, so it refuses to shrink below its
+   min-content width and spills over the track it was given. */
+.hero__grid > * {
+  min-width: 0;
+}
+
+@media (min-width: 66rem) {
+  .hero__grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 31rem);
+    gap: var(--s10);
+  }
+}
+
+.hero__lede {
+  font-size: 1.25rem;
+  line-height: 1.5;
+  color: var(--mid);
+  margin-top: var(--s5);
+  max-width: 40ch;
+}
+
+.hero__grid .hero__lede {
+  max-width: 36ch;
+}
+
+.hero__meta {
+  margin-top: var(--s7);
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--mid);
+  flex-wrap: wrap;
+}
+
+.hero__status {
+  color: var(--ink);
+  border: var(--rule-w) solid var(--ink);
+  padding: var(--s2) var(--s3);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.hero__status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
+}
+
+.hero__actions {
+  margin-top: var(--s7);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  align-items: center;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--s3) var(--s5);
+  border: var(--rule-w) solid var(--ink);
+  font-weight: 700;
+  font-size: 0.9375rem;
+  text-decoration: none;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  font-family: var(--font-ui);
+  transition: background 0.1s linear, color 0.1s linear;
+}
+
+.btn:hover {
+  background: var(--ink);
+  color: var(--ground);
+}
+
+.btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.btn--primary:hover {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--ground);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   The demo — the product, running
+   ══════════════════════════════════════════════════════════════ */
+.demo {
+  border: var(--rule-w) solid var(--ink);
+  background: var(--ground);
+  position: relative;      /* the bubble is absolutely placed inside it */
+  touch-action: none;
+}
+
+.demo__appbar {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s2);
+  padding: var(--s2) var(--s3);
+  border-bottom: 1px solid var(--rule-hi);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--low);
+}
+
+.demo__app {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.demo__thread {
+  padding: var(--s4) var(--s3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  background: var(--field);
+  border-bottom: 1px solid var(--rule-hi);
+  min-height: 10.5rem;
+  justify-content: flex-end;
+}
+
+.demo__msg {
+  max-width: 78%;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--rule-hi);
+  background: var(--ground);
+}
+
+.demo__msg--them {
+  align-self: flex-end;
+  border-style: dashed;
+  color: var(--mid);
+}
+
+.demo__compose {
+  position: relative;
+  padding: var(--s3);
+  min-height: 6rem;
+}
+
+.demo__field {
+  border: var(--rule-w) solid var(--ink);
+  padding: var(--s3);
+  /* Room for the bubble, which floats over this corner. Without it, inserted
+     text runs underneath the thing that inserted it. */
+  padding-right: 5.75rem;
+  min-height: 4.5rem;
+  max-height: 11rem;
+  overflow-y: auto;
+  font-size: 1rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.demo__field:empty::before {
+  content: attr(data-placeholder);
+  color: var(--low);
+}
+
+/* Floats over the field's corner, which is where it lives in the app: an
+   overlay on someone else's screen, not a control inside their composer.
+   Position is owned entirely by demo.js — declaring right/bottom here as well
+   would double-offset it out of the box. */
+.bubble {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 4.75rem;
+  height: 4.75rem;
+  border: var(--rule-w) solid var(--ink);
+  background: var(--ground);
+  display: grid;
+  place-items: center;
+  cursor: grab;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  will-change: transform;
+  transition: background 0.12s linear, border-color 0.12s linear;
+}
+
+.bubble:active {
+  cursor: grabbing;
+}
+
+.bubble__label {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  line-height: 1.25;
+  text-align: center;
+  padding: 0 var(--s1);
+  pointer-events: none;
+}
+
+.bubble:hover {
+  border-color: var(--accent);
+}
+
+/* Feedback lives on the press, not the release. */
+.bubble[data-state="recording"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  cursor: grabbing;
+}
+
+.bubble[data-state="working"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Ticket 19's signature: the object's own perimeter draws itself clockwise
+   instead of a bar being bolted to the side of it. Once, on load, to say
+   ready — after that it is only ever shown whole. */
+.bubble__sweep {
+  position: absolute;
+  inset: 0;
+  padding: var(--rule-w);
+  background: conic-gradient(from -90deg, var(--accent) var(--sweep), transparent 0);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.bubble[data-state="recording"] .bubble__sweep {
+  opacity: 0;
+}
+
+.level {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 1.75rem;
+}
+
+.level i {
+  display: block;
+  width: 5px;
+  height: 20%;
+  background: currentColor;
+}
+
+.bubble[data-state="recording"] .level i {
+  animation: bounce 0.7s ease-in-out infinite alternate;
+}
+
+.level i:nth-child(2) { animation-delay: 0.1s; }
+.level i:nth-child(3) { animation-delay: 0.2s; }
+.level i:nth-child(4) { animation-delay: 0.3s; }
+.level i:nth-child(5) { animation-delay: 0.4s; }
+
+@keyframes bounce {
+  from { height: 16%; }
+  to   { height: 100%; }
+}
+
+/* The state rail: the dictation state machine, showing its work. */
+.rail {
+  border-top: var(--rule-w) solid var(--ink);
+  padding: var(--s2) var(--s3);
+  display: flex;
+  align-items: baseline;
+  gap: var(--s3);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  min-height: 2.25rem;
+}
+
+.rail__state {
+  font-weight: 500;
+  color: var(--ink);
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.rail__state::before {
+  content: "";
+  width: 2px;
+  height: 0.95em;
+  background: var(--accent);
+}
+
+.rail__detail {
+  color: var(--low);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.demo__hint {
+  border-top: 1px solid var(--rule-hi);
+  padding: var(--s2) var(--s3);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--low);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Claims — the signature section, and deliberately not a table
+   ══════════════════════════════════════════════════════════════ */
+.claims {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: var(--rule-w) solid var(--ink);
+  max-width: var(--frame);
+}
+
+.claim {
+  display: grid;
+  gap: var(--s4);
+  padding: var(--s7) 0;
+  border-bottom: 1px solid var(--rule-hi);
+  align-items: start;
+}
+
+@media (min-width: 62rem) {
+  .claim {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 24rem);
+    gap: var(--s8);
+    align-items: center;
+    padding-left: 1.5rem;
+  }
+}
+
+.claim__text {
+  position: relative;
+  max-width: none;
+  font-size: clamp(1.5rem, 2.8vw, 2.25rem);
+  font-weight: 800;
+  font-variation-settings: "wdth" 125, "wght" 800;
+  letter-spacing: -0.03em;
+  line-height: 0.98;
+  margin: 0;
+}
+
+.claim__limit {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.65;
+  color: var(--mid);
+  padding-left: var(--s4);
+  border-left: 2px solid var(--accent);
+  max-width: 46ch;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Panels, diagrams, definitions
+   ══════════════════════════════════════════════════════════════ */
+.panel {
+  border: var(--rule-w) solid var(--ink);
+  background: var(--ground);
+  max-width: var(--frame);
+}
+
+.panel__bar {
+  border-bottom: var(--rule-w) solid var(--ink);
+  padding: var(--s2) var(--s3);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--mid);
+  display: flex;
+  gap: var(--s3);
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.panel__bar strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.panel__body {
+  padding: var(--s4) var(--s3);
+  overflow-x: auto;
+}
+
+.panel__foot {
+  border-top: 1px solid var(--rule-hi);
+  padding: var(--s3);
+  font-size: 0.9375rem;
+  color: var(--mid);
+  max-width: 58ch;
+}
+
+.panel__foot a {
+  color: var(--accent);
+}
+
+.dim { color: var(--low); }
+
+.hit {
+  background: var(--accent-soft);
+  box-shadow: inset 0 -2px 0 var(--accent);
+  color: var(--ink);
+}
+
+.term {
+  text-decoration: line-through;
+  text-decoration-color: var(--low);
+  color: var(--low);
+}
+
+/* The state machine, as a diagram rather than a text block. */
+.diagram {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: var(--frame);
+}
+
+.diagram text {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  fill: var(--ink);
+}
+
+.diagram .lbl {
+  fill: var(--low);
+}
+
+.diagram .box {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+
+.diagram .wire {
+  fill: none;
+  stroke-dasharray: none;
+  stroke: var(--rule-hi);
+  stroke-width: 1.5;
+}
+
+.diagram .wire--accent {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+/* Numbered because it is genuinely a sequence — never decoration. */
+.stages {
+  counter-reset: stage;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border-top: var(--rule-w) solid var(--ink);
+  max-width: 54rem;
+}
+
+.stages li {
+  counter-increment: stage;
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1fr);
+  gap: var(--s3);
+  padding: var(--s4) 0;
+  border-bottom: 1px solid var(--rule-hi);
+}
+
+.stages li::before {
+  content: counter(stage);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--accent);
+  padding-top: 0.28em;
+}
+
+.stages b {
+  font-weight: 700;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.stages span {
+  color: var(--mid);
+  font-size: 0.9375rem;
+}
+
+.deflist {
+  margin: 0;
+  border-top: var(--rule-w) solid var(--ink);
+  max-width: 58rem;
+}
+
+.deflist > div {
+  display: grid;
+  gap: var(--s1) var(--s5);
+  padding: var(--s5) 0;
+  border-bottom: 1px solid var(--rule-hi);
+}
+
+@media (min-width: 44rem) {
+  .deflist > div {
+    grid-template-columns: 12rem minmax(0, 1fr);
+  }
+}
+
+.deflist dt {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--accent);
+}
+
+.deflist dd {
+  margin: 0;
+  max-width: 46ch;
+}
+
+.callout {
+  border-left: 2px solid var(--accent);
+  padding-left: var(--s5);
+  max-width: 54ch;
+  color: var(--mid);
+  font-size: 1.0625rem;
+}
+
+.cols {
+  display: grid;
+  gap: var(--s7) var(--s9);
+}
+
+@media (min-width: 54rem) {
+  .cols--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cols--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+.cols > * {
+  min-width: 0;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Footer
+   ══════════════════════════════════════════════════════════════ */
+.foot {
+  border-top: var(--rule-w) solid var(--ink);
+  padding: var(--s9) 0 var(--s10);
+}
+
+.foot__grid {
+  display: grid;
+  gap: var(--s7);
+}
+
+/* Below this the nav cannot sit beside the brand, so it gets its own row
+   instead of wrapping into a column. Explicit order keeps the toggle on the
+   brand's row rather than stranding it between links. */
+@media (max-width: 44rem) {
+  .topbar__in {
+    flex-wrap: wrap;
+    gap: var(--s3) var(--s4);
+    padding: var(--s3) var(--s4);
+  }
+
+  .brand {
+    order: 1;
+    margin-right: auto;
+  }
+
+  .theme-btn {
+    order: 2;
+  }
+
+  .nav {
+    order: 3;
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
+    gap: var(--s2);
+    padding-top: var(--s2);
+    border-top: 1px solid var(--rule);
+  }
+
+  .nav a {
+    font-size: 0.8125rem;
+  }
+
+  .wrap {
+    padding: 0 var(--s4);
+  }
+
+  .stage,
+  .hero,
+  .hero--tall {
+    padding: var(--s7) 0 var(--s8);
+  }
+
+  .band {
+    padding: var(--s8) 0;
+  }
+
+  .band--open {
+    padding: var(--s9) 0;
+  }
+
+  .claim {
+    padding-left: 0;
+  }
+
+  .claim__text > .draw {
+    display: none;
+  }
+}
+
+@media (min-width: 54rem) {
+  .foot__grid {
+    grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(0, 1fr));
+  }
+}
+
+.foot h3 {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  color: var(--low);
+  margin-bottom: var(--s3);
+}
+
+.foot ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  font-size: 0.9375rem;
+}
+
+.foot a {
+  text-decoration: none;
+  color: var(--mid);
+}
+
+.foot a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+.foot__note {
+  margin-top: var(--s8);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--rule-hi);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  color: var(--low);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s5);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Motion — only what a person caused
+   ══════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+
+  .bubble__sweep {
+    display: none;
+  }
+}
+/* ══════════════════════════════════════════════════════════════
+   Motion — one entrance, one motif, nothing decorative
+   ──────────────────────────────────────────────────────────────
+   Two rules, deliberately.
+
+   1. There is exactly ONE orchestrated page-load moment, at the top. Scroll
+      never fades and slides sections in, because that is the single most
+      recognisable generated-page tell and it would undo everything else.
+
+   2. Everything that moves on scroll is the same gesture: STRUCTURE DRAWS
+      ITSELF. A rule scales out from a left edge, a marker bar grows down, a
+      wire draws itself along its own path. One motif, repeated, reads as a
+      system. Three different effects read as noise.
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── the entrance ─────────────────────────────────────────────── */
+@keyframes rise {
+  from { opacity: 0; transform: translate3d(0, 18px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes frame-draw {
+  from { opacity: 0; clip-path: inset(0 0 100% 0); }
+  to   { opacity: 1; clip-path: inset(0 0 0 0); }
+}
+
+/* Nothing here sets opacity:0 as a base state. The entrance uses
+   `animation-fill-mode: backwards`, which supplies the hidden frame only while
+   the animation is in its delay phase — so if this script never runs, the hero
+   is simply visible instead of blank. Visibility must never depend on JS. */
+.is-ready .story__lede > * {
+  animation: rise 0.75s cubic-bezier(0.16, 0.84, 0.28, 1) backwards;
+}
+
+.is-ready .story__aside {
+  animation: rise 0.9s cubic-bezier(0.16, 0.84, 0.28, 1) 0.14s backwards;
+}
+
+.is-ready .story__lede > *:nth-child(1) { animation-delay: 0.04s; }
+.is-ready .story__lede > *:nth-child(2) { animation-delay: 0.13s; }
+.is-ready .story__lede > *:nth-child(3) { animation-delay: 0.22s; }
+.is-ready .story__lede > *:nth-child(4) { animation-delay: 0.31s; }
+.is-ready .story__lede > *:nth-child(5) { animation-delay: 0.40s; }
+
+/* The panel arrives, then its border wipes down. */
+.is-ready .device {
+  animation: frame-draw 0.7s cubic-bezier(0.16, 0.84, 0.28, 1) 0.36s backwards;
+}
+
+/* ── motif: structure draws itself, on scroll ─────────────────── */
+/* The marker is a 2px rule — the caret, at structural scale. */
+[data-draw] > .draw {
+  display: block;
+  height: 2px;
+  width: 3.5rem;
+  background: var(--accent);
+  margin-bottom: var(--s4);
+}
+
+.claim__text > .draw {
+  position: absolute;
+  left: -1.5rem;
+  top: 0.35em;
+  width: 2px;
+  height: 1.1em;
+  margin: 0;
+}
+
+.js [data-draw] > .draw {
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.75s cubic-bezier(0.16, 0.84, 0.28, 1);
+}
+
+[data-draw].is-in > .draw {
+  transform: scaleX(1);
+}
+
+.js [data-draw="down"] > .draw {
+  transform: scaleY(0);
+  transform-origin: center top;
+  transition: transform 0.55s cubic-bezier(0.16, 0.84, 0.28, 1);
+}
+
+[data-draw="down"].is-in > .draw {
+  transform: scaleY(1);
+}
+
+/* Wires draw along their own length. Each path carries pathLength="1", so the
+   dash maths is identical whatever the geometry. */
+.js .diagram path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 0.85s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.diagram.is-in path { stroke-dashoffset: 0; }
+.diagram.is-in path:nth-of-type(2) { transition-delay: 0.08s; }
+.diagram.is-in path:nth-of-type(3) { transition-delay: 0.15s; }
+.diagram.is-in path:nth-of-type(4) { transition-delay: 0.22s; }
+.diagram.is-in path:nth-of-type(5) { transition-delay: 0.29s; }
+.diagram.is-in path:nth-of-type(6) { transition-delay: 0.36s; }
+.diagram.is-in path:nth-of-type(7) { transition-delay: 0.43s; }
+.diagram.is-in path:nth-of-type(8) { transition-delay: 0.50s; }
+.diagram.is-in path:nth-of-type(9) { transition-delay: 0.57s; }
+
+.js .diagram rect,
+.js .diagram text {
+  opacity: 0;
+  transition: opacity 0.45s ease-out;
+}
+
+.diagram.is-in rect,
+.diagram.is-in text { opacity: 1; }
+
+.diagram.is-in rect:nth-of-type(1) { transition-delay: 0.00s; }
+.diagram.is-in rect:nth-of-type(2) { transition-delay: 0.05s; }
+.diagram.is-in rect:nth-of-type(3) { transition-delay: 0.10s; }
+.diagram.is-in rect:nth-of-type(4) { transition-delay: 0.15s; }
+.diagram.is-in rect:nth-of-type(5) { transition-delay: 0.20s; }
+.diagram.is-in rect:nth-of-type(6) { transition-delay: 0.25s; }
+.diagram.is-in rect:nth-of-type(7) { transition-delay: 0.30s; }
+.diagram.is-in text { transition-delay: 0.34s; }
+
+/* ══════════════════════════════════════════════════════════════
+   The device — what makes this a product page rather than a document
+   ══════════════════════════════════════════════════════════════ */
+.stage {
+  padding: var(--s9) 0 var(--s10);
+  overflow: hidden;
+}
+
+.stage__grid {
+  display: grid;
+  gap: var(--s9);
+  align-items: center;
+}
+
+@media (min-width: 68rem) {
+  .stage__grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 23.5rem);
+    gap: var(--s10);
+  }
+}
+
+.stage__copy > * + * {
+  margin-top: var(--s5);
+}
+
+.device {
+  border: var(--rule-w) solid var(--ink);
+  background: var(--ground);
+  position: relative;
+}
+
+.device::after {
+  /* The only lighting on the site: a hard specular edge along the top. */
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: var(--accent);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.device__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--s2) var(--s3);
+  border-bottom: 1px solid var(--rule-hi);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  color: var(--low);
+}
+
+.device__bar b {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* A live signal, not a metronome: seven bars on co-prime periods, so the
+   pattern never visibly repeats. */
+.level i {
+  height: 100%;
+  transform: scaleY(0.16);
+  transform-origin: center bottom;
+  will-change: transform;
+}
+
+.bubble[data-state="recording"] .level i { animation: sig 0.53s ease-in-out infinite alternate; }
+.bubble[data-state="recording"] .level i:nth-child(1) { animation-duration: 0.41s; animation-delay: 0.00s; }
+.bubble[data-state="recording"] .level i:nth-child(2) { animation-duration: 0.67s; animation-delay: 0.13s; }
+.bubble[data-state="recording"] .level i:nth-child(3) { animation-duration: 0.37s; animation-delay: 0.29s; }
+.bubble[data-state="recording"] .level i:nth-child(4) { animation-duration: 0.59s; animation-delay: 0.07s; }
+.bubble[data-state="recording"] .level i:nth-child(5) { animation-duration: 0.83s; animation-delay: 0.41s; }
+.bubble[data-state="recording"] .level i:nth-child(6) { animation-duration: 0.47s; animation-delay: 0.19s; }
+.bubble[data-state="recording"] .level i:nth-child(7) { animation-duration: 0.71s; animation-delay: 0.34s; }
+
+@keyframes sig {
+  from { transform: scaleY(0.16); }
+  to   { transform: scaleY(1); }
+}
+
+/* The idle ring breathes, so the bubble reads as live before it is touched.
+   One slow cycle — anything faster would be attention-seeking. */
+@keyframes ready {
+  0%, 100% { opacity: 0.45; }
+  50%      { opacity: 1; }
+}
+
+.bubble[data-state="idle"] .bubble__sweep {
+  opacity: 0.45;
+  animation: ready 3.4s ease-in-out infinite;
+}
+
+/* Press feedback on pointer-down. 80ms, no curve to wait for. */
+.btn {
+  transition: background 0.1s linear, color 0.1s linear, transform 0.08s ease-out;
+}
+
+.btn:active { transform: scale(0.975); }
+.theme-btn:active { transform: scale(0.97); }
+
+/* Link feedback that is not a thickness swap: a wash that wipes in from the
+   left. The underline stays, so a link is still identifiable without hover. */
+.prose a,
+.foot a,
+.srcnote a {
+  background-image: linear-gradient(var(--accent-soft), var(--accent-soft));
+  background-repeat: no-repeat;
+  background-position: 0 84%;
+  background-size: 0% 100%;
+  transition: background-size 0.3s cubic-bezier(0.16, 0.84, 0.28, 1);
+}
+
+.prose a:hover,
+.foot a:hover,
+.srcnote a:hover { background-size: 100% 100%; }
+
+/* Text arriving in the field reads as landing, not as being swapped in. */
+@keyframes land {
+  from { opacity: 0; transform: translate3d(0, 6px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+
+.demo__field > * {
+  animation: land 0.26s cubic-bezier(0.16, 0.84, 0.28, 1);
+}
+
+/* The caret blinks like a cursor rather than sitting inert. */
+@keyframes blink {
+  0%, 46%   { opacity: 1; }
+  47%, 100% { opacity: 0; }
+}
+
+.demo__field .caret { animation: blink 1.06s step-end infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .demo__field .caret { animation: none; }
+  .bubble[data-state="idle"] .bubble__sweep { animation: none; opacity: 0.45; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   The scale problem
+   ──────────────────────────────────────────────────────────────
+   Everything used to sit in a 78rem column centred inside a much wider
+   viewport, so the page floated in the middle of itself with voids left, right
+   and below. The frame is now fluid with a generous ceiling, and only the
+   *measure* is capped — which is what measure is for. Prose still wraps at
+   ~66ch; it just no longer leaves a third of a 2000px screen empty.
+   ══════════════════════════════════════════════════════════════ */
+:root {
+  --wrap: 92rem;
+  --frame: 56rem;
+}
+
+.wrap {
+  max-width: var(--wrap);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   The story — one column of text, one pinned object
+   ══════════════════════════════════════════════════════════════ */
+.story {
+  padding: var(--s9) 0 var(--s10);
+}
+
+.story__grid {
+  display: grid;
+  gap: var(--s8) var(--s9);
+  align-items: start;
+}
+
+/* Three siblings, in reading order: the promise, the thing, the qualifications.
+   On mobile that order is simply the DOM order. On wide screens the phone is
+   lifted out and pinned beside both, so you read each limit while looking at
+   the thing it is about. */
+@media (min-width: 68rem) {
+  .story__grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 27rem);
+    grid-template-areas:
+      "lede   aside"
+      "claims aside";
+    gap: var(--s7) var(--s10);
+  }
+
+  .story__lede {
+    grid-area: lede;
+  }
+
+  .story__aside {
+    grid-area: aside;
+  }
+
+  .claims-band {
+    grid-area: claims;
+  }
+}
+
+/* No max-width here on purpose: `ch` would resolve against the body font and
+   cap the display type at a fraction of the column. Only the prose inside
+   carries a measure. */
+.story__lede .hero__lede {
+  max-width: 44ch;
+}
+
+/* The pin. `align-self: start` is required, or the grid row stretches the item
+   and there is nothing left to stick inside. */
+.story__aside {
+  align-self: start;
+}
+
+@media (min-width: 68rem) {
+  .story__aside {
+    position: sticky;
+    top: var(--s5);
+  }
+}
+
+.claims-band {
+  min-width: 0;
+}
+
+/* The caption that names whichever claim is in view. */
+.device__caption {
+  border-top: var(--rule-w) solid var(--ink);
+  padding: var(--s3);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  line-height: 1.6;
+  color: var(--mid);
+  min-height: 3.25rem;
+  background: var(--ground);
+}
+
+.device__caption::before {
+  content: "";
+  display: inline-block;
+  width: 2px;
+  height: 0.9em;
+  background: var(--accent);
+  vertical-align: -0.1em;
+  margin-right: var(--s2);
+}
+
+/* One swap, not a cross-fade: the caption changes when the claim does, and a
+   dissolve would make the link between them weaker, not stronger. */
+.device__caption.is-swapping {
+  animation: land 0.24s cubic-bezier(0.16, 0.84, 0.28, 1);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Claims — the gap between claim and limit was the ugliest thing
+   on the page. Constrain the whole list and let the two columns sit close.
+   ══════════════════════════════════════════════════════════════ */
+.claims {
+  max-width: var(--frame);
+}
+
+@media (min-width: 62rem) {
+  .claim {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 21rem);
+    gap: var(--s6);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Scrubbed motion where the browser supports it
+   ──────────────────────────────────────────────────────────────
+   `animation-timeline: view()` ties an animation to the scroll position
+   instead of a class toggle. Where it exists, the state-machine wires are
+   *drawn by reading them* — scroll down the diagram and it draws itself. That
+   is the difference between motion that decorates and motion that explains.
+   ══════════════════════════════════════════════════════════════ */
+@supports (animation-timeline: view()) {
+  @keyframes wire {
+    from { stroke-dashoffset: 1; }
+    to   { stroke-dashoffset: 0; }
+  }
+
+  .js .diagram path {
+    transition: none;
+    animation: wire linear both;
+    animation-timeline: view();
+    animation-range: entry 10% cover 55%;
+  }
+
+  /* A whisper of depth on the pinned device, once, as the story scrolls past. */
+  @keyframes drift {
+    from { transform: translate3d(0, 26px, 0); }
+    to   { transform: translate3d(0, -26px, 0); }
+  }
+
+  @media (min-width: 68rem) {
+    .story__aside .stage__device {
+      animation: drift linear both;
+      animation-timeline: view();
+      animation-range: entry 0% exit 100%;
+    }
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Hover — motion that answers a pointer, and only where there is
+   something to answer with
+   ══════════════════════════════════════════════════════════════ */
+
+/* The claim you are pointing at is the claim the phone should be showing. */
+.claim {
+  transition: padding-left 0.28s cubic-bezier(0.16, 0.84, 0.28, 1);
+}
+
+.claim:hover,
+.claim:focus-within {
+  padding-left: 2rem;
+}
+
+.claim:hover .claim__limit,
+.claim:focus-within .claim__limit {
+  color: var(--ink);
+}
+
+.claim:hover .claim__text > .draw,
+.claim:focus-within .claim__text > .draw {
+  background: var(--ink);
+}
+
+/* The limit's own marker brightens rather than growing — growth would move the
+   text, which is never a good idea while someone is reading it. */
+.claim__limit {
+  transition: color 0.24s ease-out, border-color 0.24s ease-out;
+}
+
+.claim:hover .claim__limit,
+.claim:focus-within .claim__limit {
+  border-left-color: var(--accent);
+  border-left-width: 2px;
+  box-shadow: -4px 0 0 -2px var(--accent-soft);
+}
+
+/* The device is live, so it says so when approached — the same edge that
+   ticket 19 gave the bubble's ready state. */
+.device {
+  transition: box-shadow 0.24s ease-out;
+}
+
+.stage__device:hover .device {
+  box-shadow: 6px 6px 0 0 var(--accent-soft);
+}
+
+/* Nav underline wipes in from the left instead of being switched on. */
+.nav a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.26s cubic-bezier(0.16, 0.84, 0.28, 1);
+}
+
+.nav a:hover::after {
+  transform: scaleX(1);
+}
+
+.nav a[aria-current="page"]::after {
+  transform: scaleX(1);
+}
+
+/* Row hovers on the two list components that have rows. */
+.stages li,
+.deflist > div {
+  transition: background 0.2s ease-out, padding-left 0.26s cubic-bezier(0.16, 0.84, 0.28, 1);
+}
+
+.stages li:hover,
+.deflist > div:hover {
+  background: var(--field);
+  padding-left: var(--s3);
+}
+
+.panel {
+  transition: box-shadow 0.24s ease-out;
+}
+
+.panel:hover {
+  box-shadow: 6px 6px 0 0 var(--accent-soft);
+}
+
+/* The theme toggle reads as a control, not a label. */
+.theme-btn {
+  transition: color 0.18s, border-color 0.18s, background 0.18s, transform 0.08s ease-out;
+}
+
+.theme-btn:hover {
+  background: var(--field);
+}

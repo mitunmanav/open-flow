@@ -23,6 +23,7 @@ import argparse
 import datetime as dt
 import re
 import sys
+from collections import Counter
 from pathlib import Path
 
 # Directories that never contain linkable documentation.
@@ -336,6 +337,142 @@ def check_changelog(root: Path) -> list[Finding]:
     return []
 
 
+SITE_DIR = Path("website")
+
+# A hand-written site has no generator, so nothing stops its four pages drifting
+# apart: add a page and update three navs, forget one, and a visitor lands on a
+# page whose links are subtly wrong. That is the same failure as the unwritten
+# provider guides, one layer up, so it gets a rule. See ticket 26.
+NAV_RE = re.compile(r"<nav\b[^>]*>(.*?)</nav>", re.DOTALL | re.IGNORECASE)
+FOOTER_NAV_RE = re.compile(r"<ul\b[^>]*\bdata-nav\b[^>]*>(.*?)</ul>", re.DOTALL | re.IGNORECASE)
+HREF_RE = re.compile(r"""\bhref\s*=\s*["']([^"']+)["']""", re.IGNORECASE)
+SRC_RE = re.compile(r"""\bsrc\s*=\s*["']([^"']+)["']""", re.IGNORECASE)
+CSS_URL_RE = re.compile(r"""url\(\s*["']?([^"')]+)["']?\s*\)""")
+
+
+def site_pages(root: Path) -> list[str]:
+    site = root / SITE_DIR
+    if not site.is_dir():
+        return []
+    return sorted(p.name for p in site.glob("*.html"))
+
+
+def internal_html(hrefs: list[str]) -> list[str]:
+    """Relative links that point at another page of this site."""
+    return [h for h in hrefs if not is_external(h) and h.endswith(".html")]
+
+
+def check_site_nav(root: Path) -> list[Finding]:
+    """Every page must list every page, in the same order, in its nav.
+
+    Three ways this drifts, all real: a page is added and only some navs learn
+    about it; a page is renamed and a nav keeps pointing at the old name; the
+    footer's list of pages and the header nav disagree. Each is silent, each is
+    a broken link for a visitor, and none of them is visible in review of a
+    single file.
+    """
+    findings: list[Finding] = []
+    pages = site_pages(root)
+    if not pages:
+        return findings
+
+    site = root / SITE_DIR
+    navs: dict[str, list[str]] = {}
+
+    for name in pages:
+        rel = f"{SITE_DIR.as_posix()}/{name}"
+        text = (site / name).read_text(encoding="utf-8")
+
+        nav = NAV_RE.search(text)
+        if not nav:
+            findings.append(Finding("site-nav-missing", rel, "no <nav> element to check"))
+            continue
+        hrefs = internal_html(HREF_RE.findall(nav.group(1)))
+        navs[name] = hrefs
+
+        footer = FOOTER_NAV_RE.search(text)
+        if not footer:
+            findings.append(
+                Finding("site-nav-missing", rel, "the footer's page list is not marked data-nav")
+            )
+        elif internal_html(HREF_RE.findall(footer.group(1))) != hrefs:
+            findings.append(
+                Finding(
+                    "site-nav-footer-mismatch",
+                    rel,
+                    "footer lists "
+                    f"{internal_html(HREF_RE.findall(footer.group(1)))} but the nav lists {hrefs}",
+                )
+            )
+
+    # One report, not one per page: the interesting information is which pages
+    # are the odd ones out, so name the majority and list only the deviants.
+    tally = Counter(tuple(v) for v in navs.values())
+    canonical = tally.most_common(1)[0][0]
+    if len(tally) > 1:
+        deviants = "; ".join(
+            f"{name} -> {', '.join(hrefs) or '(none)'}"
+            for name, hrefs in sorted(navs.items())
+            if tuple(hrefs) != canonical
+        )
+        findings.append(
+            Finding(
+                "site-nav-divergent",
+                SITE_DIR.as_posix(),
+                f"every page should list {list(canonical)}; deviates: {deviants}",
+            )
+        )
+
+    for name, hrefs in sorted(navs.items()):
+        rel = f"{SITE_DIR.as_posix()}/{name}"
+        for href in hrefs:
+            if not (site / href).exists():
+                findings.append(Finding("site-nav-dead", rel, f"nav points at {href}, which does not exist"))
+        for page in pages:
+            if page not in hrefs:
+                findings.append(
+                    Finding("site-nav-orphan", rel, f"{page} exists but is not listed in the nav")
+                )
+
+    return findings
+
+
+def check_site_assets(root: Path) -> list[Finding]:
+    """Relative hrefs, srcs and CSS url()s in the site must exist on disk.
+
+    There is no build step to complain, so a renamed stylesheet or a moved
+    font file ships as a silently unstyled page. External URLs are not fetched:
+    a gate that depends on the network is a gate that fails for reasons that
+    have nothing to do with the repository.
+    """
+    findings: list[Finding] = []
+    site = root / SITE_DIR
+    if not site.is_dir():
+        return findings
+
+    for page in site_pages(root):
+        rel = f"{SITE_DIR.as_posix()}/{page}"
+        text = (site / page).read_text(encoding="utf-8")
+        targets = HREF_RE.findall(text) + SRC_RE.findall(text)
+        for ref in targets:
+            bare = strip_fragment(ref)
+            if not bare or is_external(ref):
+                continue
+            if not (site / bare).exists():
+                findings.append(Finding("site-missing-asset", rel, ref))
+
+    for sheet in sorted(site.rglob("*.css")):
+        rel = sheet.relative_to(root).as_posix()
+        for ref in CSS_URL_RE.findall(sheet.read_text(encoding="utf-8")):
+            bare = strip_fragment(ref)
+            if not bare or is_external(ref) or bare.startswith("#"):
+                continue
+            if not (sheet.parent / bare).exists():
+                findings.append(Finding("site-missing-asset", rel, ref))
+
+    return findings
+
+
 def read_baseline(root: Path, explicit: Path | None) -> set[str]:
     target = explicit if explicit is not None else root / BASELINE
     if not target.exists():
@@ -365,6 +502,8 @@ def main() -> int:
     findings += check_adr_records(root)
     findings += check_index(root)
     findings += check_changelog(root)
+    findings += check_site_nav(root)
+    findings += check_site_assets(root)
 
     # Deduplicate: the same rule can fire twice on one target.
     unique: dict[str, Finding] = {}

@@ -10,6 +10,29 @@ devices, and provider work.
 4. `./gradlew lint test assembleDebug` must pass; provider changes need contract tests.
 5. Never commit keystores, keys, or provider API secrets.
 
+## Building
+
+Needs **JDK 17** and an Android SDK with **platform 36** — `ANDROID_HOME`, or
+`sdk.dir` in a gitignored `local.properties`. No Android Studio, no NDK: the
+sherpa-onnx dependency is a prebuilt AAR that already contains its native libraries
+for all four ABIs.
+
+```sh
+./gradlew lint test assembleDebug   # the gate rule 4 asks for
+./gradlew test                      # unit tests only
+./gradlew :app:installDebug         # onto a connected device
+```
+
+Use the committed wrapper; do not substitute a locally installed Gradle. Every
+version the build depends on is declared once in `gradle/libs.versions.toml`, and the
+reasoning behind those choices is in
+[`docs/adr/0007-build-toolchain-and-sdk-levels.md`](docs/adr/0007-build-toolchain-and-sdk-levels.md).
+
+Be precise about what that gate currently proves: it compiles, lints and assembles,
+and it confirms the sherpa-onnx AAR is consumable — but it runs **no tests**, because
+there is no application code yet. The first real test arrives with the first real
+feature.
+
 ## Commit attribution
 
 These are enforced by `.github/workflows/attribution.yml`, not by review

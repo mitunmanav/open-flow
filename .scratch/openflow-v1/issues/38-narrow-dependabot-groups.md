@@ -1,7 +1,7 @@
 # Narrow the Dependabot groups so major bumps arrive alone
 
 Type: task
-Status: open
+Status: resolved
 Blocked by: none
 
 ## Question
@@ -50,3 +50,114 @@ Split the groups so a major bump arrives in its own pull request, and close PR #
 - After narrowing, the next PR that arrives is the natural first exercise for
   `.scratch/openflow-v1/issues/39-dependabot-landing-procedure.md`. Nothing blocks 39;
   this one simply reduces the blast radius of whatever lands first.
+
+## Answer
+
+**Done.** `actions` and both `gradle` groups are narrowed to `update-types: [minor, patch]`
+with `applies-to: version-updates` stated explicitly, the two stale comments are corrected,
+and PR #1 is closed with a comment pointing here and at ADR-0009. `docs-check` passes.
+
+### The ticket's proposed mechanism was invalid, and this is the finding worth keeping
+
+The ticket said to shape the split as "one group keyed on `version-update:semver-major`",
+and warned in the next breath that an invalid `update-types` value might be ignored
+silently. **The ticket's own example was the invalid value.**
+
+Inside a `groups` block the accepted values are **bare** `major` / `minor` / `patch`. The
+`version-update:semver-*` spelling belongs to `allow` and `ignore`, which are separate keys
+with separate vocabularies — the reference lists them in different tables, and they are easy
+to read past because the strings overlap.
+
+Checked rather than assumed, against the published schema:
+
+```
+ticket-38 proposed spelling -> INVALID
+    ['updates',1,'groups','actions-major','update-types',0] ::
+    'version-update:semver-major' is not one of ['major', 'minor', 'patch']
+bare "major" under groups  -> VALID
+```
+
+The corrected file validates clean against `schemastore.org/dependabot-2.0`.
+
+### GitHub's own documented shape is simpler still: there is no `-major` group
+
+The options reference's **Example 3** is this exact case, and it does not create a group for
+majors at all. It narrows the *existing* group to `minor`/`patch` and lets majors fall
+through, because the default behaviour is: *"Any outdated dependencies that do not match a
+rule are updated in individual pull requests."*
+
+That is what landed, and it is strictly better than the two-group shape for one specific
+reason. The reference also says *"If a dependency matches more than one rule, it's included
+in the first group that it matches."* A `-major` group plus a `patterns: ['*']` catch-all
+would therefore make correctness depend on an unstated question — whether "matches" is
+evaluated on `patterns` alone or on `update-types` too. If it is patterns alone, a
+**patch** bump of `actions/checkout` matches the major group first and lands in the
+"major" pull request, which is precisely the bundling this ticket exists to remove.
+Narrowing the routine group makes the two cases **disjoint**, so declaration order stops
+mattering and the ambiguity never has to be resolved. **Prefer a partition that cannot be
+misread over one that depends on resolution order.**
+
+### `gradle` needed it too, and two dependencies were already correct
+
+Yes — `gradlew` and the version catalogue are live since ticket 27, and an AGP or Kotlin
+major is at least as consequential as a GitHub Actions one. Both groups are narrowed.
+
+Two dependencies are worth naming because they are **already ungrouped**, which is the
+outcome wanted for each, and neither needed a rule added:
+
+- **The Gradle wrapper** matches neither `com.android.*`, `androidx.*`, nor
+  `org.jetbrains.kotlin*`.
+- **The sherpa-onnx AAR** is pinned to a `v`-prefixed tag (`v1.13.8`) rather than plain
+  SemVer, so it does not land in a SemVer-keyed group — and a deliberate tag change to a
+  50 MB JitPack-only artifact is exactly the kind of bump that should arrive alone.
+
+`dependency-type` under `groups` was **not** an option here: it is supported only by
+bundler, composer, mix, maven, npm and pip — not by `gradle` or `github-actions`.
+
+### Nothing is exempted, and ADR-0009's security position is untouched
+
+`applies-to` **defaults to `version-updates`**, so writing it out changes no behaviour — it
+is stated so a future reader can see the scoping rather than infer it. The practical
+consequence is the one that matters: **security updates are not narrowed.** A
+`github-actions[bot]` security PR arrives exactly as before and still has to clear the
+manual landing path. ADR-0009 deliberately refused a security carve-out, and nothing here
+is one. The config comment says so explicitly, because a future reader narrowing `applies-to`
+would be quietly rewriting that decision.
+
+### Found, recorded, not acted on
+
+`cooldown` accepts `semver-major-days` for **Gradle** but **not** for GitHub Actions, which
+supports only `default-days`. So a "let majors age before proposing them" lever would work
+asymmetrically across the two ecosystems. Not used: this ticket's problem was bundling, not
+frequency, and grouping solved the problem that was actually stated.
+
+### What is *not* proven yet — and this map has a lesson about exactly that
+
+The config is schema-valid and parses, and that is **all** that has been checked. Nobody has
+watched Dependabot honour it. Per the map's standing rule — *a gate that is never exercised is
+worse than no gate, because it looks configured*, now recorded three times over — treat this
+as **unexercised until the next scheduled run (Mondays 06:00)** raises a routine action bump
+as its own small PR and a major as its own single-dependency PR. Verify the trigger *and*
+the outcome then, and that observation is what closes the loop.
+
+Two consequences of the change that nobody has watched either:
+
+- **The eight bumps in PR #1 are not landed, only unbundled.** Dependabot computes groups
+  when it opens a PR, so editing this file does not retroactively re-split PR #1. Closing it
+  means the next run raises them individually.
+- **`open-pull-requests-limit` is now load-bearing where it was not.** It is 5 for `gradle`
+  and unset for `github-actions` (default 5). With majors unbundled, more pull requests can
+  be open at once, so the limit can now actually be reached. It was previously masked by
+  bundling. 5 still looks right for a solo-maintained repo, but it is a real ceiling rather
+  than an inert default.
+
+`check_attribution.py` is **untouched and gains no exemption**, per ADR-0009 and ticket 29.
+ADR-0009's forward-reference to R1's wrong `Signed-off-by` rationale stays wrong on purpose:
+correctness of the code is the gate, accuracy of the comment is its own ticket.
+
+### Generalisable
+
+The ticket instructed the session to verify the `update-types` value because an invalid one
+might be silently ignored — and the value it supplied was itself the invalid one. A worked
+example in the charter is not a checked fact. When a ticket warns about a silent failure
+mode, the warning applies to the ticket's own proposed remedy as much as to the config.

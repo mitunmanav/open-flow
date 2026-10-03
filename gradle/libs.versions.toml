@@ -18,11 +18,27 @@ junit = "4.13.2"
 # the version it mirrors, so an unpinned coordinate can silently resolve to an AAR
 # whose contents do not match the coordinate. See ADR-0007.
 sherpaOnnx = "v1.13.8"
+# The ModelStore's tar.bz2 reader (ticket 46). Android ships neither a tar nor a
+# bzip2 API, and a hand-written bzip2 decompressor is a bug farm; commons-compress
+# is pure Java, needs no NDK, and is Apache-2.0 like this project.
+commonsCompress = "1.28.0"
+# AndroidX Test, for the instrumented benchmark harness in providers/sherpa.
+# Pinned together rather than individually: the four artifacts cross-depend, and a
+# mismatch between runner and rules is a runtime failure on a device rather than a
+# compile error, which is the worst place to discover it.
+androidxTest = "1.6.1"
+androidxTestJunit = "1.2.1"
+androidxTestRunner = "1.6.2"
+androidxTestCore = "1.6.1"
 
 [libraries]
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 junit = { module = "junit:junit", version.ref = "junit" }
 sherpa-onnx = { module = "com.github.k2-fsa.sherpa-onnx:sherpa-onnx", version.ref = "sherpaOnnx" }
+commons-compress = { module = "org.apache.commons:commons-compress", version.ref = "commonsCompress" }
+androidx-test-core = { module = "androidx.test:core-ktx", version.ref = "androidxTestCore" }
+androidx-test-junit = { module = "androidx.test.ext:junit-ktx", version.ref = "androidxTestJunit" }
+androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidxTestRunner" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -100,3 +100,8 @@ _Avoid_: handles errors, recovers gracefully, fails safe
 
 The machine-readable half of the acceptance gate's record: which device classes have been run, on which commit and `version_code`, and how many scenarios are green in each. The **only** thing CI parses. Empty is not a pass — it is an absence of evidence, and it blocks both bars.
 _Avoid_: gate results, coverage report, test status
+
+## Model Store
+
+The component that supplies a **downloaded** model: fetches the model's pinned archive, verifies it against the SHA-256 pinned in the repository, extracts it into `noBackupFilesDir`, and hands the provider a filesystem path. The archive as a whole is the unit of integrity, while extraction is selective — only the entries the provider loads are written, and that whitelist doubles as the path-traversal guard. A missing model is reported as `MODEL_MISSING`, whose fix is a download prompt rather than a retry. V1: `providers/sherpa`'s `ModelStore`, fetching the streaming ASR model on first launch (ADR-0010); the bundled VAD never passes through it.
+_Avoid_: model loader, download manager

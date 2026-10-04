@@ -6,8 +6,7 @@
 version: 2
 
 updates:
-  # Gradle wrapper and plugins. Once gradlew exists this becomes the main source
-  # of dependency updates, since the Android build is Gradle-based.
+  # Gradle wrapper and plugins; active when the Android build is on the default branch.
   - package-ecosystem: gradle
     directory: /
     schedule:
@@ -22,10 +21,14 @@ updates:
       prefix: 'build'
     groups:
       android-gradle-plugin:
+        applies-to: version-updates
+        update-types: [minor, patch]
         patterns:
           - 'com.android.*'
           - 'androidx.*'
       kotlin:
+        applies-to: version-updates
+        update-types: [minor, patch]
         patterns:
           - 'org.jetbrains.kotlin*'
 
@@ -43,7 +46,10 @@ updates:
     commit-message:
       prefix: 'ci'
     groups:
+      # Major version updates remain ungrouped, so breaking bumps arrive individually.
       actions:
+        applies-to: version-updates
+        update-types: [minor, patch]
         patterns:
           - '*'
 

@@ -95,8 +95,41 @@ def git(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     return proc
 
 
-def git_out(*args: str) -> str:
-    return git(*args).stdout.strip()
+def git_out(*args: str, check: bool = True) -> str:
+    return git(*args, check=check).stdout.strip()
+
+
+def pin_fetched(source: Source) -> str:
+    """Resolve the fetch to a commit id, because `source.ref` does not resolve.
+
+    `git fetch origin <ref>` writes `FETCH_HEAD` and nothing else, so after the
+    fetch the only thing that reliably names the proposal is a commit id. Two
+    separate traps sit behind that, and both were found on the first live run
+    rather than in a reproduction:
+
+      * `pull/<n>/head` gets no local ref at all. GitHub keeps pull-request refs
+        under `refs/pull/*`, which falls outside the
+        `+refs/heads/*:refs/remotes/origin/*` refspec every clone has, so
+        `git log pull/6/head` fails as an ambiguous argument.
+      * A *branch* name does not resolve either, and not because of the fetch.
+        Git reads `dependabot/github_actions/x` as remote `dependabot`, branch
+        `github_actions/x`, so the shorthand misses the remote-tracking ref that
+        the fetch did write. `origin/<branch>` would resolve; the bare name
+        never does.
+
+    Pinning the id once also closes a real race. Dependabot rewrites its branch
+    on every run, so a name re-resolved later could have one commit inspected
+    and a different one merged. With the id pinned, what gets verified is
+    exactly what gets merged.
+    """
+    sha = git_out("rev-parse", "FETCH_HEAD^{commit}")
+    source.fetched = sha
+    return sha
+
+
+def tip_of(source: Source) -> str:
+    """What to read the proposal's tip from: the pinned id, else the name."""
+    return source.fetched or source.ref
 
 
 def gh(*args: str) -> str:
@@ -118,6 +151,10 @@ class Source:
         self.title = title
         self.body = body
         self.base = base
+        # The commit id the fetch actually produced. `self.ref` is what the
+        # owner typed or what the pull request is called, and neither resolves
+        # after a fetch — see `pin_fetched`.
+        self.fetched: str | None = None
 
 
 def is_pr_number(value: str) -> bool:
@@ -232,19 +269,21 @@ def preflight(source: Source, base: str) -> None:
             "  and `git config user.email` first -- AGENTS.md pins both."
         )
 
-    bot_name, bot_email = tip_identity(source.ref)
+    bot_name, bot_email = tip_identity(tip_of(source))
     if not check_attribution.is_bot(bot_name, bot_email):
         raise Failure(
-            f"the tip of {source.ref} is authored by '{bot_name} <{bot_email}>', not by automation.\n"
+            f"the tip of {source.ref} ({tip_of(source)[:9]}) is authored by '{bot_name} <{bot_email}>', "
+            "not by automation.\n"
             "  This script re-authors *bot* proposals. Point it at a Dependabot branch or a\n"
             "  dependabot pull request number."
         )
 
-    ahead = git("rev-list", "--count", f"{base}..{source.ref}", check=False)
+    ahead = git("rev-list", "--count", f"{base}..{tip_of(source)}", check=False)
     if ahead.returncode != 0 or not ahead.stdout.strip():
         raise Failure(
-            f"cannot compare {source.ref} against {base}. Is the base branch fetched?\n"
-            f"  Try: git fetch origin {base}"
+            f"cannot compare {tip_of(source)[:9]} against {base}.\n"
+            f"  Is the base branch fetched?\n"
+            f"  Try: git fetch origin {source.base}"
         )
 
 
@@ -295,14 +334,20 @@ def adopt_commit_message(source: Source) -> Source:
     its titles do, and its commit is the same object either way.
     """
     if not source.title:
-        source.title = git_out("log", "-1", "--pretty=%s", "FETCH_HEAD")
-        source.body = git_out("log", "-1", "--pretty=%b", "FETCH_HEAD")
-    if not source.url:
-        remote = git_out("config", "--get", "remote.origin.url")
-        m = re.search(r"github\.com[:/]+([^/]+/[^/.]+?)(?:\.git)?$", remote)
-        if m:
-            sha = git_out("rev-parse", "FETCH_HEAD")
-            source.url = f"https://github.com/{m.group(1)}/commit/{sha}"
+        source.title = git_out("log", "-1", "--pretty=%s", tip_of(source))
+        source.body = git_out("log", "-1", "--pretty=%b", tip_of(source))
+    remote = git_out("config", "--get", "remote.origin.url", check=False)
+    m = re.search(r"github\.com[:/]+([^/]+/[^/.]+?)(?:\.git)?$", remote or "")
+    # For a branch-sourced landing, replace the branch URL `resolve_ref` guessed
+    # with the immutable commit URL. Both name the proposal, but Dependabot
+    # rewrites its branch on every run, so a `tree/<branch>` pointer can change
+    # or 404 later -- which makes it a weaker audit trail than the commit it
+    # actually landed. A pull-request source keeps its PR URL, which is the
+    # link worth keeping there.
+    if m and source.number is None:
+        source.url = f"https://github.com/{m.group(1)}/commit/{tip_of(source)}"
+    elif not source.url and m:
+        source.url = f"https://github.com/{m.group(1)}/commit/{tip_of(source)}"
     return source
 
 
@@ -327,6 +372,13 @@ def run_verification(base: str) -> None:
 
 
 def main() -> int:
+    # Progress goes to stdout, refusals to stderr. Unbuffered stderr against
+    # block-buffered stdout means that whenever stdout is a pipe the refusal
+    # prints *above* the "Fetching ..." line it belongs under, which reads as
+    # though the run failed before it fetched anything. Not load-bearing, but on
+    # the first live outing it made a real failure actively misleading.
+    sys.stdout.reconfigure(line_buffering=True)
+
     parser = argparse.ArgumentParser(
         description="Re-author a Dependabot bump as an owner-authored commit, verified locally.",
         epilog="Nothing is pushed. Opening and merging the pull request is yours.",
@@ -361,6 +413,7 @@ def main() -> int:
         git("fetch", "origin", source.ref)
         if not git("rev-parse", "--verify", "--quiet", "FETCH_HEAD", check=False).returncode == 0:
             raise Failure(f"{source.ref} did not resolve to a commit")
+        pin_fetched(source)
         adopt_commit_message(source)
 
         # After the fetch, not before: for a branch named on the command line the
@@ -415,7 +468,9 @@ def main() -> int:
             # The one step that carries the diff. `--squash` stages the merge
             # result and creates no commit, so authorship is whatever the
             # following `git commit` decides -- and no authorship is inherited.
-            git("merge", "--squash", "FETCH_HEAD")
+            # The pinned id, not FETCH_HEAD: the same object preflight checked
+            # is the one that gets merged.
+            git("merge", "--squash", tip_of(source))
 
             if not git_out("diff", "--cached", "--name-only"):
                 print(

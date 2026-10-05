@@ -3,7 +3,7 @@
   OpenFlow V1 application manifest.
 
   Scope: this file declares the SDK levels the build chose and the permissions
-  ticket 03 settled. It declares no component, because this is the build skeleton —
+  tickets 03 and 34 settled. It declares no component, because this is the build skeleton —
   the bubble overlay, the accessibility service and the foreground dictation service
   are application code and arrive with the features that need them.
 
@@ -25,6 +25,14 @@
     <!-- The bubble. A special permission, not runtime-prompted: the app must check
          whether it is granted and route the user to Settings when it is not. -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!-- Settled by ticket 34, not by ticket 03, and deliberately kept out of the
+         microphone ask: on Android 13+ the foreground-service notification is suppressed
+         without it, so the failure mode is an invisible microphone service. Nothing is read
+         and nothing is sent — this exists so the OS can show that the mic is live, and the
+         channel carries the recording indicator and nothing else, ever.
+         docs/privacy/permissions-policy.md, docs/adr/0011-bubble-overlay-window.md -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:label="OpenFlow"

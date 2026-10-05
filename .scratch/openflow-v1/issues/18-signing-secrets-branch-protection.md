@@ -1,10 +1,10 @@
 # Signing keystore, GitHub secrets, branch protection (human)
 
 Type: task
-Status: claimed
+Status: blocked:human
 Blocked by: none
 
-> **Still open, and the rest of it is all human.** Everything an agent can drive is
+> **Parked on the owner, not claimed by an agent** — everything an agent can drive is
 > done and verified. The signing credentials and the `project` OAuth scope need
 > the owner. The checklist is under *Remaining (owner)* below. Not closing the
 > ticket until the secrets actually exist, because "signed release APK" is part

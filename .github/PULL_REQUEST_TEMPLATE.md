@@ -31,12 +31,19 @@ has a decision behind it.
 - [ ] The commit is authored by the repository owner
 - [ ] No `Co-authored-by` or `Signed-off-by` trailer names a bot, an automation
       account, or an AI assistant
+- [ ] If this re-lands a bot's diff, it went through the procedure in
+      [CONTRIBUTING.md](../CONTRIBUTING.md#landing-a-dependabot-bump)
 
 <!--
-`.github/workflows/attribution.yml` fails the pull request if either box above is
-untrue. This is not a style preference: GitHub counts trailer names as
-contributors, and this repository's contributor list is people only. Agents are
-tools, not contributors, whether they wrote the code or only reviewed it.
+`.github/workflows/attribution.yml` fails the pull request if either of the first
+two boxes above is untrue. This is not a style preference: GitHub counts trailer
+names as contributors, and this repository's contributor list is people only.
+Agents are tools, not contributors, whether they wrote the code or only reviewed
+it.
+
+The third box has no workflow behind it, which is why it is a link rather than a
+restatement: a Dependabot pull request cannot be merged with GitHub's buttons at
+all, and the reason is not something this template can usefully repeat.
 -->
 
 ## Testing

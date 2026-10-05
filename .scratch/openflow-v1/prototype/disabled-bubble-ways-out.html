@@ -1,0 +1,791 @@
+<!doctype html>
+<!--
+  PROTOTYPE — throwaway. Do not ship, do not port, do not treat as a spec.
+
+  Question (ticket 49): the Bubble is disabled. It is ABSENT — no window, no
+  state, nothing anywhere that says the product exists. How does the user get it
+  back?
+
+  THE PREDECESSOR PROTOTYPE GOT THIS WRONG, and the way it got it wrong is the
+  reason this file exists. `.scratch/openflow-v1/prototype/disabled-bubble-variants.html`
+  built four variants and three of them were the SAME ANSWER: A sent the user
+  to Settings, B to the launcher icon, D to a launcher tile. Different rooms, one
+  decision — "the way back is a place you go". A prototype whose variants agree
+  is not a choice, it is a floor plan drawn four times.
+
+  WHAT CHANGED: the question is no longer "which place is the way back". It is
+  **"how should the bubble go away" — and the user picks**. That turns ADR-0011's
+  fixed consequence into a setting, which is where it belonged: position, shape
+  and opacity are already settings (ticket 07), and "what happens when I switch
+  it off" was the one consequence of the Bubble's existence that had no knob.
+
+  FOUR WAYS OUT, and they disagree about what the product IS when it is off:
+
+    absent     Nothing on screen. The Bubble is a thing you invoke.
+    retracted  A nub stays at the Anchor. The Bubble never leaves; it shrinks.
+    chip       Collapses into a status-bar entry. The Bubble is resident.
+    muted      Stops listening but stays exactly where it is. The Bubble is a
+               mute, not an absence — and this one is not really "disabled".
+
+  Each carries its limit in mono, beside the promise. Two of them cost something
+  the other two do not, and the honest limits are the content here, not the
+  chrome around it.
+
+  ── ONE OPTION IS GATED BY AN ADR, AND IT SAYS SO ─────────────────────────
+  The first pass ruled the notification out entirely: ADR-0011 settled the
+  notification channel carries the recording indicator "and nothing else, ever",
+  so "your bubble is off" cannot share it. That was right about the CHANNEL and
+  wrong about the conclusion — a second channel is a cost, not a prohibition, and
+  the user's own answer here is that the choice is theirs to make. So `chip` is
+  built, with the second channel named as its price. Ruling a user's option out
+  on an implementation detail is the same move as narrowing the acceptance gate.
+
+  ── RULES HELD ────────────────────────────────────────────────────────────
+  · Brutalism is settled by the repo: zero radius, no shadows, flat ground, one
+    accent, hairline rules, 2px structural borders, sentence case, mono for
+    machine voice. Archivo EXTENDED at weight 800 for display — the width axis is
+    the type idea, not a scale.
+  · Nothing is hidden by default. No resting style is opacity:0; keyframes use
+    fill-mode backwards, and reduced motion adds no one-shot classes at all.
+  · A press INVERTS, so it never cross-fades — a transition walks the label
+    through mid-grey on mid-grey, below AA while the finger is down.
+  · Both themes are real and every value is measured per theme. A tint good in
+    light is not a tint good in dark.
+  · State is never colour alone: a word, a shape, and a mark that changes.
+  · The bottom reserve is MEASURED from this file's own control bar.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE — how a disabled bubble gets switched back on (ticket 49)</title>
+<style>
+@font-face{font-family:'Archivo';src:url('../../../website/fonts/archivo-latin-var.woff2') format('woff2');font-weight:100 900;font-stretch:62% 125%;font-display:swap}
+@font-face{font-family:'JetBrains Mono';src:url('../../../website/fonts/jetbrains-mono-latin-var.woff2') format('woff2');font-weight:400 800;font-display:swap}
+
+:root{
+  /* --low is DARKER than ticket 19's #6E6E6B, and the reason is worth keeping:
+     that value measures 4.64:1 on the flat ground but 4.18:1 on a selected row,
+     because the selection tints the ground down to ~#E8E8E6. A limit line is the
+     most important text on this screen — it is the half of the promise — so it
+     gets the value that survives the state it is read in. #636360 clears 4.9:1
+     on both grounds. A token measured only on the resting surface is a token
+     measured in the easy configuration. */
+  --ground:#F4F4F2; --ink:#0A0A0A; --mid:#4A4A48; --low:#5E5E5B;
+  --rule:rgba(10,10,10,.16); --rule-hi:rgba(10,10,10,.34); --bar:rgba(10,10,10,.14);
+  --accent:#5B21D6; --on-accent:#FFFFFF; --field:rgba(10,10,10,.05);
+  --ui:'Archivo',system-ui,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --s1:.25rem; --s2:.5rem; --s3:.75rem; --s4:1rem; --s5:1.5rem; --s6:2rem;
+  --t-micro:.6875rem; --t-small:.75rem; --t-body:.875rem; --t-base:1rem;
+  --t-sub:1.25rem; --t-display:1.75rem;
+  --nav-inset:3rem;
+  --tools-h:9rem; /* MEASURED below, never trusted as authored */
+}
+:root[data-theme="dark"]{
+  --ground:#0A0A0A; --ink:#F4F4F2; --mid:#B4B4B0; --low:#8E8E8A;
+  --rule:rgba(244,244,242,.18); --rule-hi:rgba(244,244,242,.4); --bar:rgba(244,244,242,.16);
+  --accent:#A78BFA; --on-accent:#0A0A0A; --field:rgba(244,244,242,.06);
+}
+html[data-fs="150"]{font-size:24px}
+html[data-fs="200"]{font-size:32px}
+
+*{box-sizing:border-box;border-radius:0}
+html,body{margin:0}
+body{
+  background:var(--ground);color:var(--ink);
+  font-family:var(--ui);font-size:var(--t-base);line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:var(--mono);font-size:var(--t-micro);letter-spacing:.005em;line-height:1.7}
+.dim{color:var(--low)}
+/* The width axis: Archivo carries 62–125%, and the width is the type idea
+   rather than a scale. Display is EXTENDED at 800; body is normal width. */
+.display{font-weight:800;font-stretch:125%;letter-spacing:-.015em;line-height:1.12}
+button{font:inherit;color:inherit;background:none;border:0;margin:0;padding:0;cursor:pointer}
+
+.stage{min-height:100vh;display:grid;place-items:center;
+  padding:1.5rem 1rem calc(var(--tools-h) + 1.5rem)}
+/* The phone gets the space; the readout is a capped band. A sheet sized by its
+   content competes with the readout and loses. */
+.frame{width:416px;max-width:100%;display:flex;flex-direction:column;
+  height:min(46rem,calc(100vh - var(--tools-h) - 3rem))}
+.frame > .sheet{flex:1 1 auto;min-height:14rem}
+.sheet{
+  width:100%;flex:1;min-height:0;
+  border:2px solid var(--ink);background:var(--ground);
+  display:flex;flex-direction:column;position:relative;overflow:hidden;
+}
+@media (max-width:480px){
+  .stage{padding:1rem 0 calc(var(--tools-h) + 1rem)}
+  .frame{height:calc(100vh - var(--tools-h) - 2rem)}
+  .sheet{border-left:0;border-right:0}
+}
+
+.statusbar{flex:none;display:flex;align-items:center;gap:var(--s2);padding:.4rem var(--s4) .35rem;
+  font-family:var(--mono);font-size:var(--t-micro);color:var(--low);border-bottom:1px solid var(--rule)}
+.statusbar .grow{flex:1}
+
+/* ── HOST: somebody else's app, dense enough that floating over it means
+   something. An empty rectangle made the premise untestable. ─────────────── */
+.host{flex:1;display:flex;flex-direction:column;position:relative;overflow:hidden;min-height:0}
+.appbar{flex:none;display:flex;align-items:center;gap:var(--s3);min-height:3.5rem;
+  padding:0 var(--s3) 0 var(--s2);border-bottom:2px solid var(--ink)}
+.appbar .av{flex:none;display:grid;place-items:center;width:2.25rem;height:2.25rem;
+  background:var(--accent);color:var(--on-accent);font-weight:800;font-size:var(--t-small)}
+.appbar .who{flex:1;min-width:0}
+.appbar .who .name{font-weight:800;font-stretch:125%;font-size:var(--t-base);letter-spacing:-.02em}
+.appbar .who .sub{font-family:var(--mono);font-size:var(--t-micro);color:var(--low)}
+.iconbtn{flex:none;display:grid;place-items:center;width:3rem;height:3rem;
+  border:1px solid transparent}
+.iconbtn:hover{background:var(--field);border-color:var(--rule)}
+.iconbtn:active{background:var(--ink);color:var(--ground)}
+.iconbtn svg{display:block}
+
+.thread{flex:1;overflow:hidden;padding:var(--s3) var(--s3) 0;display:flex;
+  flex-direction:column;gap:var(--s2);min-height:0}
+/* Direction is a border and a fill, not a hue — readable with no colour. */
+.msg{max-width:80%;padding:.4rem .6rem;font-size:var(--t-body);line-height:1.4}
+.msg .t{display:block;font-family:var(--mono);font-size:var(--t-micro);color:var(--low);margin-top:.15rem}
+.msg.in{align-self:flex-start;border:1px solid var(--rule-hi)}
+.msg.out{align-self:flex-end;background:var(--accent);color:var(--on-accent);border:2px solid var(--accent)}
+.msg.out .t{color:#D6CBF7}
+:root[data-theme="dark"] .msg.out .t{color:var(--on-accent)}
+.msg .caret{display:inline-block;width:2px;height:1.05em;background:currentColor;vertical-align:-.15em}
+.strip{flex:none;display:flex;gap:var(--s2);padding:var(--s2) var(--s3);
+  border-top:1px solid var(--rule);overflow:hidden}
+.strip span{flex:none;padding:.15rem .5rem;border:1px solid var(--rule);
+  font-size:var(--t-small);color:var(--mid);white-space:nowrap}
+.field{flex:none;border-top:2px solid var(--ink);
+  padding:var(--s2) var(--s3) calc(var(--s2) + var(--nav-inset));display:flex;align-items:center;gap:var(--s2)}
+.field .line{flex:1;min-height:3rem;border:1px solid var(--rule-hi);padding:.65rem var(--s3);font-size:var(--t-body)}
+.field .caret{display:inline-block;width:2px;height:1.05em;background:var(--accent);vertical-align:-.15em}
+.mic{flex:none;display:grid;place-items:center;width:3rem;height:3rem;
+  border:2px solid var(--ink);background:var(--ground)}
+.mic:hover{background:var(--field)}
+.mic:active{background:var(--ink);color:var(--ground)}
+.mic svg{display:block;fill:currentColor}
+
+/* ── OPENFLOW's own surfaces ────────────────────────────────────────────── */
+.app{display:flex;flex-direction:column;flex:1;min-height:0}
+.appbar2{flex:none;display:flex;align-items:center;gap:var(--s1);min-height:3.5rem;
+  padding:0 var(--s2) 0 var(--s4);border-bottom:2px solid var(--ink)}
+.appbar2 .brand{flex:none;font-weight:800;font-stretch:125%;font-size:var(--t-base);letter-spacing:-.02em}
+.appbar2 .sep{flex:none;color:var(--low);font-family:var(--mono);font-size:var(--t-micro)}
+.appbar2 .title{min-width:0;overflow-wrap:anywhere}
+.appbar2 .grow{flex:1}
+.scroll{flex:1;overflow-y:auto;overflow-x:hidden;min-height:0;overscroll-behavior:contain}
+/* The last row gets REAL space below it, equal to the system bar, so scrolling
+   to the end cannot park it underneath. */
+.rows.tail{padding-bottom:var(--nav-inset)}
+.rows{margin:0;padding:0;list-style:none;border-top:2px solid var(--ink)}
+.row{display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:2px var(--s3);
+  width:100%;min-height:4.5rem;padding:.9rem var(--s4);border-bottom:1px solid var(--rule);
+  text-align:left;position:relative;transition:background-color .1s linear}
+.row:hover{background:var(--field)}
+.row:active{background:var(--ink);color:var(--ground)}
+.row.sel{background:var(--field)}
+.row .name{grid-column:1;font-weight:700;font-size:var(--t-body);letter-spacing:-.01em}
+.row .state{grid-column:2;font-family:var(--mono);font-size:var(--t-micro);color:var(--low);white-space:nowrap}
+.row:active .state,.row.sel .state{color:var(--ground)}
+.row .does{grid-column:1 / span 2;font-size:var(--t-small);color:var(--mid);margin-top:2px}
+.row:active .does{color:var(--ground)}
+.row .limit{grid-column:1 / span 2;font-family:var(--mono);font-size:var(--t-micro);color:var(--low);margin-top:var(--s1)}
+.row:active .limit{color:var(--ground)}
+
+/* The radio. A square that fills — no pill, no track-and-thumb. */
+.radio{grid-column:2;justify-self:end;width:1.5rem;height:1.5rem;border:2px solid var(--ink);
+  display:grid;place-items:center;margin-top:.1rem;flex:none}
+/* Scaled to nothing when unselected. Painting it unconditionally made all four
+   options look chosen at once, which is the one thing a radio must never do. */
+.radio i{display:block;width:.7rem;height:.7rem;background:var(--accent);
+  transform:scale(0)}
+.opt.sel .radio i{transform:scale(1)}
+.row.sel .radio{border-color:var(--accent)}
+.row.sel .radio i{background:var(--accent)}
+.row:active .radio{border-color:var(--ground)}
+.row:active .radio i{background:var(--ground)}
+.sw{grid-column:2;justify-self:end;width:2.75rem;height:1.5rem;border:2px solid var(--ink);
+  background:var(--field);position:relative;margin-top:.15rem}
+.sw i{position:absolute;top:0;bottom:0;left:0;width:50%;background:var(--ink);
+  transition:transform .14s cubic-bezier(.2,0,0,1)}
+.sw.on{background:var(--accent);border-color:var(--accent)}
+.sw.on i{transform:translateX(100%);background:var(--on-accent)}
+
+/* THE HEAD OF THE SCREEN: the actual decision. A disclosure, because four
+   options each carrying two lines of limit is not a list — it is a choice. */
+.hero{padding:var(--s4) var(--s4) var(--s3);border-bottom:2px solid var(--ink)}
+.hero h1{margin:0 0 var(--s2);font-size:var(--t-sub)}
+.hero p{margin:0;font-size:var(--t-small);color:var(--mid)}
+/* promise above, limit below, limit in mono — the site's honesty rule, and the
+   whole reason this screen is legible rather than a preference list. */
+.opt{display:grid;grid-template-columns:1fr;gap:var(--s1);width:100%;text-align:left;
+  padding:var(--s3) var(--s4);border-bottom:1px solid var(--rule);position:relative}
+.opt:hover{background:var(--field)}
+.opt:active{background:var(--ink);color:var(--ground)}
+.opt .top{display:flex;align-items:center;gap:var(--s3)}
+.opt .name{font-weight:700;font-size:var(--t-body);flex:1}
+.opt .tag{font-family:var(--mono);font-size:var(--t-micro);color:var(--low);white-space:nowrap}
+.opt:active .tag{color:var(--ground)}
+.opt .why{font-size:var(--t-small);color:var(--mid)}
+.opt:active .why{color:var(--ground)}
+/* --mid, not --low: the limit is read on a selected row as well as an
+   unselected one, and it is the half of the promise that has to hold up. */
+.opt .lim{font-family:var(--mono);font-size:var(--t-micro);color:var(--mid)}
+.opt:active .lim{color:var(--ground)}
+.opt.sel{background:var(--field)}
+/* The chosen option says so in words as well as in a fill — colour and shape
+   are corroboration here, never the signal on their own. */
+.opt.sel .name::after{content:" · chosen";font-family:var(--mono);font-size:var(--t-micro);
+  font-weight:400;color:var(--accent)}
+.opt.sel:active .name::after{color:var(--ground)}
+
+/* THE BUBBLE. Its core is the product's own mark, lifted from
+   website/favicon.svg, so the Bubble and the launcher icon are recognisably the
+   same object. Idle is the mark at rest; dictating is the same mark, taller. */
+.bubble{position:absolute;z-index:6;width:3.5rem;height:3.5rem;
+  border:2px solid var(--ink);background:var(--ground);padding:0;
+  display:grid;place-items:center;-webkit-tap-highlight-color:transparent}
+.wave{display:flex;align-items:center;gap:.11rem;height:1.3rem}
+.wave i{display:block;width:.16rem;background:var(--ink);transform-origin:center}
+.wave i:nth-child(1),.wave i:nth-child(5){height:.34rem}
+.wave i:nth-child(2),.wave i:nth-child(4){height:.78rem}
+.wave i:nth-child(3){height:1.16rem}
+.bubble.dictating{background:var(--accent);border-color:var(--accent)}
+.bubble.dictating .wave{height:1.6rem}
+.bubble.dictating .wave i{background:var(--on-accent)}
+.bubble.dictating .wave i:nth-child(1),.bubble.dictating .wave i:nth-child(5){height:.55rem}
+.bubble.dictating .wave i:nth-child(2),.bubble.dictating .wave i:nth-child(4){height:1.1rem}
+.bubble.dictating .wave i:nth-child(3){height:1.5rem}
+.bubble .word{position:absolute;bottom:calc(100% + .35rem);left:50%;transform:translateX(-50%);
+  font-family:var(--mono);font-size:var(--t-micro);color:var(--low);white-space:nowrap}
+.bubble.dictating .word{color:var(--accent);font-weight:700}
+
+/* Each way out, drawn as the thing it leaves behind. */
+.nub{position:absolute;z-index:6;right:1.25rem;bottom:8rem;width:.875rem;height:.875rem;
+  border:1px solid var(--rule-hi);background:var(--ground);display:grid;place-items:center}
+.nub::after{content:"";position:absolute;inset:-1.25rem} /* 48dp of hit, 14px of mark */
+.nub:hover{border-color:var(--accent)}
+.nub:focus-visible{outline:2px solid var(--accent);outline-offset:6px}
+.nub .hint{position:absolute;bottom:calc(100% + .35rem);left:50%;transform:translateX(-50%);
+  font-family:var(--mono);font-size:var(--t-micro);color:var(--low);white-space:nowrap}
+.chip{position:absolute;z-index:6;right:.5rem;top:2.75rem;display:flex;align-items:center;gap:.3rem;
+  min-height:2rem;padding:0 .5rem;border:1px solid var(--rule-hi);background:var(--ground);
+  font-family:var(--mono);font-size:var(--t-micro)}
+.chip svg{display:block;fill:none;stroke:currentColor;stroke-width:2}
+.chip:hover{border-color:var(--accent)}
+
+/* THE SHEET. Where the bubble goes when it needs to be told something, and the
+   place the "removal asks" decision is visible. */
+.scrim{position:absolute;inset:0;z-index:8;background:rgba(10,10,10,.42)}
+.sheetbox{position:absolute;left:0;right:0;bottom:0;z-index:9;background:var(--ground);
+  border-top:2px solid var(--ink);padding:var(--s4) var(--s4) calc(var(--s4) + var(--nav-inset))}
+.sheetbox h2{margin:0 0 var(--s2);font-size:var(--t-sub)}
+.sheetbox p{margin:0 0 var(--s3);font-size:var(--t-body);color:var(--mid)}
+.acts{display:flex;flex-direction:column;gap:var(--s2);margin-top:var(--s4)}
+.act{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);width:100%;
+  min-height:3rem;padding:0 var(--s3);border:2px solid var(--ink);background:var(--ground);
+  font-size:var(--t-body);font-weight:700}
+.act:hover{background:var(--field)}
+.act:active{background:var(--ink);color:var(--ground);transition:none}
+.act .note{font-family:var(--mono);font-size:var(--t-micro);color:var(--low);font-weight:400}
+.act:active .note{color:var(--ground)}
+.primary{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);width:100%;
+  min-height:3.25rem;padding:0 var(--s3);border:2px solid var(--accent);background:var(--accent);
+  color:var(--on-accent);font-size:var(--t-base);font-weight:800}
+.primary:hover{filter:brightness(1.08)}
+.primary:active{background:var(--ink);color:var(--ground);border-color:var(--ink);transition:none}
+.primary .note{font-family:var(--mono);font-size:var(--t-micro);font-weight:400;opacity:.9}
+
+.limits{margin:var(--s3) 0 0;padding:0;list-style:none;border-top:1px solid var(--rule)}
+.limits li{display:grid;gap:2px;padding:var(--s2) 0;border-bottom:1px solid var(--rule)}
+.limits .yes{font-size:var(--t-small);font-weight:700}
+.limits .no{font-family:var(--mono);font-size:var(--t-micro);color:var(--low)}
+
+.navbar{position:absolute;left:0;right:0;bottom:0;z-index:4;height:var(--nav-inset);
+  display:flex;align-items:center;justify-content:center;gap:var(--s4);
+  background:var(--ground);border-top:1px solid var(--rule)}
+.navbar button{display:grid;place-items:center;width:3rem;height:3rem;border:1px solid transparent}
+.navbar button:hover{background:var(--field);border-color:var(--rule)}
+.navbar button:active{background:var(--ink);color:var(--ground)}
+.navbar button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.navbar .pill{display:block;width:2.75rem;height:.25rem;background:var(--ink)}
+.navbar .sq{display:block;width:.9rem;height:.9rem;border:2px solid currentColor}
+
+/* ── THE READOUT: the answer sheet. Not part of the design. ──────────────── */
+/* The readout is a fixed band, not a growing one. Sizing it by content is what
+   let it eat the sheet: at 200% font it reached 872px, the sheet collapsed to
+   110px, and the bottom row ended up underneath the control bar — so the check
+   that walks the screen was measuring a sheet that had been squeezed to
+   nothing. A harness that changes the thing it measures is not a harness. */
+.readout{flex:none;width:100%;height:9rem;margin-top:var(--s4);
+  border:2px solid var(--ink);background:var(--ground);overflow:auto}
+.readout h4{margin:0;padding:.5rem var(--s3);border-bottom:2px solid var(--ink);
+  font-family:var(--mono);font-size:var(--t-micro);color:var(--low);font-weight:400;
+  display:flex;gap:var(--s2);align-items:center}
+.readout h4 .grow{flex:1}
+.readout .beat{padding:var(--s2) var(--s3) 0;font-size:var(--t-small);color:var(--mid)}
+.readout dl{margin:0;padding:var(--s3);display:grid;grid-template-columns:auto 1fr;
+  gap:var(--s1) var(--s3);font-family:var(--mono);font-size:var(--t-micro);line-height:1.7}
+.readout dt{color:var(--low);white-space:nowrap}
+.readout dd{margin:0;overflow-wrap:anywhere}
+.readout .no{color:var(--low)}
+.readout .yes{font-weight:700}
+
+/* ── MOTION. Structure draws itself; nothing else moves on its own. The mark
+   assembling is the one choreographed moment, and every resting style is plain
+   CSS so reduced motion loses nothing. ───────────────────────────────────── */
+@keyframes sheet-in{from{transform:translateY(.75rem)}to{transform:translateY(0)}}
+@keyframes stroke-up{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+/* Each way out gets its own exit, because "how the bubble leaves" is the
+   decision and a shared exit would hide it. */
+@keyframes out-vanish{from{transform:scale(1);opacity:1}to{transform:scale(.3);opacity:0}}
+@keyframes out-retract{from{width:3.5rem;height:3.5rem;opacity:1}
+                      to{width:.875rem;height:.875rem;opacity:.55}}
+@keyframes out-dock{from{transform:translate(0,0) scale(1);opacity:1}
+                    to{transform:translate(-9.5rem,-13.5rem) scale(.28);opacity:0}}
+.sheet{animation:sheet-in .22s cubic-bezier(.2,0,0,1) backwards}
+.bubble.enter .wave i{animation:stroke-up .3s cubic-bezier(.2,0,0,1) backwards}
+.bubble.enter .wave i:nth-child(1){animation-delay:.02s}
+.bubble.enter .wave i:nth-child(2){animation-delay:.07s}
+.bubble.enter .wave i:nth-child(3){animation-delay:.12s}
+.bubble.enter .wave i:nth-child(4){animation-delay:.17s}
+.bubble.enter .wave i:nth-child(5){animation-delay:.22s}
+.bubble.leaving{animation:out-vanish .18s cubic-bezier(.4,0,1,1) forwards}
+.bubble.leaving.retract{animation:out-retract .26s cubic-bezier(.2,0,0,1) forwards}
+.bubble.leaving.dock{animation:out-dock .26s cubic-bezier(.2,0,0,1) forwards}
+
+.tools{position:fixed;bottom:0;left:0;right:0;z-index:20;background:var(--ink);color:var(--ground);
+  display:flex;flex-wrap:wrap;justify-content:center;align-items:stretch;gap:1px}
+:root[data-theme="dark"] .tools{background:var(--ground);color:var(--ink);border-top:2px solid var(--ink)}
+.tools button{min-height:3rem;min-width:3rem;padding:0 var(--s3);background:transparent;
+  border:0;color:inherit;cursor:pointer;font-family:var(--mono);font-size:var(--t-micro);
+  transition:background-color .1s linear}
+.tools button:hover{background:rgba(140,140,140,.3)}
+.tools button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.tools [aria-pressed="true"]{background:var(--accent);color:var(--on-accent);transition:none}
+.tools .rule{width:1px;background:currentColor;opacity:.28}
+.tools .name{min-height:3rem;display:flex;align-items:center;padding:0 var(--s3);
+  font-family:var(--mono);font-size:var(--t-micro);opacity:.85;white-space:nowrap}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important}
+  .sheet{animation:none}
+}
+@media (prefers-contrast:more){
+  :root{--rule:currentColor;--rule-hi:currentColor;--bar:currentColor}
+  .sheet,.row,.tile,.readout,.sheetbox,.opt{border-width:3px}
+}
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="frame">
+    <div class="sheet" id="sheet"></div>
+    <div class="readout" id="readout"></div>
+  </div>
+</div>
+
+<div class="tools" role="group" aria-label="Prototype controls">
+  <span class="name" id="label"></span>
+  <span class="rule"></span>
+  <button data-fs="100" aria-pressed="true">100%</button>
+  <button data-fs="150" aria-pressed="false">150%</button>
+  <button data-fs="200" aria-pressed="false">200%</button>
+  <span class="rule"></span>
+  <button data-theme-mode="light" aria-pressed="false">light</button>
+  <button data-theme-mode="dark" aria-pressed="false">dark</button>
+</div>
+
+<script>
+"use strict";
+
+/* ══════════════════════════════════════════════════════════════════════════
+   The four ways out. Every field here is load-bearing, and the `limit` is the
+   point: two of these cost something the others do not, and saying so is the
+   whole content of the screen.
+   ══════════════════════════════════════════════════════════════════════════ */
+const WAYS = [
+  {
+    key: "absent",
+    name: "Nothing on screen",
+    tag: "off",
+    why: "The bubble leaves completely. No window, no mark, no trace.",
+    lim: "the way back is a place you go, and you have to be in the app",
+    back: "Open the app, or long-press the launcher icon",
+    window: false,
+  },
+  {
+    key: "retracted",
+    name: "A small mark stays",
+    tag: "retracted",
+    why: "It shrinks to a nub at its anchor and waits there.",
+    lim: "still a window on your screen, still ours to explain",
+    back: "Tap the nub. It is 14px, and we can do better than that.",
+    window: true,
+  },
+  {
+    key: "chip",
+    name: "It moves to the status bar",
+    tag: "resident",
+    why: "It collapses into a status-bar entry that brings it straight back.",
+    lim: "needs a SECOND channel — ADR-0011 gives the first to the mic",
+    back: "Tap the status-bar entry",
+    window: false,
+  },
+  {
+    key: "muted",
+    name: "It stays, but stops listening",
+    tag: "muted",
+    why: "It does not move. It simply stops recording until you switch it on.",
+    lim: "not really 'off' — it is still there, still in the way",
+    back: "Nothing to restore. Tap the bubble whenever you like.",
+    window: true,
+  },
+];
+const WAY = {};
+WAYS.forEach(w => (WAY[w.key] = w));
+
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)");
+
+/* State, hoisted above the screen like a ViewModel: the round trip outlives a
+   theme change and a font-scale tap, so it cannot live in the DOM. */
+let S = fresh();
+
+function fresh() {
+  const qs = new URL(location.href).searchParams;
+  const way = WAY[qs.get("way")] ? qs.get("way") : "absent";
+  return {
+    way,
+    off: qs.get("off") === "1",
+    screen: "settings", // settings | options | host | confirm
+    dictating: false,
+    leaving: false,
+    ask: qs.get("ask") !== "0", // does removal ask first
+    announced: "",
+  };
+}
+
+const ICON_BACK =
+  '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">' +
+  '<path d="M12 4 6 10l6 6" stroke="currentColor" stroke-width="2"/></svg>';
+
+/* The product's mark, from website/favicon.svg. */
+const MARK =
+  '<svg viewBox="0 0 32 32" width="100%" height="100%" aria-hidden="true">' +
+  '<rect width="32" height="32" fill="currentColor"/>' +
+  '<g fill="none" stroke="var(--ground)" stroke-width="2.5" stroke-linecap="square">' +
+  '<path d="M6 16h2"/><path d="M11 16v-5"/><path d="M16 16v-10"/>' +
+  '<path d="M21 16v-7"/><path d="M26 16h-2"/></g></svg>';
+
+function statusbar() {
+  return '<div class="statusbar"><span>9:41</span><span class="grow"></span><span>carrier</span></div>';
+}
+
+function navbar() {
+  return (
+    '<div class="navbar">' +
+    '<button data-act="back" aria-label="Back"><span class="sq"></span></button>' +
+    '<button data-act="home" aria-label="Home"><span class="pill"></span></button>' +
+    "</div>"
+  );
+}
+
+/* ── HOST ──────────────────────────────────────────────────────────────── */
+function host() {
+  const MIC =
+    '<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">' +
+    '<rect x="7.4" y="1.8" width="5.2" height="9.2" rx="2.6"/>' +
+    '<path d="M4.4 8.8a5.6 5.6 0 0 0 11.2 0h1.7a7.3 7.3 0 0 1-6.25 7.2v2.2h3.3v1.7H5.65v-1.7h3.3v-2.2a7.3 7.3 0 0 1-6.25-7.2z"/></svg>';
+  return (
+    '<div class="host">' +
+    '<div class="appbar">' +
+    '<button class="iconbtn" data-act="nothing" aria-label="Back">' + ICON_BACK + "</button>" +
+    '<span class="av" aria-hidden="true">PR</span>' +
+    '<span class="who"><span class="name">Priya Raghunathan</span><br>' +
+    '<span class="sub">active now</span></span>' +
+    "</div>" +
+    '<div class="thread">' +
+    '<div class="msg in">Did the 15.4 GB phone finally arrive?<span class="t">09:12</span></div>' +
+    '<div class="msg out">It did. Sideloading the build tonight.<span class="t">09:14</span></div>' +
+    '<div class="msg in">And the dictation bubble? Over the keyboard?<span class="t">09:14</span></div>' +
+    '<div class="msg out">Over it. Not replacing it — that was the point.<span class="t">09:15</span></div>' +
+    '<div class="msg in">Fine. But it had better come back when I turn it off.<span class="t">09:16</span></div>' +
+    "</div>" +
+    '<div class="strip"><span>fix in the</span><span>fix in the morning</span><span>fixed</span></div>' +
+    '<div class="field"><div class="line">Fix in the <span class="caret"></span></div>' +
+    /* The keyboard's own mic key. Every keyboard has one, and it is where people
+       look for dictation — so the mock draws it and claims it for nobody. */
+    '<button class="mic" data-act="nothing" aria-label="The keyboard\'s own microphone key">' + MIC + "</button></div>" +
+    "</div>"
+  );
+}
+
+/* ── THE BUBBLE, and each way out, drawn as what it leaves behind ───────── */
+function bubble(kind, extra) {
+  const word = kind === "dictating" ? "listening" : "tap to talk";
+  return (
+    '<button class="bubble ' + kind + (extra || "") + '" style="right:1rem;bottom:8rem" ' +
+    'data-act="bubble-press" aria-label="OpenFlow bubble, ' + (kind === "dictating" ? "listening" : "idle") + '">' +
+    '<span class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>' +
+    '<span class="word">' + word + "</span></button>"
+  );
+}
+function residue() {
+  return (
+    '<button class="nub" data-act="restore" ' +
+    'aria-label="OpenFlow bubble, retracted. Tap to bring it back">' +
+    '<span class="hint">tap</span></button>'
+  );
+}
+function chip() {
+  return (
+    '<button class="chip" data-act="restore" aria-label="OpenFlow in the status bar. Tap to bring the bubble back">' +
+    '<svg width="12" height="12" viewBox="0 0 32 32" aria-hidden="true">' +
+    '<path d="M6 16h2M11 16v-5M16 16v-10M21 16v-7M26 16h-2"/></svg>OpenFlow</button>'
+  );
+}
+
+/* ── OPENFLOW: Settings → Bubble ───────────────────────────────────────── */
+function settings() {
+  const w = WAY[S.way];
+  return (
+    '<div class="app">' +
+    '<div class="appbar2"><span class="brand">OpenFlow</span><span class="sep">/</span>' +
+    '<span class="title">Bubble</span><span class="grow"></span></div>' +
+    '<div class="scroll">' +
+    '<div class="hero"><h1 class="display">When you switch it off</h1>' +
+    "<p>You already chose where it sits and how it looks. This is the last thing " +
+    "it does when you turn it off — and it is yours to pick.</p></div>" +
+    '<ul class="rows bare">' +
+    '<li><button class="row" data-act="pick">' +
+    '<span class="name">Show bubble</span>' +
+    '<span class="sw ' + (S.off ? "" : "on") + '"><i></i></span>' +
+    "<span class='does'>floats over other apps, above the keyboard</span>" +
+    "<span class='limit'>currently " + (S.off ? w.tag : "on") + "</span></button></li>" +
+    "</ul>" +
+    WAYS.map(
+      (o) =>
+        '<button class="opt ' + (S.way === o.key ? "sel" : "") + '" data-act="way" data-way="' + o.key + '">' +
+        '<span class="top"><span class="name">' + o.name + '</span>' +
+        '<span class="radio" aria-hidden="true"><i></i></span></span>' +
+        '<span class="why">' + o.why + "</span>" +
+        '<span class="lim">' + o.lim + "</span></button>"
+    ).join("") +
+    /* A real inset, so the last row can never end up under the system bar when
+       it is scrolled to. Padding on the row alone left the row's own box
+       underneath while only its label cleared — which is what put "Opacity"
+       under the nav bar, and a control you cannot press is a control that does
+       not exist. */
+    '<ul class="rows tail">' +
+    "<li><button class='row' data-act='nothing'><span class='name'>Position</span>" +
+    "<span class='state'>right, bottom</span></button></li>" +
+    "<li><button class='row' data-act='nothing'><span class='name'>Shape</span>" +
+    "<span class='state'>dot</span></button></li>" +
+    "<li><button class='row' data-act='nothing'><span class='name'>Opacity</span>" +
+    "<span class='state'>90%</span></button></li>" +
+    "</ul></div></div>"
+  );
+}
+
+/* The Ready screen, because ADR-0011 gave the Bubble a row here and the row has
+   to tell the truth about which way is currently chosen. */
+function ready() {
+  const w = WAY[S.way];
+  return (
+    '<div class="app">' +
+    '<div class="appbar2"><span class="brand">OpenFlow</span><span class="sep">/</span>' +
+    '<span class="title">Ready</span><span class="grow"></span></div>' +
+    '<div class="scroll"><ul class="rows">' +
+    "<li><button class='row' data-act='nothing'><span class='name'>Voice model</span>" +
+    "<span class='state'>READY</span><span class='does'>streaming zipformer, 45 MB</span></button></li>" +
+    "<li><button class='row' data-act='nothing'><span class='name'>Microphone</span>" +
+    "<span class='state'>GRANTED</span><span class='does'>records while you hold the bubble</span>" +
+    "<span class='limit'>a recording is deleted after it is processed</span></button></li>" +
+    "<li><button class='row' data-act='nothing'><span class='name'>Dictation service</span>" +
+    "<span class='state'>ON</span><span class='does'>writes into the field you are in</span>" +
+    "<span class='limit'>does not watch your keyboard, does not poll</span></button></li>" +
+    "<li><button class='row " + (S.off ? "off" : "") + "' data-act='pick'>" +
+    "<span class='name'>Bubble</span><span class='state'>" + (S.off ? w.tag.toUpperCase() : "ON") + "</span>" +
+    "<span class='does'>" + (S.off ? w.back : "floats over every app you dictate in") + "</span>" +
+    (S.off ? "<span class='limit'>" + w.lim + "</span>" : "") +
+    "</button></li></ul></div></div>"
+  );
+}
+
+/* The confirm. Only shown when removal asks — and the copy names the way back,
+   because a sentence that says what disappears without saying how to return it
+   is a warning, not a consent. */
+function confirm() {
+  const w = WAY[S.way];
+  return (
+    '<div class="scrim"></div>' +
+    '<div class="sheetbox"><h2 class="display">Turn the bubble off?</h2>' +
+    "<p>" + w.why + "</p>" +
+    '<ul class="limits">' +
+    "<li><span class='yes'>You can bring it back.</span><span class='no'>" + w.back + "</span></li>" +
+    "<li><span class='yes'>Nothing is deleted.</span>" +
+    "<span class='no'>no recording, no transcript, no history</span></li>" +
+    "</ul>" +
+    '<div class="acts">' +
+    '<button class="primary" data-act="do-off">Turn it off<span class="note">' +
+    (S.way === "chip" ? "it moves to the status bar" : S.way === "muted" ? "it stays put" : "it goes now") +
+    "</span></button>" +
+    '<button class="act" data-act="cancel">Keep it on<span class="note">dismiss</span></button>' +
+    "</div></div>"
+  );
+}
+
+function screen() {
+  if (S.screen === "confirm") return statusbar() + settings() + navbar() + confirm();
+  if (S.screen === "ready") return statusbar() + ready() + navbar();
+  if (S.screen === "settings") return statusbar() + settings() + navbar();
+  let over = "";
+  if (!S.off) over = bubble(S.dictating ? "dictating" : "dictating" === S.dictating ? "idle" : "idle");
+  else if (S.way === "retracted") over = residue();
+  else if (S.way === "chip") over = chip();
+  return statusbar() + host() + over + navbar();
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   The readout. The ticket's question is "what is left, and how do I get it
+   back", so both are computed here rather than asserted anywhere.
+   ══════════════════════════════════════════════════════════════════════════ */
+function readout() {
+  const w = WAY[S.way];
+  const left = !S.off ? "the full bubble"
+    : S.way === "absent" ? "nothing"
+    : S.way === "retracted" ? "a 14px nub"
+    : S.way === "chip" ? "a status-bar entry"
+    : "the whole bubble, not listening";
+  const beat = !S.off
+    ? "On. The window is present; no service runs until you speak."
+    : S.way === "absent"
+      ? "Off, and gone. Nothing on any screen says this app exists."
+      : S.way === "retracted"
+        ? "Off, and still a window on somebody else's screen."
+        : S.way === "chip"
+          ? "Off, but resident — and it needed a second notification channel to do it."
+          : "Not off. Just deaf. The window never left.";
+  document.getElementById("readout").innerHTML =
+    "<h4><span>state readout, not part of the design</span><span class='grow'></span>" +
+    "<span>" + w.tag + "</span></h4>" +
+    "<div class='beat'>" + beat + "</div>" +
+    "<dl>" +
+    "<dt>bubble</dt><dd>" + (S.off ? (S.way === "muted" ? "muted" : "disabled") : S.dictating ? "dictating" : "idle") + "</dd>" +
+    "<dt>window</dt><dd>" + (S.off ? (w.window ? "<span class='yes'>present</span>" : "<span class='no'>absent</span>") : "<span class='yes'>present</span>") + "</dd>" +
+    "<dt>left on screen</dt><dd>" + left + "</dd>" +
+    "<dt>way back</dt><dd>" + w.back + "</dd>" +
+    "<dt>removal asks</dt><dd>" + (S.ask ? "yes, in Settings" : "no") + "</dd>" +
+    "<dt>notification</dt><dd class='no'>ADR-0011: one channel, the mic, nothing else</dd>" +
+    "</dl>";
+}
+
+function render() {
+  document.getElementById("sheet").innerHTML = screen();
+  readout();
+  document.getElementById("label").textContent = WAY[S.way].tag;
+  document.querySelectorAll(".tools [data-fs]").forEach((b) =>
+    b.setAttribute("aria-pressed", String(b.dataset.fs === document.documentElement.dataset.fs)));
+  document.querySelectorAll(".tools [data-theme-mode]").forEach((b) =>
+    b.setAttribute("aria-pressed", String(b.dataset.themeMode === S.theme)));
+}
+
+function act(a, el) {
+  switch (a) {
+    case "way":
+      S.way = el.dataset.way;
+      S.announced = "set to " + WAY[S.way].tag;
+      break;
+    case "pick":
+      if (!S.off) {
+        if (S.ask) S.screen = "confirm";
+        else turnOff();
+      } else {
+        /* Restoring is always free and always available — the way back never
+           costs a confirmation, whichever way this bubble went. */
+        S.off = false;
+        S.announced = "back on";
+      }
+      break;
+    case "do-off":
+      turnOff();
+      break;
+    case "cancel":
+      S.screen = "settings";
+      break;
+    case "bubble-press":
+      if (S.off && S.way !== "muted") return;
+      S.dictating = !S.dictating;
+      break;
+    case "restore":
+      S.off = false;
+      S.dictating = false;
+      S.announced = "back on";
+      break;
+    case "back":
+      S.screen = "settings";
+      break;
+    case "home":
+      S.screen = "settings";
+      break;
+    case "ready":
+      S.screen = "ready";
+      break;
+    default:
+      return;
+  }
+  render();
+}
+
+function turnOff() {
+  S.off = true;
+  S.dictating = false;
+  S.screen = "host";
+  S.announced = "off, " + WAY[S.way].tag;
+}
+
+document.getElementById("sheet").addEventListener("click", (e) => {
+  const el = e.target.closest("[data-act]");
+  if (el) act(el.dataset.act, el);
+});
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Wiring.
+   ══════════════════════════════════════════════════════════════════════════ */
+function setTheme(m) {
+  S.theme = m === "light" ? "light" : m === "dark" ? "dark" : "";
+  if (S.theme) document.documentElement.dataset.theme = S.theme;
+  else document.documentElement.removeAttribute("data-theme");
+}
+document.querySelector(".tools").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  if (b.dataset.fs) document.documentElement.dataset.fs = b.dataset.fs;
+  else if (b.dataset.themeMode) setTheme(b.dataset.themeMode);
+  else if (b.dataset.ask) { S.ask = b.dataset.ask === "on"; render(); }
+});
+
+/* The reserve is MEASURED from this file's own control bar. A guessed rem value
+   was 256px against a bar that is 872px at 200% font, so the bar lay across the
+   phone and covered the primary action — and every large-font hit test was
+   measuring the harness instead of the design. */
+const tools = document.querySelector(".tools");
+function measure() {
+  document.documentElement.style.setProperty("--tools-h", tools.offsetHeight + "px");
+}
+new ResizeObserver(measure).observe(tools);
+
+(function boot() {
+  const q = new URL(location.href).searchParams;
+  S = fresh();
+  if (q.get("fs")) document.documentElement.dataset.fs = q.get("fs");
+  if (q.get("theme")) setTheme(q.get("theme"));
+  if (q.get("screen")) S.screen = q.get("screen");
+  render();
+  measure();
+})();
+</script>
+</body>
+</html>

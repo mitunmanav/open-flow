@@ -1,12 +1,12 @@
 # Measure the model candidates on the devices we actually have
 
 Type: task
-Status: claimed
+Status: blocked:human
 Blocked by: none
 
-> **Waiting on a human with hardware.** No agent session can finish this one — it is
-> measured by running APKs on a phone. It stays `claimed` so it does not sit on the
-> frontier pretending to be takeable. The map's Notes carry the reasoning.
+> **Parked on a human with hardware.** No agent session can finish this one — it is
+> measured by running APKs on a phone. It is parked rather than claimed so it does not
+> sit on the frontier pretending to be takeable. The map's Notes carry the reasoning.
 
 ## What changed, and why this ticket was rewritten
 
@@ -86,7 +86,7 @@ faking them from a demo UI produces numbers that look authoritative and are not.
 It cannot confirm the V1 default for the destination's three-device gate. Nothing measured
 on one or two devices can. The compensating control — making a slow device degrade at
 runtime instead of stalling — is its own decision, tracked as
-[31 The runtime RTF guard](31-runtime-rtf-guard.md), and is takeable now precisely because
+[31 The Latency Guard](31-latency-guard.md), and is takeable now precisely because
 it does not wait on numbers.
 
 The harness-based measurement that *does* measure the real integration path, through the

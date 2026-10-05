@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import json
 import re
 import sys
 from collections import Counter
@@ -473,6 +474,156 @@ def check_site_assets(root: Path) -> list[Finding]:
     return findings
 
 
+GATE_PROTOCOL = Path(DOCS_ROOT) / "quality" / "acceptance-gate.md"
+
+# The gate's required-scenario registry lives in the live JSON block and the scenario
+# definitions live in the tables under "The scenarios". Those are two statements of the
+# same thing in one document, which is the shape that goes stale quietly: add a table row
+# and forget the registry, and the release checker derives a total from a list that no
+# longer describes what the protocol asks a tester to run. So the two are compared
+# exactly, by identity rather than by count -- an equal-sized set with a replaced id is
+# the case a count check waves through.
+SCENARIOS_HEADING_RE = re.compile(r"^##\s+The scenarios\s*$", re.MULTILINE)
+GATE_STATUS_HEADING_RE = re.compile(r"^##\s+Gate status\s*$", re.MULTILINE)
+SECTION_BREAK_RE = re.compile(r"^##\s+\S")
+FENCE_OPEN_RE = re.compile(r"^\s*```+\s*([A-Za-z0-9_+-]*)\s*$")
+FENCE_CLOSE_RE = re.compile(r"^\s*```+\s*$")
+TABLE_ROW_RE = re.compile(r"^\s*\|(.*)\|\s*$")
+# A scenario id as the tables spell it. Anchored on the whole cell so a cell like
+# "`G15` (see below)" is not silently accepted as G15.
+SCENARIO_ID_RE = re.compile(r"^(?:G\d+)$")
+
+
+def _section_lines(text: str, heading: re.Pattern[str]) -> list[str] | None:
+    """The lines under a `##` heading, up to the next `##`."""
+    match = heading.search(text)
+    if not match:
+        return None
+    lines = text[match.end() :].splitlines()
+    for index, line in enumerate(lines):
+        if SECTION_BREAK_RE.match(line):
+            return lines[:index]
+    return lines
+
+
+def _first_json_fence(lines: list[str]) -> str | None:
+    """The first ```json block in a slice of the document."""
+    index = 0
+    while index < len(lines):
+        opener = FENCE_OPEN_RE.match(lines[index])
+        if opener:
+            body: list[str] = []
+            info = (opener.group(1) or "").lower()
+            index += 1
+            while index < len(lines) and not FENCE_CLOSE_RE.match(lines[index]):
+                body.append(lines[index])
+                index += 1
+            if info == "json":
+                return "\n".join(body)
+        index += 1
+    return None
+
+
+def check_gate_scenarios(root: Path) -> list[Finding]:
+    """The required-ID registry and the scenario tables must be the same set.
+
+    Deliberately narrow: it reads the live JSON block and the first column of the tables
+    under "The scenarios", and it does not scan prose for numerals. A dated historical
+    count ("fourteen scenarios ... forty-two runs became") is a true statement about the
+    past, and a rule that flagged it would train its readers to delete real history.
+    """
+    findings: list[Finding] = []
+    path = root / GATE_PROTOCOL
+    if not path.exists():
+        return findings
+    rel = GATE_PROTOCOL.as_posix()
+    text = path.read_text(encoding="utf-8")
+
+    status_lines = _section_lines(text, GATE_STATUS_HEADING_RE)
+    if status_lines is None:
+        return [Finding("gate-status-missing", rel, "no '## Gate status' section")]
+    body = _first_json_fence(status_lines)
+    if body is None:
+        return [
+            Finding("gate-status-missing", rel, "no 'json' block under '## Gate status'")
+        ]
+    try:
+        record = json.loads(body)
+    except json.JSONDecodeError as exc:
+        return [Finding("gate-status-unparseable", rel, str(exc))]
+    if not isinstance(record, dict) or "required_scenarios" not in record:
+        return [
+            Finding("gate-registry-missing", rel, "the live block has no required_scenarios")
+        ]
+
+    registry = record["required_scenarios"]
+    if not isinstance(registry, list) or not registry:
+        return [Finding("gate-registry-missing", rel, "required_scenarios is missing or empty")]
+    if not all(isinstance(item, str) and item.strip() for item in registry):
+        return [
+            Finding("gate-registry-invalid", rel, "required_scenarios holds a non-id value")
+        ]
+    duplicates = sorted({item for item in registry if registry.count(item) > 1})
+    if duplicates:
+        findings.append(
+            Finding("gate-registry-duplicate", rel, "repeats " + ", ".join(duplicates))
+        )
+    registry_set = set(registry)
+
+    scenario_lines = _section_lines(text, SCENARIOS_HEADING_RE)
+    if scenario_lines is None:
+        return findings + [Finding("gate-scenarios-missing", rel, "no '## The scenarios' section")]
+
+    # First column of every table row, skipping the header and its separator. The
+    # separator is the one made only of dashes and colons.
+    table_ids: list[str] = []
+    for line in scenario_lines:
+        row = TABLE_ROW_RE.match(line)
+        if not row:
+            continue
+        cells = [cell.strip() for cell in row.group(1).split("|")]
+        if not cells or not cells[0]:
+            continue
+        first = cells[0].strip("`* ")
+        if not first or set(first) <= set("-: "):
+            continue
+        if SCENARIO_ID_RE.match(first):
+            table_ids.append(first)
+
+    if not table_ids:
+        findings.append(
+            Finding("gate-scenarios-missing", rel, "no scenario id found in the tables")
+        )
+        return findings
+
+    repeated = sorted({item for item in table_ids if table_ids.count(item) > 1})
+    if repeated:
+        findings.append(
+            Finding("gate-scenario-duplicate", rel, "table id(s) repeated: " + ", ".join(repeated))
+        )
+    table_set = set(table_ids)
+
+    only_registry = sorted(registry_set - table_set)
+    only_table = sorted(table_set - registry_set)
+    for missing in only_registry:
+        findings.append(
+            Finding(
+                "gate-scenario-mismatch",
+                rel,
+                f"required_scenarios lists {missing}, which no scenario table defines",
+            )
+        )
+    for extra in only_table:
+        findings.append(
+            Finding(
+                "gate-scenario-mismatch",
+                rel,
+                f"the scenario table defines {extra}, which required_scenarios omits",
+            )
+        )
+    return findings
+
+
 def read_baseline(root: Path, explicit: Path | None) -> set[str]:
     target = explicit if explicit is not None else root / BASELINE
     if not target.exists():
@@ -504,6 +655,7 @@ def main() -> int:
     findings += check_changelog(root)
     findings += check_site_nav(root)
     findings += check_site_assets(root)
+    findings += check_gate_scenarios(root)
 
     # Deduplicate: the same rule can fire twice on one target.
     unique: dict[str, Finding] = {}

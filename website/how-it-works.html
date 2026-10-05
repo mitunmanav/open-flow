@@ -158,9 +158,9 @@ document.documentElement.setAttribute("data-theme",t||(matchMedia("(prefers-colo
         <li><div><b>Backtracking resolution</b><span>&ldquo;scratch that&hellip;&rdquo; deletes back to the last sentence boundary. <em>No</em>, <em>I mean</em> and <em>actually</em> are soft markers only &mdash; in V1 the next clause does not replace the last one.</span></div></li>
         <li><div><b>Filler removal</b><span>&ldquo;um&rdquo;, &ldquo;uh&rdquo;, &ldquo;you know&rdquo;, &ldquo;like&rdquo;. Per-language lists, user toggle.</span></div></li>
         <li><div><b>List detection</b><span>&ldquo;number one&rdquo;, &ldquo;first&rdquo; become a numbered list; a line-leading &ldquo;dash&rdquo; becomes a bulleted one.</span></div></li>
-        <li><div><b>Dictionary</b><span>Your wrong&rarr;right map, whole phrase, case-insensitive.</span></div></li>
-        <li><div><b>Snippets</b><span>Your shorthand&rarr;expansion map, user-toggled.</span></div></li>
-        <li><div><b>App-style formatting</b><span>One of Casual, Neutral or Formal &mdash; capitalisation and ending punctuation, assigned per app category.</span></div></li>
+        <li><div><b>Dictionary</b><span>Your wrong&rarr;right map. A trigger matches the <em>words</em> you say &mdash; case and punctuation don&rsquo;t decide it, so <code>sig</code> never fires inside <code>signal</code>.</span></div></li>
+        <li><div><b>Snippets</b><span>Your shorthand&rarr;expansion map, matched the same way, user-toggled.</span></div></li>
+        <li><div><b>App-style formatting</b><span>One of Casual, Neutral or Formal &mdash; capitalisation and ending punctuation, assigned per app.</span></div></li>
       </ol>
 
       <div class="panel" style="margin-top: var(--s7);">
@@ -270,7 +270,7 @@ document.documentElement.setAttribute("data-theme",t||(matchMedia("(prefers-colo
       <div class="cols cols--2">
         <div class="prose">
           <h3>Read the decisions</h3>
-          <p>Six ADRs and seventeen documents, all in the repository.</p>
+          <p>The decisions that shaped it, and the documents behind them, in one index.</p>
           <p><a href="https://github.com/mitunmanav/open-flow/blob/main/docs/README.md">Documentation index</a></p>
         </div>
         <div class="prose">

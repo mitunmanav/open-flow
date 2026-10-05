@@ -1,0 +1,1104 @@
+<!doctype html>
+<!--
+  PROTOTYPE — throwaway. Do not ship, do not fold in as-is.
+
+  Question, now narrowed: what should OpenFlow's DICTIONARY / SNIPPETS / STYLES
+  surface look like, given that the owner has settled the shape?
+
+    - Variants A and B are MERGED. One surface, not two to choose between.
+    - Variant C is GONE. The live bench was a decision aid, not a settings screen.
+    - Scope lives on the ENTRY, not on a navigation axis. No scope rail, no
+      "inherited from Everywhere", no counting what runs where.
+    - Every app is a real icon, because a person recognises the icon on their
+      phone faster than they read a name — and because naming an app is a
+      different act from naming a category.
+
+  Single route, no ?variant= switcher any more: with one variant there is nothing
+  to switch between, and a control that cannot change anything is worse than no
+  control.
+
+  ── Material 3, and where this deliberately parts ways with it ──────────────
+  mobile-android-design governs this surface, because it is an Android surface.
+  Taken from M3: the 48dp touch floor everywhere; ListItem-shaped rows well past
+  it; SingleChoiceSegmentedButtonRow for the three categories; chips for the app
+  picker; contentDescription on every control (here aria-label); state hoisted in
+  one object with every render deriving from it; a WindowSizeClass-style
+  breakpoint at 520px; nothing that depends on hover.
+
+  NOT taken from M3, because the map has already decided otherwise and a
+  prototype that quietly reopens a settled decision is worse than one that
+  ignores the skill:
+
+    - DYNAMIC COLOUR IS NOT USED. M3 best practice says to support it; this app's
+      accent is fixed electric violet, one value per theme, verified AA. A
+      dictation app's accent should not shift with the wallpaper.
+    - The brutalist surface stays: zero radius, no shadows, flat ground, hairline
+      rules, 2px structural borders, one accent. M3's shape and elevation language
+      is not adopted. Its structure, semantics, metrics and accessibility are.
+
+  ── The honesty rule, used correctly ───────────────────────────────────────
+  onboarding.html sets a permission's limit clause in mono beside its capability
+  clause. That rhetoric is about what a permission touches and cannot do, and it
+  does NOT transfer: these entries are typed text, not grants. Mono here carries
+  only values that are literally machine-voice — the strings being matched, the
+  scope, the count, a preset's mechanical consequence.
+
+  MOTION. Four movements, one idea: structure draws itself, and nothing moves on its own.
+    1. the tab ink travels to the tab you tapped
+    2. the app list pushes in from the right and leaves the same way
+    3. a row you just added draws its own perimeter clockwise, once — the SAME device the
+       permissions page uses for "granted", reused rather than reinvented
+    4. a row you just deleted collapses and the list closes the gap
+  All springs, all critically damped (zeta 1.0): nothing here is a flick, so nothing earns
+  overshoot. A spring has no duration, so a third tap mid-travel turns the ink around from where
+  it is instead of snapping. prefers-reduced-motion is NOT "no feedback" — the spring lands in one
+  step, so every state still changes; only the travel is removed, and nothing on this screen
+  depends on motion to be understood.
+  Press feedback is instant and on pointer-down, because waiting for touch-up reads as lag.
+  Haptics fire only on the two commits that change what is stored — a buzz on every control
+  trains the user to ignore the two that matter.
+
+  ── What the real app will do that this file cannot ───────────────────────
+  The icons below are hand-drawn SVG so the prototype is self-contained and works
+  offline. The shipped app does not need them: PackageManager.getApplicationIcon()
+  returns the installed app's real icon, which is both more correct and free.
+  Those marks are trademarks, so drawing our own is the right call for a mockup and
+  the wrong call for a release — noted here so nobody ships the SVG.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenFlow — dictionary / snippets / styles (prototype)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════════════════════════════
+   Tokens. Copied from onboarding.html so this reads as the same app.
+   --tap is the Material 3 minimum and is not negotiable on this surface.
+   ══════════════════════════════════════════════════════════════ */
+:root {
+  --tap: 48px;                    /* M3 minimum touch target */
+  --ground:  #F4F4F2;
+  --ink:     #0A0A0A;
+  --mid:     #4A4A48;
+  --low:     #6E6E6B;
+  --rule:    rgba(10,10,10,.16);
+  --rule-hi: rgba(10,10,10,.34);
+  --bar:     rgba(10,10,10,.14);
+  --accent: #5B21D6;              /* 7.24:1 on paper — AA for text */
+  --on-accent: #FFFFFF;
+  --field:   rgba(10,10,10,.05);
+  --font-ui:   "Archivo", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+:root[data-theme="dark"] {
+  --ground:  #0A0A0A;
+  --ink:     #F4F4F2;
+  --mid:     #B4B4B0;
+  --low:     #8E8E8A;
+  --rule:    rgba(244,244,242,.18);
+  --rule-hi: rgba(244,244,242,.4);
+  --bar:     rgba(244,244,242,.16);
+  --accent: #A78BFA;              /* lifted for black — 7.27:1 */
+  --on-accent: #0A0A0A;
+  --field:   rgba(244,244,242,.06);
+}
+
+* { box-sizing: border-box; border-radius: 0; }
+html, body { margin: 0; }
+/* Buttons do NOT inherit `color` — the UA stylesheet gives them `buttontext`, which is
+   black. On this surface that is invisible in dark mode: the app name in the app list and
+   "Choose an app" in Styles both rendered pure black on a near-black ground, 1.06:1.
+   Light mode hid it completely (black on paper is 19:1), which is exactly why a colour
+   audit that only ever looked at one theme misses it. Setting it once here means no button
+   can fall back to the UA colour again. */
+button { color: inherit; }
+body {
+  background: var(--ground); color: var(--ink);
+  font-family: var(--font-ui); font-size: 16px; line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.stage { min-height: 100vh; display: grid; place-items: start center; padding: 24px 16px 96px; }
+.sheet { width: 470px; max-width: 100%; border: 2px solid var(--ink); background: var(--ground); }
+
+/* ── top app bar. Back answers "how do I get out"; there is always one. ── */
+.rail {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border-bottom: 2px solid var(--ink); min-height: 56px;
+}
+.rail .brand { font-weight: 800; font-size: 15px; letter-spacing: -.02em; }
+.rail .sep { color: var(--low); }
+.rail .crumb { font-family: var(--font-mono); font-size: 12px; color: var(--mid); }
+.rail .grow { flex: 1; }
+/* M3 icon buttons are 40dp visual inside a 48dp target. Same trick as the chips:
+   keep the affordance small, grow the target with a pseudo-element. */
+.iconbtn {
+  position: relative; width: 34px; height: 34px; display: grid; place-items: center;
+  background: transparent; border: 0; color: var(--ink); cursor: pointer;
+  transition: background .1s linear;
+}
+.iconbtn::after { content: ""; position: absolute; inset: -7px; }
+.iconbtn:hover { background: var(--field); }
+.iconbtn:active { background: var(--ink); color: var(--ground); }
+.iconbtn svg { display: block; }
+
+/* ── SingleChoiceSegmentedButtonRow, brutalist-selected. The ink is a block that
+   travels to the selected tab rather than a fill that blinks on somewhere else, so
+   the control shows you where it went. ── */
+.tabs { position: relative; display: grid; grid-template-columns: 1fr 1fr 1fr; border-bottom: 2px solid var(--ink); }
+.tabfill {
+  position: absolute; top: 0; bottom: 0; left: 0; width: calc(100% / 3);
+  background: var(--ink); pointer-events: none;
+  transform: translate3d(var(--fill-x, 0px), 0, 0);
+  will-change: transform;
+}
+.tab {
+  position: relative;
+  appearance: none; background: transparent; border: 0; border-right: 1px solid var(--rule);
+  padding: 12px 8px; min-height: var(--tap); cursor: pointer;
+  font-family: var(--font-ui); font-weight: 700; font-size: 15px; letter-spacing: -.02em;
+  color: var(--mid);
+  transition: color .2s linear, background .1s linear;
+}
+.tab:last-child { border-right: 0; }
+.tab:hover { background: var(--field); }
+/* the ink block carries the selection, so the label only has to change colour. The .2s
+   is shorter than the block's ~.28s travel, which reads as one gesture rather than two. */
+.tab[aria-selected="true"] { color: var(--ground); }
+.tab .n { display: block; font-family: var(--font-mono); font-weight: 400; font-size: 11px; color: var(--low); margin-top: 4px; letter-spacing: .01em; transition: color .2s linear; }
+.tab[aria-selected="true"] .n { color: var(--ground); opacity: .72; }
+
+h2.hd { margin: 0; padding: 16px 16px 4px; font-size: 21px; font-weight: 800; letter-spacing: -.03em; }
+p.sub { margin: 0 16px; font-size: 13.5px; color: var(--mid); }
+/* A mono fragment jammed into the end of a sentence reads as a run-on whatever font
+   it is in. Machine-voice captions get their own line. */
+p.cap { margin: 6px 16px 0; font-family: var(--font-mono); font-size: 11px; color: var(--low); letter-spacing: .01em; }
+
+/* ── the commit row. two fields, then one button. nothing else. ── */
+.adder { display: grid; grid-template-columns: 1fr 16px 1fr; gap: 8px; align-items: center;
+         padding: 16px; border-bottom: 2px solid var(--ink); }
+.adder .to-arrow { font-family: var(--font-mono); font-size: 13px; color: var(--low); text-align: center; }
+.adder .go { grid-column: 1 / span 3; min-height: var(--tap); margin-top: 8px; }
+.adder input {
+  font-family: var(--font-mono); font-size: 13px; color: var(--ink);
+  background: var(--field); border: 2px solid var(--rule-hi); padding: 0 12px;
+  min-height: var(--tap); min-width: 0;
+}
+.adder input::placeholder { color: var(--low); }
+.adder input:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* an incomplete submit marks the fields that are empty and says which. Dead UI is
+   worse than no UI, but a silent no-op is worse than both. Never greyed out. */
+.adder input.bad { border-color: var(--accent); }
+.adder button {
+  appearance: none; background: var(--ink); color: var(--ground); border: 2px solid var(--ink);
+  font-family: var(--font-ui); font-weight: 700; font-size: 15px; letter-spacing: -.01em;
+  padding: 0 20px; cursor: pointer;
+  transition: background .1s linear, color .1s linear, border-color .1s linear;
+}
+.adder button:hover { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.adder button.armed { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.adder button.armed:hover { background: var(--ink); border-color: var(--ink); color: var(--ground); }
+.adder .hint { grid-column: 1 / span 3; margin: 0; font-family: var(--font-mono); font-size: 11px;
+               letter-spacing: .01em; color: var(--accent); min-height: 14px; }
+/* What the trigger will and will not match, stated where the trigger is typed.
+   Not decoration: a matcher that ignores case and punctuation is invisible until
+   it fails, and the only honest place to say so is under the field. */
+.adder .rule { grid-column: 1 / span 3; margin: 0; font-family: var(--font-mono); font-size: 11px;
+               line-height: 1.6; letter-spacing: .01em; color: var(--low); }
+.adder .rule code { font-family: inherit; color: var(--ink); }
+
+/* ── entry rows. M3 ListItem shape: headline, supporting content, trailing action.
+   Explicit grid areas, because auto-placement gave the trailing action whatever
+   height the text happened to need — and that action is the destructive one. ── */
+.list { margin: 0; padding: 0; list-style: none; }
+.list > li { border-bottom: 1px solid var(--rule); position: relative; overflow: hidden; }
+/* Deleting closes the gap rather than leaving a hole: the row's own height is sprung to
+   zero and the ones below slide up under it. Height only — never a fade-and-slide,
+   which is the most recognisable generated-page tell. */
+.list > li[data-collapsing] { overflow: hidden; }
+.rowmain {
+  display: grid; grid-template-columns: 1fr auto;
+  grid-template-areas: "pair kill" "meta kill";
+  column-gap: 12px; row-gap: 8px; align-items: center;
+  min-height: 76px; padding: 12px 16px;
+}
+/* A row that was just added draws its own perimeter clockwise, once.
+   This is the SAME device the permissions page uses for "granted" (conic-gradient mask
+   over a 2px border) — reused, not reinvented, which is the point of having a design
+   language. --sweep is a real angle written from JS each frame: 0 invisible, 360 the
+   full ring. The interior stays transparent, so nothing can paint over the entry text. */
+.list > li[data-fresh]::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  border: 2px solid var(--accent);
+  -webkit-mask-image: conic-gradient(from -90deg, #000 0 var(--sweep, 0deg), transparent var(--sweep, 0deg) 360deg);
+          mask-image: conic-gradient(from -90deg, #000 0 var(--sweep, 0deg), transparent var(--sweep, 0deg) 360deg);
+  will-change: mask-image;
+}
+.rowmain .pair { grid-area: pair; font-family: var(--font-mono); font-size: 13px; line-height: 1.5; word-break: break-word; }
+.rowmain .pair .arrow { color: var(--low); padding: 0 5px; }
+.rowmain .pair .to { color: var(--accent); }
+.rowmain .meta { grid-area: meta; min-width: 0; }
+/* The scope control. 32dp visual — an M3 AssistChip — inside a 48dp target. It is
+   how per-app scope works now: it lives on the entry, not on a navigation axis. */
+.scopechip {
+  position: relative; justify-self: start; display: inline-flex; align-items: center; gap: 8px;
+  min-height: 32px; padding: 0 10px 0 8px; cursor: pointer;
+  appearance: none; background: transparent; border: 1px solid var(--rule-hi); color: var(--mid);
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .01em;
+  transition: border-color .1s linear, color .1s linear;
+}
+.scopechip::after { content: ""; position: absolute; inset: -8px -6px; }
+.scopechip:hover { border-color: var(--accent); color: var(--accent); }
+.scopechip[data-open="1"] { border-color: var(--accent); color: var(--accent); }
+.scopechip svg { display: block; flex: none; }
+.scopechip .every { color: var(--low); }
+.list > li > .rowmain > .kill {
+  grid-area: kill; align-self: stretch;
+  appearance: none; background: transparent; border: 1px solid var(--rule-hi); color: var(--low);
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .01em;
+  min-height: var(--tap); min-width: var(--tap); padding: 0 12px; cursor: pointer;
+  transition: border-color .1s linear, color .1s linear;
+}
+.list > li > .rowmain > .kill:hover { border-color: var(--accent); color: var(--accent); }
+
+/* The app list is a page inside the app: it pushes in from the right and leaves the same
+   way, so enter and exit share a path. The rail does not move — the app chrome is chrome.
+   --push is 1 off-screen, 0 in place. */
+#mount { will-change: transform; }
+#mount[data-push] { transform: translate3d(calc(var(--push, 0) * 100%), 0, 0); }
+
+/* ── choosing an app: a full-height list panel, not a chip row ──
+   Six chips fitted on a desktop mock and quietly implied the product had six apps.
+   A phone has sixty. This is a list with search, LazyColumn-shaped, and the entry being
+   scoped named at the top — a control that does not say what it affects has to be
+   explained, and explained controls are worse than labelled ones. */
+.pickhead { padding: 16px; border-bottom: 1px solid var(--rule); }
+.pickhead .cap { margin: 0 0 8px; }
+.pickhead .ppair { margin: 0; font-family: var(--font-mono); font-size: 13px; line-height: 1.5; word-break: break-word; }
+.pickhead .ppair .arrow { color: var(--low); padding: 0 5px; }
+.pickhead .ppair .to { color: var(--accent); }
+.searchbar { padding: 12px 16px; border-bottom: 2px solid var(--ink); }
+.searchbar input {
+  width: 100%; font-family: var(--font-mono); font-size: 13px; color: var(--ink);
+  background: var(--field); border: 2px solid var(--rule-hi); padding: 0 12px;
+  min-height: var(--tap);
+}
+.searchbar input:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* the list is the only thing that scrolls; the search and the crumb stay put */
+.applist { margin: 0; padding: 0; list-style: none; max-height: 44vh; overflow-y: auto; overscroll-behavior: contain; }
+.approw {
+  display: grid; grid-template-columns: 32px 1fr auto; align-items: center; gap: 12px;
+  width: 100%; text-align: left; appearance: none; background: transparent; border: 0;
+  border-bottom: 1px solid var(--rule); padding: 8px 16px; min-height: var(--tap); cursor: pointer;
+  transition: background .1s linear;
+}
+.approw:hover { background: var(--field); }
+.approw .aicon { display: grid; place-items: center; width: 32px; }
+.approw .atext { min-width: 0; }
+.approw .anm { display: block; font-size: 15px; font-weight: 700; letter-spacing: -.02em; }
+.approw .apk { display: block; font-family: var(--font-mono); font-size: 10.5px; color: var(--low); margin-top: 2px; letter-spacing: .01em; overflow-wrap: anywhere; }
+.approw .amark { font-family: var(--font-mono); font-size: 15px; color: var(--accent); width: 16px; text-align: center; }
+.approw[aria-pressed="true"] { background: var(--accent); }
+.approw[aria-pressed="true"] .anm,
+.approw[aria-pressed="true"] .apk,
+.approw[aria-pressed="true"] .amark { color: var(--on-accent); }
+.applist li.empty { display: block; padding: 20px 16px; }
+.applist li.empty .pair { color: var(--mid); font-family: var(--font-ui); font-size: 13.5px; line-height: 1.6; }
+
+/* ── styles: three presets, then per-app overrides with real icons ── */
+.presets { margin: 0; padding: 0; list-style: none; }
+.presets li { border-bottom: 1px solid var(--rule); }
+.presets .top {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px;
+  min-height: 76px; padding: 12px 16px;
+}
+.presets .nm { font-weight: 700; font-size: 16px; letter-spacing: -.02em; }
+.presets .mech { margin: 0; padding: 0 16px 14px; font-family: var(--font-mono); font-size: 11.5px;
+                 color: var(--low); letter-spacing: .01em; }
+.presets .pick {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: var(--tap); padding: 0 16px; cursor: pointer;
+  appearance: none; background: transparent; border: 2px solid var(--rule-hi); color: var(--low);
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .01em;
+  transition: border-color .1s linear, color .1s linear, background .1s linear;
+}
+.presets .pick i { width: 13px; height: 13px; border: 2px solid currentColor; display: block; flex: none; }
+.presets .pick:hover { border-color: var(--accent); color: var(--accent); }
+.presets .pick[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.presets .pick[aria-pressed="true"] i { box-shadow: inset 0 0 0 2px var(--on-accent); }
+
+.overrides { margin: 0; padding: 0; list-style: none; }
+.overrides li { border-bottom: 1px solid var(--rule); }
+.overrides .orow {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px;
+  min-height: var(--tap); padding: 8px 16px;
+}
+.overrides .who { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.overrides .who svg { flex: none; }
+.overrides .who .nm { font-size: 14px; font-weight: 700; letter-spacing: -.02em; }
+.overrides .who .pk { font-family: var(--font-mono); font-size: 10.5px; color: var(--low); overflow-wrap: anywhere; }
+.overrides .mini { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.overrides .mini button {
+  position: relative; appearance: none; background: transparent; border: 1px solid var(--rule-hi);
+  color: var(--low); font-family: var(--font-mono); font-size: 10.5px;
+  min-height: 32px; padding: 0 8px; cursor: pointer;
+  transition: border-color .1s linear, color .1s linear, background .1s linear;
+}
+.overrides .mini button::after { content: ""; position: absolute; inset: -8px -2px; }
+.overrides .mini button:hover { border-color: var(--accent); color: var(--accent); }
+.overrides .mini button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+/* the row that adds an override. Same shape as a list row so it reads as "another one
+   of these", not as a differently-shaped button. */
+.addapp {
+  display: grid; grid-template-columns: 32px 1fr; align-items: center; gap: 12px;
+  width: 100%; text-align: left; appearance: none; background: transparent; border: 0;
+  padding: 12px 16px; min-height: var(--tap); cursor: pointer; transition: background .1s linear;
+}
+.addapp:hover { background: var(--field); }
+.addapp .aicon { display: grid; place-items: center; width: 32px; color: var(--low); }
+.addapp .anm { display: block; font-size: 15px; font-weight: 700; letter-spacing: -.02em; }
+.addapp .apk { display: block; font-family: var(--font-mono); font-size: 10.5px; color: var(--low); margin-top: 2px; letter-spacing: .01em; }
+
+.note { padding: 16px; font-family: var(--font-mono); font-size: 11.5px; line-height: 1.7;
+        color: var(--low); letter-spacing: .005em; }
+.note b { color: var(--ink); font-weight: 500; }
+.note + .note { padding-top: 0; }
+
+/* an empty list is an invitation to act, not a dead end saying "nothing yet" */
+.list li.empty { display: block; padding: 20px 16px; }
+.list li.empty .pair { color: var(--mid); font-family: var(--font-ui); font-size: 13.5px; line-height: 1.6; }
+.list li.empty .pair b { color: var(--ink); }
+
+/* ── prototype chrome ── */
+.tools {
+  position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 2px; align-items: center;
+  background: var(--ink); color: var(--ground); padding: 4px 5px; border: 1px solid var(--ink);
+  font-family: var(--font-mono); font-size: 11px; z-index: 9;
+}
+:root[data-theme="dark"] .tools { background: var(--ground); color: var(--ink); border-color: var(--ground); }
+.tools button { background: transparent; border: 0; color: inherit; cursor: pointer; min-height: 40px; padding: 0 14px; font-family: var(--font-mono); font-size: 11px; white-space: nowrap; }
+.tools button:hover { background: rgba(140,140,140,.25); }
+.tools button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+
+/* Every control is keyboard reachable and says so. State was hover-only on the tabs,
+   chips, scope chips and delete before this. */
+:where(button, input, textarea, [tabindex]):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Press feedback, on the press. An accent outline closing in reads against ANY resting
+   state — selected tab, selected chip, plain row — where a colour change would fight
+   the state it sits on. Instant, no easing. Paired with a haptic on the same frame. */
+.pressed { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: .01ms !important; } }
+@media (prefers-contrast: more) {
+  :root { --rule: currentColor; --rule-hi: currentColor; }
+  .sheet, .tabs, .adder { border-width: 3px; }
+  .list > li, .presets li, .overrides li { border-bottom-width: 2px; }
+}
+@media (max-width: 520px) {
+  .stage { padding: 0; }
+  .sheet { width: 100%; border-left: 0; border-right: 0; }
+}
+@media print { .tools, .rail .iconbtn { display: none; } }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="sheet">
+    <div class="rail">
+      <button class="iconbtn" id="back" aria-label="Back to settings"></button>
+      <span class="brand">OpenFlow</span>
+      <span class="sep">/</span>
+      <span class="crumb" id="crumb">dictionary</span>
+      <span class="grow"></span>
+      <button class="iconbtn" id="theme" aria-label="Change theme"></button>
+    </div>
+    <div id="mount"></div>
+  </div>
+</div>
+
+<div class="tools">
+  <button id="t-light" aria-pressed="false">light</button>
+  <button id="t-dark" aria-pressed="false">dark</button>
+  <button id="t-auto" aria-pressed="true">auto</button>
+  <button id="t-reset">reset</button>
+</div>
+
+<script>
+"use strict";
+/* ══════════════════════════════════════════════════════════════
+   Icons. Hand-drawn so this file is self-contained. The shipped app
+   uses PackageManager.getApplicationIcon() instead — see the header.
+   ══════════════════════════════════════════════════════════════ */
+const ICON = {
+  gmail:    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="2.5" y="5" width="19" height="14"/><path d="M2.5 5.5 12 13.2 21.5 5.5"/></svg>',
+  whatsapp: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.4 11.6a8.3 8.3 0 0 1-12.2 7.3L3.6 20.4l1.5-4.5A8.3 8.3 0 1 1 20.4 11.6z"/><path d="M9.1 8.9c0 3.2 2.5 5.7 5.7 5.7.7 0 1.2-.6 1.1-1.3l-.2-1.1-1.6-.5-.6.7a5.1 5.1 0 0 1-2-2l.7-.6-.5-1.6-1.1-.2c-.7-.1-1.5.4-1.5 1z" fill="currentColor" stroke="none"/></svg>',
+  slack:    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="18" height="18"/><path d="M9.4 8v8M14.6 8v8M7 10.4h10M7 13.6h10"/></svg>',
+  keep:     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M9.5 18.5h5M10.5 21.5h3"/><path d="M12 2.5a6.2 6.2 0 0 0-3.6 11.2c.6.4 1 1.1 1 1.8v.5h5.2v-.5c0-.7.4-1.4 1-1.8A6.2 6.2 0 0 0 12 2.5z"/></svg>',
+  github:   '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.4a9.6 9.6 0 0 0-3 18.7c.5.1.7-.2.7-.5v-1.6c-2.7.6-3.3-1.3-3.3-1.3-.4-1.1-1.1-1.4-1.1-1.4-.9-.6.1-.6.1-.6 1 .1 1.5.9 1.5.9.9 1.5 2.3 1 2.9.8.1-.7.4-1.1.6-1.3-2.2-.3-4.5-1.1-4.5-4.9 0-1.1.4-2 1-2.7-.1-.2-.2-.8 0-1.6 0 0 .8-.3 2.6 1a9 9 0 0 1 4.8 0c1.8-1.3 2.6-1 2.6-1 .2.8.1 1.4 0 1.6.6.7 1 1.6 1 2.7 0 3.8-2.3 4.6-4.5 4.9.4.3.7 1 .7 1.9v2.8c0 .3.2.6.7.5A9.6 9.6 0 0 0 12 2.4z"/></svg>',
+  every:    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8.6"/><path d="M3.4 12h17.2M12 3.4c2.4 2.4 3.6 5.4 3.6 8.6S14.4 18.2 12 20.6c-2.4-2.4-3.6-5.4-3.6-8.6S9.6 5.8 12 3.4z"/></svg>',
+  back:     '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5 8 12l6.5 7"/></svg>',
+};
+
+/* A realistic installed-app set, not a curated shortlist. On the device this is
+   PackageManager.getInstalledPackages() filtered to apps that actually present a text
+   field — which is most of them, and is emphatically not a list of five. Only the first
+   five have hand-drawn marks; the rest get a monogram tile, which is what a mock should
+   do rather than invent marks it does not have. */
+const APPS = [
+  { id:'gmail',    nm:'Gmail',     pk:'com.google.android.gm',          icon:ICON.gmail },
+  { id:'whatsapp', nm:'WhatsApp',  pk:'com.whatsapp',                    icon:ICON.whatsapp },
+  { id:'slack',    nm:'Slack',     pk:'com.Slack',                       icon:ICON.slack },
+  { id:'keep',     nm:'Keep',      pk:'com.google.android.keep',         icon:ICON.keep },
+  { id:'github',   nm:'GitHub',    pk:'com.github.android',              icon:ICON.github },
+  { id:'messages', nm:'Messages',   pk:'com.google.android.apps.messaging' },
+  { id:'signal',   nm:'Signal',     pk:'org.thoughtcrime.securesms' },
+  { id:'telegram', nm:'Telegram',   pk:'org.telegram.messenger' },
+  { id:'discord',  nm:'Discord',    pk:'com.discord' },
+  { id:'notion',   nm:'Notion',     pk:'notion.id' },
+  { id:'obsidian', nm:'Obsidian',   pk:'md.obsidian' },
+  { id:'todoist',  nm:'Todoist',    pk:'com.todoist' },
+  { id:'jira',     nm:'Jira',       pk:'com.atlassian.android.jira' },
+  { id:'linkedin', nm:'LinkedIn',   pk:'com.linkedin.android' },
+  { id:'x',        nm:'X',          pk:'com.twitter.android' },
+  { id:'reddit',   nm:'Reddit',     pk:'com.reddit.frontpage' },
+  { id:'maps',     nm:'Maps',       pk:'com.google.android.apps.maps' },
+  { id:'docs',     nm:'Docs',       pk:'com.google.android.apps.docs' },
+  { id:'chrome',   nm:'Chrome',     pk:'com.android.chrome' },
+  { id:'clock',    nm:'Clock',      pk:'com.google.android.deskclock' },
+  { id:'files',    nm:'Files',      pk:'com.google.android.documents' },
+  { id:'spotify',  nm:'Spotify',    pk:'com.spotify.music' },
+];
+/* An app we have no drawn mark for gets its initial in a tile. On the device this case
+   does not exist — PackageManager returns the real icon for everything. */
+const monogram = nm => {
+  const c = (nm.replace(/[^A-Za-z]/g, '').charAt(0) || '?').toUpperCase();
+  return `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">`
+       + `<rect x="3" y="3" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5"/>`
+       + `<text x="12" y="16.4" text-anchor="middle" font-family="Archivo, sans-serif" font-size="11" font-weight="700" fill="currentColor">${c}</text></svg>`;
+};
+const iconFor = a => a.icon || monogram(a.nm);
+const CHEVRON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+const PRESETS = [
+  { id:'Casual',  mech:'leaves capitalisation alone, adds no ending punctuation' },
+  { id:'Neutral', mech:'capitalises the first letter, adds no ending punctuation' },
+  { id:'Formal',  mech:'capitalises the first letter, adds a full stop' },
+];
+
+let uid = 100;
+const SEED = () => ([
+  { id:'e1', kind:'dict', from:'kubernetis',  to:'Kubernetes',   scope:'*' },
+  { id:'e2', kind:'dict', from:'anthropic',   to:'Anthropic',    scope:'*' },
+  { id:'e3', kind:'dict', from:'open flow',   to:'OpenFlow',     scope:'*' },
+  { id:'e4', kind:'dict', from:'sherpa onnx', to:'sherpa-onnx',  scope:'*' },
+  { id:'e5', kind:'snip', from:'sig',         to:'Best regards,',scope:'*' },
+  { id:'e6', kind:'snip', from:'fyi',         to:'For your information,', scope:'*' },
+  /* the entry that makes per-app scope worth having: one shorthand, two meanings */
+  { id:'e7', kind:'snip', from:'sig',         to:'Sounds good',  scope:'whatsapp' },
+  { id:'e8', kind:'snip', from:'tl;dr',       to:'To put it briefly:', scope:'gmail' },
+]);
+
+/* State is hoisted: one object, every render derives from it, nothing is read back
+   out of the DOM. That is the M3 rule and it is also why the scope picker can be a
+   plain re-render instead of a pile of show/hide bookkeeping. */
+const S = {
+  entries: SEED(),
+  /* gmail and whatsapp differ from the default; keep is Casual. Nothing is pinned to the
+   default in the seed — an override equal to the default is a legitimate thing to want
+   (it survives you changing the global later), but it is not a *change*, and the copy
+   below must not call it one. */
+  styles: { '*':'Neutral', gmail:'Formal', whatsapp:'Casual', keep:'Casual' },
+  tab: 'dict',
+  picking: null,        /* entry id whose app is being chosen, or null */
+  appQuery: '',         /* search text in the app list */
+  fresh: null,          /* entry id whose row is drawing its perimeter right now */
+  collapsing: null,     /* { id, h } while a deleted row closes the gap */
+};
+
+const $  = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+const appById = id => APPS.find(a => a.id === id);
+const scopeLabel = id => id === '*' ? 'every app' : (appById(id) ? appById(id).nm : id);
+const scopeIcon  = id => id === '*' ? ICON.every : (appById(id) ? iconFor(appById(id)) : ICON.every);
+const TABS = [
+  { id:'dict',  label:'Dictionary', stage:'refiner stage 6' },
+  { id:'snip',  label:'Snippets',   stage:'refiner stage 7' },
+  { id:'style', label:'Styles',     stage:'refiner stage 8' },
+];
+
+/* Haptics, used sparingly on purpose: only the two commits that change what is stored.
+   Visual and haptic always land on the same frame — a buzz that lags the paint stops
+   feeling like an answer to the thing under the finger. */
+const buzz = ms => { if (navigator.vibrate) try { navigator.vibrate(ms); } catch (_) {} };
+
+/* ══════════════════════════════════════════════════════════════
+   Motion. Four movements, one idea: structure draws itself, and
+   nothing here moves on its own.
+
+     1. the tab ink travels to the tab you tapped
+     2. the app list pushes in from the right, and leaves the same way
+     3. a row you just added draws its own perimeter clockwise, once
+     4. a row you just deleted collapses and the list closes the gap
+
+   No entrance animations on scroll, no fades-and-slides, no parallax, no progress bar.
+   Every one of the four is caused by something you did, and every one shows what changed.
+
+   Springs rather than durations, all critically damped (zeta 1.0). There is no flick or
+   throw anywhere on this screen, so nothing earns overshoot — bounce on a control that
+   did not carry momentum reads as a toy. A spring has no fixed duration: it re-targets
+   from its current value, so tapping another tab mid-travel turns the block around from
+   where it is rather than snapping.
+
+   prefers-reduced-motion is NOT "no feedback". The spring lands on its target in one
+   step, so the state still changes — visibly and instantly — and only the travel is
+   removed. Nothing on this screen depends on motion to be understood.
+   ══════════════════════════════════════════════════════════════ */
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)');
+
+class Spring {
+  constructor(x, response = .3, zeta = 1) { this.x = x; this.v = 0; this.to = x; this.r = response; this.z = zeta; this.done = null; }
+  set(to, done) { this.to = to; this.done = done || null; }
+  step(dt) {
+    if (REDUCED.matches) {                                   // instant, but still arrives
+      if (this.x !== this.to || this.v !== 0) { this.x = this.to; this.v = 0; const d = this.done; this.done = null; if (d) d(); }
+      return true;
+    }
+    const w = 2 * Math.PI / this.r, k = w * w, c = 2 * this.z * w;
+    this.v += (-k * (this.x - this.to) - c * this.v) * dt;
+    this.x += this.v * dt;
+    if (Math.abs(this.x - this.to) < .01 && Math.abs(this.v) < .05) {
+      this.x = this.to; this.v = 0; const d = this.done; this.done = null; if (d) d(); return true;
+    }
+    return false;
+  }
+}
+
+/* the tab ink — starts under tab one, which is also the default selection, so with no
+   script at all the control still reads correctly */
+const fillX  = new Spring(0, .28);
+const push   = new Spring(0, .34);
+const sweep  = new Spring(0, .5);   /* the perimeter draw, slightly slower: it is the one
+                                       celebratory moment on the screen and earns its time */
+const collapse = new Spring(1, .3);
+
+let raf = null, last = performance.now();
+function frame(now) {
+  const dt = Math.min((now - last) / 1000, 1 / 60); last = now;
+  let busy = false;
+
+  /* Every DOM write below is guarded. The panel view has no tab bar, so an unguarded
+     write here throws — and a throw inside a rAF callback kills the loop for good,
+     because the reschedule is the last statement. That is not hypothetical: it is how
+     the app list froze at 97% and never left. */
+  if (S.picking || push.x !== 0) {
+    push.step(dt);
+    const m = $('#mount');
+    if (m) m.style.setProperty('--push', Math.max(0, Math.min(1, push.x)).toFixed(4));
+    busy = true;
+  }
+
+  const tabs = $('.tabs');
+  if (tabs) {
+    fillX.step(dt);
+    tabs.style.setProperty('--fill-x', fillX.x.toFixed(2) + 'px');
+    if (fillX.x !== fillX.to || fillX.v !== 0) busy = true;
+  } else {
+    fillX.x = fillX.to; fillX.v = 0;   /* nothing on screen to position */
+  }
+
+  const fresh = S.fresh && document.querySelector('[data-fresh]');
+  if (fresh) {
+    sweep.step(dt);
+    fresh.style.setProperty('--sweep', (Math.max(0, Math.min(1, sweep.x)) * 360).toFixed(1) + 'deg');
+    busy = true;
+  }
+
+  if (S.collapsing) {
+    collapse.step(dt);
+    const li = document.querySelector('[data-collapsing]');
+    if (li) {
+      const v = Math.max(0, Math.min(1, collapse.x));
+      li.style.height = (S.collapsing.h * v).toFixed(1) + 'px';
+      li.style.opacity = v.toFixed(3);
+    }
+    busy = true;
+  }
+
+  if (busy) raf = requestAnimationFrame(frame); else raf = null;
+}
+function wake() { if (raf === null) { last = performance.now(); raf = requestAnimationFrame(frame); } }
+
+/* Put the ink where the selection is, without animating — used on boot, on resize, and
+   whenever the list is re-rendered at a new width. */
+function placeFill() {
+  const sel = document.querySelector('.tab[aria-selected="true"]');
+  if (!sel) return;
+  fillX.x = fillX.to = sel.offsetLeft;
+  fillX.v = 0;
+  const tabs = $('.tabs'); if (tabs) tabs.style.setProperty('--fill-x', fillX.x.toFixed(2) + 'px');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   The refiner, simulated — stages 6, 7, 8 in the order refiner.md
+   settles them: dictionary, then snippets, then app-style formatting,
+   style last so it sees final content.
+
+   ⚠ The matcher below is a STAND-IN and is not the contract. The settled
+   rule is token-sequence matching — the trigger's words must appear as
+   whole words, whatever punctuation or case surrounds them — with
+   specificity filtering ahead of the longest-match scan. This stand-in
+   still branches on whether the trigger contains a space, so it fires
+   "sign off" inside "design off". It was left in place only so the screen
+   can be clicked through; see "Entry matching" in docs/architecture/
+   refiner.md, settled by .scratch/openflow-v1/issues/65. Replaced when the
+   matcher itself is implemented.
+   ══════════════════════════════════════════════════════════════ */
+const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const patternFor = e => e.from.includes(' ')
+  ? new RegExp(escapeRe(e.from), 'gi')
+  : new RegExp(`\\b${escapeRe(e.from)}\\b`, 'gi');
+
+/* Enough tokenizing for the two things the settings surface owes the user *before*
+   an entry exists: a trigger needs at least one word, and two triggers collide when
+   their words are the same whatever punctuation they were written with. Same word
+   definition as the contract in refiner.md's "Entry matching". */
+const WORD = /[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu;
+const wordsOf = s => s.toLowerCase().match(WORD) || [];
+const keyOf = s => wordsOf(s).join(' ');
+
+function refine(raw, scope) {
+  let t = raw;
+  for (const e of S.entries.filter(x => x.kind === 'dict' && (x.scope === '*' || x.scope === scope))) {
+    if (patternFor(e).test(t)) t = t.replace(patternFor(e), () => e.to);
+  }
+  /* most specific scope first: an app's own shorthand beats the global one. This
+     ordering is itself a decision — a global "sig" and a WhatsApp "sig" cannot both
+     be first, and the answer is that the nearer one wins. */
+  const snips = S.entries
+    .filter(x => x.kind === 'snip' && (x.scope === '*' || x.scope === scope))
+    .sort((a, b) => (a.scope === '*' ? 1 : 0) - (b.scope === '*' ? 1 : 0));
+  for (const e of snips) {
+    if (patternFor(e).test(t)) t = t.replace(patternFor(e), () => e.to);
+  }
+  const preset = S.styles[scope] || S.styles['*'] || 'Neutral';
+  if (preset === 'Neutral' || preset === 'Formal') t = t.charAt(0).toUpperCase() + t.slice(1);
+  /* The full stop is NOT appended blindly. Because style runs last — which is right,
+     it sees final content — a snippet that already ends in punctuation arrives here
+     finished, and "Best regards," + "." is "Best regards,.". */
+  if (preset === 'Formal' && t.trim() && !/[.!?,;:]$/.test(t.trim())) t = t.trim() + '.';
+  return { text: t, preset };
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Views
+   ══════════════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════════════
+   Choosing the app is a LIST, not a row of chips.
+
+   Six chips fitted on a desktop mock and implied the product had six apps. A phone has
+   sixty. So this is a full-height panel with search, a scrollable LazyColumn-shaped list,
+   and the entry being scoped named at the top — because a control that does not say what
+   it affects has to be explained, and explained controls are worse than labelled ones.
+   ══════════════════════════════════════════════════════════════ */
+function viewAppList() {
+  const isStyle = S.picking === '@style';
+  const e = isStyle ? null : S.entries.find(x => x.id === S.picking);
+  if (!isStyle && !e) return '';
+  const q = S.appQuery.trim().toLowerCase();
+  const shown = APPS.filter(a => !q || a.nm.toLowerCase().includes(q) || a.pk.toLowerCase().includes(q));
+  /* in style mode you are choosing which apps get an override, so apps that already
+     have one are not offered again */
+  const pool = isStyle ? shown.filter(a => S.styles[a.id] == null) : shown;
+  const current = id => (isStyle ? S.styles[id] != null : e.scope === id);
+
+  const row = (id, nm, pk, icon, on) => `
+    <li>
+      <button class="approw" data-pick="${id}" data-target="${isStyle ? '@style' : e.id}" aria-pressed="${on}">
+        <span class="aicon">${icon}</span>
+        <span class="atext">
+          <span class="anm">${esc(nm)}</span>
+          <span class="apk">${esc(pk)}</span>
+        </span>
+        <span class="amark" aria-hidden="true">${on ? '✓' : ''}</span>
+      </button>
+    </li>`;
+
+  return `
+    <div class="pickhead">
+      <p class="cap">${isStyle ? 'give a different style to' : 'this entry applies to'}</p>
+      <p class="ppair">${isStyle
+        ? `<span>Style</span><span class="arrow">→</span><span class="to">not the default</span>`
+        : `<span>${esc(e.from)}</span><span class="arrow">→</span><span class="to">${esc(e.to)}</span>`}</p>
+    </div>
+    <div class="searchbar">
+      <input id="appSearch" type="search" placeholder="search apps" aria-label="Search apps"
+             value="${esc(S.appQuery)}" autocomplete="off">
+    </div>
+    <ul class="applist" role="listbox" aria-label="Apps">
+      ${isStyle ? '' : row('*', 'every app', 'applies everywhere, app wins over it', ICON.every, e.scope === '*')}
+      ${pool.length
+        ? pool.map(a => row(a.id, a.nm, a.pk, iconFor(a), current(a.id))).join('')
+        : `<li class="empty"><span class="pair">${q
+             ? `No app matches “${esc(S.appQuery)}”.`
+             : isStyle
+               ? 'Every app you dictate into already has its own style.'
+               : 'Every app you can dictate into already has an entry like this.'}</span></li>`}
+    </ul>
+    <p class="note">
+      <b>${APPS.length} apps installed</b>${q ? `, ${pool.length} matching` : ''}. An app that is not installed cannot be
+      dictated into, so this list is whatever is on the phone right now.
+    </p>`;
+}
+
+function entryRow(e) {
+  const fresh = S.fresh === e.id ? ' data-fresh="1"' : '';
+  const going = S.collapsing && S.collapsing.id === e.id ? ` data-collapsing="1" style="height:${S.collapsing.h}px"` : '';
+  return `
+  <li${fresh}${going}>
+    <div class="rowmain">
+      <span class="pair"><span>${esc(e.from)}</span><span class="arrow">→</span><span class="to">${esc(e.to)}</span></span>
+      <span class="meta">
+        <button class="scopechip" data-scope="${e.id}"
+                aria-label="Applies to ${esc(scopeLabel(e.scope))}. Change which app this applies to">
+          ${scopeIcon(e.scope)}<span>${esc(scopeLabel(e.scope))}</span>${CHEVRON}
+        </button>
+      </span>
+      <button class="kill" data-del="${e.id}" aria-label="Delete the entry ${esc(e.from)}">delete</button>
+    </div>
+  </li>`;
+}
+
+/* M3 SingleChoiceSegmentedButtonRow, brutalist-selected. Rendered once, above
+   whichever view is showing — the three categories are peer surfaces, so switching
+   between them is a segmented control and not a navigation stack. */
+function viewTabs() {
+  const count = id => id === 'style' ? S.styles['*'] : S.entries.filter(e => e.kind === id).length;
+  return `
+  <div class="tabs" role="tablist" aria-label="What you are editing">
+    <div class="tabfill" aria-hidden="true"></div>
+    ${TABS.map(t => `
+      <button class="tab" role="tab" data-tab="${t.id}" aria-selected="${S.tab === t.id}">
+        ${t.label}
+        <span class="n">${t.id === 'style' ? S.styles['*'] : count(t.id)}</span>
+      </button>`).join('')}
+  </div>`;
+}
+
+function viewEntries(tab) {
+  const meta = TABS.find(t => t.id === tab);
+  const rows = S.entries.filter(e => e.kind === tab);
+  return `
+    <h2 class="hd">${meta.label}</h2>
+    <p class="sub">Matched as you speak.</p>
+    <p class="cap">${meta.stage}</p>
+    <div class="adder">
+      <input id="fromIn" placeholder="${tab === 'dict' ? 'kubernetis' : 'sig'}" aria-label="What you say">
+      <span class="to-arrow" aria-hidden="true">→</span>
+      <input id="toIn" placeholder="${tab === 'dict' ? 'Kubernetes' : 'Best regards,'}" aria-label="What it becomes">
+      <p class="hint" id="hint" role="status"></p>
+      <p class="rule">Matches the <b>words</b> you say — case and punctuation don&rsquo;t decide it,
+        so <code>sign-off</code> finds <code>sign off</code>, and <code>sig</code> never fires
+        inside <code>signal</code>.</p>
+      <button class="go" data-add="${tab}">add — every app</button>
+    </div>
+    <ul class="list">
+      ${rows.length ? rows.map(entryRow).join('')
+        : `<li class="empty"><span class="pair">No entries yet. Type what you <b>say</b> above and what it should <b>become</b>.</span></li>`}
+    </ul>
+    <div class="note">
+      <b>${rows.length} ${rows.length === 1 ? 'entry' : 'entries'}.</b>
+      Tap the ${rows.length ? 'app under an entry' : 'scope under an entry'} to limit it to one app —
+      the app&rsquo;s own version wins over the every-app one, even against a longer every-app trigger.
+      Two entries can&rsquo;t share a trigger inside the same app.
+    </div>`;
+}
+
+function viewStyles() {
+  const t = TABS[2];
+  return `
+    <h2 class="hd">Style</h2>
+    <p class="sub">How a dictation is finished off. This is the refiner's last stage, and this screen only configures it.</p>
+    <p class="cap">${t.stage}</p>
+    <ul class="presets">
+      ${PRESETS.map(p => `
+        <li>
+          <div class="top">
+            <span class="nm">${p.id}</span>
+            <button class="pick" data-preset="${p.id}" aria-pressed="${S.styles['*'] === p.id}">
+              <i aria-hidden="true"></i>${S.styles['*'] === p.id ? 'in use' : `use ${p.id}`}
+            </button>
+          </div>
+          <p class="mech">${p.mech}</p>
+        </li>`).join('')}
+    </ul>
+    <h2 class="hd">Per app</h2>
+    <p class="sub">An app can differ from the default. Only the ${Object.keys(S.styles).filter(k => k !== '*').length} you have set are
+       listed — the other ${APPS.length - Object.keys(S.styles).filter(k => k !== '*').length} follow
+       <span style="font-family:var(--font-mono);font-size:12px">${esc(S.styles['*'])}</span>. Pinning an app to
+       the default is allowed; it just survives you changing the default later.</p>
+    <ul class="overrides">
+      ${Object.keys(S.styles).filter(k => k !== '*').map(id => {
+        const a = appById(id); if (!a) return '';
+        return `
+        <li>
+          <div class="orow">
+            <span class="who">${iconFor(a)}
+              <span>
+                <span class="nm">${a.nm}</span><br>
+                <span class="pk">${a.pk}</span>
+              </span>
+            </span>
+            <span class="mini">
+              ${PRESETS.map(p => `<button data-ostyle="${a.id}" data-p="${p.id}"
+                  aria-pressed="${S.styles[a.id] === p.id}"
+                  aria-label="${a.nm}: ${p.id}${S.styles[a.id] === p.id ? ', in use' : ''}">${p.id}</button>`).join('')}
+            </span>
+          </div>
+        </li>`;
+      }).join('')}
+      <li>
+        <button class="addapp" data-addstyle>
+          <span class="aicon">${ICON.every}</span>
+          <span class="atext"><span class="anm">Choose an app</span>
+          <span class="apk">give it a style of its own</span></span>
+        </button>
+      </li>
+    </ul>
+    <div class="note">
+      <b>Style runs last, so it sees finished text.</b> That is why it will not add a full stop
+      to a snippet that already ends in punctuation — “Best regards,” does not become “Best regards,.”.
+    </div>`;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   The commit arms itself. Never greyed out, never a silent no-op.
+   ══════════════════════════════════════════════════════════════ */
+function armAdder() {
+  const from = $('#fromIn'), to = $('#toIn'), btn = document.querySelector('[data-add]'), hint = $('#hint');
+  if (!from || !to || !btn) return;
+  const ok = from.value.trim() !== '' && to.value.trim() !== '';
+  btn.classList.toggle('armed', ok);
+  if (ok) {
+    from.classList.remove('bad'); to.classList.remove('bad');
+    if (hint) hint.textContent = '';
+  }
+}
+
+function render() {
+  const mount = $('#mount');
+  if (S.picking) {
+    mount.innerHTML = viewAppList();
+    $('#crumb').textContent = 'choose an app';
+    /* off-screen, then travel in. Set before paint so the panel never appears at rest
+       and then jumps — the animation has to start where the thing actually is. */
+    mount.dataset.push = '1';
+    mount.style.setProperty('--push', '1');
+    push.x = 1; push.v = 0;
+    push.set(0);
+    const s = $('#appSearch'); if (s) s.focus();
+    wake();
+    return;
+  }
+  delete mount.dataset.push;
+  mount.style.setProperty('--push', '0');
+  mount.innerHTML = viewTabs() + (S.tab === 'style' ? viewStyles() : viewEntries(S.tab));
+  $('#crumb').textContent = S.tab === 'style' ? 'style' : S.tab === 'snip' ? 'snippets' : 'dictionary';
+  armAdder();
+
+  const sel = document.querySelector('.tab[aria-selected="true"]');
+  if (sel) { fillX.set(sel.offsetLeft); }   /* re-target from where it is: a second tap
+                                                mid-travel turns it around, never snaps */
+  /* The sweep is a one-time flourish: when it lands the attribute comes off, so the row
+     returns to normal instead of wearing a permanent accent outline. "Just added" is a
+     transient fact; the permissions page's sweep settles into a lasting state because
+     "granted" is one, and copying the device is not the same as copying its persistence. */
+  if (S.fresh) {
+    sweep.x = 0; sweep.v = 0;
+    sweep.set(1, () => {
+      S.fresh = null;
+      document.querySelectorAll('[data-fresh]').forEach(el => el.removeAttribute('data-fresh'));
+    });
+  }
+  wake();
+}
+
+/* Leaving is the same path, in reverse — so the panel travels out to the right it came
+   from rather than fading where it stands. `done` clears the state once it has arrived. */
+function closePanel(done) {
+  if (REDUCED.matches) { if (done) done(); return; }
+  push.set(1, done);
+  wake();
+}
+
+/* ── one delegated listener, so a re-render never loses handlers ── */
+document.addEventListener('click', e => {
+  const t = e.target;
+
+  const tab = t.closest('[data-tab]');   if (tab) { S.tab = tab.dataset.tab; return render(); }
+
+  const sc = t.closest('[data-scope]');
+  if (sc) { S.picking = sc.dataset.scope; S.appQuery = ''; return render(); }
+
+  const pk = t.closest('[data-pick]');
+  if (pk) {
+    if (pk.dataset.target === '@style') {
+      /* new override starts at whatever the default currently is, so adding an app never
+         silently changes its style — it starts from what it already was doing */
+      S.styles[pk.dataset.pick] = S.styles['*'];
+    } else {
+      S.entries = S.entries.map(x => x.id === pk.dataset.target ? { ...x, scope: pk.dataset.pick } : x);
+    }
+    buzz(6);
+    closePanel(() => { S.picking = null; render(); });
+    return;
+  }
+
+  if (t.closest('[data-addstyle]')) { S.picking = '@style'; S.appQuery = ''; return render(); }
+
+  const ps = t.closest('[data-preset]');
+  if (ps) { S.styles['*'] = ps.dataset.preset; buzz(6); return render(); }
+  const os = t.closest('[data-ostyle]');
+  if (os) { S.styles[os.dataset.ostyle] = os.dataset.p; buzz(6); return render(); }
+
+  const del = t.closest('[data-del]');
+  if (del) {
+    const id = del.dataset.del;
+    buzz(12);
+    /* The row collapses and the ones below close the gap; only when it has gone is the
+       entry actually removed. Under reduced motion the spring lands in one step, so this
+       still happens — it just happens instantly. */
+    const li = del.closest('li');
+    S.collapsing = { id, h: li ? li.getBoundingClientRect().height : 76 };
+    collapse.x = 1; collapse.v = 0;
+    render();
+    collapse.set(0, () => {
+      S.entries = S.entries.filter(x => x.id !== id);
+      S.collapsing = null;
+      render();
+    });
+    wake();
+    return;
+  }
+
+  const add = t.closest('[data-add]');
+  if (add) {
+    const kind = add.dataset.add;
+    const fromEl = $('#fromIn'), toEl = $('#toIn'), hint = $('#hint');
+    const from = fromEl.value.trim(), to = toEl.value.trim();
+    if (!from || !to) {
+      fromEl.classList.toggle('bad', !from);
+      toEl.classList.toggle('bad', !to);
+      hint.textContent = !from && !to ? 'Both halves are needed: what you say, and what it becomes.'
+                   : !from   ? 'What do you say? The left half is what you say out loud.'
+                             : 'What should it become? The right half is what lands in the field.';
+      return;
+    }
+    /* A trigger with no word in it can never match, so it is refused rather than
+       stored — a stored entry that does nothing is indistinguishable from a bug. */
+    if (!wordsOf(from).length) {
+      fromEl.classList.add('bad');
+      hint.textContent = 'That has no words in it, so it would never match anything said out loud.';
+      return;
+    }
+    /* One trigger, one replacement, per app. Refused here rather than tie-broken at
+       runtime: a list cannot show the user which of two entries would win, so the
+       only place this is resolvable is the moment it is created. Cross-kind is not a
+       clash — the dictionary stage runs first and the snippet then fires on its output. */
+    const clash = S.entries.find(x => x.kind === kind && x.scope === '*' && keyOf(x.from) === keyOf(from));
+    if (clash) {
+      fromEl.classList.add('bad');
+      hint.textContent = `“${from}” is already an entry for every app, becoming “${clash.to}”. One trigger, one replacement.`;
+      return;
+    }
+    const id = 'e' + (++uid);
+    S.entries.push({ id, kind, from, to, scope: '*' });
+    S.fresh = id;          /* its perimeter draws once, so you see what you added */
+    buzz([8, 26, 10]);
+    render();
+    return;
+  }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.target.id === 'fromIn' || e.target.id === 'toIn')) {
+    e.preventDefault();
+    const btn = document.querySelector('[data-add]'); if (btn) btn.click();
+    return;
+  }
+  /* Escape backs out of the app list, travelling the same way it came. */
+  if (e.key === 'Escape' && S.picking) { closePanel(() => { S.picking = null; render(); }); }
+});
+
+/* Search filters the list in place without re-rendering the whole panel, so the caret
+   and the keyboard stay where they were. */
+$('#mount').addEventListener('input', e => {
+  if (e.target.id === 'appSearch') { S.appQuery = e.target.value; return render(); }
+  if (e.target.id === 'fromIn' || e.target.id === 'toIn') {
+    armAdder();
+    const hint = $('#hint'); if (hint) hint.textContent = '';
+    $('#fromIn').classList.remove('bad'); $('#toIn').classList.remove('bad');
+  }
+});
+
+/* press feedback, on the press — not on release, which reads as lag */
+const PRESSABLE = '.tab, .kill, .scopechip, .approw, .addapp, .pick, .iconbtn, .presets .pick, .overrides .mini button';
+document.addEventListener('pointerdown', e => {
+  const el = e.target.closest(PRESSABLE);
+  if (el) el.classList.add('pressed');
+});
+for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) {
+  document.addEventListener(ev, e => {
+    const el = e.target.closest(PRESSABLE);
+    if (el) el.classList.remove('pressed');
+  }, true);
+}
+
+/* ── theme, same control as onboarding.html ── */
+const SUN = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.2" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+const MOON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M20 14.4A8.4 8.4 0 0 1 9.6 4a8.4 8.4 0 1 0 10.4 10.4z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>';
+function setTheme(mode) {
+  const root = document.documentElement;
+  if (mode === 'auto') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', mode);
+  const dark = mode === 'dark' || (mode === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+  $('#theme').innerHTML = dark ? SUN : MOON;
+  for (const m of ['light','dark','auto']) $('#t-' + m).setAttribute('aria-pressed', String(m === mode));
+}
+$('#theme').addEventListener('click', () => {
+  const cur = document.documentElement.getAttribute('data-theme') || 'auto';
+  setTheme(cur === 'dark' ? 'light' : cur === 'light' ? 'auto' : 'dark');
+});
+$('#back').innerHTML = ICON.back;
+$('#back').addEventListener('click', () => {
+  if (S.picking) { closePanel(() => { S.picking = null; render(); }); return; }
+  /* There is no settings screen behind this one in a prototype. Saying so beats a
+     back arrow that does nothing — dead UI is worse than no UI. */
+  $('#crumb').textContent = 'back needs the settings screen behind it';
+  setTimeout(render, 1400);
+});
+for (const m of ['light','dark','auto']) $('#t-' + m).addEventListener('click', () => setTheme(m));
+$('#t-reset').addEventListener('click', () => {
+  S.entries = SEED();
+  S.styles = { '*':'Neutral', gmail:'Formal', whatsapp:'Casual', keep:'Casual' };
+  S.tab = 'dict'; S.picking = null; S.appQuery = ''; S.fresh = null; S.collapsing = null;
+  render();
+  placeFill();
+});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  if (!document.documentElement.getAttribute('data-theme')) setTheme('auto');
+});
+/* a rotation or a resized window moves the tabs; the ink must land on the new geometry
+   rather than animate there from a stale offset */
+addEventListener('resize', () => { placeFill(); wake(); });
+REDUCED.addEventListener('change', () => { placeFill(); wake(); });
+
+setTheme('auto');
+render();
+placeFill();
+</script>
+</body>
+</html>

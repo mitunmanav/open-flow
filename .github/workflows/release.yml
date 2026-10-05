@@ -1,85 +1,115 @@
 name: release
 
-# Tag-driven release. Produces a signed APK and AAB, publishes them to a GitHub
-# Release with SHA-256 checksums, and refuses to publish anything unsigned.
+# Two very different acts, and the difference is the point of this file.
 #
-# SIGNING SECRETS — set these as repository secrets before the first `v*` tag.
-# They are named here and nowhere else, which is what makes this file the
-# contract that ticket 18 fulfils:
+#   A TAG PUSH creates a CANDIDATE. A signed, installable APK plus a manifest
+#   describing it, retained for 90 days so a tester on a device class this project
+#   cannot afford to buy has something real to install. It publishes nothing and
+#   requires no coverage, because requiring coverage to hand somebody a test build
+#   would mean the only builds that exist are the ones nobody tested.
+#
+#   A MANUAL PROMOTION publishes. Dispatched from protected main, it promotes the exact
+#   bytes a named candidate run produced, reads the acceptance gate at an explicitly
+#   chosen reviewed evidence revision, and fails before publishing when coverage does
+#   not meet the bar the tag's own major version implies.
+#
+# The split is the lifecycle decision in
+# `.scratch/openflow-v1/issues/63-select-reviewed-gate-evidence.md`. The gate itself is
+# ADR-0008; the class, registry and identity rules come from tickets 64, 57, 58 and 50,
+# and `.github/scripts/check_gate.py` is the only thing that resolves coverage.
+#
+# NOT IN BRANCH PROTECTION, deliberately. Branch protection requires status contexts on
+# pull requests; a tag is not a branch and never sees them. A required check that cannot
+# fail is worse than no check, because it looks configured. So the gate lives here,
+# before publishing, and the only way past it is `gate_waiver_reason`.
+#
+# SIGNING SECRETS — set these as repository secrets before the first `v*` tag. They are
+# named here and nowhere else, which is what makes this file the contract ticket 18
+# fulfils:
 #
 #   OPENFLOW_KEYSTORE_BASE64   base64 of the upload keystore (.jks), no headers
 #   OPENFLOW_KEYSTORE_PASSWORD keystore password
 #   OPENFLOW_KEY_ALIAS        key alias inside the keystore
 #   OPENFLOW_KEY_PASSWORD     key password
 #
-# A missing secret fails the job loudly. A release that silently shipped an
-# unsigned or debug-signed APK would be worse than no release at all.
-
+# A missing secret fails the job loudly. A release that silently shipped an unsigned or
+# debug-signed APK would be worse than no release at all. How that keystore reaches the
+# build is ADR-0012: written to RUNNER_TEMP, named with -Popenflow.signingProperties,
+# never committed.
+#
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
     inputs:
-      tag:
-        description: 'Existing tag to rebuild a release for'
+      release_tag:
+        description: 'Tag being published, e.g. v0.2.0'
         required: true
+        type: string
+      evidence_sha:
+        description: >
+          Full SHA of the reviewed commit in main's history holding the Gate Status
+          block. Select it explicitly — a moving ref is not a selection.
+        required: true
+        type: string
+      candidate_run_id:
+        description: 'Numeric run ID of the tag push that built the candidate'
+        required: true
+        type: string
+      candidate_artifact_id:
+        description: 'Artifact ID from that run, not its name'
+        required: true
+        type: string
+      gate_waiver_reason:
+        description: >
+          Non-empty to publish with insufficient device coverage; it is recorded in the
+          release notes. It cannot waive a mismatched artifact, an invalid record or an
+          unreviewed protocol.
+        required: false
         type: string
 
 permissions:
-  contents: write
+  contents: read
 
+# One promotion per tag at a time. A re-run is a separate act that reuses the same pinned
+# inputs rather than picking up whatever is newest.
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.event.inputs.release_tag || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
-  verify:
-    name: Tag and secrets
-    runs-on: ubuntu-latest
-    outputs:
-      tag: ${{ steps.meta.outputs.tag }}
-    steps:
-      - name: Resolve tag
-        id: meta
-        env:
-          DISPATCH_TAG: ${{ inputs.tag }}
-          REF_NAME: ${{ github.ref_name }}
-          EVENT: ${{ github.event_name }}
-        run: |
-          set -euo pipefail
-          if [ "$EVENT" = "workflow_dispatch" ]; then
-            tag="$DISPATCH_TAG"
-            git fetch --tags --depth=1
-            git checkout "refs/tags/$tag"
-          else
-            tag="$REF_NAME"
-          fi
+  # ------------------------------------------------------------------ candidate
 
-          if ! printf '%s' "$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
-            echo "::error::'$tag' is not a semver tag (expected vMAJOR.MINOR.PATCH[-prerelease])."
-            exit 1
-          fi
-
-          missing=()
-          for secret in OPENFLOW_KEYSTORE_BASE64 OPENFLOW_KEYSTORE_PASSWORD \
-                        OPENFLOW_KEY_ALIAS OPENFLOW_KEY_PASSWORD; do
-            [ -n "${!secret:-}" ] || missing+=("$secret")
-          done
-          if [ ${#missing[@]} -gt 0 ]; then
-            echo "::error::Missing signing secret(s): ${missing[*]}"
-            echo "Set them as repository secrets before tagging. See .github/workflows/release.yml."
-            exit 1
-          fi
-
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-
-  build:
-    name: Signed build
-    needs: verify
+  candidate:
+    name: Signed candidate
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The tag ref itself, not the branch it was pushed from. A candidate has to be
+          # built from what the tag names, or its identity is a claim rather than a fact.
+          ref: refs/tags/${{ github.ref_name }}
+
+      - name: Resolve the tag and its source commit
+        id: meta
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          tag="$REF_NAME"
+          if ! printf '%s' "$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::'$tag' is not a plain release tag (expected vMAJOR.MINOR.PATCH)."
+            exit 1
+          fi
+          # Read off the checked-out tag rather than from github.sha, so a moved tag
+          # produces a candidate whose recorded source is what was actually built.
+          source=$(git rev-list -n 1 HEAD)
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "source=$source" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-java@v4
         with:
@@ -88,20 +118,39 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      - name: Check the signing secrets are present
+        # Before the build, not after: a candidate has to be signed to be testable, and
+        # a failed assemble after a 20-minute dependency download teaches nothing.
+        env:
+          OPENFLOW_KEYSTORE_BASE64: ${{ secrets.OPENFLOW_KEYSTORE_BASE64 }}
+          OPENFLOW_KEYSTORE_PASSWORD: ${{ secrets.OPENFLOW_KEYSTORE_PASSWORD }}
+          OPENFLOW_KEY_ALIAS: ${{ secrets.OPENFLOW_KEY_ALIAS }}
+          OPENFLOW_KEY_PASSWORD: ${{ secrets.OPENFLOW_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for secret in OPENFLOW_KEYSTORE_BASE64 OPENFLOW_KEYSTORE_PASSWORD \
+                        OPENFLOW_KEY_ALIAS OPENFLOW_KEY_PASSWORD; do
+            [ -n "${!secret:-}" ] || missing+=("$secret")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing signing secret(s): ${missing[*]}"
+            exit 1
+          fi
+
       - name: Decode signing keystore
         env:
           KEYSTORE_B64: ${{ secrets.OPENFLOW_KEYSTORE_BASE64 }}
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/keystore"
-          # base64 -d rejects a wrongly-encoded secret; better to fail here than
-          # to hand Gradle a corrupt keystore and sign nothing.
+          # base64 -d rejects a wrongly-encoded secret; better to fail here than to hand
+          # Gradle a corrupt keystore and sign nothing.
           printf '%s' "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/keystore/upload.jks"
           test -s "$RUNNER_TEMP/keystore/upload.jks" || {
             echo "::error::Decoded keystore is empty."
             exit 1
           }
-          echo "KEYSTORE_PATH=$RUNNER_TEMP/keystore/upload.jks" >> "$GITHUB_ENV"
 
       - name: Write signing properties
         env:
@@ -112,66 +161,562 @@ jobs:
           set -euo pipefail
           umask 077
           cat > "$RUNNER_TEMP/keystore/signing.properties" <<EOF
-          storeFile=$KEYSTORE_PATH
+          storeFile=$RUNNER_TEMP/keystore/upload.jks
           storePassword=$KEYSTORE_PASSWORD
           keyAlias=$KEY_ALIAS
           keyPassword=$KEY_PASSWORD
           EOF
+          echo "SIGNING_PROPERTIES=$RUNNER_TEMP/keystore/signing.properties" >> "$GITHUB_ENV"
 
-      - name: Tests
-        run: ./gradlew --no-daemon test
+      - name: Assemble the signed candidate
+        # The tag supplies both version fields and the build refuses without it, so a
+        # candidate can never carry the development version.
+        run: |
+          ./gradlew --no-daemon assembleRelease \
+            -Popenflow.releaseTag="${{ steps.meta.outputs.tag }}" \
+            -Popenflow.signingProperties="$SIGNING_PROPERTIES"
 
-      - name: Assemble signed APK and AAB
-        run: ./gradlew --no-daemon assembleRelease bundleRelease
-
-      - name: Verify the APK is signed with the release key
-        # Proves the build consumed the keystore rather than silently falling
-        # back to the debug key, which is the failure this step exists to catch.
+      - name: Identify the artifact
+        id: apk
         run: |
           set -euo pipefail
-          apk=$(find app/build/outputs/apk/release -name '*.apk' | head -1)
-          test -n "$apk" || { echo "::error::No release APK produced."; exit 1; }
+          # Exactly one release APK, and it is the one just built. A glob that matched
+          # two would mean the build left something behind, and picking the first is how
+          # the wrong bytes get published.
+          mapfile -t apks < <(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' -type f)
+          if [ ${#apks[@]} -ne 1 ]; then
+            echo "::error::Expected exactly one release APK, found ${#apks[@]}: ${apks[*]:-none}"
+            exit 1
+          fi
+          apk="${apks[0]}"
+          aapt=$(find "$ANDROID_HOME/build-tools" -name aapt2 -type f | sort -V | tail -1)
+          test -n "$aapt" || { echo "::error::aapt2 not found."; exit 1; }
+          badging=$("$aapt" dump badging "$apk")
+          code=$(printf '%s' "$badging" \
+            | sed -n "s/^package: name='[^']*' versionCode='\([0-9]*\)'.*/\1/p")
+          name=$(printf '%s' "$badging" \
+            | sed -n "s/^package: name='[^']*' versionCode='[0-9]*' versionName='\([^']*\)'.*/\1/p")
+          test -n "$code" && test -n "$name" || {
+            echo "::error::Could not read versionCode/versionName out of the APK."
+            exit 1
+          }
+          echo "path=$apk" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(sha256sum "$apk" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "version_code=$code" >> "$GITHUB_OUTPUT"
+          echo "version_name=$name" >> "$GITHUB_OUTPUT"
+
+      - name: Prove the candidate is signed with the release key
+        # `apksigner verify` on its own cannot tell a release-signed APK from a
+        # debug-signed one, because a debug-signed APK verifies too. Comparing the
+        # signer's certificate against the keystore's own is what makes this the check
+        # it claims to be rather than a correct check of the wrong thing.
+        id: signer
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.OPENFLOW_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.OPENFLOW_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          apk="${{ steps.apk.outputs.path }}"
           apksigner=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)
-          test -n "$apksigner" || { echo "::error::apksigner not found."; exit 1; }
           "$apksigner" verify --print-certs "$apk" \
-            || { echo "::error::Release APK is not signed."; exit 1; }
+            || { echo "::error::Candidate APK is not signed."; exit 1; }
+          expected=$(keytool -exportcert -alias "$KEY_ALIAS" \
+            -keystore "$RUNNER_TEMP/keystore/upload.jks" -storepass "$KEYSTORE_PASSWORD" -rfc \
+            | openssl x509 -noout -fingerprint -sha256 \
+            | sed 's/.*=[[:space:]]*//; s/://g' | tr '[:upper:]' '[:lower:]')
+          actual=$("$apksigner" verify --print-certs "$apk" \
+            | sed -n 's/^Signer #1 certificate SHA-256 digest:[[:space:]]*//p' \
+            | tr '[:upper:]' '[:lower:]' | tr -d ':')
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::Candidate APK is not signed with the release key."
+            echo "::error::  keystore certificate $expected"
+            echo "::error::  APK signer         $actual"
+            exit 1
+          fi
+          echo "certificate=$actual" >> "$GITHUB_OUTPUT"
 
-      - name: Checksum
+      - name: Write the candidate manifest
+        # The manifest is what makes a candidate identifiable in a channel with no other
+        # structure: an Actions artifact is a download link and a name, and a name is not
+        # an identity. The promotion job reads it rather than re-deriving anything.
+        env:
+          TAG: ${{ steps.meta.outputs.tag }}
+          SOURCE: ${{ steps.meta.outputs.source }}
+          SHA256: ${{ steps.apk.outputs.sha256 }}
+          VERSION_CODE: ${{ steps.apk.outputs.version_code }}
+          VERSION_NAME: ${{ steps.apk.outputs.version_name }}
+          SIGNER: ${{ steps.signer.outputs.certificate }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          REPOSITORY: ${{ github.repository }}
+          WORKFLOW: ${{ github.workflow }}
+          APK: ${{ steps.apk.outputs.path }}
         run: |
           set -euo pipefail
-          mkdir -p app/build/outputs
-          ( cd app/build/outputs && find . -type f \( -name '*.apk' -o -name '*.aab' \) -print0 \
-            | xargs -0 sha256sum ) | tee app/build/outputs/checksums.txt
-          {
-            echo '## SHA-256 checksums'
-            echo
-            echo '```'
-            cat app/build/outputs/checksums.txt
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          mkdir -p candidate-out
+          # Copied under the tag's name. The APK's own identity is its checksum, version
+          # and source, all three in the manifest; this is only so a downloaded file is
+          # recognisable.
+          cp "$APK" "candidate-out/openflow-${TAG}.apk"
+          python3 - <<'PY'
+          import json, os, pathlib
+          manifest = {
+              "tag": os.environ["TAG"],
+              "source_commit": os.environ["SOURCE"],
+              "version_name": os.environ["VERSION_NAME"],
+              "version_code": int(os.environ["VERSION_CODE"]),
+              "apk_sha256": os.environ["SHA256"],
+              "signer_certificate_sha256": os.environ["SIGNER"],
+              "produced_by_run": int(os.environ["RUN_ID"]),
+              "produced_by_attempt": int(os.environ["RUN_ATTEMPT"]),
+              "repository": os.environ["REPOSITORY"],
+              "workflow": os.environ["WORKFLOW"],
+          }
+          pathlib.Path("candidate-out/manifest.json").write_text(
+              json.dumps(manifest, indent=2) + "\n"
+          )
+          PY
+          cat candidate-out/manifest.json
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload the candidate
+        # Immutable, 90 days. Selected later by numeric run ID and artifact ID, never by
+        # name and never as "the latest run", because both of those move.
+        uses: actions/upload-artifact@v4
         with:
-          name: release-apk-aab-${{ needs.verify.outputs.tag }}
-          path: |
-            app/build/outputs/apk/release/*.apk
-            app/build/outputs/bundle/release/*.aab
-            app/build/outputs/checksums.txt
-          retention-days: 30
+          name: openflow-candidate-${{ steps.meta.outputs.tag }}
+          path: candidate-out/
+          retention-days: 90
           if-no-files-found: error
 
-      - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.verify.outputs.tag }}
-          generate_release_notes: true
-          body_path: app/build/outputs/checksums.txt
-          files: |
-            app/build/outputs/apk/release/*.apk
-            app/build/outputs/bundle/release/*.aab
-            app/build/outputs/checksums.txt
-          fail_on_unmatched_files: true
+      - name: Tell the publisher what to test
+        run: |
+          set -euo pipefail
+          {
+            echo "## Candidate \`${{ steps.meta.outputs.tag }}\`"
+            echo
+            echo "No Release was created. This artifact is what a tester installs."
+            echo
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| tag | \`${{ steps.meta.outputs.tag }}\` |"
+            echo "| source | \`${{ steps.meta.outputs.source }}\` |"
+            echo "| version | \`${{ steps.apk.outputs.version_name }}\` (\`${{ steps.apk.outputs.version_code }}\`) |"
+            echo "| sha256 | \`${{ steps.apk.outputs.sha256 }}\` |"
+            echo "| expires | 90 days after this run |"
+            echo
+            echo "Record the results in the acceptance gate document, then dispatch the"
+            echo "release workflow from **main** with this run's ID and the candidate's"
+            echo "artifact ID. Both are needed: the artifact ID is not a selection on its own."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Clean up keystore
         if: always()
         run: rm -rf "$RUNNER_TEMP/keystore"
+
+  # ------------------------------------------------------------------ promotion
+
+  select:
+    name: Select inputs
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+      source: ${{ steps.resolve.outputs.source }}
+      evidence_sha: ${{ steps.resolve.outputs.evidence_sha }}
+      artifact_name: ${{ steps.artifact.outputs.artifact_name }}
+      expires_at: ${{ steps.artifact.outputs.expires_at }}
+      publisher_revision: ${{ steps.resolve.outputs.publisher_revision }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Refuse a promotion dispatched from anywhere but main
+        # The dispatch ref chooses which revision of this workflow runs, so a tag or a
+        # feature branch would run publisher code nobody reviewed. Protected main is the
+        # reviewed thing; this states it in the workflow rather than in a convention.
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          if [ "$REF" != "refs/heads/main" ]; then
+            echo "::error::Publication is dispatched from protected main, not $REF."
+            exit 1
+          fi
+
+      - name: Resolve the pinned identities
+        id: resolve
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          EVIDENCE_SHA: ${{ inputs.evidence_sha }}
+          PUBLISHER_REVISION: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          tag="$RELEASE_TAG"
+          if ! printf '%s' "$tag" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::'$tag' is not a plain release tag (expected vMAJOR.MINOR.PATCH)."
+            exit 1
+          fi
+          if ! printf '%s' "$EVIDENCE_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::evidence_sha must be a full 40-character SHA, not a ref."
+            echo "::error::A moving ref is not a selection of reviewed evidence."
+            exit 1
+          fi
+          git fetch --depth=1 origin "$EVIDENCE_SHA"
+          git cat-file -e "$EVIDENCE_SHA^{commit}" 2>/dev/null || {
+            echo "::error::evidence_sha $EVIDENCE_SHA is not a commit in this repository."
+            exit 1
+          }
+          # Reviewed means in main's history. An evidence revision from a fork or a
+          # dangling commit is not something a required check has ever seen.
+          git merge-base --is-ancestor "$EVIDENCE_SHA" origin/main || {
+            echo "::error::evidence_sha $EVIDENCE_SHA is not in main's reviewed history."
+            exit 1
+          }
+          source=$(git rev-list -n 1 "refs/tags/$tag" 2>/dev/null || true)
+          test -n "$source" || { echo "::error::Tag $tag does not exist."; exit 1; }
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "source=$source" >> "$GITHUB_OUTPUT"
+          echo "evidence_sha=$EVIDENCE_SHA" >> "$GITHUB_OUTPUT"
+          echo "publisher_revision=$PUBLISHER_REVISION" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve the candidate artifact by ID, inside its run
+        # The ID is looked up through the API and its run association is checked, because
+        # an artifact ID on its own is a real artifact belonging to some run — not
+        # evidence about the run the publisher named. Guessing the name from the tag
+        # would leave that association unverified.
+        id: artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ inputs.candidate_run_id }}
+          ARTIFACT_ID: ${{ inputs.candidate_artifact_id }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$RUN_ID" | grep -Eq '^[0-9]+$' || {
+            echo "::error::candidate_run_id must be numeric, got '$RUN_ID'."; exit 1; }
+          printf '%s' "$ARTIFACT_ID" | grep -Eq '^[0-9]+$' || {
+            echo "::error::candidate_artifact_id must be numeric, got '$ARTIFACT_ID'."; exit 1; }
+
+          field() { gh api "$1" | python3 -c "import json,sys; print(json.load(sys.stdin)$2)"; }
+          artifact="repos/$REPO/actions/artifacts/$ARTIFACT_ID"
+          run_of_artifact=$(field "$artifact" "['workflow_run']['id']")
+          expired=$(field "$artifact" "['expired']")
+          name=$(field "$artifact" "['name']")
+          expires=$(field "$artifact" "['expires_at']")
+
+          if [ "$run_of_artifact" != "$RUN_ID" ]; then
+            echo "::error::Artifact $ARTIFACT_ID belongs to run $run_of_artifact, not $RUN_ID."
+            exit 1
+          fi
+          if [ "$expired" != "False" ]; then
+            echo "::error::Candidate artifact $ARTIFACT_ID has expired."
+            echo "::error::An expired candidate is not replaced by a rebuild; select a new one."
+            exit 1
+          fi
+
+          run="repos/$REPO/actions/runs/$RUN_ID"
+          conclusion=$(field "$run" "['conclusion']")
+          head_branch=$(field "$run" "['head_branch']")
+          event=$(field "$run" "['event']")
+          # Provenance: this repository's own release workflow, on a tag push, finished.
+          # A valid signature establishes none of that, so the signature is not the
+          # check here.
+          if [ "$head_branch" != "$RELEASE_TAG" ] || [ "$event" != "push" ]; then
+            echo "::error::Run $RUN_ID is not a tag push of $RELEASE_TAG" \
+              "(event=$event, ref=$head_branch)."
+            exit 1
+          fi
+          if [ "$conclusion" != "success" ]; then
+            echo "::error::Candidate run $RUN_ID concluded '$conclusion'."
+            exit 1
+          fi
+          echo "artifact_name=$name" >> "$GITHUB_OUTPUT"
+          echo "expires_at=$expires" >> "$GITHUB_OUTPUT"
+
+  gate:
+    name: Acceptance gate
+    needs: select
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download the candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ inputs.candidate_run_id }}
+          ARTIFACT_NAME: ${{ needs.select.outputs.artifact_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p candidate
+          gh run download "$RUN_ID" --repo "$REPO" --name "$ARTIFACT_NAME" --dir candidate
+          apk=$(find candidate -name '*.apk' -type f | head -1)
+          test -n "$apk" || { echo "::error::No APK in the candidate artifact."; exit 1; }
+          test -f candidate/manifest.json || {
+            echo "::error::The candidate carries no manifest."; exit 1; }
+          echo "APK=$apk" >> "$GITHUB_ENV"
+
+      - name: Read the gate at the evidence revision and the build at the candidate source
+        # The evidence revision decides the requirements; the candidate's own source
+        # decides the ABI and version facts. Reading either from a moving ref would let a
+        # later commit relax the gate its own evidence is being measured against, and
+        # reading the ABI from a later build file would let the parser drift from the
+        # artifact. Neither is executed: these are two files, read with `git show`.
+        env:
+          EVIDENCE_SHA: ${{ needs.select.outputs.evidence_sha }}
+          TAG: ${{ needs.select.outputs.tag }}
+          SOURCE: ${{ needs.select.outputs.source }}
+        run: |
+          set -euo pipefail
+          mkdir -p evidence candidate-source
+          git fetch --depth=1 origin "$EVIDENCE_SHA"
+          git show "$EVIDENCE_SHA:docs/quality/acceptance-gate.md" > evidence/acceptance-gate.md
+          git fetch --depth=1 origin "refs/tags/$TAG" || git fetch --depth=1 origin "$SOURCE"
+          git show "$SOURCE:app/build.gradle.kts" > candidate-source/build.gradle.kts
+          test -s evidence/acceptance-gate.md || {
+            echo "::error::The evidence revision has no acceptance gate document."; exit 1; }
+          test -s candidate-source/build.gradle.kts || {
+            echo "::error::The candidate source has no app/build.gradle.kts."; exit 1; }
+          echo "Requirements read at \`$EVIDENCE_SHA\`; ABI and version facts from \`$SOURCE\`."
+
+      - name: Read the artifact's own identity
+        id: apk
+        run: |
+          set -euo pipefail
+          aapt=$(find "$ANDROID_HOME/build-tools" -name aapt2 -type f | sort -V | tail -1)
+          test -n "$aapt" || { echo "::error::aapt2 not found."; exit 1; }
+          badging=$("$aapt" dump badging "$APK")
+          code=$(printf '%s' "$badging" \
+            | sed -n "s/^package: name='[^']*' versionCode='\([0-9]*\)'.*/\1/p")
+          name=$(printf '%s' "$badging" \
+            | sed -n "s/^package: name='[^']*' versionCode='[0-9]*' versionName='\([^']*\)'.*/\1/p")
+          test -n "$code" && test -n "$name" || {
+            echo "::error::Could not read the candidate's version."; exit 1; }
+          echo "version_code=$code" >> "$GITHUB_OUTPUT"
+          echo "version_name=$name" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve the gate
+        # The job that decides, and it runs before publishing. `set -uo pipefail` without
+        # `-e` so the script's exit status survives to be handled, and the report lands
+        # in the summary either way — a blocked attempt has to say what was missing, and
+        # a gate that fails silently is the failure mode this whole file exists to avoid.
+        env:
+          TAG: ${{ needs.select.outputs.tag }}
+          SOURCE: ${{ needs.select.outputs.source }}
+          EVIDENCE_SHA: ${{ needs.select.outputs.evidence_sha }}
+          PUBLISHER_REVISION: ${{ needs.select.outputs.publisher_revision }}
+          VERSION_CODE: ${{ steps.apk.outputs.version_code }}
+          VERSION_NAME: ${{ steps.apk.outputs.version_name }}
+          WAIVER: ${{ inputs.gate_waiver_reason }}
+        run: |
+          set -uo pipefail
+          python3 .github/scripts/check_gate.py \
+            --apk "$APK" \
+            --tag "$TAG" \
+            --source-commit "$SOURCE" \
+            --version-code "$VERSION_CODE" \
+            --version-name "$VERSION_NAME" \
+            --protocol evidence/acceptance-gate.md \
+            --build-file candidate-source/build.gradle.kts \
+            --waiver-reason "${WAIVER:-}" \
+            --evidence-sha "$EVIDENCE_SHA" \
+            --publisher-revision "$PUBLISHER_REVISION" \
+            --report gate-report.md
+          status=$?
+          # Exit 2 means the inputs could not be read, so there may be no report to
+          # publish. Say that rather than letting a missing file stand in for a verdict.
+          if [ -f gate-report.md ]; then
+            { echo; cat gate-report.md; } >> "$GITHUB_STEP_SUMMARY"
+          else
+            { echo; echo "The gate could not be resolved; see the step log."; } \
+              >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit $status
+
+  publish:
+    name: Publish GitHub Release
+    # `needs: gate` is the load-bearing line of this job. Without it a failed gate
+    # publishes anyway, and the gate would be exactly the decorative check the map warns
+    # about.
+    needs: [select, gate]
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download the candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ inputs.candidate_run_id }}
+          ARTIFACT_NAME: ${{ needs.select.outputs.artifact_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p candidate
+          gh run download "$RUN_ID" --repo "$REPO" --name "$ARTIFACT_NAME" --dir candidate
+          apk=$(find candidate -name '*.apk' -type f | head -1)
+          test -n "$apk" || { echo "::error::No APK in the candidate artifact."; exit 1; }
+          test -f candidate/manifest.json || {
+            echo "::error::The candidate carries no manifest."; exit 1; }
+          echo "APK=$apk" >> "$GITHUB_ENV"
+          # The manifest's checksum is the candidate's own statement about its bytes. The
+          # gate job compared the record against the file; this step compares the file
+          # against the manifest, and the publish step below compares it again.
+          manifest_sha=$(python3 -c \
+            "import json; print(json.load(open('candidate/manifest.json'))['apk_sha256'])")
+          echo "MANIFEST_SHA=$manifest_sha" >> "$GITHUB_ENV"
+          manifest_signer=$(python3 -c \
+            "import json; print(json.load(open('candidate/manifest.json'))['signer_certificate_sha256'])")
+          echo "MANIFEST_SIGNER=$manifest_signer" >> "$GITHUB_ENV"
+
+      - name: Verify the candidate's bytes and signature
+        # Provenance and integrity, at the point of publication. `apksigner verify`
+        # alone cannot tell our key from any other, so the certificate is compared —
+        # this time against the manifest the candidate run recorded, which is a
+        # different comparison from the one the candidate job made and would not catch
+        # the same substitution.
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.OPENFLOW_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.OPENFLOW_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          actual=$(sha256sum "$APK" | cut -d' ' -f1)
+          if [ "$actual" != "$MANIFEST_SHA" ]; then
+            echo "::error::Candidate bytes do not match its manifest."
+            echo "::error::  manifest $MANIFEST_SHA"
+            echo "::error::  artifact $actual"
+            exit 1
+          fi
+          apksigner=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)
+          test -n "$apksigner" || { echo "::error::apksigner not found."; exit 1; }
+          "$apksigner" verify --print-certs "$APK" \
+            || { echo "::error::Candidate APK is not signed."; exit 1; }
+          actual_signer=$("$apksigner" verify --print-certs "$APK" \
+            | sed -n 's/^Signer #1 certificate SHA-256 digest:[[:space:]]*//p' \
+            | tr '[:upper:]' '[:lower:]' | tr -d ':')
+          if [ "$actual_signer" != "$MANIFEST_SIGNER" ]; then
+            echo "::error::Candidate signer does not match the manifest."
+            echo "::error::  manifest $MANIFEST_SIGNER"
+            echo "::error::  artifact $actual_signer"
+            exit 1
+          fi
+          echo "Bytes and signer verified immediately before publication."
+
+      - name: Refuse to overwrite a published artifact with different bytes
+        # Published identity is immutable. Android refuses an upgrade whose signature
+        # changes, and a Release whose asset silently became different bytes is a
+        # release nobody can reason about afterwards. An identical one is a no-op that
+        # preserves the original notes, so a re-run does not rewrite history with
+        # whatever evidence exists today.
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ needs.select.outputs.tag }}
+        run: |
+          set -euo pipefail
+          expected=$(sha256sum "$APK" | cut -d' ' -f1)
+          release=$(gh api "repos/$REPO/releases/tags/$TAG" 2>/dev/null || echo "")
+          if [ -z "$release" ]; then
+            echo "No existing Release for $TAG."
+            echo "identical=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          asset_id=$(printf '%s' "$release" | python3 -c \
+            "import json,sys
+             data = json.load(sys.stdin)
+             apks = [a for a in data.get('assets', []) if a.get('name', '').endswith('.apk')]
+             print(apks[0]['id'] if len(apks) == 1 else '')")
+          if [ -z "$asset_id" ]; then
+            echo "::error::$TAG is already published with no single APK asset to compare against."
+            exit 1
+          fi
+          digest=$(gh api "repos/$REPO/releases/assets/$asset_id" --jq .digest | sed 's/^sha256://')
+          if [ "$digest" != "$expected" ]; then
+            echo "::error::$TAG is already published with different bytes."
+            echo "::error::  published $digest"
+            echo "::error::  candidate  $expected"
+            echo "::error::Changed published content requires a new version."
+            exit 1
+          fi
+          echo "::notice::$TAG is already published with these exact bytes; this run changes nothing."
+          echo "identical=true" >> "$GITHUB_OUTPUT"
+
+      - name: Compose the release notes
+        # The waiver reason is here on purpose. A release nobody can tell was gated is a
+        # release whose claim is indistinguishable from one that was not.
+        env:
+          TAG: ${{ needs.select.outputs.tag }}
+          WAIVER: ${{ inputs.gate_waiver_reason }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## SHA-256"
+            echo
+            echo '```'
+            echo "$TAG  $(sha256sum "$APK" | cut -d' ' -f1)"
+            echo '```'
+            echo
+            if [ -n "$(printf '%s' "${WAIVER:-}" | tr -d '[:space:]')" ]; then
+              echo "## Acceptance gate waived"
+              echo
+              echo "This release was published without the device coverage its tag"
+              echo "requires. The reason the publisher gave:"
+              echo
+              echo "> $WAIVER"
+              echo
+              echo "A waiver covers insufficient coverage only. It does not turn an"
+              echo "unmeasured device into a measured one."
+            else
+              echo "## Acceptance gate"
+              echo
+              echo "Coverage is recorded in this repository's acceptance gate document"
+              echo "at the evidence revision this release was published from."
+            fi
+          } > release-notes.md
+          cat release-notes.md
+
+      - name: Publish GitHub Release
+        if: steps.existing.outputs.identical != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.select.outputs.tag }}
+          generate_release_notes: true
+          body_path: release-notes.md
+          files: ${{ env.APK }}
+          fail_on_unmatched_files: true
+
+      - name: Say plainly that the release was gated
+        run: |
+          {
+            echo "## Published \`${{ needs.select.outputs.tag }}\`"
+            echo
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| source | \`${{ needs.select.outputs.source }}\` |"
+            echo "| evidence | \`${{ needs.select.outputs.evidence_sha }}\` |"
+            echo "| candidate run | \`${{ inputs.candidate_run_id }}\` |"
+            echo "| candidate artifact | \`${{ inputs.candidate_artifact_id }}\` |"
+            echo "| publisher revision | \`${{ needs.select.outputs.publisher_revision }}\` |"
+            if [ -n "$(printf '%s' "${{ inputs.gate_waiver_reason }}" | tr -d '[:space:]')" ]; then
+              echo "| gate | **waived** — see the release notes |"
+            else
+              echo "| gate | met |"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

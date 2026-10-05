@@ -26,17 +26,17 @@ Sizes below are the int8 variants (the demos' default), encoder+decoder+joiner f
 | `sherpa-onnx-moonshine-tiny-en-int8` / `base-en-int8` | Offline | English (v2 adds ar/cn/es/ja/ko/uk/vi) | tiny: encoder 17 MB + cached decoder 43 MB; mobile-focused. | |
 | `sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8` | Offline (VAD/simulated) | English | encoder 652 MB + decoder 7 MB ≈ ~660 MB | High quality, cased+punctuated; too large to bundle; optional download tier. |
 | `sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8` | Offline | 25 European languages | encoder 652 MB + decoder 12 MB ≈ ~664 MB | Multilingual-quality tier, download only. |
-| `silero_vad.onnx` | VAD | — | ~2 MB (see ticket 02) | Bundle always. |
+| `silero_vad.onnx` | VAD | — | 629 KB (643,854 bytes; `silero_vad.int8.onnx` is 208 KB) | Bundle always. Measured on the upstream `asr-models` release, not from the docs page. |
 
 Excluded for V1 defaults: QNN/RKNN NPU builds (behind config until benchmarking, per `sherpa-onnx.md`), FunASR Nano / Qwen3-ASR / Cohere Transcribe / Omnilingual (LLM-scale or niche, no mid-range streaming fit), T-One (Russian only), offline zipformer/conformer EN models (heavier than the streaming alternatives without streaming benefit).
 
 ## Recommended V1 defaults (hypothesis to be confirmed by benchmarking)
 
-1. **VAD (bundled):** Silero VAD, ~2 MB, windowSize 512, gate the mic stream.
-2. **Streaming English (bundled default):** `sherpa-onnx-streaming-zipformer-en-20M-2023-02-17` int8 (~45 MB). Streaming partials via `OnlineRecognizer` endpoint lifecycle; falls back to hiding behind VAD if CPU-bound.
+1. **VAD (bundled):** Silero VAD, 629 KB, windowSize 512, gate the mic stream.
+2. **Streaming English (V1 default, downloaded):** `sherpa-onnx-streaming-zipformer-en-20M-2023-02-17` int8 (~45 MB installed from a 127,887,156-byte archive, about 128 MB downloaded). Not bundled — see item 5. Streaming partials via `OnlineRecognizer` endpoint lifecycle; falls back to hiding behind VAD if CPU-bound.
 3. **Streaming multilingual (download):** `sherpa-onnx-streaming-zipformer-small-bilingual-zh-en-2023-02-16` int8 for zh+en; or streaming paraformer bilingual if 20M-class quality is unacceptable.
 4. **Quality fallback (offline, simulated streaming via VAD):** English → Whisper `tiny.en` int8 or Moonshine `tiny-en` int8; multilingual → SenseVoice int8 (zh/en/ja/ko/yue). Parakeet-TDT 0.6b v2/v3 held as optional premium download behind benchmarking.
-5. **Packaging:** bundle Silero VAD + streaming-zipformer-en-20M; download everything else via `ModelStore` (per ticket 02 design consequences). Never bundle a >200 MB model in assets.
+5. **Packaging:** bundle the Silero VAD only (629 KB); **download the streaming-zipformer-en-20M on first launch**, along with everything else, via `ModelStore` (per ticket 02 design consequences). Never bundle a >200 MB model in assets. **Superseded for the streaming ASR default by [ADR-0010](../adr/0010-release-artifact-shape.md)**, which moved it from bundled to downloaded: int8 ONNX deflates poorly, so bundling cost ~40 MB of compressed APK — more than every other release decision combined — against a local-first product that already had a download tier. The cost is stated rather than hidden: **first launch needs the network.** The download tiers in items 3 and 4 were always correct; only the default was wrong.
 
 ## Device-benchmarking plan
 
@@ -54,7 +54,30 @@ Goal: confirm or revise the recommended defaults per device tier before shipping
 
 **Pass thresholds (proposed, tuned after first run):** RTF ≤ 0.3 at num_threads=4 on the weakest tier; first partial ≤ 500 ms; Final within ~1 s of endpoint/VAD-segment close; WER regression vs the larger model in family ≤ +2 absolute on test-clean; peak RSS ≤ 1 GB on 4 GB devices.
 
+> **These thresholds are unmeasured, and one of them is currently unmeasurable.** The
+> project has one or two Android devices, so there is no *weakest tier* to measure
+> "RTF ≤ 0.3 at `num_threads=4`" against. The bar above stands exactly as written — it is
+> **not** redefined to fit whatever phone is to hand — and it is gated instead by the
+> acceptance gate's existing "aspirational until hardware exists" mechanism
+> (`docs/quality/acceptance-gate.md`, ADR-0008). A benchmark run may report whether the
+> weakest *available* device met a threshold, and must name that device; a single-device
+> figure is not a gate result and must not be labelled as one.
+
 **Method:** script via the same Kotlin API the provider will use (`OnlineRecognizer`/`OfflineRecognizer` + `Vad`), fixed 16 kHz mono eval set, 5 warmup decodes discarded, median of ≥20 iterations, thermal state noted, `provider="cpu"`, int8 variants only (fp32 as a spot check on one device if RTF fails).
+
+> **Three instruments measure these models, and only the third measures OpenFlow.**
+> 1. sherpa-onnx's **prebuilt demo APKs** — directional, zero code.
+> 2. **This method**: an API-level script over the same sherpa-onnx Kotlin API
+>    (`OnlineRecognizer`/`OfflineRecognizer` + `Vad`). Directional, but it includes this
+>    project's VAD and thread model. Built by ticket 40, run by ticket 41.
+> 3. **Through OpenFlow's own `SpeechProvider`** — VAD gating the mic stream, the
+>    `OnlineStream` accept/decode loop, endpointing, result mapping and the decode thread.
+>    The **shipping** number. Ticket 30, which cannot run until the provider exists
+>    (ticket 42).
+>
+> All three report into `docs/providers/model-benchmark-results.md` as separate sections,
+> each labelled with its instrument. **The gap between 2 and 3 is the cost of the
+> integration** — it is the measurement, not a duplicate to be tidied away.
 
 **Decision rule:** pick the smallest model in each family that passes thresholds; escalate to the next size up when WER gap justifies it; gate multilingual default on SenseVoice vs streaming-bilingual streaming-quality comparison. Results, when run, go in `docs/providers/model-benchmark-results.md` and revise the "Recommended V1 defaults" section above.
 
@@ -62,5 +85,5 @@ Goal: confirm or revise the recommended defaults per device tier before shipping
 
 - Model index and small-models page: https://k2-fsa.github.io/sherpa/onnx/pretrained_models/index.html, https://k2-fsa.github.io/sherpa/onnx/pretrained_models/small-online-models.html
 - Per-model sizes (file listings): HuggingFace `csukuangfj/sherpa-onnx-*` (parakeet-tdt 0.6b v2/v3, sense-voice, streaming-paraformer-bilingual-zh-en); k2-fsa release docs pages for whisper `tiny.en`, moonshine `tiny-en-int8`/`base-en-int8`, streaming zipformer en-20M/en-2023-06-26/small-bilingual
-- VAD distribution and sizes: `docs/providers/sherpa-onnx.md` (Silero ~2 MB, windowSize 512)
+- VAD distribution and sizes: `docs/providers/sherpa-onnx.md` (Silero 629 KB, windowSize 512), confirmed against the `silero_vad.onnx` asset on the upstream `asr-models` release
 - Streaming/offline API semantics and simulated streaming: `docs/providers/sherpa-onnx.md`

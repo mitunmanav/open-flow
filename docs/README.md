@@ -26,6 +26,10 @@ nobody can trust.
 | [0007-build-toolchain-and-sdk-levels.md](adr/0007-build-toolchain-and-sdk-levels.md) | Build toolchain, SDK levels, `minSdk` 26 |
 | [0008-acceptance-gate-two-bars.md](adr/0008-acceptance-gate-two-bars.md) | The acceptance gate's two bars, and tag-driven enforcement |
 | [0009-automated-dependency-landing-path.md](adr/0009-automated-dependency-landing-path.md) | How an automated dependency bump reaches `main` |
+| [0010-release-artifact-shape.md](adr/0010-release-artifact-shape.md) | What V1 ships: distribution channel, minification, ABIs, model delivery, size ceiling |
+| [0011-bubble-overlay-window.md](adr/0011-bubble-overlay-window.md) | The bubble overlay window: lifecycle, flags, anchoring, keyboard, and screen capture |
+| [0012-release-signing.md](adr/0012-release-signing.md) | Release signing: where the key comes from, and why an unsigned release fails the build |
+| [0013-first-launch-order.md](adr/0013-first-launch-order.md) | First launch: the order, why the download is opt-in and blocking, and why the accessibility disclosure comes second |
 
 ## Architecture
 
@@ -41,6 +45,7 @@ nobody can trust.
 | --- | --- |
 | [sherpa-onnx.md](providers/sherpa-onnx.md) | sherpa-onnx streaming, offline, VAD, and endpointing on Android |
 | [model-selection.md](providers/model-selection.md) | The benchmark matrix and the V1 default model |
+| [model-benchmark-results.md](providers/model-benchmark-results.md) | What has actually been measured, and by which instrument — **currently nothing** |
 | [provider-authoring.md](providers/provider-authoring.md) | Implementing `SpeechProvider` and registering the adapter |
 | [provider-testing.md](providers/provider-testing.md) | Capabilities Honesty and the shared Contract Test suite |
 | [provider-proposal.md](providers/provider-proposal.md) | When to propose a provider, and the licensing obligations |
@@ -61,7 +66,7 @@ restating it, so the two cannot drift apart.
 
 | Document | What's in it |
 | --- | --- |
-| [acceptance-gate.md](quality/acceptance-gate.md) | The acceptance gate: two bars, fourteen scenarios, and how a run is recorded |
+| [acceptance-gate.md](quality/acceptance-gate.md) | The acceptance gate: two bars, required scenarios, and how a run is recorded |
 
 That document carries a fenced `json` status block that CI parses and **no prose
 outside it is ever parsed**. It is embedded in the human record on purpose, so coverage

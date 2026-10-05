@@ -133,3 +133,17 @@ interacts badly with `enforce_admins` plus linear history.
   decision; the ticket that narrows the dependency group is the place to revisit it.
 - **The script is the documented path, not an optional convenience.** A procedure that
   works only when remembered is not a landing path.
+- **The script exists, at `.github/scripts/land_dependency_pr.py`, with the procedure in
+  `CONTRIBUTING.md` under "Landing a Dependabot bump".** Two things it does that this
+  decision did not anticipate, both narrowing rather than widening. It refuses a
+  source that is **not** automation-authored, because a script whose purpose is "make
+  this commit pass attribution" would otherwise launder a collaborator's commit into
+  the owner's name — R2's purpose inverted. And a **major** bump additionally requires
+  `--read-changelog`, which is a claim the script cannot check: the accountability
+  argument above is only worth anything if the procedure says where to discharge it.
+- **Landing is a new pull request from your own branch, then closing the bot's** — not
+  a force-push onto Dependabot's branch. A squash takes its author from the pull
+  request, not from the commit, so merging the bot's pull request attributes
+  `dependabot[bot]` however the commit underneath is signed. This is why the `Refs:`
+  pointer above is load-bearing rather than tidy: it is the only surviving link to the
+  bot's pull request once the landing path is manual.

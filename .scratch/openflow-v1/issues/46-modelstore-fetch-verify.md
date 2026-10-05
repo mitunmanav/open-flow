@@ -137,5 +137,11 @@ commit therefore stages only this ticket's hunk of
 `providers/sherpa/build.gradle.kts` (the commons-compress dependency and the
 unit-test dependency); ticket 40's uncommitted changes to the same file
 remain in the working tree untouched, for that session or the owner to land.
+One pre-staged change did ride along in the commit, and it is recorded
+here rather than left silent: ticket 31's session had already staged
+the rename `31-runtime-rtf-guard.md → 31-latency-guard.md` in the
+index before this ticket's `git add`, so the commit includes that
+rename — a 100%-similar rename of a resolved ticket's file, staged by
+the session that resolved it.
 The map's Decisions-so-far pointer for this ticket is likewise left in the
 working tree, beside the other sessions' uncommitted map edits.

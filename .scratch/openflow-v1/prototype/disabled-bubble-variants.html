@@ -1,0 +1,1277 @@
+<!doctype html>
+<!--
+  PROTOTYPE — throwaway. VARIANT EXPLORER. Do not ship, do not port.
+
+  Question (ticket 49): a user switches the Bubble off. It is ABSENT — no
+  window, no state, nothing anywhere that says the product exists. How do they
+  get it back?
+
+  FOUR ANSWERS, and they disagree about a different thing each:
+
+    A  the-app     The way back is the app. Settings → Bubble is the only
+                   switch, disabling asks first, and the Ready screen's bubble
+                   row is the second way back. Nothing exists outside OpenFlow.
+    B  launcher    The way back is the launcher. shortcuts.xml, long-press the
+                   icon or tap a pinned tile. No confirm — the escape hatch is
+                   one tap, and a confirm for that is friction.
+    C  residue     Disabled means RETRACTED, not absent: a 14px nub stays at the
+                   Anchor and restores on tap. Amends ADR-0011's "disabled means
+                   absent" — which is why it is here rather than in the bin.
+    D  offer       Disabling is initiated at the bubble and offers the way out
+                   once, contextually: "pin a shortcut so you can bring it back
+                   without opening OpenFlow."
+
+  ── ONE OF THE TICKET'S OWN OPTIONS IS ALREADY RULED OUT ──────────────────
+  Ticket 49 asks whether the disabled state needs "a launcher shortcut, a
+  notification, a shortcuts.xml pinned tile". The notification is not available:
+  ADR-0011 settled that the notification channel "carries the recording indicator
+  and nothing else, ever", and a "your bubble is off" notification is a second
+  thing on that channel — the exact noise that would defeat the state's purpose.
+  So the choice is between two places, and both of them are somebody else's
+  surface: the app, or the launcher. That is the real decision.
+
+  ── WHAT IS BEING JUDGED ──────────────────────────────────────────────────
+  THE ROUND TRIP, not a settings row. Each variant is a complete path from
+  "bubble is on" through "bubble is off" to "bubble is back", because the
+  ticket's question is what the *gap* feels like, and a toggle photographed on
+  its own cannot answer that. The palette, type and flat/hairline/zero-radius
+  language are ticket 19's, measured, not up for renegotiation.
+
+  ── RULES HELD, AND HOW ───────────────────────────────────────────────────
+  · Nothing is hidden by default. No resting style is `opacity:0`; the
+    entrance keyframes use fill-mode backwards, so an animation that never runs
+    leaves its element visible rather than absent.
+  · Motion is one choreographed entrance. Nothing else moves on its own — no
+    scroll-triggered anything, no progress bar.
+  · Reduced motion is no animation, and it is only safe because every resting
+    state is plain CSS. The one-shot classes are not added at all when motion is
+    reduced — leaving a class on a suppressed animation is how a class outlives
+    its purpose.
+  · A press INVERTS (ground for ink), so it must not cross-fade: a transition
+    walks the label through mid-grey on mid-grey, below AA mid-press.
+  · Both themes are built, and every control sets `color` explicitly rather than
+    inheriting the UA's buttontext — which is black, and which is how a near-black
+    row renders pure black on near-black in dark mode at 1.06:1 while the same
+    code measures 19:1 in light.
+  · State is not signalled by colour alone. The bubble's state is a word and a
+    shape change; the row's state is a word.
+  · The bottom reserve is MEASURED from this file's own control bar, because a
+    guessed 8rem was 256px against a bar that is 872px at 200% font — which laid
+    the bar across the phone and covered the primary action, so every large-font
+    hit-test was measuring the harness instead of the design.
+  · Every claim is set against its limit, the limit half in mono. A promise
+    nobody has bounded is not a promise.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE — a disabled bubble gets switched back on (ticket 49)</title>
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   Tokens. Ticket 19's palette verbatim, and every value was measured for
+   WCAG AA in both themes. One accent. A failure is ink and the specific words,
+   never a red.
+   ══════════════════════════════════════════════════════════════════════════ */
+@font-face{font-family:'Archivo';src:url('../../../website/fonts/archivo-latin-var.woff2') format('woff2');font-weight:100 900;font-stretch:62% 125%;font-display:swap}
+@font-face{font-family:'JetBrains Mono';src:url('../../../website/fonts/jetbrains-mono-latin-var.woff2') format('woff2');font-weight:400 800;font-display:swap}
+
+:root{
+  --ground:#F4F4F2; --ink:#0A0A0A; --mid:#4A4A48; --low:#6E6E6B;
+  --rule:rgba(10,10,10,.16); --rule-hi:rgba(10,10,10,.34); --bar:rgba(10,10,10,.14);
+  --accent:#5B21D6; --on-accent:#FFFFFF; --field:rgba(10,10,10,.05);
+  --ui:'Archivo',system-ui,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --s1:.25rem; --s2:.5rem; --s3:.75rem; --s4:1rem; --s5:1.5rem; --s6:2rem;
+  --t-micro:.6875rem; --t-small:.75rem; --t-body:.875rem; --t-base:1rem;
+  --t-sub:1.25rem; --t-display:1.75rem;
+  --nav-inset:3rem; /* 48px — a nav bar whose own keys are under the floor is
+                       a bar you cannot press, and the reserve has to be real
+                       space in the layout column, not padding on the action */
+  --tools-h:9rem; /* MEASURED below — never trusted as authored */
+}
+:root[data-theme="dark"]{
+  --ground:#0A0A0A; --ink:#F4F4F2; --mid:#B4B4B0; --low:#8E8E8A;
+  --rule:rgba(244,244,242,.18); --rule-hi:rgba(244,244,242,.4); --bar:rgba(244,244,242,.16);
+  --accent:#A78BFA; --on-accent:#0A0A0A; --field:rgba(244,244,242,.06);
+}
+
+/* A phone's DISPLAY does not widen when the font grows — only the type inside
+   it changes. So the device frame is fixed px and everything the user can scale
+   is rem. Sizing the frame in rem made the "phone" a tablet at 200% font, which
+   hid the case the control exists to expose. */
+html[data-fs="150"]{font-size:24px}
+html[data-fs="200"]{font-size:32px}
+
+*{box-sizing:border-box;border-radius:0}
+html,body{margin:0}
+body{
+  background:var(--ground);color:var(--ink);
+  font-family:var(--ui);font-size:var(--t-base);line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:var(--mono);font-size:var(--t-micro);letter-spacing:.005em;line-height:1.7}
+.dim{color:var(--low)}
+/* The width axis. Archivo carries 62–125% and the site's typographic idea is
+   that axis rather than a scale, so the app inherits it: display type is set
+   EXTENDED at weight 800, body at normal width. One axis, used deliberately in
+   one place — every heading here is a thing being named, not a label. */
+.display{font-weight:800;font-stretch:125%;letter-spacing:-.015em;line-height:1.1}
+button{font:inherit;color:inherit;background:none;border:0;margin:0;padding:0}
+
+/* ── the device ──────────────────────────────────────────────────────────── */
+.stage{min-height:100vh;display:grid;place-items:center;
+  padding:1.5rem 1rem calc(var(--tools-h) + 1.5rem)}
+.sheet{
+  width:416px;max-width:100%;height:min(46rem,calc(100vh - var(--tools-h) - 3rem));
+  border:2px solid var(--ink);background:var(--ground);
+  display:flex;flex-direction:column;position:relative;overflow:hidden;
+}
+@media (max-width:480px){
+  .stage{padding:1rem 0 calc(var(--tools-h) + 1rem)}
+  .sheet{width:100%;height:calc(100vh - var(--tools-h) - 2rem);border-left:0;border-right:0}
+}
+
+.statusbar{flex:none;display:flex;align-items:center;gap:var(--s2);padding:.4rem var(--s4) .35rem;
+  font-family:var(--mono);font-size:var(--t-micro);color:var(--low);border-bottom:1px solid var(--rule)}
+.statusbar .grow{flex:1}
+
+/* ── surfaces. Four of them, and which one you are looking at is the variant. ── */
+
+/* HOST — somebody else's app. The Bubble exists on top of this, so the host is
+   built to be dense enough that the Bubble reads as floating over something
+   real. An empty rectangle made the premise untestable. */
+.host{flex:1;display:flex;flex-direction:column;position:relative;overflow:hidden}
+.host .appbar{flex:none;display:flex;align-items:center;gap:var(--s3);
+  min-height:3.5rem;padding:0 var(--s3) 0 var(--s2);border-bottom:2px solid var(--ink)}
+.host .who{flex:1;min-width:0}
+.host .who .name{font-weight:800;font-stretch:125%;font-size:var(--t-base);letter-spacing:-.02em}
+.host .who .sub{font-family:var(--mono);font-size:var(--t-micro);color:var(--low)}
+.host .av{flex:none;display:grid;place-items:center;width:2.25rem;height:2.25rem;
+  background:var(--accent);color:var(--on-accent);font-weight:800;font-size:var(--t-small)}
+/* The host's own back arrow is drawn at 2.5rem, which is under the floor. It is
+   somebody else's chrome, but it is still a control a finger has to hit, so it
+   gets the floor like everything else. */
+.host .appbar .iconbtn{width:3rem;height:3rem}
+
+.host .thread{flex:1;overflow:hidden;padding:var(--s3) var(--s3) 0;
+  display:flex;flex-direction:column;gap:var(--s2);min-height:0}
+/* Incoming is outlined, outgoing is filled with the accent — the same two-state
+   device the whole language uses, and it is what makes direction readable with
+   no colour vision at all. */
+.msg{max-width:80%;padding:.4rem .6rem;font-size:var(--t-body);line-height:1.4}
+.msg .t{display:block;font-family:var(--mono);font-size:var(--t-micro);color:var(--low);
+  margin-top:.15rem}
+.msg.in{align-self:flex-start;border:1px solid var(--rule-hi)}
+.msg.out{align-self:flex-end;background:var(--accent);color:var(--on-accent);border:2px solid var(--accent)}
+/* A solid tint rather than opacity, because a translucent foreground is one the
+   compositor has to be trusted to resolve and an audit reading `color` never
+   sees it. A tint is also PER THEME: #D6CBF7 measures 5.23:1 on the light
+   accent and 1.78:1 on the dark one, so a single hard-coded value is a value
+   that only works in the theme it was measured in — which is exactly what the
+   light-mode-only audits kept missing. */
+.msg.out .t{color:#D6CBF7}
+:root[data-theme="dark"] .msg.out .t{color:var(--on-accent)}
+.msg .caret{display:inline-block;width:2px;height:1.05em;background:currentColor;
+  vertical-align:-.15em}
+.msg.typing .who{display:inline-block;width:.4rem;height:.4rem;background:var(--low);margin-right:.35rem}
+
+/* The suggestion strip is the premise made visible: there is a keyboard here,
+   and the Bubble rides above it rather than replacing it. */
+.strip{flex:none;display:flex;gap:var(--s2);padding:var(--s2) var(--s3);
+  border-top:1px solid var(--rule);overflow:hidden}
+.strip span{flex:none;padding:.15rem .5rem;border:1px solid var(--rule);
+  font-size:var(--t-small);color:var(--mid);white-space:nowrap}
+
+.host .field{flex:none;border-top:2px solid var(--ink);
+  padding:var(--s2) var(--s3) calc(var(--s2) + var(--nav-inset));
+  display:flex;align-items:center;gap:var(--s2)}
+.host .field .line{flex:1;min-height:3rem;border:1px solid var(--rule-hi);
+  padding:.65rem var(--s3);font-size:var(--t-body);color:var(--ink)}
+.host .mic{flex:none;display:grid;place-items:center;width:3rem;height:3rem;
+  border:2px solid var(--ink);cursor:pointer;background:var(--ground)}
+.host .mic:hover{background:var(--field)}
+.host .mic:active{background:var(--ink);color:var(--ground)}
+.host .mic svg{display:block}
+.host .mic path,.host .mic rect{fill:currentColor}
+
+/* OPENFLOW — the app. A top app bar whose back actually reverses, then rows. */
+.app{flex:1;display:flex;flex-direction:column;min-height:0}
+.appbar{flex:none;display:flex;align-items:center;gap:var(--s1);min-height:3.5rem;
+  padding:0 var(--s2) 0 var(--s4);border-bottom:2px solid var(--ink)}
+.appbar .brand{flex:none;font-weight:800;font-stretch:125%;font-size:var(--t-base);letter-spacing:-.02em}
+.appbar .sep{flex:none;color:var(--low);font-family:var(--mono);font-size:var(--t-micro)}
+.appbar .title{min-width:0;overflow-wrap:anywhere}
+.appbar .grow{flex:1}
+/* A flex item will not shrink below its content, so a back button gets squeezed
+   under the 48dp floor it exists to guarantee. */
+.iconbtn{flex:none;display:grid;place-items:center;width:3rem;height:3rem;
+  cursor:pointer;border:1px solid transparent}
+.iconbtn:hover{background:var(--field);border-color:var(--rule)}
+.iconbtn:active{background:var(--ink);color:var(--ground);border-color:var(--ink)}
+.iconbtn:focus-visible,.row:focus-visible,.tile:focus-visible,.act:focus-visible,
+.primary:focus-visible,.shortcut:focus-visible,.nub:focus-visible,.menubtn:focus-visible{
+  outline:2px solid var(--accent);outline-offset:-2px}
+.iconbtn svg{display:block}
+
+.scroll{flex:1;overflow:auto;min-height:0}
+.rows{margin:0;padding:0;list-style:none;border-top:2px solid var(--ink)}
+.rows.bare{border-top:0}
+.row{display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:2px var(--s3);
+  min-height:4.5rem;width:100%;padding:.9rem var(--s4);border-bottom:1px solid var(--rule);
+  text-align:left;cursor:pointer;position:relative;
+  transition:background-color .1s linear}
+.row:hover{background:var(--field)}
+.row:active{background:var(--ink);color:var(--ground)}
+.row .name{grid-column:1;font-weight:700;font-size:var(--t-body);letter-spacing:-.01em}
+.row .state{grid-column:2;font-family:var(--mono);font-size:var(--t-micro);color:var(--low);white-space:nowrap}
+.row:active .state{color:var(--ground)}
+.row .does{grid-column:1 / span 2;font-size:var(--t-small);color:var(--mid);margin-top:2px}
+.row:active .does{color:var(--ground)}
+.row .limit{grid-column:1 / span 2;font-family:var(--mono);font-size:var(--t-micro);color:var(--low);margin-top:var(--s1)}
+.row:active .limit{color:var(--ground)}
+.row.off .name{color:var(--low)}
+.row.off:active .name{color:var(--ground)}
+
+/* The switch. A brutalist switch: a track that fills and a square that crosses.
+   State is also carried by the row's word, so this is never the only signal. */
+.sw{grid-column:2;justify-self:end;width:2.75rem;height:1.5rem;border:2px solid var(--ink);
+  background:var(--field);position:relative;margin-top:.15rem}
+.sw i{position:absolute;top:0;bottom:0;left:0;width:50%;background:var(--ink);
+  transition:transform .14s cubic-bezier(.2,0,0,1)}
+.sw.on{background:var(--accent);border-color:var(--accent)}
+.sw.on i{transform:translateX(100%);background:var(--on-accent)}
+.sw.noanim i{transition:none}
+
+/* The system navigation bar, drawn as an overlay on a reserved inset. It is
+   here because the prototype MEASURED a hole: from the host screen there was no
+   route to anything at all, because variant A claims nothing exists outside
+   OpenFlow — and a screen with no exit cannot demonstrate the round trip. The
+   launcher is reachable in every variant; the question is only whether it
+   carries a route back to the Bubble. */
+.navbar{position:absolute;left:0;right:0;bottom:0;z-index:4;height:var(--nav-inset);
+  display:flex;align-items:center;justify-content:center;gap:var(--s4);
+  background:var(--ground);border-top:1px solid var(--rule)}
+.navbar button{display:grid;place-items:center;width:3rem;height:3rem;cursor:pointer;
+  border:1px solid transparent}
+.navbar button:hover{background:var(--field);border-color:var(--rule)}
+.navbar button:active{background:var(--ink);color:var(--ground)}
+.navbar button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.navbar .pill{display:block;width:2.75rem;height:.25rem;background:var(--ink)}
+.navbar .sq{display:block;width:.9rem;height:.9rem;border:2px solid currentColor}
+
+/* LAUNCHER — the other candidate place. A grid of icons and a tile row. */
+.launcher{flex:1;display:flex;flex-direction:column;padding:var(--s4) var(--s4) var(--nav-inset);
+  gap:var(--s5);overflow:auto}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--s3) var(--s2)}
+.appicon{display:flex;flex-direction:column;align-items:center;gap:var(--s1);
+  min-height:4.5rem;padding:var(--s2) 0;cursor:pointer;border:1px solid transparent}
+.appicon:hover{background:var(--field);border-color:var(--rule)}
+.appicon:active{background:var(--ink);color:var(--ground)}
+.appicon .glyph{flex:none;display:grid;place-items:center;width:3rem;height:3rem;
+  border:2px solid currentColor;color:var(--ink)}
+.appicon .glyph svg{display:block;width:1.5rem;height:1.5rem;fill:currentColor}
+.appicon .glyph.mark{border:0;color:var(--accent)}
+.appicon .glyph.mark svg{width:3rem;height:3rem}
+.appicon:active .of{color:var(--ink)}
+.appicon .lbl{font-family:var(--mono);font-size:var(--t-micro);text-align:center;line-height:1.35}
+.tilerow{display:flex;gap:var(--s3);padding-top:var(--s4);border-top:1px solid var(--rule)}
+.tile{flex:1;display:flex;flex-direction:column;align-items:center;gap:var(--s2);
+  min-height:5rem;padding:var(--s3) var(--s2);border:2px solid var(--ink);cursor:pointer;
+  background:var(--ground)}
+.tile:hover{background:var(--field)}
+/* A press inverts, so it must swap instantly — a cross-fade walks the label
+   through mid-grey on mid-grey, below AA while the finger is down. */
+.tile:active{background:var(--ink);color:var(--ground);transition:none}
+.tile .glyph{display:grid;place-items:center;width:2.5rem;height:2.5rem;color:inherit}
+.tile .glyph svg{display:block;width:2.5rem;height:2.5rem;fill:currentColor}
+.tile .lbl{font-family:var(--mono);font-size:var(--t-micro);text-align:center;line-height:1.35}
+.tile.pinned{border-color:var(--accent)}
+.tile.off{border-style:dashed;border-color:var(--rule-hi);color:var(--low)}
+
+/* THE BUBBLE — the product, and the one place this spends its expression.
+   Its core is the product's own mark: five strokes, flat, knocked out of the
+   ground — the same thing website/favicon.svg carries, so the Bubble and the
+   launcher icon are recognisably the same object at a glance. Idle is the mark
+   at rest; dictating is the same mark, taller, on accent. STATE IS SHAPE, so it
+   survives with no colour at all. */
+.bubble{position:absolute;z-index:5;width:3.5rem;height:3.5rem;
+  border:2px solid var(--ink);background:var(--ground);cursor:pointer;padding:0;
+  display:grid;place-items:center;
+  -webkit-tap-highlight-color:transparent}
+.wave{display:flex;align-items:center;gap:.11rem;height:1.3rem}
+.wave i{display:block;width:.16rem;background:var(--ink);transform-origin:center}
+.wave i:nth-child(1),.wave i:nth-child(5){height:.34rem}
+.wave i:nth-child(2),.wave i:nth-child(4){height:.78rem}
+.wave i:nth-child(3){height:1.16rem}
+.bubble.dictating{background:var(--accent);border-color:var(--accent)}
+.bubble.dictating .wave i{background:var(--on-accent)}
+.bubble.dictating .wave{height:1.6rem}
+.bubble.dictating .wave i:nth-child(1),.bubble.dictating .wave i:nth-child(5){height:.55rem}
+.bubble.dictating .wave i:nth-child(2),.bubble.dictating .wave i:nth-child(4){height:1.1rem}
+.bubble.dictating .wave i:nth-child(3){height:1.5rem}
+/* the label sits outboard of the Bubble on a bottom Anchor, never over the
+   field below it */
+.bubble .word{position:absolute;bottom:calc(100% + .35rem);left:50%;transform:translateX(-50%);
+  font-family:var(--mono);font-size:var(--t-micro);color:var(--low);white-space:nowrap}
+.bubble.dictating .word{color:var(--accent);font-weight:700}
+.bubble .word.below{bottom:auto;top:calc(100% + .35rem)}
+.bubble.dictating{border-color:var(--accent)}
+.bubble.grab{cursor:grab}
+
+/* VARIANT C's residue. Deliberately NOT a dictation control: square, hairline,
+   14px, no word until touched. It is what "retracted" looks like. */
+.nub{position:absolute;z-index:5;right:1.25rem;bottom:7.75rem;width:.875rem;height:.875rem;
+  border:1px solid var(--rule-hi);background:var(--ground);cursor:pointer;padding:0;
+  display:grid;place-items:center}
+.nub::after{content:"";position:absolute;inset:-1.25rem} /* grows the hit area to
+  48dp without growing the mark — probed, not added up */
+.nub:hover{border-color:var(--accent)}
+.nub:focus-visible{outline:2px solid var(--accent);outline-offset:6px}
+.nub .hint{position:absolute;bottom:calc(100% + .35rem);left:50%;transform:translateX(-50%);
+  font-family:var(--mono);font-size:var(--t-micro);color:var(--low);white-space:nowrap}
+
+/* THE BUBBLE'S OWN MENU — variant D's protagonist. Long-press to remove. */
+.menu{position:absolute;z-index:6;min-width:12rem;background:var(--ground);
+  border:2px solid var(--ink)}
+.menubtn{display:block;width:100%;min-height:3rem;padding:0 var(--s3);text-align:left;
+  font-size:var(--t-body);cursor:pointer;border-bottom:1px solid var(--rule);
+  display:flex;align-items:center;justify-content:space-between;gap:var(--s3)}
+.menubtn:last-child{border-bottom:0}
+.menubtn:hover{background:var(--field)}
+.menubtn:active{background:var(--ink);color:var(--ground)}
+.menubtn.danger{font-weight:700}
+/* Machine voice, not a keyboard-shortcut hint. "kbd" on every button is the
+   template tell this project has no use for; the words carry the meaning or
+   they are cut. */
+.menubtn .note{font-family:var(--mono);font-size:var(--t-micro);color:var(--low);
+  white-space:nowrap;font-weight:400}
+.menubtn:active .note{color:var(--ground)}
+
+/* SHEET / DIALOG — bottom sheet, for the two questions that need one. */
+.scrim{position:absolute;inset:0;z-index:8;background:rgba(10,10,10,.42)}
+.sheetbox{position:absolute;left:0;right:0;bottom:0;z-index:9;background:var(--ground);
+  border-top:2px solid var(--ink);padding:var(--s4) var(--s4) calc(var(--s4) + var(--nav-inset))}
+.sheetbox h3{margin:0 0 var(--s2);font-size:var(--t-sub);font-weight:800;
+  font-stretch:125%;letter-spacing:-.015em;line-height:1.15}
+.sheetbox p{margin:0 0 var(--s3);font-size:var(--t-body);color:var(--mid)}
+.acts{display:flex;flex-direction:column;gap:var(--s2);margin-top:var(--s4)}
+.act{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);
+  width:100%;min-height:3rem;padding:0 var(--s3);border:2px solid var(--ink);
+  font-size:var(--t-body);font-weight:700;cursor:pointer;background:var(--ground)}
+.act:hover{background:var(--field)}
+.act:active{background:var(--ink);color:var(--ground);transition:none}
+.act .note{font-family:var(--mono);font-size:var(--t-micro);color:var(--low);font-weight:400}
+.act:active .note{color:var(--ground)}
+.primary{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);
+  width:100%;min-height:3.25rem;padding:0 var(--s3);border:2px solid var(--accent);
+  background:var(--accent);color:var(--on-accent);font-size:var(--t-base);
+  font-weight:800;cursor:pointer}
+.primary:hover{filter:brightness(1.08)}
+.primary:active{background:var(--ink);color:var(--ground);border-color:var(--ink);transition:none}
+.primary .note{font-family:var(--mono);font-size:var(--t-micro);font-weight:400;opacity:.85}
+
+/* A limits table. The promise on the left, the limit on the right in mono. */
+.limits{margin:var(--s4) 0 0;padding:0;list-style:none;border-top:1px solid var(--rule)}
+.limits li{display:grid;grid-template-columns:1fr;gap:2px;padding:var(--s3) 0;
+  border-bottom:1px solid var(--rule)}
+.limits .yes{font-size:var(--t-body);font-weight:700}
+.limits .no{font-family:var(--mono);font-size:var(--t-micro);color:var(--low)}
+
+/* ── the state readout. Not part of the design — it is the answer sheet. ──── */
+.readout{width:416px;max-width:100%;margin-top:var(--s4);border:2px solid var(--ink);
+  background:var(--ground)}
+.readout h4{margin:0;padding:.5rem var(--s3);border-bottom:2px solid var(--ink);
+  font-family:var(--mono);font-size:var(--t-micro);color:var(--low);font-weight:400;
+  display:flex;gap:var(--s2);align-items:center}
+.readout h4 .grow{flex:1}
+.readout dl{margin:0;padding:var(--s3);display:grid;grid-template-columns:auto 1fr;
+  gap:var(--s1) var(--s3);font-family:var(--mono);font-size:var(--t-micro);line-height:1.7}
+.readout dt{color:var(--low);white-space:nowrap}
+.readout dd{margin:0;overflow-wrap:anywhere}
+.readout dd .no{color:var(--low)}
+.readout dd .yes{font-weight:700}
+.readout .beat{padding:0 var(--s3) var(--s3);font-size:var(--t-small);color:var(--mid)}
+
+/* ── THE ENTRANCE. The mark assembling itself is the single choreographed
+   moment — structure drawing itself, which is the only motion this project
+   allows. fill-mode backwards, so an animation that never runs leaves its
+   element visible rather than absent, and the class is removed when it ends. ── */
+@keyframes sheet-in{from{transform:translateY(.75rem)}to{transform:translateY(0)}}
+@keyframes stroke-up{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes retract{from{transform:scale(1);opacity:1}to{transform:scale(.5);opacity:0}}
+.sheet{animation:sheet-in .22s cubic-bezier(.2,0,0,1) backwards}
+.bubble.entrance .wave i{animation:stroke-up .3s cubic-bezier(.2,0,0,1) backwards}
+.bubble.entrance .wave i:nth-child(1){animation-delay:.02s}
+.bubble.entrance .wave i:nth-child(2){animation-delay:.07s}
+.bubble.entrance .wave i:nth-child(3){animation-delay:.12s}
+.bubble.entrance .wave i:nth-child(4){animation-delay:.17s}
+.bubble.entrance .wave i:nth-child(5){animation-delay:.22s}
+.bubble.leaving{animation:retract .18s cubic-bezier(.4,0,1,1) forwards}
+
+/* ── prototype switcher. One bar, at the bottom, obviously not the design ── */
+.tools{position:fixed;bottom:0;left:0;right:0;z-index:20;background:var(--ink);color:var(--ground);
+  display:flex;flex-wrap:wrap;justify-content:center;align-items:stretch;gap:1px}
+:root[data-theme="dark"] .tools{background:var(--ground);color:var(--ink);border-top:2px solid var(--ink)}
+.tools button{min-height:3rem;min-width:3rem;padding:0 var(--s3);cursor:pointer;
+  font-family:var(--mono);font-size:var(--t-micro);background:transparent;border:0;color:inherit;
+  transition:background-color .1s linear}
+.tools button:hover{background:rgba(140,140,140,.3)}
+.tools button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.tools [aria-pressed="true"]{background:var(--accent);color:var(--on-accent);transition:none}
+.tools .rule{width:1px;background:currentColor;opacity:.28}
+.tools .name{min-height:3rem;display:flex;align-items:center;padding:0 var(--s3);
+  font-family:var(--mono);font-size:var(--t-micro);opacity:.85;white-space:nowrap}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important}
+  .sheet{animation:none}
+}
+@media (prefers-contrast:more){
+  :root{--rule:currentColor;--rule-hi:currentColor;--bar:currentColor}
+  .sheet,.row,.tile,.readout,.menu,.sheetbox{border-width:3px}
+}
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div>
+    <div class="sheet" id="sheet"></div>
+    <div class="readout" id="readout"></div>
+  </div>
+</div>
+
+<div class="tools" role="group" aria-label="Prototype controls">
+  <button id="prev" aria-label="Previous variant">←</button>
+  <span class="name" id="label"></span>
+  <button id="next" aria-label="Next variant">→</button>
+  <span class="rule"></span>
+  <button data-fs="100" aria-pressed="true">100%</button>
+  <button data-fs="150" aria-pressed="false">150%</button>
+  <button data-fs="200" aria-pressed="false">200%</button>
+  <span class="rule"></span>
+  <button data-theme-mode="light" aria-pressed="false">light</button>
+  <button data-theme-mode="dark" aria-pressed="false">dark</button>
+</div>
+
+<script>
+"use strict";
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Facts, measured. Nothing here is a guess.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Settled by ADR-0011. Rendered here, not invented. */
+const STATE_MODEL = ["disabled", "idle", "dictating"];
+
+/* ADR-0011: the notification channel carries the recording indicator and nothing
+   else, ever. This is why "a notification saying the bubble is off" is not one
+   of the variants — see the header. */
+const NOTIFICATION_RULE =
+  "one channel, the recording indicator, nothing else, ever";
+
+/* Ticket 47 / ADR-0013: permissions are asked contextually, so the way back is
+   offered at the moment of disabling rather than at first launch. */
+const VARIANTS = [
+  {
+    key: "A",
+    name: "the app is the switchboard",
+    place: "Settings → Bubble",
+    confirm: true,
+    launcher: false,
+    residue: false,
+    offer: false,
+    thesis:
+      "Nothing exists outside OpenFlow. The bubble is the product, so the app " +
+      "is where the switch lives, and disabling asks first because a thing that " +
+      "vanishes from every screen deserves one sentence before it goes.",
+  },
+  {
+    key: "B",
+    name: "the launcher is the switchboard",
+    place: "launcher shortcut / pinned tile",
+    confirm: false,
+    launcher: true,
+    residue: false,
+    offer: false,
+    thesis:
+      "The way back is one long-press on the icon, or one tap on a pinned tile, " +
+      "and it never opens the app. No confirm: a confirm in front of an action " +
+      "you can undo in one tap is friction wearing a costume.",
+  },
+  {
+    key: "C",
+    name: "disabled means retracted, not absent",
+    place: "a nub left at the Anchor",
+    confirm: true,
+    launcher: false,
+    residue: true,
+    offer: false,
+    thesis:
+      "The window is never fully torn down — a 14px nub stays at the Anchor and " +
+      "restores on tap. This contradicts ADR-0011's 'disabled means absent' on " +
+      "purpose, and that contradiction is the finding.",
+  },
+  {
+    key: "D",
+    name: "disabling offers the way out once",
+    place: "the bubble's own menu, then a pinned tile",
+    confirm: false,
+    launcher: true,
+    residue: false,
+    offer: true,
+    thesis:
+      "The bubble owns its own removal: long-press it, choose turn off, and it " +
+      "offers a pinned shortcut exactly once, at the moment the user has just " +
+      "proved they want it gone.",
+  },
+];
+
+const V = {};
+VARIANTS.forEach(v => (V[v.key] = v));
+
+/* Reduced motion is not "the same animations, faster". It is no animation at
+   all, and every resting style here is plain CSS precisely so that nothing is
+   lost when it is switched on. The one-shot classes are not added in the first
+   place — leaving a class on a suppressed animation is how the class outlived
+   its purpose in the first place. */
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)");
+
+/* ══════════════════════════════════════════════════════════════════════════
+   State. Hoisted above the screen, like a ViewModel — the round trip outlives
+   a theme change and a font-scale tap, so it cannot live in the DOM.
+   ══════════════════════════════════════════════════════════════════════════ */
+let S = fresh("A");
+
+function fresh(key) {
+  return {
+    v: key,
+    beat: 0,
+    surface: "host", // host | app | launcher | sheet
+    over: "host", // the surface a sheet is a layer over
+    menu: null, // null | "bubble" (D's own menu) | "launcher" (long-press)
+    enabled: true, // the Bubble's lifecycle state, ADR-0011's three
+    dictating: false,
+    pinned: V[key].launcher, // a tile exists from the start in B and D
+    offered: false, // D's one-time offer has been made
+    dismissed: false, // the one-time offer was declined
+    announce: "",
+  };
+}
+
+/* ADR-0011's three states, derived rather than stored — one source of truth, so
+   the readout cannot disagree with the screen. */
+function lifecycle() {
+  if (!S.enabled) return S.dictating ? "dictating" : "disabled";
+  return S.dictating ? "dictating" : "idle";
+}
+
+/* Which surfaces can currently bring the Bubble back. This is the question the
+   ticket asks, so it is computed, not asserted. */
+function routes() {
+  const out = [];
+  if (S.enabled) return ["— nothing needed; it is already here"];
+  if (V[S.v].residue) out.push("the nub at the Anchor (no app, no launcher)");
+  if (V[S.v].launcher && S.pinned) out.push("pinned tile, one tap");
+  if (V[S.v].launcher && !S.pinned)
+    out.push("launcher long-press on the icon (no tile pinned)");
+  if (!V[S.v].launcher || !S.pinned) out.push("OpenFlow → Ready → Bubble row");
+  return out;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Markup. One builder per variant, because the variants disagree about which
+   surface is the protagonist — sharing a layout would defeat the point.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+const ICON_BACK =
+  '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">' +
+  '<path d="M12 4 6 10l6 6" stroke="currentColor" stroke-width="2"/></svg>';
+
+function statusbar(right) {
+  return (
+    '<div class="statusbar"><span>9:41</span><span class="grow"></span>' +
+    "<span>" + right + "</span></div>"
+  );
+}
+
+/* Home is a real route out of every surface, in every variant. */
+function navbar() {
+  return (
+    '<div class="navbar">' +
+    '<button data-act="back" aria-label="Back"><span class="sq"></span></button>' +
+    '<button data-act="home" aria-label="Home"><span class="pill"></span></button>' +
+    "</div>"
+  );
+}
+
+/* The keyboard's own microphone key. Every keyboard already has one and it is
+   where a user goes looking for dictation — so the mock draws it, and labels it
+   as the keyboard's, because a prototype that claimed it was OpenFlow's would be
+   lying about the competition. */
+function hostApp() {
+  const MIC =
+    '<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">' +
+    '<rect x="7.4" y="1.8" width="5.2" height="9.2" rx="2.6"/>' +
+    '<path d="M4.4 8.8a5.6 5.6 0 0 0 11.2 0h1.7a7.3 7.3 0 0 1-6.25 7.2v2.2h3.3v1.7H5.65v-1.7h3.3v-2.2a7.3 7.3 0 0 1-6.25-7.2z"/>' +
+    "</svg>";
+  return (
+    '<div class="host">' +
+    '<div class="appbar">' +
+    '<button class="iconbtn" data-act="nothing" aria-label="Back">' + ICON_BACK + "</button>" +
+    '<span class="av" aria-hidden="true">PR</span>' +
+    '<span class="who"><span class="name">Priya Raghunathan</span><br>' +
+    '<span class="sub">active now</span></span>' +
+    "</div>" +
+    '<div class="thread">' +
+    '<div class="msg in">Did the 15.4 GB phone finally arrive?<span class="t">09:12</span></div>' +
+    '<div class="msg out">It did. Sideloading the build tonight.<span class="t">09:14</span></div>' +
+    '<div class="msg in">And the dictation bubble? Over the keyboard?<span class="t">09:14</span></div>' +
+    '<div class="msg out">Over it. Not replacing it — that was the whole point.<span class="t">09:15</span></div>' +
+    '<div class="msg in">Fine. But it had better come back when I turn it off.<span class="t">09:16</span></div>' +
+    '<div class="msg typing"><span class="who"></span>typing</div>' +
+    "</div>" +
+    /* The suggestion strip is the premise made visible: there IS a keyboard
+       here, and the Bubble rides above it rather than replacing it. */
+    '<div class="strip"><span>fix in the</span><span>fix in the morning</span><span>fixed</span></div>' +
+    '<div class="field"><div class="line">Fix in the <span class="caret"></span></div>' +
+    '<button class="mic" data-act="nothing" aria-label="The keyboard\'s own microphone key, not OpenFlow">' +
+    MIC + "</button></div>" +
+    "</div>"
+  );
+}
+
+/* The Bubble, at an Anchor — an edge plus a margin, never an interior spot.
+   The margin clears the host's own compose field: the first draft sat at 5.5rem
+   and the Bubble landed ON the field it is supposed to serve, which a screenshot
+   caught and no assertion would have. */
+function bubble(kind, anchor) {
+  const pos = {
+    "right-bottom": "right:1rem;bottom:7.75rem",
+    "right-top": "right:1rem;top:4.75rem",
+  }[anchor || "right-bottom"];
+  const cls = "bubble " + kind + (REDUCED.matches ? "" : " entrance");
+  const word =
+    kind === "dictating" ? "listening" : kind === "idle" ? "tap to talk" : "";
+  /* Only D has a long-press menu, so only D's bubble admits to one. A control
+     must not look like it has a menu it does not have. */
+  const hold = V[S.v].offer ? "hold" : "";
+  /* The word sits above the Bubble on a bottom Anchor, so it never lands on the
+     field below it. */
+  const below = (anchor || "right-bottom") === "right-top" ? " below" : "";
+  return (
+    '<button class="' + cls + '" style="' + pos + '" data-act="bubble-press" ' +
+    'aria-label="OpenFlow bubble, ' + (kind === "idle" ? "idle" : "listening") +
+    (hold ? ", press and hold for more" : "") + '">' +
+    '<span class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>' +
+    (word ? '<span class="word' + below + '">' + word + "</span>" : "") +
+    (hold ? '<span class="word' + (below ? "" : " below") + '">hold</span>' : "") +
+    "</button>"
+  );
+}
+
+/* Variant C's residue. It is not a dictation control and does not pretend to
+   be: square, hairline, no word, and the only thing it does is come back. */
+function nub() {
+  return (
+    '<button class="nub" data-act="restore" ' +
+    'aria-label="OpenFlow bubble, retracted. Tap to bring it back">' +
+    '<span class="hint">tap</span></button>'
+  );
+}
+
+function launcherScreen() {
+  const v = V[S.v];
+  const mark = MARK();
+  const tile =
+    v.launcher && S.pinned
+      ? '<button class="tile ' + (S.enabled ? "" : "pinned") + '" data-act="tile" ' +
+        'aria-label="OpenFlow pinned shortcut"><span class="glyph mark">' + mark + "</span>" +
+        '<span class="lbl">' + (S.enabled ? "bubble on" : "bring it back") + "</span></button>"
+      : v.launcher
+        ? '<button class="tile off" data-act="launcher-menu" aria-label="Pin the OpenFlow shortcut">' +
+          '<span class="glyph mark">' + mark + '</span><span class="lbl">not pinned</span></button>'
+        : "";
+  return (
+    '<div class="launcher">' +
+    '<div class="grid">' +
+    /* In B and D the icon's long press IS the route back, so it opens a menu.
+       In A and C there is no menu, so the same tap simply opens the app — which
+       is the difference between the variants, drawn rather than described. */
+    icon(mark, "OpenFlow", V[S.v].launcher ? "launcher-menu" : "go-app", true) +
+    icon(GLYPH.msg, "Messages", "") +
+    icon(GLYPH.cam, "Camera", "") +
+    icon(GLYPH.set, "Settings", "") +
+    icon(GLYPH.notes, "Notes", "") +
+    icon(GLYPH.pod, "Podcasts", "") +
+    icon(GLYPH.wall, "Wallet", "") +
+    icon(GLYPH.clock, "Clock", "") +
+    "</div>" +
+    '<div class="tilerow">' + tile + "</div>" +
+    "</div>"
+  );
+}
+
+/* The product's own mark, lifted from website/favicon.svg: a violet square with
+   one flat waveform knocked out of it. Using the real artwork is the point —
+   the Bubble on screen and the icon in the launcher must be recognisably the
+   same object, or the launcher route reads as a different app. */
+function MARK() {
+  return (
+    '<svg viewBox="0 0 32 32" width="100%" height="100%" aria-hidden="true">' +
+    '<rect width="32" height="32" fill="currentColor"/>' +
+    '<g fill="none" stroke="var(--ground)" stroke-width="2.5" stroke-linecap="square">' +
+    '<path d="M6 16h2"/><path d="M11 16v-5"/><path d="M16 16v-10"/>' +
+    '<path d="M21 16v-7"/><path d="M26 16h-2"/></g></svg>'
+  );
+}
+
+/* Drawn, not typed. A letter in a box is a placeholder that reads as one, and
+   the launcher's whole job here is to look like somewhere a person actually is. */
+const GLYPH = {
+  msg: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v12H9l-4 4v-4H3z"/></svg>',
+  cam: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h5l2-2h4l2 2h5v14H3z"/><circle cx="12" cy="13" r="4" fill="var(--ground)"/></svg>',
+  set: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2 3 3-1 1 3 3 1-1 3 2 3-3 1v3l-3-1-2 3-3-1-3 1v-3l-3-1 1-3-1-3 3-1 1-3 3 1z"/><circle cx="12" cy="12" r="3" fill="var(--ground)"/></svg>',
+  notes: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h16v18H4z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 8h10v2H7zM7 13h10v2H7z"/></svg>',
+  pod: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3"/></svg>',
+  wall: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v13H3z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 10h18v2H3z"/></svg>',
+  clock: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v6h4"/></svg>',
+};
+
+function icon(markup, lbl, act, of) {
+  return (
+    '<button class="appicon" ' + (act ? 'data-act="' + act + '" ' : "") + 'aria-label="' + lbl + '">' +
+    '<span class="glyph ' + (of ? "of" : "") + '">' + markup + "</span>" +
+    '<span class="lbl">' + lbl + "</span></button>"
+  );
+}
+
+/* The long-press menu on the launcher icon — shortcuts.xml, rendered. */
+/* Below the icon row, never over it. The first draft sat at 4.25rem and covered
+   the very icon the menu belongs to; the second at 7.5rem still clipped its
+   label by 10px. The icon row measures 85px, so the menu starts past it — and
+   in rem, so it still clears when the label wraps at 200% font. */
+function launcherMenu() {
+  return (
+    '<div class="menu" style="left:1rem;right:1rem;top:8.75rem">' +
+    '<button class="menubtn" data-act="shortcut">' + (S.enabled ? "Hide bubble" : "Show bubble") +
+    '<span class="note">shortcut</span></button>' +
+    '<button class="menubtn" data-act="pin">' +
+    (S.pinned ? "Remove pinned shortcut" : "Pin to Home screen") +
+    '<span class="note">tile</span></button>' +
+    '<button class="menubtn" data-act="go-app">Open OpenFlow<span class="note">app</span></button>' +
+    "</div>"
+  );
+}
+
+/* OpenFlow's own app bar. The back reverses a real step. */
+function appBar(title, back) {
+  return (
+    '<div class="appbar">' +
+    (back ? '<button class="iconbtn" data-act="back" aria-label="Back">' + ICON_BACK + "</button>" : "") +
+    '<span class="brand">OpenFlow</span><span class="sep">/</span>' +
+    '<span class="title">' + title + "</span><span class='grow'></span></div>"
+  );
+}
+
+/* The Ready screen. ADR-0013's fourth step, and the second way back in every
+   variant — which is why it carries the row in all four. */
+function readyScreen() {
+  const on = S.enabled;
+  return (
+    appBar("Ready", S.surface === "app" && S.beat > 0) +
+    '<div class="scroll"><ul class="rows">' +
+    '<li><button class="row" data-act="nothing"><span class="name">Voice model</span>' +
+    '<span class="state">READY</span><span class="does">streaming zipformer, 45 MB</span></button></li>' +
+    '<li><button class="row" data-act="nothing"><span class="name">Microphone</span>' +
+    '<span class="state">GRANTED</span><span class="does">records while you hold the bubble</span>' +
+    '<span class="limit">a recording is deleted after it is processed</span></button></li>' +
+    '<li><button class="row" data-act="nothing"><span class="name">Dictation service</span>' +
+    '<span class="state">ON</span><span class="does">writes into the field you are in</span>' +
+    '<span class="limit">does not watch your keyboard · does not poll</span></button></li>' +
+    '<li><button class="row ' + (on ? "" : "off") + '" data-act="bubble-row">' +
+    '<span class="name">Bubble</span>' +
+    '<span class="state">' + (on ? "ON" : "OFF") + "</span>" +
+    '<span class="does">' +
+    (on ? "floats over every app you dictate in" : "not available in any app right now") +
+    "</span>" +
+    (on
+      ? '<span class="limit">cannot sit at an interior position — it snaps to an edge</span>'
+      : '<span class="limit">the only way back is here, or the way this variant offers</span>') +
+    "</button></li>" +
+    "</ul>" +
+    '<ul class="limits">' +
+    "<li><span class='yes'>You can always dictate again.</span>" +
+    "<span class='no'>as long as one of the routes above still exists</span></li>" +
+    "</ul></div>"
+  );
+}
+
+function bubbleSettings() {
+  const on = S.enabled;
+  return (
+    appBar("Bubble", true) +
+    '<div class="scroll"><ul class="rows">' +
+    '<li><button class="row" data-act="toggle" aria-pressed="' + on + '">' +
+    '<span class="name">Show bubble</span><span class="sw ' + (on ? "on" : "") + '"><i></i></span>' +
+    "<span class='does'>" +
+    (on ? "floating over other apps" : "hidden from every app") +
+    "</span>" +
+    "<span class='limit'>" +
+    (on ? "needs the overlay permission on this device" : "you can bring it back from here, or " + V[S.v].place) +
+    "</span></button></li>" +
+    row2("Position", "right, bottom") +
+    row2("Shape", "dot") +
+    row2("Opacity", "90%") +
+    "</ul></div>"
+  );
+}
+
+function row2(name, value) {
+  return (
+    '<li><button class="row" data-act="nothing"><span class="name">' + name + "</span>" +
+    '<span class="state">' + value + "</span></button></li>"
+  );
+}
+
+/* Variant D's protagonist: the bubble's own menu, at the bubble. */
+function bubbleMenu() {
+  return (
+    '<div class="menu" style="right:1rem;top:8.5rem;min-width:14rem">' +
+    '<button class="menubtn" data-act="nothing">Shape: dot<span class="note">cycles</span></button>' +
+    '<button class="menubtn" data-act="nothing">Opacity: 90%<span class="note">cycles</span></button>' +
+    '<button class="menubtn danger" data-act="toggle">Turn off<span class="note">hold</span></button>' +
+    "</div>"
+  );
+}
+
+/* A's confirm. The cost of disabling, stated before it happens, and the way back
+   named in the same breath — because a sentence that says what disappears
+   without saying how to get it back is just a warning. */
+function confirmSheet() {
+  return (
+    '<div class="scrim"></div>' +
+    '<div class="sheetbox"><h3>Turn the bubble off?</h3>' +
+    "<p>It disappears from every app. Your position, shape and opacity are kept.</p>" +
+    '<ul class="limits">' +
+    "<li><span class='yes'>It comes back the way it went.</span>" +
+    "<span class='no'>OpenFlow → Ready → Bubble</span></li>" +
+    "<li><span class='yes'>Nothing is deleted.</span>" +
+    "<span class='no'>no recording, no transcript, no history</span></li>" +
+    "</ul>" +
+    '<div class="acts">' +
+    '<button class="primary" data-act="confirm-off">Turn it off<span class="note">the bubble leaves now</span></button>' +
+    '<button class="act" data-act="cancel">Keep it on<span class="note">dismiss</span></button>' +
+    "</div></div>"
+  );
+}
+
+/* D's one-time offer. Contextual, at the moment of disabling — the same rule
+   ADR-0013 used for the download and ADR-0011 for POST_NOTIFICATIONS. */
+function offerSheet() {
+  return (
+    '<div class="scrim"></div>' +
+    '<div class="sheetbox"><h3>Bring it back without opening OpenFlow</h3>' +
+    "<p>Pin a shortcut to your Home screen. It toggles the bubble and opens nothing else.</p>" +
+    '<ul class="limits">' +
+    "<li><span class='yes'>One tap, any time.</span>" +
+    "<span class='no'>we can only offer this once</span></li>" +
+    "<li><span class='yes'>You can unpin it whenever.</span>" +
+    "<span class='no'>it is a launcher tile, not a notification</span></li>" +
+    "</ul>" +
+    '<div class="acts">' +
+    '<button class="primary" data-act="pin-offer">Pin the shortcut<span class="note">one tap</span></button>' +
+    '<button class="act" data-act="decline-offer">No thanks<span class="note">ask me again never</span></button>' +
+    "</div></div>"
+  );
+}
+
+/* C's confirm, which is a different sentence: something STAYS. */
+function residueSheet() {
+  return (
+    '<div class="scrim"></div>' +
+    '<div class="sheetbox"><h3>Turn the bubble off?</h3>' +
+    "<p>It stops listening and stops floating. A small mark stays where you left it.</p>" +
+    '<ul class="limits">' +
+    "<li><span class='yes'>You can always tap it to bring it back.</span>" +
+    "<span class='no'>one tap on a 14px mark · we can do better than this</span></li>" +
+    "<li><span class='yes'>It still runs a window.</span>" +
+    "<span class='no'>so it is still an overlay, still on your screen, still ours to explain</span></li>" +
+    "</ul>" +
+    '<div class="acts">' +
+    '<button class="primary" data-act="confirm-off">Turn it off<span class="note">the bubble retracts</span></button>' +
+    '<button class="act" data-act="cancel">Keep it on<span class="note">dismiss</span></button>' +
+    "</div></div>"
+  );
+}
+
+function sheetBody() {
+  const v = V[S.v];
+  if (S.surface === "sheet") {
+    /* A sheet is a layer over a surface, not a replacement for one. Rendering it
+       on empty ground said nothing about where the question was asked — and for
+       D that matters, because the sheet arrives on top of the bubble's own menu,
+       which is the whole claim this variant makes. */
+    let base = statusbar("");
+    if (S.over === "app") base += S.beat === 0 ? readyScreen() : bubbleSettings();
+    else {
+      base += hostApp();
+      /* The Bubble is already gone by the time D's offer arrives — so showing it
+         behind the scrim would be the mock lying about the state it is
+         explaining. The menu stays, because that is where the offer came from. */
+      if (S.menu === "bubble") base += bubbleMenu();
+      else if (S.enabled) base += bubble(S.dictating ? "dictating" : "idle");
+    }
+    base += navbar();
+    if (S.offered) return base + offerSheet();
+    if (v.residue) return base + residueSheet();
+    if (v.confirm) return base + confirmSheet();
+    return base;
+  }
+  if (S.surface === "launcher") {
+    return (
+      statusbar("") +
+      launcherScreen() +
+      (S.menu === "launcher" ? launcherMenu() : "") +
+      navbar()
+    );
+  }
+  if (S.surface === "app") {
+    if (S.beat === 0) return statusbar("") + readyScreen() + navbar();
+    return statusbar("") + bubbleSettings() + navbar();
+  }
+  /* host — the Bubble's home, and the only surface that shows what it costs */
+  let over = "";
+  if (S.enabled) over = bubble(S.dictating ? "dictating" : "idle");
+  else if (v.residue) over = nub();
+  if (S.menu === "bubble") over += bubbleMenu();
+  return statusbar("") + hostApp() + over + navbar();
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Render. Guarded, because this loop replaces innerHTML and the panel view has
+   no menu — a throw here is terminal, and the freeze it causes looks like a
+   hang rather than an error.
+   ══════════════════════════════════════════════════════════════════════════ */
+const sheet = document.getElementById("sheet");
+const readout = document.getElementById("readout");
+
+function beatLine() {
+  const v = V[S.v];
+  if (S.surface === "app" && S.beat === 0)
+    return "Open the app. This is the second way back in every variant, which is why the row is in all four.";
+  if (S.surface === "app" && S.beat === 1)
+    return "Bubble settings. The switch is here in A and C — and in B and D too, because a launcher shortcut is not a place to configure opacity.";
+  if (S.surface === "launcher")
+    return v.launcher && S.pinned
+      ? "The Home screen. The tile is the way back."
+      : "The Home screen with nothing pinned — the launcher can only offer a tile.";
+  if (S.surface === "launcher" && S.menu === "launcher")
+    return "The launcher's long-press menu — shortcuts.xml, rendered. This is the whole of B: the way back never opens the app.";
+  if (S.menu === "bubble")
+    return "The bubble's own menu. Long-press a thing to remove it, and the undo lives where the thing was.";
+  if (S.surface === "sheet") {
+    if (S.offered) return "The one-time offer. Shown at the moment of disabling, never at first launch.";
+    return v.residue
+      ? "The confirm for a state where something stays. The limit is honest about the 14px mark."
+      : "The confirm. States what disappears and how to get it back, in the same breath.";
+  }
+  if (!S.enabled)
+    return v.residue
+      ? "Disabled, with the nub still at the Anchor. Nothing is running and no service exists — but a window does."
+      : "Disabled. No window, no service, no notification, and nothing anywhere that says the product exists.";
+  return S.dictating
+    ? "Dictating. Window plus the microphone foreground service and its notification."
+    : "Idle. The window is present; no service runs. This is the state worth protecting.";
+}
+
+function renderReadout() {
+  const v = V[S.v];
+  const lc = lifecycle();
+  const routes_ = routes();
+  readout.innerHTML =
+    "<h4><span>state readout, not part of the design</span><span class='grow'></span>" +
+    "<span>variant " + v.key + ", " + v.name + "</span></h4>" +
+    "<div class='beat'>" + beatLine() + "</div>" +
+    "<dl>" +
+    "<dt>bubble</dt><dd>" + lc + "</dd>" +
+    "<dt>window</dt><dd>" + (S.enabled || v.residue ? "<span class='yes'>present</span>" : "<span class='no'>absent</span>") + "</dd>" +
+    "<dt>service</dt><dd>" + (S.dictating ? "<span class='yes'>microphone fgs, running</span>" : "<span class='no'>—</span>") + "</dd>" +
+    "<dt>notification</dt><dd>" + (S.dictating ? "<span class='yes'>recording indicator</span>" : "<span class='no'>—</span>") + "</dd>" +
+    "<dt>channel</dt><dd class='no'>" + NOTIFICATION_RULE + "</dd>" +
+    "<dt>shortcut</dt><dd>" + (v.launcher ? (S.pinned ? "<span class='yes'>pinned</span>" : "<span class='no'>declared, not pinned</span>") : "<span class='no'>none</span>") + "</dd>" +
+    "<dt>restore</dt><dd>" + routes_.map(r => (r.startsWith("—") ? '<span class="no">' + r + "</span>" : r)).join("<br>") + "</dd>" +
+    "</dl>";
+}
+
+function render() {
+  sheet.innerHTML = sheetBody();
+  renderReadout();
+  document.getElementById("label").textContent =
+    V[S.v].key + " (" + V[S.v].name + ")";
+  document.querySelectorAll(".tools [data-fs]").forEach(b => {
+    b.setAttribute("aria-pressed", String(b.dataset.fs === document.documentElement.dataset.fs));
+  });
+  document.querySelectorAll(".tools [data-theme-mode]").forEach(b => {
+    b.setAttribute("aria-pressed", String(b.dataset.themeMode === S.theme || ""));
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Actions.
+   ══════════════════════════════════════════════════════════════════════════ */
+function act(a) {
+  const v = V[S.v];
+  switch (a) {
+    /* The bubble's two gestures. */
+    case "bubble-press":
+      if (!S.enabled) return;
+      S.dictating = !S.dictating;
+      S.menu = null;
+      S.announce = S.dictating ? "listening" : "idle";
+      break;
+
+    /* Long-press the bubble: the menu, in the variant that has one. A variant
+       without one treats a long press as a tap, which is the honest fallback —
+       a control with no menu must not pretend to have one. */
+    case "bubble-menu":
+      if (!S.enabled) return;
+      if (v.offer) S.menu = "bubble";
+      else act("restore");
+      break;
+
+    case "restore":
+      S.enabled = true;
+      S.dictating = false;
+      S.announce = "bubble restored";
+      break;
+
+    /* OpenFlow's own routes. */
+    case "home":
+      S.surface = "launcher";
+      S.menu = null;
+      S.beat = 0;
+      break;
+    case "go-app":
+      S.surface = "app";
+      S.beat = 0;
+      S.menu = null;
+      break;
+    case "bubble-row":
+      if (S.enabled) { S.surface = "app"; S.beat = 1; S.menu = null; }
+      else if (v.residue) act("restore");
+      else { S.enabled = true; S.announce = "bubble restored from the Ready row"; }
+      break;
+    case "back":
+      S.beat = 0;
+      break;
+
+    /* The switch itself. Whether it confirms is the variant's whole point. */
+    case "toggle":
+      if (S.enabled) {
+        if (v.confirm) { S.surface = "sheet"; S.over = "app"; }
+        else turnOff();
+      } else {
+        S.enabled = true;
+        S.announce = "bubble restored";
+      }
+      break;
+    case "confirm-off":
+      turnOff();
+      break;
+    case "cancel":
+      S.surface = "app";
+      break;
+
+    /* D's offer. */
+    case "pin-offer":
+      S.pinned = true;
+      S.offered = true;
+      S.surface = "launcher";
+      S.menu = null;
+      S.announce = "shortcut pinned to Home";
+      break;
+    case "decline-offer":
+      S.dismissed = true;
+      S.offered = true;
+      S.surface = "host";
+      S.menu = null;
+      S.announce = "offer declined, not repeated";
+      break;
+
+    /* The launcher's routes. */
+    case "launcher-menu":
+      S.surface = "launcher";
+      S.menu = v.launcher ? "launcher" : null;
+      S.beat = 0;
+      break;
+    case "shortcut":
+      /* The launcher's own Hide/Show, which is B's whole idea. */
+      if (S.menu === "launcher") {
+        if (S.enabled) turnOff();
+        else { S.enabled = true; S.menu = null; S.announce = "bubble back from the launcher"; }
+      } else {
+        /* D's bubble menu, whose Turn off is the removal this variant is about. */
+        S.menu = null;
+        turnOff();
+      }
+      break;
+    case "pin":
+      S.pinned = !S.pinned;
+      S.menu = null;
+      break;
+    case "tile":
+      if (S.enabled) {
+        S.announce = "already on — the tile toggles";
+      } else {
+        S.enabled = true;
+        S.announce = "bubble back from the tile";
+      }
+      break;
+    case "dismiss-menu":
+      S.menu = null;
+      break;
+
+    default:
+      return;
+  }
+  render();
+}
+
+function turnOff() {
+  const v = V[S.v];
+  const wasMenu = S.menu;
+  S.enabled = false;
+  S.dictating = false;
+  S.menu = null;
+  /* D's offer is contextual: shown at the moment of disabling, once, and never
+     again — the same rule ADR-0013 used for the download. */
+  if (v.offer && !S.offered) {
+    S.offered = true;
+    S.surface = "sheet";
+    S.over = "host"; /* the offer arrives on top of the bubble's own menu */
+    S.menu = wasMenu; /* so the surface it came from is still there behind it */
+    S.announce = "bubble off";
+    return;
+  }
+  S.surface = v.launcher ? "launcher" : "host";
+  S.announce = v.residue ? "bubble retracted" : "bubble off";
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Wiring.
+   ══════════════════════════════════════════════════════════════════════════ */
+/* The click handler must ignore the click that ENDS a long press. The hold
+   replaces innerHTML, so the button the pointer is over is a new node — but the
+   browser still delivers the click, and without this the menu opens and is
+   closed by the same gesture, which is a one-shot that replays. */
+let suppressClick = false;
+document.getElementById("sheet").addEventListener("click", e => {
+  if (suppressClick) { suppressClick = false; return; }
+  const el = e.target.closest("[data-act]");
+  if (el) act(el.dataset.act);
+});
+
+/* A real long-press, because D's whole claim is that the bubble owns its own
+   removal — and a prototype that only offers a tap is not testing that claim.
+   On a variant with no menu the timer falls through to the tap, so the gesture
+   does not imply a menu that does not exist. */
+let holdTimer = null;
+function cancelHold() {
+  if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+}
+document.getElementById("sheet").addEventListener("pointerdown", e => {
+  /* The suppression belongs to the gesture that is ENDING, so it expires at the
+     next gesture's start. Held any longer it eats the following tap — and
+     because a replaced innerHTML delivers no click at all, the flag it was
+     meant to swallow may never be consumed. A flag that outlives its purpose
+     is the same defect as a class left on a suppressed animation. */
+  suppressClick = false;
+  const b = e.target.closest('[data-act="bubble-press"]');
+  if (!b) return;
+  cancelHold();
+  holdTimer = setTimeout(() => {
+    holdTimer = null;
+    suppressClick = true;
+    act("bubble-menu");
+  }, 420);
+}, true);
+["pointerup", "pointercancel", "pointerleave", "scroll"].forEach(ev =>
+  document.getElementById("sheet").addEventListener(ev, cancelHold, true));
+
+function setVariant(k) {
+  S = fresh(k);
+  render();
+  const u = new URL(location.href);
+  u.searchParams.set("variant", k);
+  history.replaceState(null, "", u);
+}
+
+document.getElementById("next").addEventListener("click", () => {
+  const i = VARIANTS.findIndex(v => v.key === S.v);
+  setVariant(VARIANTS[(i + 1) % VARIANTS.length].key);
+});
+document.getElementById("prev").addEventListener("click", () => {
+  const i = VARIANTS.findIndex(v => v.key === S.v);
+  setVariant(VARIANTS[(i - 1 + VARIANTS.length) % VARIANTS.length].key);
+});
+
+addEventListener("keydown", e => {
+  /* Never steal the arrows from something the user is typing into. */
+  const t = e.target;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+  if (e.key === "ArrowRight") document.getElementById("next").click();
+  if (e.key === "ArrowLeft") document.getElementById("prev").click();
+});
+
+function setTheme(m) {
+  if (m === "auto") {
+    document.documentElement.removeAttribute("data-theme");
+    S.theme = "";
+  } else {
+    document.documentElement.dataset.theme = m;
+    S.theme = m;
+  }
+}
+
+document.querySelector(".tools").addEventListener("click", e => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  if (b.dataset.fs) {
+    document.documentElement.dataset.fs = b.dataset.fs;
+  } else if (b.dataset.themeMode) {
+    setTheme(b.dataset.themeMode);
+  }
+});
+
+/* The reserve is MEASURED from this file's own control bar. A guessed rem value
+   was 256px against a bar that is 872px at 200% font, which laid the bar across
+   the phone and covered the primary action — so every large-font hit-test was
+   measuring the harness instead of the design. A harness that lies about the
+   thing it measures is worse than no harness, because it passes. */
+const tools = document.querySelector(".tools");
+function measure() {
+  document.documentElement.style.setProperty("--tools-h", tools.offsetHeight + "px");
+}
+new ResizeObserver(measure).observe(tools);
+
+REDUCED.addEventListener("change", () => {
+  document.querySelectorAll(".sw").forEach(s => s.classList.toggle("noanim", REDUCED.matches));
+});
+
+(function boot() {
+  const q = new URL(location.href).searchParams.get("variant");
+  const key = V[q] ? q : VARIANTS[0].key;
+  S = fresh(key);
+  const fs = new URL(location.href).searchParams.get("fs");
+  if (fs) document.documentElement.dataset.fs = fs;
+  const th = new URL(location.href).searchParams.get("theme");
+  if (th) setTheme(th);
+  if (REDUCED.matches) document.documentElement.classList.add("reduced");
+  render();
+  measure();
+})();
+</script>
+</body>
+</html>

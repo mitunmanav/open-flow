@@ -26,6 +26,22 @@ Sources are linked per item. Last reviewed: 2026-10-02.
 - [ ] `RECORD_AUDIO` runtime permission granted *before* `startForeground()`.
 - [ ] Persistent, accurate status-bar notification for the whole recording session.
   (https://developer.android.com/develop/background-work/services/fgs)
+- [ ] **`POST_NOTIFICATIONS` is declared, and it is a different kind of ask from
+  `RECORD_AUDIO`.** With `targetSdk` 36 the foreground-service notification is suppressed
+  on Android 13+ unless this permission is granted; the service still runs, so the failure
+  mode is an invisible microphone service, which is the one outcome this project will not
+  ship. (https://developer.android.com/develop/ui/views/notifications/notification-permission)
+- [ ] Justify it as a **platform requirement, not a preference**: nothing is read and
+  nothing is sent, and the permission exists so the OS can show that the microphone is
+  live. Request it at the moment of first dictation — the action that brings the service
+  into existence — never at first launch, per the contextual rule.
+- [ ] **The notification channel carries the recording indicator and nothing else, ever.**
+  V1 posts no other notification. That commitment is what makes the ask honest, and it is
+  the thing to hold onto once the permission is granted.
+- [ ] Denial does **not** block dictation: the service runs, and the bubble is the
+  recording indicator regardless. The health screen says so; we never re-ask and never nag.
+  (Residual risk, not a decision: a skin may kill a service whose notification is
+  suppressed. That is the gate's to measure.)
 - [ ] Play Console declaration (App content → monitor/improve): description of the
   dictation feature, user impact if deferred/interrupted, use case `TYPE_MICROPHONE`
   ("Background Audio Access"), and a video showing the user flow that triggers it.
@@ -45,6 +61,10 @@ Sources are linked per item. Last reviewed: 2026-10-02.
   bubble's purpose in the store listing and prominent disclosure where relevant.
 - [ ] Request overlay access at the moment the user first enables the bubble —
   not at first launch — and explain why first.
+- [ ] The window's **configuration** (lifecycle states, flags, anchoring, keyboard
+  behaviour, screen-capture posture) is settled in
+  `docs/adr/0011-bubble-overlay-window.md`, not here. This section is the permission
+  mechanics only.
 
 ## 4. `AccessibilityService` (text insertion into the focused field)
 
@@ -57,6 +77,18 @@ Sources are linked per item. Last reviewed: 2026-10-02.
 - [ ] Config XML: narrow `accessibilityEventTypes` (only what insertion needs,
   not `typeAllMask`), least-privilege flags, meaningful `description`,
   `canRetrieveWindowContent="true"` only if needed.
+- [ ] **The exact event types are settled: `TYPE_VIEW_FOCUSED` +
+  `TYPE_WINDOW_STATE_CHANGED`.** Neither alone suffices — WebViews and custom editors
+  commonly signal only the window change, so `TYPE_VIEW_FOCUSED` alone would miss the
+  target and send the user to the copy fallback on a supported field.
+- [ ] The node comes from `event.source`; `rootInActiveWindow.findFocus(SEARCH_FOCUS_INPUT)`
+  is consulted **only at insertion time**. Captured at dictation start is metadata —
+  package, view id, input type, selection — never content.
+- [ ] **No periodic focus polling.** This is a deliberate divergence from the reference
+  apps' three-signal pattern (focus events + periodic poll + keyboard visibility): a poll
+  is the background automation the rule below forbids. We also do **not** watch the
+  keyboard, for the same reason — the overlay reads its own insets instead. See
+  `docs/adr/0011-bubble-overlay-window.md`.
 - [ ] **Do NOT set `isAccessibilityTool="true"`** — a dictation helper is not an
   accessibility tool (voice-activated assistants/general assistants explicitly do
   not qualify), and a wrong claim can trigger suspension.
@@ -82,17 +114,24 @@ each row with status (granted / denied / not enabled) and a deep link:
 - [ ] **Microphone** — runtime `RECORD_AUDIO` granted? → link to app permission.
 - [ ] **Overlay** — `Settings.canDrawOverlays()`? → `ACTION_MANAGE_OVERLAY_PERMISSION`.
 - [ ] **Accessibility service** — service enabled in system settings? →
-  `Settings.ACTION_ACCESSIBILITY_SETTINGS`.
+  `Settings.ACTION_ACCESSIBILITY_SETTINGS`. **Also surface the Android 13+ restricted-settings
+  state**: a sideloaded accessibility service is hidden from that list until the user allows
+  restricted settings, which is exactly the moment someone concludes the service is not
+  there. The row must distinguish "not enabled" from "enabled but hidden".
 - [ ] **Microphone FGS** — `FOREGROUND_SERVICE_MICROPHONE` declared & granted
   (install-time) and last service start didn't hit while-in-use restriction?
 - [ ] **Battery optimization** — not ignoring battery optimizations for the app
   (surface state; link to `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` is
   Play-sensitive — link to system screen instead if unsure).
 - [ ] **Notifications** — FGS notification channel allowed? → app notification
-  settings (mic FGS requires a visible notification).
+  settings (mic FGS requires a visible notification). **Marked as not required for
+  dictation**: denial leaves the app usable because the bubble is the recording
+  indicator, and the row should say which is which rather than reading as a blocker.
 - [ ] Overall "ready to dictate" summary derived from the rows above; tapping any
   denied row launches the corresponding system screen. Re-check all statuses in
   `onResume` (user returns from settings).
+- [ ] The bubble's own enabled/disabled state is a row here too: if the user has turned
+  the bubble off, "ready to dictate" is false and the reason is not a permission.
 
 ## 6. Play Console declarations summary
 

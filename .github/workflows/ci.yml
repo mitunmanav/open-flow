@@ -60,6 +60,18 @@ jobs:
         if: steps.probe.outputs.gradle == 'true'
         run: ./gradlew --no-daemon assembleDebug
 
+      # The 50 MB release ceiling (ADR-0010) runs as a hard fail here. Unsigned
+      # deliberately: this step measures the artifact's shape, not its signing — and
+      # it still names a release tag, because allowing an unsigned artifact and saying
+      # which version it is are separate permissions. The version below is a probe: it
+      # is never published, and a real tag supplies its own.
+      - name: Assemble release, enforce APK size ceiling
+        if: steps.probe.outputs.gradle == 'true'
+        run: |
+          ./gradlew --no-daemon assembleRelease \
+            -Popenflow.allowUnsignedRelease=true \
+            -Popenflow.releaseTag=v0.0.1
+
       - name: Upload debug APK
         if: steps.probe.outputs.gradle == 'true'
         uses: actions/upload-artifact@v4

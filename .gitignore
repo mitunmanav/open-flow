@@ -9,10 +9,13 @@ captures/
 .externalNativeBuild/
 .cxx/
 
-# Signing material — never commit
+# Signing material — never commit. signing.properties names a keystore and three
+# passwords; release.yml writes its own copy into RUNNER_TEMP, so this is the
+# developer-machine path. ADR-0012.
 *.jks
 *.keystore
 keystore.properties
+signing.properties
 
 # Python bytecode from .github/scripts/ (the docs and attribution checkers)
 __pycache__/

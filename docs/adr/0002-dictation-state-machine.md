@@ -4,7 +4,10 @@ Date: 2026-10-02
 
 ## Status
 
-Accepted
+Accepted — amended 2026-10-04: controller-owned target and settings snapshots; see [Where does app identity enter the pipeline?](../../.scratch/openflow-v1/issues/52-where-does-app-identity-enter.md).
+
+Amended 2026-10-05: idle Bubble interaction for explicit History placement; see
+[How does History retry choose a new destination?](../../.scratch/openflow-v1/issues/61-history-retry-destination.md).
 
 ## Context
 
@@ -13,6 +16,17 @@ The dictation lifecycle fans out across bubble, audio, provider, refiner, and in
 ## Decision
 
 One `DictationController` owns a `StateFlow<DictationState>`; every other component (bubble, audio source, provider, refiner, inserter) sends `DictationEvent`s through one channel. No component writes state directly.
+
+Before recording begins, the controller captures and owns an immutable Target Snapshot
+(package plus the insertion characteristics in ADR-0003) from the same target observation
+used for the sensitive-field check. No writable target or no identifiable package refuses
+start with the microphone closed and a prompt to focus a writable field.
+
+The controller freezes the applicable dictionary, snippet and style settings at the start.
+The refiner receives the original package name and those frozen settings; the inserter
+receives the original target information. Both snapshots remain owned by the controller
+across state transitions. A change of active app or settings does not change this Dictation.
+RouterContext and speech-provider requests need no app identity.
 
 States (payload-carrying sealed class):
 
@@ -37,4 +51,10 @@ Rules:
 
 ## Consequences
 
-The bubble renders purely from `DictationState` payload; history/retry read from terminal outcomes. Testing is a transition-table test plus FakeProvider-driven pipeline tests.
+During a Dictation the Bubble renders purely from `DictationState` payload; History reads
+terminal outcomes. Between Dictations, the idle Bubble may instead present the pending
+History placement flow in ADR-0003. That flow uses a fresh selected destination and stored
+text, without recording, transcription or refinement; cancellation, success or process
+interruption clears its pending authority. It introduces no additional Bubble lifecycle
+state or microphone service. Testing is a transition-table test plus FakeProvider-driven
+pipeline tests.

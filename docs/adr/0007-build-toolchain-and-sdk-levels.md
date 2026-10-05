@@ -6,6 +6,12 @@ Date: 2026-10-03
 
 Accepted
 
+**Amended by [0010](0010-release-artifact-shape.md)** (2026-10-03): the reason recorded
+below for `isMinifyEnabled = false` was incomplete. The JNI hazard is real, but it was
+never the reason to leave it off — R8's entire reachable surface in this APK is the 1,057,351-byte
+`classes.dex`, 0.82% of a 128,850,066-byte artifact, because there is no application code to
+strip. ADR-0010 keeps minification off for V1 on the corrected ground.
+
 ## Context
 
 Every remaining ticket assumed a Gradle project that did not exist. The `ci` workflow
@@ -80,6 +86,14 @@ Minification off because JitPack's AAR ships no consumer keep rules while its JN
 layer resolves classes and methods by name (`Java_com_k2fsa_sherpa_onnx_*`). An R8
 build would break at runtime in a way nothing in the build would catch.
 
+The reason above is sound but incomplete, and the amendment matters for a future
+reader. Turning minification on with no keep rules does not produce a slightly smaller
+APK: it produces one with **no `classes.dex` at all**, and `assembleRelease` still
+succeeds. The hazard is real, but the reason to leave minification off is that there
+is nothing to gain — `core/` has no `src/` directory, so the whole codebase is one
+probe file, and the 0.82% of the APK that R8 can reach is not worth any risk to the
+0.82% that it cannot. See ADR-0010 for the measured figures.
+
 Room's annotation processor and the Compose compiler plugin are **deliberately
 absent**: neither has any code to compile yet, and adding them would add a
 version-matched KSP plugin to the toolchain before there is a single entity to map.
@@ -97,7 +111,7 @@ Three consequences worth carrying:
 
 - **The debug APK is ~129 MB.** The AAR carries native libraries for four ABIs and a
   debug build strips nothing. The CI workflow uploads it on every run. Release size
-  and ABI splitting are not decided here.
+  and ABI splitting were not decided here and are settled in ADR-0010.
 - **`gradlew` must not grow a model-download task.** The 50 MB AAR is the largest
   thing a build fetches, and it is fetched from a declared coordinate; the weights
   are not, because a build has to run on a machine with no model cache.

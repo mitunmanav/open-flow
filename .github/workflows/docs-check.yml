@@ -37,6 +37,14 @@ jobs:
       - name: Check documentation
         run: python3 .github/scripts/check_docs.py
 
+      # The gate checkers' own tests, in the same job and on the same trigger. They
+      # read the real protocol, so a schema change the tests have not been taught
+      # about fails here rather than in somebody's release. Unfiltered like the check
+      # above, for the same reason: a required context that never reports is a
+      # deadlock.
+      - name: Test the documentation and gate checkers
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
+
       - name: ADR inventory
         run: |
           echo "### Architecture decision records" >> "$GITHUB_STEP_SUMMARY"

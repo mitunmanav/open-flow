@@ -1,0 +1,981 @@
+<!doctype html>
+<!--
+  PROTOTYPE — throwaway. Do not ship, do not port, do not treat as a spec.
+
+  Question (ticket 47): WHERE does the first-launch model download sit in the
+  onboarding flow, and what does that screen have to say?
+
+  ANSWER UNDER REVIEW: A — the gate. Opt-in, blocking. Four steps:
+
+      01  Welcome        what this is, and what setup will cost
+      02  Voice model    the loudest screen in the product
+      03  Dictation service   an accessibility disclosure, consented
+      04  Ready          when each remaining ask is coming
+
+  B, C and D were built and then cut. They were three other answers to the same
+  question — a rail on every screen, the numeral as the welcome, the bubble
+  demanding the bytes — and keeping them meant every judgement about the screen
+  was really a judgement about four screens. B also had the defect that decided
+  it: it showed the download twice at once.
+
+  ── WHAT IS BEING JUDGED ──────────────────────────────────────────────────
+  ORDER and COPY. The palette, the type and the flat/hairline/zero-radius
+  language are ticket 19's, already settled and measured.
+
+  ── MATERIAL 3, AND WHERE IT IS AND ISN'T BEING FOLLOWED ─────────────────
+  Material 3 is a system, and it splits into two piles. The requirements are
+  platform and accessibility rules, and this prototype follows all of them:
+
+    · 48dp minimum touch target on every control, 8dp between targets — PROBED,
+      not added up, because a control whose visual is meant to stay small can
+      reach the floor through a pseudo-element.
+    · Dynamic Type. Every type size and every gap is in rem against the root, so
+      the font-scale control is one line of CSS and the whole screen moves
+      together. Audited at 100%, 150% and 200%, at a 320dp viewport and at the
+      device width, in both themes.
+    · Insets. Edge-to-edge means content draws under the system bars, so the
+      navigation bar is drawn as an overlay and the reserved inset is REAL
+      SPACE in the layout column — padding on the action alone left the button's
+      own box under the gesture bar while only its label cleared it.
+    · Back. A top-app-bar back button plus the system back gesture, both of
+      which actually reverse a step. On the first step back leaves the app: a
+      first-run flow that cannot be left is a trap.
+    · State restoration. A 45 MB fetch outlives a rotation, so phase and
+      bytes-so-far are hoisted above the screen — the `S` object here, a
+      ViewModel plus rememberSaveable in the app.
+    · Announcements. The trace is aria-hidden; the state is carried by words, and
+      a polite live region carries the PHASE — so it announces on phase changes
+      rather than every percent, because an announcement per frame is noise, not
+      accessibility.
+    · Motion durations are M3's bands: short-4 (120ms bar reveal, 100ms press
+      feedback), medium-2 (220ms step transition, 280ms playhead), long-2
+      (620ms perimeter sweep).
+    · Errors that need an action are INLINE with that action, never a snackbar.
+      G9 demands a specific failure, and a snackbar is not a durable surface.
+    · One accent per theme, verified AA on both sides — INCLUDING while the
+      screen is in a state the audit does not rest in. Dynamic colour is
+      DECLINED by decision — a dictation app's accent must not shift with the
+      wallpaper (ticket 19). Tonal elevation is declined with it: flat ground,
+      hairline rules, zero radius. Settled expression, not an oversight.
+
+  The blocking/non-blocking split is also a Material distinction: a blocking
+  first-run task is a full-screen dialog. This flow is blocking, so every step
+  is one.
+
+  ── ONE ACTION, IN ONE PLACE ──────────────────────────────────────────────
+  The primary action is pinned in the bottom bar on EVERY step and in EVERY
+  state, which is what the top comment claimed and the code did not do: idle,
+  running, failed and ready each drew their own buttons somewhere else, so the
+  one guarantee that matters most on a 320dp phone at 200% font — the action
+  cannot fall off the fold or land under the gesture bar — held for one state
+  out of four. The bar is now the only place an action lives.
+
+  ── ANIMATION IS ONE-SHOT AND THEN GONE ──────────────────────────────────
+  Every animation here plays once, on ARRIVING at the state it belongs to, and
+  is then removed — nothing is left attached to the element and no element
+  carries a stale animation class. That claim was false twice, and both times
+  the only way to find out was to ask the running page rather than read it:
+
+    · Six resting states were held in place by `animation-fill-mode: forwards`.
+      A held fill is still an attached animation: eleven of them were still on
+      their elements after everything settled. Every resting style is now plain
+      CSS, and only the DRAWING is animated.
+    · render() replaces innerHTML, so every animation on the screen restarts
+      with it. The perimeter sweep — the one celebratory moment in the product
+      — replayed every time the FONT SCALE moved. `animationstart` fired again
+      on a change that changed nothing. A one-shot is now keyed to the value it
+      animates from, so it plays on the way in and never again while it holds.
+
+  Four more defects came out of the same habit:
+
+    · rebuilding the screen on every progress tick restarted every animation on
+      it eleven times a second, so nothing could settle;
+    · the active-step marker swept an accent fill in behind its own label and
+      flipped the text white as it went, putting white-on-paper at 1:1 in the
+      middle of its own arrival — a state marker must be readable at every frame
+      of arriving, so it is drawn BESIDE the text now;
+    · the step-enter class was added unconditionally and removed on
+      animationend, which never fires when reduced-motion suppresses the
+      animation — so the class outlived its purpose;
+    · the primary action cross-faded its press. The pressed state INVERTS, so
+      the transition walked the ground toward paper and the label toward ink at
+      the same rate: 4.02:1 at +25ms and 1.33:1 at +50ms. The static audit could
+      never have found it, because it never hovers. Pressing is now an instant
+      swap, which is what the tools bar had already worked out for itself.
+
+  ── WHAT THE AUDIT ITSELF GOT WRONG ──────────────────────────────────────
+  The prototype's control bar reserved a FIXED 8rem at the bottom of the page.
+  At 200% font the bar is 872px tall, so it grew over the phone and sat on top
+  of the primary action — which is why every 200% hit-test failed, and why a
+  green run at 200% meant very little. The reserve is now measured from the bar
+  itself, and the phone's height is computed from the viewport rather than from
+  `height:100%`, which resolved to nothing definite and let the phone grow
+  straight back through the bar. A harness that lies about the thing it
+  measures is worse than no harness, and this one was lying.
+
+  The same pass found that the Dynamic Type reflow was written as a container
+  query, and container queries cannot express the thing it needed: the ratio
+  between the display and the type inside it. Chromium compares the container's
+  pixel width against a rem threshold resolved at the root, so `20rem` means
+  640px at 200% font and the query stopped matching at exactly the sizes it was
+  written for. It is measured on the real element now, and it is a class.
+
+  ── ONE SAYING PER FACT ──────────────────────────────────────────────────
+  A failure had a headline in a bordered panel, a hard rule drawn under it, AND
+  a phase line above the trace repeating the diagnosis — three heavy
+  horizontals to mark one state, one of them saying the same words twice. The
+  phase line now names the failure in English rather than in the internal error
+  code (it used to read `stopped · hash` and `stopped · network`, which are
+  enums, not sentences), the panel explains it, and the bar acts on it. One
+  accessory removed: the drawn rule, which was fighting a border that was
+  already there.
+
+  ── ONE PROGRESS INDICATOR PER SCREEN ─────────────────────────────────────
+  Two bars on one screen is not honesty, it is noise, and it quietly says the
+  app cannot decide what is happening. It was showing two on the model screen
+  and three inside the sheet that variant B used to have. One screen, one
+  meter, and the phase in words beneath it — which is the thing a bar cannot say
+  anyway.
+
+  ── THE MEMORABLE THING ──────────────────────────────────────────────────
+  A filled progress bar is the default treatment and belongs to every downloader
+  ever shipped. This one is an utterance: a fixed trace of bars that light left
+  to right as bytes arrive, with a playhead easing across. The shape comes from
+  two detuned sines — no randomness — so the only thing that moves is the reveal,
+  and the reveal is the truth. It is the app's own subject matter on the one
+  screen where the app has nothing to show yet. The phase is named in words
+  directly beneath it, because a metaphor that could be mistaken for audio
+  playback would be a lie.
+
+  Nothing is hidden. The size, the peak free space, the source and the integrity
+  check are a permanent footer of the download surface in every state, including
+  while it runs and after it has failed. There is no "see more".
+
+  ── INHERITED, NOT RE-DECIDED ────────────────────────────────────────────
+  Archivo extended at weight 800 for display against normal-width body, both
+  faces self-hosted from website/fonts so loading this file contacts nobody. The
+  site's motion rule: structure draws itself, and nothing else moves on its own.
+  Ticket 19's palette verbatim.
+
+  ── COMPOSE MAPPING (for whoever builds it) ──────────────────────────────
+    S.dl / S.pct        → ModelDownloadState in a ViewModel, rememberSaveable,
+                          WorkManager owning the transfer
+    tick()              → the trace, the phase and the percentage only
+    drawTrace()         → Canvas { 44 bars; fill = accent if index < head }
+    the perimeter sweep → drawArc with a SweepGradient shader on the ready panel
+    the pinned action   → Scaffold bottomBar, inside the navigationBars inset
+    the full-screen task→ a NavHost destination, or a full-screen Dialog
+-->
+<html lang="en" data-fs="100">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE — first-launch order A (ticket 47)</title>
+<style>
+/* ══════════════════════════════════════════════════════════════
+   Tokens. Ticket 19's palette verbatim — every value was measured
+   for WCAG AA in both themes. No new colours: one accent, and a
+   failure is ink and the specific words, never a red.
+   ══════════════════════════════════════════════════════════════ */
+@font-face{font-family:'Archivo';src:url('../../../website/fonts/archivo-latin-var.woff2') format('woff2');font-weight:100 900;font-stretch:62% 125%;font-display:swap}
+@font-face{font-family:'JetBrains Mono';src:url('../../../website/fonts/jetbrains-mono-latin-var.woff2') format('woff2');font-weight:100 900;font-display:swap}
+
+:root{
+  --ground:#F4F4F2; --ink:#0A0A0A; --mid:#4A4A48; --low:#6E6E6B;
+  --rule:rgba(10,10,10,.16); --rule-hi:rgba(10,10,10,.34); --bar:rgba(10,10,10,.14);
+  --accent:#5B21D6; --on-accent:#FFFFFF; --field:rgba(10,10,10,.05);
+  --ui:'Archivo',system-ui,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  /* 8pt spacing. Used everywhere — no magic paddings. */
+  --s1:.25rem; --s2:.5rem; --s3:.75rem; --s4:1rem; --s5:1.5rem; --s6:2rem;
+  /* type: six steps and three weights. That is the whole scale. */
+  --t-micro:.6875rem; --t-small:.75rem; --t-body:.875rem; --t-base:1rem;
+  --t-sub:1.25rem; --t-display:1.75rem;
+  /* A phone's DISPLAY does not widen when the font grows — only the type
+     inside it changes. So the device is fixed px and everything the user can
+     scale is rem. Sizing the frame in rem made the "phone" 832px wide at 200%,
+     which is a tablet, and it hid the case the control exists to expose. */
+  --nav-inset:2rem;
+  /* the prototype's own control bar, measured — see the header */
+  --tools-h:8rem;
+}
+:root[data-theme="dark"]{
+  --ground:#0A0A0A; --ink:#F4F4F2; --mid:#B4B4B0; --low:#8E8E8A;
+  --rule:rgba(244,244,242,.18); --rule-hi:rgba(244,244,242,.4); --bar:rgba(244,244,242,.16);
+  --accent:#A78BFA; --on-accent:#0A0A0A; --field:rgba(244,244,242,.06);
+}
+
+/* Dynamic Type, simulated honestly: everything below is in rem, so the whole
+   screen — type, gaps, and the 48dp targets — moves with the root. */
+html[data-fs="150"]{font-size:24px}
+html[data-fs="200"]{font-size:32px}
+
+*{box-sizing:border-box;border-radius:0}
+html,body{margin:0;height:100%}
+body{
+  background:var(--ground); color:var(--ink);
+  font-family:var(--ui); font-size:var(--t-base); line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+/* Machine voice. Small text wants slightly POSITIVE tracking; the display type
+   below is where the negative tracking belongs. */
+.mono{font-family:var(--mono);font-size:var(--t-micro);letter-spacing:.005em;line-height:1.7}
+.dim{color:var(--low)}
+
+/* ── the device, and nothing else ───────────────────────────────────────── */
+/* The bottom reserve is MEASURED from the control bar, not guessed. A fixed 8rem
+   was 256px while the bar was 872px at 200% font, so the bar lay across the
+   phone and covered the primary action — which is exactly the thing the audit
+   was measuring.
+
+   The height is computed from the VIEWPORT, not from `100%`. `height:100%`
+   against this auto-height grid resolves to nothing definite, so the phone kept
+   its 44rem and grew straight through the bar. */
+.stage{min-height:100vh;display:grid;place-items:center;
+  padding:1.5rem 1rem calc(var(--tools-h) + 1.5rem)}
+.sheet{
+  width:416px;max-width:100%;height:min(44rem, calc(100vh - var(--tools-h) - 3rem));
+  border:2px solid var(--ink);
+  background:var(--ground);display:flex;flex-direction:column;position:relative;
+}
+@media (max-width:480px){
+  .stage{padding:0 0 var(--tools-h)}
+  .sheet{width:100%;height:calc(100vh - var(--tools-h));border-left:0;border-right:0}
+}
+
+.statusbar{display:flex;align-items:center;gap:var(--s2);padding:.4rem var(--s4) .35rem;
+  font-family:var(--mono);font-size:var(--t-micro);color:var(--low);
+  border-bottom:1px solid var(--rule)}
+.statusbar .grow{flex:1}
+
+/* M3 top app bar: a back that actually reverses, the wordmark, the step's name,
+   and the counter — the order is legible here rather than from a rail beside the
+   phone. */
+.appbar{flex:none;display:flex;align-items:center;gap:var(--s1);min-height:3.5rem;
+  padding:0 var(--s2) 0 var(--s4);border-bottom:2px solid var(--ink)}
+.appbar .brand{flex:none;font-weight:800;font-size:var(--t-base);letter-spacing:-.02em}
+.appbar .sep{flex:none;color:var(--low);font-family:var(--mono);font-size:var(--t-micro)}
+.appbar .steptitle{min-width:0;overflow-wrap:anywhere}
+.appbar .grow{flex:1}
+.appbar .count{flex:none;font-family:var(--mono);font-size:var(--t-micro);color:var(--low);
+  white-space:nowrap;padding-right:var(--s2)}
+/* A flex item will not shrink below its content, so the back button was being
+   squeezed from 96px to 32px — under the 48dp floor it exists to guarantee. */
+.iconbtn{flex:none;display:grid;place-items:center;width:3rem;height:3rem;background:transparent;
+  border:0;color:var(--ink);cursor:pointer}
+.iconbtn:hover{background:var(--field)}
+.iconbtn:active{background:var(--bar)}
+.iconbtn:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+
+/* ── DYNAMIC TYPE REFLOW ──────────────────────────────────────────────────
+   26rem of display at 100% font becomes 13rem at 200%, and a bar that fits at
+   one does not fit at the other: measured, 474px of content in a 320dp phone.
+
+   The question is not the viewport but the DISPLAY — how many rem of type it
+   can hold — and that is a RATIO. A container query cannot express one: Chromium
+   compares the container's pixel width against a rem threshold resolved at the
+   root, so `20rem` means 640px at 200% font and the query silently stops
+   matching at exactly the sizes it was written for. So it is measured on the
+   real element, and it is a class. See reflow().
+
+   M3's answer at the largest accessibility sizes is to drop the secondary
+   information: the bar degrades to navigation and position, and the step's name
+   is already the <h2> on the screen below it. The two-column list becomes one,
+   for the same reason — a right-hand "when" column has no room left, and
+   truncating it would throw away the only reason it exists. */
+.sheet.tight .appbar .brand,.sheet.tight .appbar .sep,.sheet.tight .appbar .steptitle{display:none}
+.sheet.tight .asks li{grid-template-columns:1fr}
+.sheet.tight .asks .wh{text-align:left;max-width:none;margin-top:var(--s1)}
+
+/* Edge-to-edge: content draws UNDER the system bars, and the navbar is an
+   overlay on top. So the reserved inset is real space at the END of the flex
+   column — padding on the foot alone left the action's own box under the
+   gesture bar with only its label clear of it. */
+.navbar-spacer{flex:none;height:var(--nav-inset)}
+.foot{flex:none;border-top:2px solid var(--ink);padding:var(--s3) var(--s4);background:var(--ground)}
+.navbar{position:absolute;left:0;right:0;bottom:0;height:var(--nav-inset);
+  display:grid;place-items:center;pointer-events:none;border-top:1px solid var(--rule)}
+.navbar i{width:7rem;height:.25rem;background:var(--ink);opacity:.28;border-radius:99px}
+
+.body{flex:1;overflow:auto;padding:var(--s5) var(--s4)}
+/* Step transitions answer "what changed", so they are directional. One-shot:
+   the class is added, and it is removed on animationend OR on a timeout,
+   because reduced-motion suppresses the animation and animationend then never
+   fires — which left a stale class on the element for good. */
+.body.enter-fwd{animation:enterFwd .22s cubic-bezier(.2,.7,.3,1)}
+.body.enter-back{animation:enterBack .22s cubic-bezier(.2,.7,.3,1)}
+@keyframes enterFwd{from{opacity:0;transform:translateY(.6rem)}to{opacity:1;transform:none}}
+@keyframes enterBack{from{opacity:0;transform:translateY(-.6rem)}to{opacity:1;transform:none}}
+
+h2.disp{margin:0 0 var(--s3);font-size:var(--t-display);line-height:1.06;letter-spacing:-.03em;
+  font-weight:800;font-stretch:112%;max-width:15ch;overflow-wrap:anywhere}
+p.lede{margin:0 0 var(--s4);font-size:var(--t-base);line-height:1.55;max-width:38ch;overflow-wrap:anywhere}
+p.lede.small{font-size:var(--t-body);color:var(--mid);max-width:44ch}
+
+/* THE HONESTY DEVICE, pinned by ticket 19: the promise half in the UI face,
+   the limit half in machine voice directly beneath it. `.stateword` is that
+   device — a bordered panel in machine voice. It had no rule at all and was
+   being stripped back with inline styles in three places. */
+.stateword{font-family:var(--mono);font-size:var(--t-micro);line-height:1.7;
+  border:2px solid var(--ink);padding:var(--s3);margin:var(--s5) 0 0}
+
+/* THE HONESTY DEVICE, list half: the promise above, the machine voice below. */
+.limits{margin:0;padding:0;list-style:none;border-top:1px solid var(--rule)}
+.limits li{font-family:var(--mono);font-size:var(--t-micro);line-height:1.7;color:var(--low);
+  padding:.3rem 0;border-bottom:1px solid var(--rule);overflow-wrap:anywhere}
+.limits li::before{content:"— ";color:var(--rule-hi)}
+
+/* ── the utterance. A fixed trace, revealed. ── */
+.trace{position:relative;display:flex;align-items:flex-end;gap:2px;
+  border-bottom:2px solid var(--ink)}
+.trace i{flex:1;background:var(--bar);min-height:.15rem;
+  transition:background-color .12s linear}
+.trace i[data-on="1"]{background:var(--accent)}
+/* the playhead eases to each new position instead of jumping, so a fast
+   download reads as one object travelling rather than a flicker. */
+.trace .head{position:absolute;bottom:-2px;top:0;width:2px;background:var(--ink);
+  transition:left .28s cubic-bezier(.2,.7,.3,1)}
+.trace.idle .head{display:none}
+.trace-note{display:flex;align-items:baseline;gap:var(--s2);margin-top:var(--s2)}
+.trace-note .grow{flex:1;min-width:var(--s2)}
+
+/* A permanent footer of the download surface — visible in every state, running
+   or failed, because a number that disappears while you wait for it is a number
+   you cannot hold us to. */
+.truth{margin:var(--s5) 0 0;position:relative}
+/* The ring IS the resting state, in plain CSS. It used to be `forwards` on an
+   animation, which means the animation was still ATTACHED to the element for
+   good — eleven of them were, after everything settled. A resting style that a
+   keyframe has to hold in place is a resting style in the wrong place.
+
+   It is drawn at inset:0, not inset:-2px. The outset was a 2px sliver hanging
+   off the panel — invisible, but it made the element report itself as
+   overflowing, and an audit that cannot tell a decorative sliver from clipped
+   text is an audit that will eventually wave through clipped text. */
+.truth.ready{padding-top:2px}
+.truth.ready::before{
+  content:"";position:absolute;inset:0;pointer-events:none;border:2px solid var(--accent);
+  --sweep:360deg;
+  -webkit-mask-image:conic-gradient(from -90deg,#000 0 var(--sweep),transparent var(--sweep) 360deg);
+          mask-image:conic-gradient(from -90deg,#000 0 var(--sweep),transparent var(--sweep) 360deg);
+}
+.truth.ready.arrive::before{animation:sweep .62s cubic-bezier(.3,.8,.3,1)}
+@keyframes sweep{from{--sweep:0deg}to{--sweep:360deg}}
+@property --sweep{syntax:'<angle>';inherits:false;initial-value:0deg}
+
+.fail{margin:var(--s2) 0 0;font-size:var(--t-body);line-height:1.55;max-width:42ch}
+.fail .mono{display:block;color:var(--low);margin-top:var(--s2)}
+
+/* Press feedback is instant, never eased — a phone answers the finger before
+   the finger lifts, and brutalism should not feel floaty. The pressed state
+   INVERTS (paper ground, ink label), so it must not be transitioned either: a
+   transition walks the ground toward paper AND the label toward ink at the same
+   rate, and 50ms in it measured 1.33:1. The tools bar below already learned
+   this; the primary action had not. `transition:none` on the pressed state
+   suppresses the transition INTO that state, so the swap is instant. */
+.cta{
+  display:block;width:100%;min-height:3.25rem;padding:var(--s3) var(--s4);text-align:left;
+  background:var(--ink);color:var(--ground);border:2px solid var(--ink);
+  font-family:var(--ui);font-weight:600;font-size:var(--t-base);letter-spacing:-.015em;
+  cursor:pointer;overflow-wrap:anywhere;
+  transition:background-color .1s linear,color .1s linear,border-color .1s linear;
+}
+.cta:hover{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.cta:active{background:var(--ground);color:var(--ink);transition:none}
+.cta.ghost{background:transparent;color:var(--ink)}
+.cta.ghost:hover{background:var(--field);color:var(--ink)}
+.cta.ghost:active{background:var(--bar);transition:none}
+.cta[disabled]{opacity:.4;cursor:not-allowed}
+.cta[disabled]:active{background:var(--ink);color:var(--ground)}
+.cta:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* Two actions in the bar sit side by side; one sits alone. The bar is the only
+   place an action lives, so it has to carry the failure's second choice too. */
+.bar2{display:flex;gap:var(--s2)}
+.bar2 .cta{flex:1 1 0;min-width:0}
+
+/* the disclosure's affirmative consent: unticked disables the action */
+.consent{display:flex;gap:var(--s3);align-items:flex-start;margin:var(--s4) 0 0;
+  padding:var(--s3) 0 0;border-top:2px solid var(--ink);cursor:pointer;min-height:3rem}
+.consent input{appearance:none;-webkit-appearance:none;flex:none;width:1.65rem;height:1.65rem;
+  margin:.05rem 0 0;border:2px solid var(--ink);background:transparent;cursor:pointer;
+  transition:background-color .1s linear,border-color .1s linear}
+.consent input:checked{background:var(--accent);border-color:var(--accent)}
+.consent input:checked::after{content:"✓";display:block;color:var(--on-accent);
+  font-size:1.05rem;line-height:1.2rem;text-align:center;font-weight:800}
+.consent input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.consent .ct{font-size:var(--t-body);line-height:1.5}
+.consent .ct .mono{display:block;color:var(--low);margin-top:.2rem}
+
+/* "when you'll be asked". The why lives in the row, not in a paragraph under
+   it, so nothing is said twice and nothing has to be read twice. */
+.asks{margin:0;padding:0;list-style:none;border-top:2px solid var(--ink)}
+.asks li{display:grid;grid-template-columns:1fr auto;gap:.15rem var(--s3);
+  padding:var(--s3) 0;border-bottom:1px solid var(--rule);align-items:baseline}
+.asks .w{font-size:var(--t-body);min-width:0;overflow-wrap:anywhere}
+.asks .wh{font-family:var(--mono);font-size:var(--t-micro);color:var(--low);
+  text-align:right;max-width:18ch}
+.asks li[data-now="1"] .wh{color:var(--ink)}
+
+/* The announcement surface. aria-hidden hides a thing from a SCREEN READER, not
+   from the eye — so the visible trace and the live region are two different
+   elements on purpose: one is seen, one is heard. */
+.vh{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;
+  clip-path:inset(50%);white-space:nowrap;border:0}
+
+/* ── prototype switcher. One bar, at the bottom, obviously not the design ── */
+.tools{position:fixed;bottom:0;left:0;right:0;z-index:20;background:var(--ink);color:var(--ground);
+  display:flex;flex-wrap:wrap;justify-content:center;align-items:stretch;gap:1px}
+:root[data-theme="dark"] .tools{background:var(--ground);color:var(--ink);border-top:2px solid var(--ink)}
+.tools button{min-height:3rem;min-width:3rem;padding:0 var(--s4);background:transparent;
+  border:0;color:inherit;cursor:pointer;font-family:var(--mono);font-size:var(--t-micro);
+  transition:background-color .1s linear}
+.tools button:hover{background:rgba(140,140,140,.3)}
+.tools button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+/* The pressed state swaps ink and ground, so it must NOT cross-fade: a
+   transition walks the label through mid-grey on mid-grey, 1:1 mid-change. */
+.tools [aria-pressed="true"]{background:var(--accent);color:var(--on-accent);transition:none}
+.tools .rule{width:1px;background:currentColor;opacity:.28}
+.tools .name{min-height:3rem;display:flex;align-items:center;padding:0 var(--s3);
+  font-family:var(--mono);font-size:var(--t-micro);opacity:.8;white-space:nowrap}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important}
+  .body.enter-fwd,.body.enter-back{animation:none}
+  .truth.ready.arrive::before{animation:none}
+  .trace .head{transition:none}
+}
+@media (prefers-contrast:more){
+  :root{--rule:currentColor;--rule-hi:currentColor;--bar:currentColor}
+  .sheet,.cta,.asks,.truth,.foot,.stateword{border-width:3px}
+}
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="sheet" id="sheet"></div>
+</div>
+
+<div class="tools" role="group" aria-label="Prototype controls">
+  <span class="name" id="label"></span>
+  <span class="rule"></span>
+  <button data-net="wifi" aria-pressed="true">Wi-Fi</button>
+  <button data-net="metered" aria-pressed="false">mobile</button>
+  <button data-net="offline" aria-pressed="false">offline</button>
+  <span class="rule"></span>
+  <button data-free="plenty" aria-pressed="true">space ok</button>
+  <button data-free="tight" aria-pressed="false">82 MB free</button>
+  <span class="rule"></span>
+  <button data-fs="100" aria-pressed="true">100%</button>
+  <button data-fs="150" aria-pressed="false">150%</button>
+  <button data-fs="200" aria-pressed="false">200%</button>
+  <span class="rule"></span>
+  <button data-theme-mode="light" aria-pressed="false">light</button>
+  <button data-theme-mode="dark" aria-pressed="false">dark</button>
+  <button data-theme-mode="auto" aria-pressed="true">auto</button>
+</div>
+
+<script>
+"use strict";
+/* ══════════════════════════════════════════════════════════════
+   Facts, measured. Nothing here is a guess.
+   ══════════════════════════════════════════════════════════════ */
+const MB         = 45;   // extracted model      — ADR-0010
+const ARCHIVE_MB = 127;  // .tar.bz2             — ticket 46
+const PEAK_MB    = 175;  // archive + extraction — ModelStore.kt
+const SOURCE     = "a pinned GitHub release";
+const BARS       = 44;
+
+/* Reduced motion is not "the same animations, faster". It is no animation at
+   all, and every resting style here is plain CSS precisely so that nothing is
+   lost when it is switched on. The one-shot classes are not added in the first
+   place — leaving a class on an element whose animation was suppressed is how
+   the class outlived its purpose in the first place. */
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)");
+
+/* Settled by ADR-0011 — rendered here, not invented. */
+const LIMITS_ACCESSIBILITY = [
+  "watches which box has focus",
+  "does not watch your keyboard",
+  "does not read the page around it",
+  "can read the focused box's text — we don't",
+  "declines every tool Android offers to screen-read",
+  "is not an accessibility tool",
+];
+
+const S = {
+  step:0, theme:"auto", net:"wifi", free:"plenty",
+  dl:"idle", pct:0, err:null, consent:false, meterAck:false,
+  haveModel:false, freeSeen:null, steppedAside:false,
+  lastStepKey:null, lastShape:null,
+};
+
+/* ══════════════════════════════════════════════════════════════
+   The order under review. This table WAS the ticket's answer space;
+   with the other three cut it is now just this flow, and it says so.
+   ══════════════════════════════════════════════════════════════ */
+const FLOW = {
+  name:"The gate", stance:"opt-in · blocking",
+  steps:[
+    { id:"welcome",  title:"Welcome",          sub:"name it, cost it, stop" },
+    { id:"model",    title:"Voice model",      sub:"the loudest screen in the product" },
+    { id:"disclose", title:"Dictation service",sub:"standalone, consent, settled copy" },
+    { id:"ready",    title:"Ready",            sub:"when each ask is coming" },
+  ],
+};
+
+/* ══════════════════════════════════════════════════════════════
+   The utterance. Two detuned sines, so the shape is fixed and only
+   the reveal moves — the same discipline as ticket 19's conic
+   sweep: a real angle, not a decoration.
+   ══════════════════════════════════════════════════════════════ */
+function barH(i){ const a=Math.sin(i*1.7)*.5+.5, b=Math.sin(i*.53+1.3)*.5+.5; return .2+.8*Math.max(a,b) }
+
+/* Where the playhead sits. At the very end it parks ON the last bar rather than
+   at 100%, which put a 2px sliver of ink past the right edge of the trace. */
+function headLeft(on){
+  if(!on) return "0%";
+  return on>=BARS ? "calc(100% - 2px)" : ((on/BARS)*100).toFixed(2)+"%";
+}
+function drawTrace(h){
+  const idle = (S.dl==="idle"||S.dl==="waiting"||S.dl==="failed");
+  /* `ready` means FULL, whatever S.pct happens to say. Deriving the lit count
+     from the bytes alone let the screen claim "ready" over a 61%-full bar. */
+  const on = idle ? 0 : S.dl==="ready" ? BARS : Math.round((S.pct/100)*BARS);
+  let bars="";
+  for(let i=0;i<BARS;i++) bars+='<i data-on="'+(i<on?1:0)+'" style="height:'+(barH(i)*100).toFixed(1)+'%"></i>';
+  /* data-trace is what tick() writes to. Without it the trace was frozen for
+     the whole download and only jumped three times, at the phase changes —
+     the one thing on this screen that exists to move was the one thing that
+     could not. A static audit cannot see that: the element is present, sized,
+     and the right colour. */
+  return '<div class="trace'+(idle?" idle":"")+'" data-trace style="height:'+(h||"3.5rem")+'" aria-hidden="true">'+bars
+       + '<span class="head" style="left:'+headLeft(on)+'"></span></div>';
+}
+
+/* The state a person is told, in words. The percentage rides alongside for
+   sighted readers and is deliberately NOT in the phase string: it changes
+   every frame, and a live region that changes every frame is noise.
+
+   A failure names ITSELF here, in words. It used to read "stopped · " plus the
+   internal error code, so the user was shown `stopped · space`, `stopped ·
+   hash` and `stopped · network` — the enums, not the English. */
+function phaseWord(){
+  if(S.err==="space" && S.steppedAside) return "waiting for you to come back";
+  if(!NET[S.net].online) return "waiting for a connection";
+  if(S.dl==="waiting")  return "paused · "+NET[S.net].label;
+  if(NET[S.net].metered && S.dl!=="ready" && S.dl!=="idle") return "paused · "+NET[S.net].label;
+  if(S.dl==="failed")    return "stopped — "+(FAILURES[S.err] ? FAILURES[S.err].word : "it did not finish");
+  if(S.dl==="idle")      return "not started";
+  if(S.dl==="verifying") return "checking it is the file we ship";
+  if(S.dl==="unpacking") return "unpacking "+MB+" MB";
+  if(S.dl==="ready")     return MB+" MB on this phone · ready";
+  return "fetching "+ARCHIVE_MB+" MB";
+}
+function pctText(){
+  return (S.dl==="ready"||S.dl==="idle"||S.dl==="failed"||S.dl==="waiting") ? "" : Math.round(S.pct)+"%";
+}
+const NET = {
+  wifi:    { label:"Wi-Fi",         metered:false, online:true  },
+  metered: { label:"mobile data",   metered:true,  online:true  },
+  offline: { label:"no connection", metered:false, online:false },
+};
+
+/* ══════════════════════════════════════════════════════════════
+   Copy. Written once so the cost of setup is stated in the same
+   words on every screen it appears on.
+   ══════════════════════════════════════════════════════════════ */
+function limits(l){ return '<ul class="limits">'+l.map(x=>"<li>"+x+"</li>").join("")+'</ul>' }
+
+/* permanent, in every state, including while running and after failure */
+function truth(){
+  return '<div class="truth'+(S.dl==="ready"?(FX.ready?" ready arrive":" ready"):"")+'">'
+    + limits([
+        MB+" MB once it is unpacked",
+        "about "+PEAK_MB+" MB free while it does",
+        "from "+SOURCE+", checked against a hash in the app",
+      ])+'</div>';
+}
+
+/* G9 demands a failure be visibly and SPECIFICALLY true, so each one says what
+   happened and offers the one action that fits it — in the bar, with everything
+   else, because the bar is the only place an action lives.
+
+   There is no failure HEADLINE here. It used to be one, in a bordered panel,
+   with a hard rule drawn under it — and the phase line above the trace already
+   said the same thing. Three heavy horizontals and a duplicated diagnosis to
+   mark one state. The phase line names the failure; this explains it. */
+function failure(){
+  const E=FAILURES[S.err];
+  /* What was actually free is captured when the download is refused, not read
+     back out of the control afterwards — so the sentence cannot contradict
+     itself if the world changes while the message is on screen. */
+  const free = S.freeSeen || freeMB();
+  const body = S.err === "space"
+    ? "This needs about "+PEAK_MB+" MB free while it unpacks. There is "+free+" MB."
+    : E.body;
+  return '<p class="fail">'+body+'<span class="mono">'+E.mono.map(m=>"— "+m).join("<br>")+'</span></p>';
+}
+function failureActions(){
+  const E=FAILURES[S.err];
+  /* "Free up space" used to re-run the same check and fail identically, which
+     is a button that goes nowhere. On Android it hands off to the system
+     storage settings and the app steps aside; the state above the screen keeps
+     the setup, so coming back resumes rather than restarts. That is modelled
+     here, because a refusal the user cannot act on is a refusal, not an error. */
+  if(S.err==="space" && S.steppedAside){
+    return '<div class="bar2"><button class="cta" data-act="retry">I have freed some space</button>'
+         + '<button class="cta ghost" data-act="alt">Not now</button></div>';
+  }
+  const primary = E.actName || "retry";
+  return E.alt
+    ? '<div class="bar2"><button class="cta" data-act="'+primary+'">'+E.act+'</button>'
+      + '<button class="cta ghost" data-act="alt">'+E.alt+'</button></div>'
+    : '<button class="cta" data-act="'+primary+'">'+E.act+'</button>';
+}
+const FAILURES = {
+  network:{word:"no connection",
+    body:"OpenFlow needs the network once, to fetch the voice model.",
+    mono:["your audio never uses the network","nothing you say is sent, ever"],act:"Try again"},
+  space:{word:"not enough space",
+    mono:["the "+ARCHIVE_MB+" MB file is kept until the model is written out","space is reclaimed afterwards"],
+    act:"Free up space",actName:"freeup",alt:"Not now"},
+  hash:{word:"that file isn't ours",
+    body:"What came down is not the file OpenFlow ships, so nothing was installed.",
+    mono:["this is the check working, not the app breaking","we would rather refuse to listen than guess"],
+    act:"Download again"},
+  cancelled:{word:"cancelled",
+    body:"OpenFlow cannot hear anything until the voice model is here.",
+    mono:["settings, dictionary and history work without it","only dictation waits"],
+    act:"Download the voice model"},
+};
+/* There is deliberately no `metered` failure. A metered connection is a PAUSE,
+   not a failure — it has both answers available and it resolves itself. It was
+   in this table anyway, which meant the table described a state the app can
+   never reach. */
+function freeMB(){ return S.free==="tight" ? 82 : 640 }
+
+/* The download surface. It says what is happening and what it costs. It draws
+   no buttons: the bar below it holds every action, in every state. */
+function downloadSurface(){
+  const aside = S.err==="space" && S.steppedAside;
+  return '<p class="lede">Speech happens on this phone. Nothing is uploaded.</p>'
+    + '<div class="trace-note"><span class="mono" data-phase>'+phaseWord()+'</span>'
+    +   '<span class="grow"></span><span class="mono dim" data-pct>'+pctText()+'</span></div>'
+    + drawTrace()
+    + (aside
+        ? '<p class="fail">OpenFlow has stepped aside so you can free some space. Come back and the download picks up from here.'
+          + '<span class="mono">— your setup is still where you left it'
+          + '<br>— nothing has been downloaded yet, so nothing is wasted</span></p>'
+        : S.dl==="failed" ? failure()
+        : S.dl==="ready"
+          ? '<p class="fail">There is nothing to download again.<span class="mono">'
+            +   '— nothing you say leaves this phone<span class="dim"> · works with the network off</span></span></p>'
+          : "")
+    + truth();
+}
+
+/* the disclosure — copy settled by ADR-0011 */
+function disclosure(){
+  return [
+      '<h2 class="disp">Dictation service</h2>'
+    + '<p class="lede">Android offers a service that can put text into the box you are typing in. OpenFlow uses it for that, and nothing else.</p>'
+    + limits(LIMITS_ACCESSIBILITY)
+    + '<label class="consent"><input type="checkbox" id="consentBox"'+(S.consent?" checked":"")+'>'
+    +   '<span class="ct">I understand what this service can see.'
+    +     '<span class="mono">turn it off any time in Settings</span></span></label>'
+  ];
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Screens. Each returns [ body, foot ]. The foot is ALWAYS the
+   primary action — there is no state in which it is empty or in
+   which the action lives somewhere else.
+   ══════════════════════════════════════════════════════════════ */
+const SCREENS = {
+  welcome(){
+    return [ '<h2 class="disp">A bubble you hold to write.</h2>'
+      + '<p class="lede">Drag it over the app you are writing in, hold, and the words land where your cursor is. '
+      +   'Setup asks for four things. Three of them are permissions, and none of them are needed yet.</p>'
+      + '<p class="stateword mono">first run fetches a '+MB+' MB voice model — about '+PEAK_MB+' MB of free space while it does</p>'
+      , '<button class="cta" data-act="go">Start setup</button>' ];
+  },
+  model(){
+    return [ '<h2 class="disp">Voice model</h2>'+downloadSurface(), modelActions() ];
+  },
+  disclose(){
+    return [ disclosure(),
+        '<button class="cta'+(S.consent?"":"")+'" data-act="consent-go"'
+        + (S.consent?"":" disabled")+'>Turn on the dictation service</button>' ];
+  },
+  ready(){
+    return [ '<h2 class="disp">Ready.</h2>'
+      + '<p class="lede small">That was the only ask here. Three more are coming, and none of them now.</p>'
+      + '<ul class="asks">'
+      +   '<li data-now="1"><span class="w">Dictation service</span><span class="wh">just now</span></li>'
+      +   '<li><span class="w">Bubble over other apps</span><span class="wh">next</span></li>'
+      +   '<li><span class="w">Microphone</span><span class="wh">when you first hold it</span></li>'
+      +   '<li><span class="w">Notifications</span><span class="wh">at your first dictation, so Android can show the mic is live</span></li>'
+      + '</ul>'
+      , '<button class="cta" data-act="done">Place the bubble</button>' ];
+  },
+};
+/* One function, four states, one place. */
+function modelActions(){
+  if(S.dl==="failed")     return failureActions();
+  if(S.dl==="ready")      return '<button class="cta" data-act="next">Continue</button>';
+  /* Metered is the one place a fact has to become a question, so the question
+     stays on screen with BOTH answers available for as long as it is true.
+     Tapping "wait" does not dismiss the question — it is still metered. */
+  if(S.dl==="waiting")    return '<div class="bar2"><button class="cta" data-act="retry">Download anyway</button>'
+                              + '<button class="cta ghost" data-act="wait">Wait for Wi-Fi</button></div>';
+  if(S.dl==="fetching"||S.dl==="verifying"||S.dl==="unpacking")
+                          return '<button class="cta ghost" data-act="cancel">Cancel</button>';
+  return '<button class="cta" data-act="download">Download the voice model</button>';
+}
+const BACK='<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+/* ══════════════════════════════════════════════════════════════
+   Render
+   ══════════════════════════════════════════════════════════════ */
+
+/* What the screen's STRUCTURE depends on. A progress tick changes none of it. */
+function shapeKey(){
+  const shape = (S.dl==="fetching"||S.dl==="verifying"||S.dl==="unpacking") ? "run" : S.dl;
+  return [S.step,S.consent?1:0,shape,S.err||"",S.net,S.free].join("|");
+}
+
+/* ── ONE-SHOT MOTION, AND WHY IT IS GATED ──────────────────────────────────
+   render() replaces innerHTML, so every CSS animation on the screen restarts
+   with it. That is exactly right for a step transition and exactly wrong for a
+   one-shot moment: the perimeter sweep — the single celebratory moment in the
+   whole product — replayed every time the FONT SCALE moved, because the tap
+   rebuilt the DOM. Probed, not assumed: animationstart fired again on a change
+   that changed nothing.
+
+   So a one-shot is keyed to the value it animates FROM. It plays on the
+   transition INTO that value and never again while the value holds. FX is
+   recomputed once per render, before any markup is built, because these
+   builders are called from render() and must agree. */
+let prevFx = null, FX = { ready: false };
+function fxFlags(){
+  const now = [S.step, S.dl, S.err || ""].join("|");
+  const moved = prevFx !== null && prevFx !== now && !REDUCED.matches;
+  prevFx = now;
+  FX = { ready: moved && S.dl === "ready" };
+  return FX;
+}
+/* …and then the class is gone. A class that outlives its animation is the
+   stale-class defect all over again, in a different coat. */
+function retireArrivals(){
+  document.querySelectorAll(".arrive").forEach(el=>{
+    const clear=()=>el.classList.remove("arrive");
+    /* pseudo-element animations bubble to the element that owns them, so this
+       fires for `.truth::before`; a descendant's does not match, which would
+       otherwise retire the parent early. */
+    el.addEventListener("animationend",e=>{ if(e.target===el) clear() },{once:true});
+    /* reduced-motion sets `animation:none`, so no animationend ever arrives */
+    setTimeout(clear,700);
+  });
+}
+
+/* A rebuild during a download restarted every animation on the screen eleven
+   times a second, so nothing could settle. A progress tick updates the trace,
+   the phase and the percentage, and touches nothing else. */
+function tick(){
+  const running = (S.dl==="fetching"||S.dl==="verifying"||S.dl==="unpacking");
+  const on = running ? Math.round((S.pct/100)*BARS) : S.dl==="ready" ? BARS : 0;
+  document.querySelectorAll("[data-trace]").forEach(tr=>{
+    const bars=tr.querySelectorAll("i");
+    for(let i=0;i<bars.length;i++) bars[i].dataset.on = i<on?1:0;
+    const h=tr.querySelector(".head");
+    if(h) h.style.left = headLeft(on);
+    tr.classList.toggle("idle", on===0);
+  });
+  const ph=phaseWord(), pc=pctText();
+  document.querySelectorAll("[data-phase]").forEach(e=>{ if(e.textContent!==ph) e.textContent=ph });
+  document.querySelectorAll("[data-pct]").forEach(e=>{ if(e.textContent!==pc) e.textContent=pc });
+  /* the live region follows the PHASE and nothing else. The percentage is
+     deliberately absent: a region that changes every frame is noise. */
+  const live=document.getElementById("phaseLive");
+  if(live && live.textContent!==ph) live.textContent=ph;
+}
+
+function render(){
+  const step=FLOW.steps[S.step]||FLOW.steps[0];
+  S.step=FLOW.steps.indexOf(step);
+  FX = fxFlags();
+
+  if(!NET[S.net].online && (S.dl==="fetching"||S.dl==="verifying"||S.dl==="unpacking")){
+    stopTimer(); S.dl="failed"; S.err="network";
+  }
+  if(S.dl==="waiting" && NET[S.net].online && !NET[S.net].metered){ S.dl="idle"; S.err=null }
+
+  const pair = SCREENS[step.id]();
+  let html = '<div class="statusbar"><span>9:41</span><span class="grow"></span>'
+    + '<span>'+NET[S.net].label+'</span></div>';
+  html += '<div class="appbar">'
+    + (S.step>0 ? '<button class="iconbtn" data-act="back" aria-label="Back">'+BACK+'</button>' : "")
+    + '<span class="brand">OpenFlow</span><span class="sep">/</span>'
+    + '<span class="mono steptitle">'+step.title.toLowerCase()+'</span>'
+    + '<span class="grow"></span>'
+    + '<span class="count">'+String(S.step+1).padStart(2,"0")+'/'+String(FLOW.steps.length).padStart(2,"0")+'</span></div>';
+  html += '<div class="body" id="body">'+pair[0]
+        + '<p class="vh" id="phaseLive" role="status" aria-live="polite">'+phaseWord()+'</p></div>';
+  html += '<div class="foot">'+pair[1]+'</div>';
+  html += '<div class="navbar-spacer" aria-hidden="true"></div>';
+  html += '<div class="navbar" aria-hidden="true"><i></i></div>';
+  document.getElementById("sheet").innerHTML = html;
+  S.lastShape = shapeKey();
+
+  /* directional step transition — one-shot, and the class never outlives it.
+     lastStepKey is the INDEX, so "back" is a comparison and not a lookup.
+     Reduced motion gets no class at all: `animation:none` means no
+     animationend ever fires, so the class would sit there waiting on a timer
+     for an animation that was never going to happen. */
+  const key=S.step, body=document.getElementById("body");
+  if(S.lastStepKey!==null && S.lastStepKey!==key && !REDUCED.matches){
+    const cls = S.lastStepKey>key ? "enter-back" : "enter-fwd";
+    body.classList.add(cls);
+    const clear=()=>body.classList.remove("enter-fwd","enter-back");
+    body.addEventListener("animationend",clear,{once:true});
+    /* the timeout is what guarantees the class is gone either way */
+    setTimeout(clear,400);
+  }
+  S.lastStepKey=key;
+
+  document.querySelectorAll(".tools [aria-pressed]").forEach(b=>{
+    const k=b.dataset.net||b.dataset.free||b.dataset.fs||b.dataset.themeMode;
+    const cur=S.net||S.free||(k==="100"||k==="150"||k==="200"?document.documentElement.dataset.fs:S.theme);
+    b.setAttribute("aria-pressed",String(b.dataset.themeMode?b.dataset.themeMode===S.theme:k===cur));
+  });
+  retireArrivals();
+  reflow();
+}
+
+/* ── THE DISPLAY, MEASURED ────────────────────────────────────────────────
+   How many rem of type this screen can hold. Not the viewport — the DISPLAY,
+   which is fixed while the type inside it scales. 15rem is where the top app
+   bar stops fitting its wordmark and its step name: 26rem at 100% font, 17rem
+   at 150%, 13rem at 200%. */
+const TIGHT_REM = 15;
+function reflow(){
+  const sheet=document.getElementById("sheet");
+  if(!sheet) return;
+  const px=parseFloat(getComputedStyle(sheet).fontSize)||16;
+  sheet.classList.toggle("tight", sheet.clientWidth/px < TIGHT_REM);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   The download, simulated: real states, real order, real numbers.
+   Phase and bytes live above the screen, because a 45 MB fetch must
+   survive a rotation.
+   ══════════════════════════════════════════════════════════════ */
+let timer=null;
+function stopTimer(){ if(timer){ clearInterval(timer); timer=null } }
+function startTimer(){
+  stopTimer();
+  timer=setInterval(()=>{
+    S.pct=Math.min(100,S.pct+7);
+    if(S.pct>=72 && S.dl==="fetching") S.dl="verifying";
+    else if(S.pct>=76 && S.dl==="verifying"){ S.dl="unpacking"; S.pct=76 }
+    else if(S.dl==="unpacking") S.pct=Math.min(100,S.pct+3);
+    if(S.dl==="unpacking" && S.pct>=100){ S.dl="ready"; S.haveModel=true; stopTimer() }
+    if(shapeKey()!==S.lastShape) render(); else tick();
+  },90);
+}
+function startDownload(){
+  if(!NET[S.net].online){ S.dl="failed"; S.err="network"; render(); return }
+  if(NET[S.net].metered && S.pct===0 && !S.meterAck){ S.dl="waiting"; S.err="metered"; render(); return }
+  if(S.free==="tight"){ S.dl="failed"; S.err="space"; S.freeSeen=freeMB(); S.steppedAside=false; render(); return }
+  S.err=null; S.steppedAside=false; S.dl="fetching"; S.pct=0; startTimer(); render();
+}
+function act(a){
+  switch(a){
+    case "download": startDownload(); return;
+    case "retry":    S.meterAck=true; startDownload(); return;
+    /* the hand-off to Android's storage settings. The app steps aside and keeps
+       its state, which is what S is for. */
+    case "freeup":   S.steppedAside=true; break;
+    case "alt":      S.steppedAside=false; S.dl="cancelled"; S.err="cancelled"; break;
+    case "cancel":   stopTimer(); S.dl="cancelled"; S.err="cancelled"; break;
+    case "wait":     stopTimer(); S.dl="waiting"; S.err="metered"; break;
+    case "back":     S.step=Math.max(0,S.step-1); break;
+    case "go": case "next": case "consent-go": case "done":
+      S.step=Math.min(FLOW.steps.length-1,S.step+1); break;
+  }
+  buzz(6); render();
+}
+function buzz(ms){ if(navigator.vibrate){ try{ navigator.vibrate(ms) }catch(_){} } }
+
+/* ══════════════════════════════════════════════════════════════
+   Chrome
+   ══════════════════════════════════════════════════════════════ */
+
+/* System back: reverses a step, and leaves the app from the first step.
+   A first-run flow that cannot be left is a trap. */
+function goBack(){
+  if(S.step>0) return act("back");
+  document.getElementById("label").textContent =
+    "back pressed on step 01  →  the app closes. First run is skippable.";
+}
+addEventListener("keydown",e=>{
+  const t=e.target;
+  if(t && (t.tagName==="INPUT"||t.tagName==="TEXTAREA"||t.isContentEditable)) return;
+  if(e.key==="Escape"||e.key==="Backspace"){ e.preventDefault(); goBack() }
+});
+
+document.querySelector(".tools").addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  if(b.dataset.net){
+    S.net=b.dataset.net; stopTimer();
+    if(!NET[S.net].online && S.dl!=="idle"&&S.dl!=="ready"&&S.dl!=="failed"){ S.dl="failed"; S.err="network" }
+    if(NET[S.net].metered && S.dl==="fetching"){ stopTimer(); S.dl="waiting"; S.err="metered" }
+  }
+  /* coming back from the storage settings: re-check, and if the world changed,
+     resume rather than restart. Nothing here was downloaded, so there is
+     nothing to resume — but the setup the user already did is still here. */
+  if(b.dataset.free){ S.free=b.dataset.free; if(S.free==="plenty") S.steppedAside=false }
+  if(b.dataset.fs) document.documentElement.dataset.fs=b.dataset.fs;
+  if(b.dataset.themeMode) setTheme(b.dataset.themeMode);
+  buzz(5); render();
+});
+
+/* Match [data-act], not `button[data-act]`. A `div` carrying a data-act is
+   un-tappable, and nothing errors — the affordance is simply dead. */
+document.getElementById("sheet").addEventListener("click",e=>{
+  const t=e.target.closest("[data-act]"); if(!t) return;
+  if(t.hasAttribute("disabled")) return;
+  act(t.dataset.act) });
+document.getElementById("sheet").addEventListener("change",e=>{
+  if(e.target.id==="consentBox"){ S.consent=e.target.checked; buzz(5); render() } });
+
+function setTheme(m){
+  S.theme=m;
+  if(m==="auto") document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.setAttribute("data-theme",m);
+  render();
+}
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>setTheme(S.theme));
+
+/* The control bar reserves its own height. It used to reserve a fixed 8rem,
+   which at 200% font left an 872px bar sitting on top of the phone — covering
+   the primary action, and therefore making every large-font hit test fail for a
+   reason that had nothing to do with the product. */
+const TOOLS=document.querySelector(".tools");
+new ResizeObserver(()=>{
+  document.documentElement.style.setProperty("--tools-h",TOOLS.offsetHeight+"px");
+}).observe(TOOLS);
+/* the display's rem-width changes when the window changes, not only when the
+   font does, and a font-scale tap only reaches render() through the bar */
+new ResizeObserver(()=>reflow()).observe(document.getElementById("sheet"));
+
+(function boot(){
+  document.getElementById("label").textContent =
+    "PROTOTYPE · ticket 47 · "+FLOW.name+" — "+FLOW.stance;
+  S.theme="auto";
+  render();
+})();
+</script>
+</body>
+</html>

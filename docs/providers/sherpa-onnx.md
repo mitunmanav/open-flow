@@ -5,7 +5,8 @@ Research for the SherpaOnnxProvider adapter (OpenFlow V1). All claims trace to p
 ## What it is
 
 - C++ ASR/TTS/VAD framework wrapping Next-gen Kaldi + onnxruntime, no network needed at inference. Repo: https://github.com/k2-fsa/sherpa-onnx
-- Android consumption path: JitPack artifact `com.github.k2-fsa.sherpa-onnx:sherpa-onnx:<tag>` (current docs use `v1.13.5`), which bundles the native `sherpa-onnx-jni` library for `arm64-v8a` (and other ABIs) — no NDK build needed for consumers. The Kotlin/Java class files (`OnlineRecognizer`, `OfflineRecognizer`, `Vad`, …) are copied from `sherpa-onnx/kotlin-api/` into the consuming app, or the equivalent `java_api` sources.
+- Android consumption path: JitPack artifact `com.github.k2-fsa.sherpa-onnx:sherpa-onnx:<tag>`, which bundles the native `sherpa-onnx-jni` library for `arm64-v8a` (and other ABIs) — no NDK build needed for consumers. **Pin the tag.** The coordinate this project builds against is **`v1.13.8`** (`gradle/libs.versions.toml`, reasoned in ADR-0007), which was the newest release when this was verified; upstream's own docs page still said `v1.13.5`, three releases stale, which is where an older number here came from. `master` must not be used: upstream's JitPack config hardcodes the version it mirrors, so an unpinned coordinate can resolve to an AAR that contradicts it.
+- **The Kotlin API ships *inside* the AAR.** `classes.jar` in the artifact contains 125 classes under `com.k2fsa.sherpa.onnx` — `OnlineRecognizer`, `OnlineStream`, `OfflineRecognizer`, `OfflineStream`, `Vad`, and the rest — so a consumer depends on the artifact and nothing else. Upstream symlinks these files into the AAR module. An earlier version of this document said they are "copied from `sherpa-onnx/kotlin-api/` into the consuming app", which was true before an AAR existed and is now both unnecessary and wrong.
 - Package name: `com.k2fsa.sherpa.onnx` for Kotlin API; Java demos use the same JNI surface.
 
 ## Streaming vs non-streaming ASR
@@ -56,7 +57,7 @@ val recognizer = OnlineRecognizer(assetManagerOrNull, OnlineRecognizerConfig(
   endpointConfig = getEndpointConfig(), enableEndpoint = true,
 ))
 val stream = recognizer.createStream()
-stream.acceptWaveform(samples)         // FloatArray, 16 kHz mono
+stream.acceptWaveform(samples, 16000)  // FloatArray + sample rate: TWO arguments
 while (recognizer.isReady(stream)) recognizer.decode(stream)
 if (recognizer.isEndpoint(stream)) { val r = recognizer.getResult(stream); /* text, tokens, timestamps, ysProbs */ }
 recognizer.reset(stream); stream.release? // see OnlineStream
@@ -65,11 +66,13 @@ recognizer.release()
 // Offline
 val asr = OfflineRecognizer(null, OfflineRecognizerConfig(modelConfig = OfflineModelConfig( /* whisper/paraformer/nemo/... */ ), featConfig = FeatureConfig()))
 val s = asr.createStream()
-s.acceptWaveform(samples); asr.decode(s)
+s.acceptWaveform(samples, 16000); asr.decode(s)
 val r = asr.getResult(s)   // text, tokens, timestamps, lang, emotion, event, durations (TDT)
 ```
 
 - Results carry `text`, `tokens`, `timestamps` (FloatArray seconds), and for offline `lang`/`emotion`/`event` (SenseVoice) and per-token `durations` (TDT). No word-level confidence; `ysProbs` exists on online results.
+- **`acceptWaveform` takes two arguments on both stream classes** — `OnlineStream.acceptWaveform(samples, sampleRate)` and `OfflineStream.acceptWaveform(samples, sampleRate)`. There is no single-argument overload; `Vad.acceptWaveform(samples)` *is* single-argument, which is the easy thing to carry over by mistake.
+- **Asset vs file is the `AssetManager` argument, not a pair of factory methods.** `OnlineRecognizer`, `OfflineRecognizer` and `Vad` all take `(assetManager, config)` with `assetManager` nullable (`@Nullable` on the constructor parameter): pass `context.assets` to resolve model paths from app assets, `null` to resolve them from the filesystem. `newFromAsset` and `newFromFile` exist in the class file but are `private final native` — they are what the constructor picks between, and calling them is not possible from Kotlin.
 - Hotwords/contextual biasing: `hotwordsFile` + `hotwordsScore` on configs, `createStream(hotwords = ...)`.
 - Rule FSTs (`ruleFsts`/`ruleFars`) for text normalization/injection; homophone replacer config.
 - Java API exists (`SherpaOnnxJavaDemo`), same JNI layer, Groovy/Kotlin DSL demos.
@@ -78,15 +81,15 @@ val r = asr.getResult(s)   // text, tokens, timestamps, lang, emotion, event, du
 Threading/lifecycle notes:
 - Everything is call-driven on the calling thread; no async callbacks. The adapter should run decode loops on a dedicated worker (the demos use a coroutine/Thread per recognition session).
 - `release()` must be called on recognizer and stream eventually; JNI class loads `System.loadLibrary("sherpa-onnx-jni")` in companion init — safe to load once.
-- Models can be loaded from app `assets/` (`newFromAsset`) or from filesystem paths (`newFromFile`) — decision point for downloaded-vs-bundled models.
+- Models load from app `assets/` or from filesystem paths, and the choice is the nullable `AssetManager` constructor argument — see the API surface section above. This is the decision point for downloaded-vs-bundled models.
 
 ## Model packaging & download
 
 - Official path: download `.tar.bz2` per model from `https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/<name>.tar.bz2` (mirrors on HuggingFace `csukuangfj/sherpa-onnx-*`), extract, point the config at the directory.
-- Demos bundle models in `app/src/main/assets/` (APK size grows by the model footprint — whisper-tiny int8 ≈ 40 MB, base ≈ 75 MB, zipformer small models tens of MB; Silero VAD ~2 MB).
+- Demos bundle models in `app/src/main/assets/` (APK size grows by the model footprint — whisper-tiny int8 ≈ 40 MB, base ≈ 75 MB, zipformer small models tens of MB; Silero VAD 629 KB).
 - Packaging options for OpenFlow:
   1. Bundle a default V1 model in `assets/` — simplest, offline-first, but +30–100 MB APK.
-  2. Download on first launch to app-internal storage and use `newFromFile` paths — smaller APK, needs download manager + integrity check + a `MODEL_MISSING` Provider Health state in `SpeechProvider.health()` (ADR-0001), distinct from `DEGRADED` because its fix is a download prompt rather than a retry.
+  2. Download on first launch to app-internal storage and construct with a `null` `AssetManager` so paths resolve from the filesystem — smaller APK, needs download manager + integrity check + a `MODEL_MISSING` Provider Health state in `SpeechProvider.health()` (ADR-0001), distinct from `DEGRADED` because its fix is a download prompt rather than a retry.
   3. Hybrid: bundle VAD (tiny), download ASR model(s) on demand.
 - No official runtime downloader in the Android artifact; you write the fetch/verify/extract code yourself. iOS/macOS use the same manual approach.
 
@@ -136,7 +139,7 @@ Common demo pitfalls to avoid copying: models extracted into `getExternalFilesDi
 1. Implement streaming path with `OnlineRecognizer` + built-in endpointing; map `getResult` before endpoint → `Partial`, endpoint result → `Final`. This is the natural V1 path (Zipformer transducer or streaming Paraformer).
 2. Offer Whisper-class quality via either (a) offline decode of a VAD-delimited utterance, or (b) simulated-streaming — both are "fake stream" from the router's perspective: one `Final` per endpoint, no true partials. Encode this in `capabilities` rather than a fake streaming flag.
 3. Run VAD (`Vad`, Silero) in front to gate/skip silence and to bound max utterance length; `Vad.flush()` handles tail.
-4. Model lifecycle: start with bundled default in assets; abstract behind a `ModelStore` so downloads can be added. Keep `newFromAsset` vs `newFromFile` both supported.
+4. Model lifecycle: start with bundled default in assets; abstract behind a `ModelStore` so downloads can be added. Keep both load paths supported — a non-null `AssetManager` for bundled assets, `null` for downloaded files.
 5. One decode thread per active session; no callbacks — translate pull-loop into the provider's event Flow/StateFlow.
 6. Expose `provider="cpu"` default; leave QNN/RKNN behind config until benchmarking.
 7. Result mapping: `text` → transcript; `timestamps` available if we later need word timing; SenseVoice gives `lang`/`emotion`/`event` for free; no confidence → router treats confidence as N/A.
@@ -144,7 +147,7 @@ Common demo pitfalls to avoid copying: models extracted into `getExternalFilesDi
 
 ## Sources
 
-- Kotlin API sources: https://github.com/k2-fsa/sherpa-onnx/tree/master/sherpa-onnx/kotlin-api (OnlineRecognizer.kt, OfflineRecognizer.kt, Vad.kt)
+- Kotlin API sources: https://github.com/k2-fsa/sherpa-onnx/tree/master/sherpa-onnx/kotlin-api (OnlineRecognizer.kt, OfflineRecognizer.kt, Vad.kt). **The artifact is the checkable source**: `jar tf classes.jar` inside `sherpa-onnx-v1.13.8.aar` and `javap` on the extracted classes settled every signature in this document that the written docs got wrong.
 - Java for Android (JitPack setup, model download steps): https://k2-fsa.github.io/sherpa/onnx/java-api/anroid-java.html
 - Android section + prebuilt APKs: https://k2-fsa.github.io/sherpa/onnx/android/index.html, https://k2-fsa.github.io/sherpa/onnx/android/prebuilt-apk.html
 - Android demos: https://github.com/k2-fsa/sherpa-onnx/tree/master/android

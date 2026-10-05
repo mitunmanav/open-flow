@@ -25,3 +25,8 @@ __pycache__/
 .agents/
 .commandcode/
 skills-lock.json
+
+# Parallel feature worktrees (one per concurrent ticket). Ignored rather than
+# merely avoided: an unignored worktree directory commits an entire second copy
+# of the tree, including every build output in it.
+.worktrees/

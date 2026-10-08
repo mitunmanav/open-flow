@@ -134,15 +134,21 @@ something, not the tool verifying something.
 ### Evidence
 
 46 assertions against a faithful reproduction (a real bare `origin`, real bot-authored
-commits carrying `Signed-off-by`, owner identity pinned), all passing: the bot's commit
-fails the gate; the cherry-picked commit fails the gate; the script's commit passes it
-with the diff carried, the bot's sign-off gone and `Refs:` present; the owner is left
-**on** the new branch; nothing is pushed; majors require the flag and minors do not; a
-human branch, a dirty tracked file, a wrong identity, an existing branch, a
-local-ahead base and a conflicting bump are each refused with the tree left clean; an
-already-landed bump reports "nothing to land" and makes no empty commit; `--dry-run`
-creates nothing. The pull-request-number path was exercised live against PR #4 and
-correctly refused it as human-authored, creating nothing.
+commits carrying `Signed-off-by`, owner identity pinned), all passing, exercised by hand
+in the authoring session: the bot's commit fails the gate; the cherry-picked commit
+fails the gate; the script's commit passes it with the diff carried, the bot's sign-off
+gone and `Refs:` present; the owner is left **on** the new branch; nothing is pushed;
+majors require the flag and minors do not; a human branch, a dirty tracked file, a
+wrong identity, an existing branch, a local-ahead base and a conflicting bump are each
+refused with the tree left clean; an already-landed bump reports "nothing to land" and
+makes no empty commit; `--dry-run` creates nothing. The pull-request-number path was
+exercised live against PR #4 and correctly refused it as human-authored, creating
+nothing.
+
+**The assertions are not committed.** They exist in the session that wrote the script,
+not in `.github/scripts/test_land_dependency_pr.py`, so `unittest discover` cannot
+re-run them and nothing in CI fails if the script changes. Committing them as a suite
+is [69](69-commit-the-landing-procedure-assertions.md).
 
 Two of those assertions were failing because my *fixture* was wrong, not the script: I
 had labelled `8.13 → 9.0` a minor bump. The script was right.

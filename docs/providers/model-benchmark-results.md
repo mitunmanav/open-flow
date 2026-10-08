@@ -58,8 +58,12 @@ flake in the acceptance gate.
 *Instrument: `OnlineRecognizer`/`OfflineRecognizer` + `Vad` called directly. Directional,
 but includes this project's VAD and thread model.*
 
-**Not run.** The harness does not exist yet ([40](../../.scratch/openflow-v1/issues/40-build-the-sherpa-benchmark-harness.md)),
-and running it needs a device ([41](../../.scratch/openflow-v1/issues/41-take-the-api-level-benchmark-numbers.md)).
+**Not run.** The harness's measurement logic has landed
+(`providers/sherpa/src/benchmark/kotlin` — the WER, the statistics, the run manifest, the
+threshold verdict, the report), but the device driver that runs it on hardware has not
+([40](../../.scratch/openflow-v1/issues/40-build-the-sherpa-benchmark-harness.md)),
+and running it needs a device
+([41](../../.scratch/openflow-v1/issues/41-take-the-api-level-benchmark-numbers.md)).
 
 ## 3. Through the SpeechProvider
 

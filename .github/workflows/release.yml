@@ -694,7 +694,7 @@ jobs:
 
       - name: Publish GitHub Release
         if: steps.existing.outputs.identical != 'true'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.select.outputs.tag }}
           generate_release_notes: true

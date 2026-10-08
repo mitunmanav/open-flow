@@ -1,0 +1,1329 @@
+<!doctype html>
+<!--
+  PROTOTYPE — throwaway. Do not ship, do not port, do not treat as a spec.
+
+  Question (ticket 49): ADR-0011 settled that the Bubble has three states and that
+  DISABLED MEANS ABSENT. Absent leaves no bubble, no state, and nothing on any
+  screen that says the product exists, so the only route back is Settings → Bubble
+  — which means launching the app. What is the way back, what does that surface
+  say about itself, and what does the user give up to get it?
+
+  Branch: the UI branch of the prototype skill (sub-shape B — a throwaway page,
+  because there is no app to host variants in; the repo has no application code).
+  Chosen over the logic branch because the open question is *which surface, and
+  what does it say*, not whether a state graph is coherent. The model underneath
+  is kept pure anyway — no DOM, no `document` — so it lifts on its own.
+
+  ── WHAT THE TWO PREDECESSORS GOT RIGHT, AND WHAT THEY DID NOT ─────────────
+  · `disabled-bubble-variants.html` covered the PLACE axis properly: app vs
+    launcher vs residue vs one-time offer, with the launcher drawn and the
+    shortcuts.xml long-press menu rendered. That work is kept and reused.
+  · `disabled-bubble-ways-out.html` covered the RESIDUE axis: absent / retracted
+    / chip / muted, each carrying its own cost. Its per-way exit animations are
+    dead CSS that used `fill-mode: forwards`, which is the defect this repo has
+    already paid for, so none of them are reproduced here.
+  · NEITHER answered the ticket's own honesty requirement, and that is the gap
+    this file exists for. In both, the winning route's surface carried no limit
+    at all. `variants.html`'s pinned tile said "bubble on" / "bring it back" /
+    "not pinned" and nothing else — the launcher's tile is the surface that was
+    supposed to carry the promise, and it was the one surface with no limit on
+    it. A promise nobody has bounded is not a promise.
+  · NEITHER showed the composition the ticket asked for. The permission-health
+    row was drawn as a row; what it should *say* when "ready to dictate" is
+    false for a reason that is not a permission was asserted in a comment.
+
+  ── THE FINDING THAT ORGANISES THE FOUR VARIANTS ───────────────────────────
+  **We do not control the launcher's surface.** A `shortcuts.xml` entry gives
+  us a label, an intent, and an activity — one line of text rendered by somebody
+  else's UI, truncated to fit, in a menu we do not lay out. So the question
+  "does the route back state its own limit?" is not a copy problem. It is a
+  question of *which of our surfaces the limit can live on*, and only two answers
+  are available: the screen the shortcut opens, or the moment we hand the route
+  over. Both are here, plus the two answers that cannot state anything.
+
+    A  the-row         The Ready row is the switch and it names itself. No new
+                        surface, no launcher tax — and the only route back is
+                        behind a launch, which is the dead end the ticket
+                        complained about, made honest instead of fixed.
+    B  receipt         The shortcut opens a RECEIPT, never a silent toggle. The
+                        limit lives on the screen the shortcut lands on, which
+                        is also where the overlay permission belongs
+                        (permissions-policy §3: asked when the user first
+                        enables the bubble). Toggling from the launcher is the
+                        cheap version and B is the argument against it.
+    C  handover        The route is handed over at the moment of loss: the
+                        bubble goes on one tap, and one sheet reports what is
+                        gone and names the way back. This is the confirm
+                        question, settled as a different sentence from "are you
+                        sure?".
+    D  silent          NEGATIVE CONTROL. The shortcut toggles and the limits
+                        live in a README. Structurally the cheapest variant, and
+                        the one the audit is required to FAIL — it is the proof
+                        that "every route back states its own limit" is a
+                        property that can be absent, and therefore a check with
+                        teeth rather than a slogan.
+
+  ── WHY THE NOTIFICATION IS NOT ONE OF THESE ───────────────────────────────
+  ADR-0011 settled that the channel "carries the recording indicator and nothing
+  else, ever". A "your bubble is off" notification is a second thing on a
+  channel this project promised would carry one, and a standing notification for
+  a control the user turned off is noise paid for by the user who asked for
+  silence. `ways-out.html` called a second channel a cost rather than a
+  prohibition, which is fair, and then built it anyway. It is still wrong: the
+  cost is not a channel, it is a permanent object in the shade a user asked to
+  be empty, for a control they can already reach. Not built here.
+
+  ── RULES HELD, AND HOW ───────────────────────────────────────────────────
+  · Nothing hidden by default. No resting style is opacity:0. Every keyframe
+    animation is fill-mode BACKWARDS, so an animation that never runs leaves
+    its element visible rather than absent.
+  · There is no `fill-mode: forwards` rule in this file at all. Every resting
+    state is plain CSS. A one-shot that is held by an animation outlives its
+    purpose and nothing re-derives it — the defect `ways-out.html` shipped three
+    of, unused.
+  · One-shots are keyed to the value they animate FROM and the class is removed
+    when the animation ends, so re-render cannot replay one on an unrelated
+    change.
+  · A press INVERTS (ground for ink) and therefore swaps instantly: a 100ms
+    cross-fade measured 4.02:1 at +25ms and 1.33:1 at +50ms on this design's
+    colours, below AA mid-gesture. Nothing that inverts has a transition.
+  · Reduced motion is NO animation and adds no one-shot class in the first
+    place, which is only safe because no resting state rests on a keyframe.
+  · Hit areas are PROBED, not added up: the audit walks outward from the
+    control's box with elementFromPoint and fails on the first ring that misses.
+  · The control-bar reserve is MEASURED from that bar, and the audit
+    separately asserts the bar does not cover any control — a harness that lies
+    about the thing it measures is worse than no harness, because it passes.
+  · State is never colour alone: a word, a shape, and a mark that changes.
+  · Every claim sets the promise in Archivo against the limit in JetBrains Mono,
+    which is the site's rule ("Each sets the promise against what it does not
+    do, in a different typeface — the same rule the app's permission screen
+    follows") and the app inherits it.
+
+  The audit is NOT in this file. It is `disabled-bubble-route-back.audit.mjs`,
+  in Node, driving a real browser — because a prototype that audits itself is
+  measuring itself, which is how a file full of dead forwards animations once
+  passed its own honesty check.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE — the way back from a disabled bubble (ticket 49)</title>
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   Tokens. Ticket 19's palette; every value is MEASURED per theme by the audit,
+   not trusted. One accent. A failure is ink and the specific words, never red.
+   ══════════════════════════════════════════════════════════════════════════ */
+@font-face{font-family:'Archivo';src:url('../../../website/fonts/archivo-latin-var.woff2') format('woff2');font-weight:100 900;font-stretch:62% 125%;font-display:swap}
+@font-face{font-family:'JetBrains Mono';src:url('../../../website/fonts/jetbrains-mono-latin-var.woff2') format('woff2');font-weight:400 800;font-display:swap}
+
+:root{
+  --ground:#F4F4F2; --ink:#0A0A0A; --mid:#4A4A48; --low:#5E5E5B;
+  --rule:rgba(10,10,10,.16); --rule-hi:rgba(10,10,10,.34);
+  --accent:#5B21D6; --on-accent:#FFFFFF; --field:rgba(10,10,10,.05);
+  --on-accent-dim:#D6CBF7; /* a TINT, not an opacity: a translucent foreground
+    is one the compositor has to be trusted to resolve and an audit reading
+    `color` never sees it. Per theme, because one value cannot serve both. */
+  --ui:'Archivo',system-ui,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --s1:.25rem; --s2:.5rem; --s3:.75rem; --s4:1rem; --s5:1.5rem;
+  --t-micro:.6875rem; --t-small:.75rem; --t-body:.875rem; --t-base:1rem;
+  --t-sub:1.25rem;
+  --nav-inset:3rem;   /* 48px, and the nav keys get the floor too */
+  --tools-h:9rem;     /* MEASURED at boot from the bar; never trusted as authored */
+}
+:root[data-theme="dark"]{
+  --ground:#0A0A0A; --ink:#F4F4F2; --mid:#B4B4B0; --low:#8E8E8A;
+  --rule:rgba(244,244,242,.18); --rule-hi:rgba(244,244,242,.4);
+  --accent:#A78BFA; --on-accent:#0A0A0A; --field:rgba(244,244,242,.06);
+  --on-accent-dim:#DCD2FD;
+}
+
+html[data-fs="150"]{font-size:24px}
+html[data-fs="200"]{font-size:32px}
+
+*{box-sizing:border-box;border-radius:0}
+html,body{margin:0}
+body{
+  background:var(--ground);color:var(--ink);
+  font-family:var(--ui);font-size:var(--t-base);line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+/* The width axis, not a scale: Archivo carries 62–125% and the width is the
+   type idea. Display is EXTENDED at 800; body is normal width. */
+.display{font-weight:800;font-stretch:125%;letter-spacing:-.015em;line-height:1.12}
+button{font:inherit;color:inherit;background:none;border:0;margin:0;padding:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+
+.mono{font-family:var(--mono);font-size:var(--t-micro);letter-spacing:.005em;line-height:1.7}
+
+/* ── the device ──────────────────────────────────────────────────────────── */
+/* FLEX, not grid, and `min-width:0` on the frame. A grid column sizes to its
+   max-content, so the frame's own `width:416px` fed back into the column and
+   `max-width:100%` then resolved against 416 — a "phone" 416px wide inside a
+   390px viewport, with the host's microphone key hanging off the right edge and
+   failing its hit test for a reason that had nothing to do with its hit test.
+   A harness reporting a plausible-looking failure for an implausible cause is
+   the failure mode this whole audit exists to avoid, so it is fixed at the
+   cause rather than by widening a tolerance. */
+.stage{min-height:100vh;display:flex;justify-content:center;align-items:flex-start;
+  padding:1.5rem 1rem calc(var(--tools-h) + 1.5rem)}
+.frame{width:416px;max-width:100%;min-width:0;display:flex;flex-direction:column;
+  height:min(46rem,calc(100vh - var(--tools-h) - 3rem))}
+.sheet{
+  width:100%;flex:1 1 auto;min-height:14rem;min-height:0;
+  border:2px solid var(--ink);background:var(--ground);
+  display:flex;flex-direction:column;position:relative;overflow:hidden;
+}
+@media (max-width:480px){
+  .stage{padding:1rem 0 calc(var(--tools-h) + 1rem)}
+  .frame{height:calc(100vh - var(--tools-h) - 2rem)}
+  .sheet{border-left:0;border-right:0}
+}
+
+.statusbar{flex:none;display:flex;align-items:center;gap:var(--s2);padding:.4rem var(--s4) .35rem;
+  font-family:var(--mono);font-size:var(--t-micro);color:var(--low);
+  border-bottom:1px solid var(--rule)}
+.statusbar .grow{flex:1}
+
+/* ── HOST: somebody else's app. Dense on purpose — an empty rectangle made the
+   premise untestable, because "floating over" needs something to float over. ── */
+.host{flex:1;display:flex;flex-direction:column;position:relative;overflow:hidden;min-height:0}
+.appbar{flex:none;display:flex;align-items:center;gap:var(--s3);min-height:3.5rem;
+  padding:0 var(--s3) 0 var(--s2);border-bottom:2px solid var(--ink)}
+.appbar .av{flex:none;display:grid;place-items:center;width:2.25rem;height:2.25rem;
+  background:var(--accent);color:var(--on-accent);font-weight:800;font-size:var(--t-small)}
+.appbar .who{flex:1;min-width:0}
+.appbar .who .name{font-weight:800;font-stretch:125%;font-size:var(--t-base);letter-spacing:-.02em}
+.appbar .who .sub{font-family:var(--mono);font-size:var(--t-micro);color:var(--low)}
+.iconbtn{flex:none;display:grid;place-items:center;width:3rem;height:3rem;border:1px solid transparent}
+.iconbtn:hover{background:var(--field);border-color:var(--rule)}
+.iconbtn:active{background:var(--ink);color:var(--ground);transition:none}
+
+.thread{flex:1;overflow:hidden;padding:var(--s3) var(--s3) 0;display:flex;
+  flex-direction:column;gap:var(--s2);min-height:0}
+.msg{max-width:80%;padding:.4rem .6rem;font-size:var(--t-body);line-height:1.4}
+.msg .t{display:block;font-family:var(--mono);font-size:var(--t-micro);color:var(--low);margin-top:.15rem}
+/* Direction is a border and a fill, so it survives with no colour at all. */
+.msg.in{align-self:flex-start;border:1px solid var(--rule-hi)}
+.msg.out{align-self:flex-end;background:var(--accent);color:var(--on-accent);border:2px solid var(--accent)}
+.msg.out .t{color:var(--on-accent-dim)}
+.msg .caret{display:inline-block;width:2px;height:1.05em;background:currentColor;vertical-align:-.15em}
+.strip{flex:none;display:flex;gap:var(--s2);padding:var(--s2) var(--s3);
+  border-top:1px solid var(--rule);overflow:hidden}
+.strip span{flex:none;padding:.15rem .5rem;border:1px solid var(--rule);
+  font-size:var(--t-small);color:var(--mid);white-space:nowrap}
+.field{flex:none;border-top:2px solid var(--ink);
+  padding:var(--s2) var(--s3) calc(var(--s2) + var(--nav-inset));display:flex;align-items:center;gap:var(--s2)}
+.field .line{flex:1;min-height:3rem;border:1px solid var(--rule-hi);
+  padding:.65rem var(--s3);font-size:var(--t-body)}
+/* The keyboard's OWN microphone key. Every keyboard has one and it is where a
+   person goes looking for dictation — so the mock draws it and claims it for
+   nobody. A prototype that implied it was OpenFlow's would be lying about the
+   competition it exists inside. */
+.mic{flex:none;display:grid;place-items:center;width:3rem;height:3rem;
+  border:2px solid var(--ink);background:var(--ground)}
+.mic:hover{background:var(--field)}
+.mic:active{background:var(--ink);color:var(--ground);transition:none}
+.mic svg{display:block;fill:currentColor}
+
+/* ── OPENFLOW's own surfaces ─────────────────────────────────────────────── */
+.appbar2{flex:none;display:flex;align-items:center;gap:var(--s1);min-height:3.5rem;
+  padding:0 var(--s2) 0 var(--s4);border-bottom:2px solid var(--ink)}
+.appbar2 .brand{flex:none;font-weight:800;font-stretch:125%;font-size:var(--t-base);letter-spacing:-.02em}
+.appbar2 .sep{flex:none;color:var(--low);font-family:var(--mono);font-size:var(--t-micro)}
+.appbar2 .title{min-width:0;overflow-wrap:anywhere}
+.appbar2 .grow{flex:1}
+.scroll{flex:1;overflow-y:auto;overflow-x:hidden;min-height:0;overscroll-behavior:contain}
+/* Real space below the last row, equal to the system bar, so scrolling to the
+   end cannot park a row underneath it. Padding on the row alone left the row's
+   own box under the bar while only its label cleared. */
+.tail{padding-bottom:var(--nav-inset)}
+.rows{margin:0;padding:0;list-style:none;border-top:2px solid var(--ink)}
+.rows.bare{border-top:0}
+.row{display:grid;grid-template-columns:1fr auto;align-items:baseline;gap:2px var(--s3);
+  width:100%;min-height:4.5rem;padding:.9rem var(--s4);border-bottom:1px solid var(--rule);
+  text-align:left;position:relative;transition:background-color .1s linear}
+.row:hover{background:var(--field)}
+.row:active{background:var(--ink);color:var(--ground)}
+.row.sel{background:var(--field)}
+.row .name{grid-column:1;font-weight:700;font-size:var(--t-body);letter-spacing:-.01em}
+.row .state{grid-column:2;font-family:var(--mono);font-size:var(--t-micro);color:var(--low);white-space:nowrap}
+.row:active .state,.row.sel .state{color:var(--ground)}
+.row .does{grid-column:1 / span 2;font-size:var(--t-small);color:var(--mid);margin-top:2px}
+.row:active .does{color:var(--ground)}
+/* The limit half, in mono. The promise is the row's name and `.does`; this is
+   the half that makes the promise checkable. */
+.row .limit{grid-column:1 / span 2;font-family:var(--mono);font-size:var(--t-micro);
+  color:var(--low);margin-top:var(--s1)}
+.row:active .limit{color:var(--ground)}
+.row.off .name{color:var(--low)}
+.row.off:active .name{color:var(--ground)}
+.row.fix{background:var(--field)}
+
+/* The switch: a track that fills and a square that crosses. The row's own word
+   carries the state too, so this is never the only signal. */
+.sw{grid-column:2;justify-self:end;width:2.75rem;height:1.5rem;border:2px solid var(--ink);
+  background:var(--field);position:relative;margin-top:.15rem}
+.sw i{position:absolute;top:0;bottom:0;left:0;width:50%;background:var(--ink);
+  transition:transform .14s cubic-bezier(.2,0,0,1)}
+.sw.on{background:var(--accent);border-color:var(--accent)}
+.sw.on i{transform:translateX(100%);background:var(--on-accent)}
+.sw.noanim i{transition:none}
+
+/* A summary line: what is true right now, and the reason when it is false.
+   permissions-policy §5 requires the reason, because a false "ready to dictate"
+   with no reason is the dead end the gate exists to prevent. */
+.verdict{padding:var(--s3) var(--s4);border-bottom:2px solid var(--ink)}
+.verdict .say{font-size:var(--t-body);font-weight:800;font-stretch:125%;letter-spacing:-.01em}
+.verdict .why{font-family:var(--mono);font-size:var(--t-micro);color:var(--low);margin-top:2px}
+
+/* ── LAUNCHER: the other candidate place, and the one we do not lay out. ──── */
+.launcher{flex:1;display:flex;flex-direction:column;padding:var(--s4) var(--s4) var(--nav-inset);
+  gap:var(--s5);overflow:auto;min-height:0}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--s3) var(--s2)}
+.appicon{display:flex;flex-direction:column;align-items:center;gap:var(--s1);
+  min-height:4.5rem;padding:var(--s2) 0;border:1px solid transparent}
+.appicon:hover{background:var(--field);border-color:var(--rule)}
+.appicon:active{background:var(--ink);color:var(--ground);transition:none}
+.appicon .glyph{flex:none;display:grid;place-items:center;width:3rem;height:3rem;
+  border:2px solid currentColor;color:var(--ink)}
+.appicon .glyph svg{display:block;width:1.5rem;height:1.5rem;fill:currentColor}
+.appicon .glyph.mark{border:0;color:var(--accent)}
+.appicon .glyph.mark svg{width:3rem;height:3rem}
+.appicon:active .glyph{color:var(--ink)}
+.appicon .lbl{font-family:var(--mono);font-size:var(--t-micro);text-align:center;line-height:1.35}
+.tilerow{display:flex;gap:var(--s3);padding-top:var(--s4);border-top:1px solid var(--rule)}
+.tilerow:empty{display:none}
+.tile{flex:1;display:flex;flex-direction:column;align-items:center;gap:var(--s2);
+  min-height:5rem;padding:var(--s3) var(--s2);border:2px solid var(--ink);
+  background:var(--ground)}
+.tile:hover{background:var(--field)}
+.tile:active{background:var(--ink);color:var(--ground);transition:none}
+.tile .glyph{display:grid;place-items:center;width:2.5rem;height:2.5rem;color:inherit}
+.tile .glyph svg{display:block;width:2.5rem;height:2.5rem;fill:currentColor}
+.tile .lbl{font-family:var(--mono);font-size:var(--t-micro);text-align:center;line-height:1.35}
+.tile.pinned{border-color:var(--accent)}
+/* The shortcut as the launcher draws it: OUR label in THEIR surface, one line,
+   truncated. `ellipsis` is drawn rather than assumed, because truncation is the
+   fact the whole variant turns on. */
+.tile.trunc .lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+
+/* ── THE BUBBLE. The product's own mark, so the Bubble and the launcher icon
+   are recognisably the same object — otherwise the launcher route reads as a
+   different app. Idle is the mark at rest, dictating is the same mark taller.
+   STATE IS SHAPE, so it survives with no colour at all. ─────────────────── */
+.bubble{position:absolute;z-index:6;width:3.5rem;height:3.5rem;
+  border:2px solid var(--ink);background:var(--ground);padding:0;
+  display:grid;place-items:center;-webkit-tap-highlight-color:transparent}
+.wave{display:flex;align-items:center;gap:.11rem;height:1.3rem}
+.wave i{display:block;width:.16rem;background:var(--ink);transform-origin:center}
+.wave i:nth-child(1),.wave i:nth-child(5){height:.34rem}
+.wave i:nth-child(2),.wave i:nth-child(4){height:.78rem}
+.wave i:nth-child(3){height:1.16rem}
+.bubble.dictating{background:var(--accent);border-color:var(--accent)}
+.bubble.dictating .wave{height:1.6rem}
+.bubble.dictating .wave i{background:var(--on-accent)}
+.bubble.dictating .wave i:nth-child(1),.bubble.dictating .wave i:nth-child(5){height:.55rem}
+.bubble.dictating .wave i:nth-child(2),.bubble.dictating .wave i:nth-child(4){height:1.1rem}
+.bubble.dictating .wave i:nth-child(3){height:1.5rem}
+.bubble .word{position:absolute;bottom:calc(100% + .35rem);left:50%;transform:translateX(-50%);
+  font-family:var(--mono);font-size:var(--t-micro);color:var(--low);white-space:nowrap}
+.bubble.dictating .word{color:var(--accent);font-weight:700}
+
+/* ── SHEETS: where the two sentences live. ──────────────────────────────── */
+.scrim{position:absolute;inset:0;z-index:8;background:rgba(10,10,10,.42)}
+.sheetbox{position:absolute;left:0;right:0;bottom:0;z-index:9;background:var(--ground);
+  border-top:2px solid var(--ink);padding:var(--s4) var(--s4) calc(var(--s4) + var(--nav-inset))}
+.sheetbox h2{margin:0 0 var(--s2);font-size:var(--t-sub)}
+.sheetbox p{margin:0;font-size:var(--t-body);color:var(--mid)}
+.acts{display:flex;flex-direction:column;gap:var(--s2);margin-top:var(--s4)}
+.act{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);
+  width:100%;min-height:3rem;padding:0 var(--s3);border:2px solid var(--ink);
+  background:var(--ground);font-size:var(--t-body);font-weight:700}
+.act:hover{background:var(--field)}
+.act:active{background:var(--ink);color:var(--ground);transition:none}
+.act .note{font-family:var(--mono);font-size:var(--t-micro);color:var(--low);font-weight:400}
+.act:active .note{color:var(--ground)}
+.primary{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);
+  width:100%;min-height:3.25rem;padding:0 var(--s3);border:2px solid var(--accent);
+  background:var(--accent);color:var(--on-accent);font-size:var(--t-base);font-weight:800}
+.primary:hover{filter:brightness(1.08)}
+.primary:active{background:var(--ink);color:var(--ground);border-color:var(--ink);transition:none}
+.primary .note{font-family:var(--mono);font-size:var(--t-micro);font-weight:400;opacity:.9}
+
+/* THE HONESTY BLOCK. Promise above in Archivo, limit below in mono — the site's
+   rule, and the only reason a claim on this screen is checkable. */
+.limits{margin:var(--s3) 0 0;padding:0;list-style:none;border-top:1px solid var(--rule)}
+.limits li{display:grid;grid-template-columns:1fr;gap:2px;padding:var(--s3) 0;
+  border-bottom:1px solid var(--rule)}
+.limits .yes{font-size:var(--t-body);font-weight:700}
+.limits .no{font-family:var(--mono);font-size:var(--t-micro);color:var(--mid)}
+
+/* The READOUT. The answer sheet, not part of the design. A fixed band: sizing
+   it by content let it eat the sheet at 200% font, and a harness that changes
+   the thing it measures is not a harness. */
+.readout{flex:none;width:100%;height:9rem;margin-top:var(--s4);
+  border:2px solid var(--ink);background:var(--ground);overflow:auto}
+.readout h4{margin:0;padding:.5rem var(--s3);border-bottom:2px solid var(--ink);
+  font-family:var(--mono);font-size:var(--t-micro);color:var(--low);font-weight:400;
+  display:flex;gap:var(--s2);align-items:center}
+.readout h4 .grow{flex:1}
+.readout .beat{padding:var(--s2) var(--s3) 0;font-size:var(--t-small);color:var(--mid)}
+.readout dl{margin:0;padding:var(--s3);display:grid;grid-template-columns:auto 1fr;
+  gap:var(--s1) var(--s3);font-family:var(--mono);font-size:var(--t-micro);line-height:1.7}
+.readout dt{color:var(--low);white-space:nowrap}
+.readout dd{margin:0;overflow-wrap:anywhere}
+.readout .no{color:var(--low)}
+.readout .yes{font-weight:700}
+.readout .bad{font-weight:700;text-decoration:underline}
+
+/* ── MOTION. Structure draws itself; nothing moves on its own. BACKWARDS only,
+   so an animation that never runs leaves its element visible. There is no
+   `forwards` rule in this file and there must not be one: a resting state held
+   by an animation is not re-derived by anything, which is how a permanently
+   invisible bubble happens. ───────────────────────────────────────────────── */
+@keyframes sheet-in{from{transform:translateY(.75rem)}to{transform:translateY(0)}}
+@keyframes stroke-up{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+.sheet{animation:sheet-in .22s cubic-bezier(.2,0,0,1) backwards}
+.bubble.entrance .wave i{animation:stroke-up .3s cubic-bezier(.2,0,0,1) backwards}
+.bubble.entrance .wave i:nth-child(1){animation-delay:.02s}
+.bubble.entrance .wave i:nth-child(2){animation-delay:.07s}
+.bubble.entrance .wave i:nth-child(3){animation-delay:.12s}
+.bubble.entrance .wave i:nth-child(4){animation-delay:.17s}
+.bubble.entrance .wave i:nth-child(5){animation-delay:.22s}
+
+/* ── prototype switcher. Obviously not the design. ──────────────────────── */
+.tools{position:fixed;bottom:0;left:0;right:0;z-index:20;background:var(--ink);color:var(--ground);
+  display:flex;flex-wrap:wrap;justify-content:center;align-items:stretch;gap:1px}
+:root[data-theme="dark"] .tools{background:var(--ground);color:var(--ink);border-top:2px solid var(--ink)}
+.tools button{min-height:3rem;min-width:3rem;padding:0 var(--s3);background:transparent;
+  border:0;color:inherit;cursor:pointer;font-family:var(--mono);font-size:var(--t-micro);
+  transition:background-color .1s linear}
+.tools button:hover{background:rgba(140,140,140,.3)}
+.tools [aria-pressed="true"]{background:var(--accent);color:var(--on-accent);transition:none}
+.tools .rule{width:1px;background:currentColor;opacity:.28}
+.tools .name{min-height:3rem;display:flex;align-items:center;padding:0 var(--s3);
+  font-family:var(--mono);font-size:var(--t-micro);opacity:.85;white-space:nowrap}
+
+@media (prefers-reduced-motion:reduce){
+  /* NO animation, and no one-shot class is ever added under reduced motion, so
+     there is no class left on a suppressed animation to outlive its purpose. */
+  *,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important}
+  .sheet{animation:none}
+}
+@media (prefers-contrast:more){
+  :root{--rule:currentColor;--rule-hi:currentColor}
+  .sheet,.row,.tile,.readout,.sheetbox,.appbar,.appbar2,.limits li{border-width:3px}
+}
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="frame">
+    <div class="sheet" id="sheet"></div>
+    <div class="readout" id="readout"></div>
+  </div>
+</div>
+
+<div class="tools" role="group" aria-label="Prototype controls">
+  <button id="prev" aria-label="Previous variant">←</button>
+  <span class="name" id="label"></span>
+  <button id="next" aria-label="Next variant">→</button>
+  <span class="rule"></span>
+  <button data-fs="100" aria-pressed="true">100%</button>
+  <button data-fs="150" aria-pressed="false">150%</button>
+  <button data-fs="200" aria-pressed="false">200%</button>
+  <span class="rule"></span>
+  <button data-theme-mode="light" aria-pressed="false">light</button>
+  <button data-theme-mode="dark" aria-pressed="false">dark</button>
+  <span class="rule"></span>
+  <button data-go="ready" aria-pressed="false">ready</button>
+  <button data-go="first" aria-pressed="false">first run</button>
+  <button data-go="reset" aria-pressed="false">reset</button>
+</div>
+
+<script>
+"use strict";
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE MODEL. Pure: no DOM, no `document`, no event objects. Everything below
+   is a function of (state, action), so the thing that answers the ticket can be
+   lifted into the real Bubble controller and the page can be thrown away.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ADR-0011. Three states, only the third runs a service. */
+const STATES = ["disabled", "idle", "dictating"];
+
+/* ADR-0011: the notification channel carries the recording indicator and nothing
+   else, ever. Which is why no route back here uses a notification. */
+const CHANNEL_RULE = "one channel: the recording indicator, nothing else, ever";
+
+/* permissions-policy §3: overlay access is requested when the user first
+   ENABLES the bubble, never at first launch. §5: the bubble's own state is a
+   health row too, and "ready to dictate" is then false for a reason that is not
+   a permission. Three reasons, not one — conflating them is how a health screen
+   starts telling users to fix something they chose. */
+const OFF_REASON = {
+  user: "you turned it off — nothing to fix",
+  overlay: "the overlay permission is not granted",
+  service: "the dictation service is not enabled",
+};
+
+/* The four answers. They disagree about WHERE THE LIMIT CAN LIVE, which is the
+   only question the predecessors left open. */
+const VARIANTS = [
+  {
+    key: "A",
+    name: "the row names itself",
+    // The route back is inside the app, and it names itself.
+    surfaces: ["ready"],
+    launcherLine: false,
+    asks: "before", // a blocking confirm, which is the losing answer
+    thesis:
+      "The Ready row is the switch and it carries its own limit. No launcher tax, " +
+      "and nothing invented — and the only way back is still behind a launch.",
+  },
+  {
+    key: "B",
+    name: "a shortcut that opens a receipt",
+    surfaces: ["launcher", "receipt"],
+    launcherLine: true,
+    asks: "none",
+    thesis:
+      "The shortcut never toggles. It opens a receipt that says the bubble is back, " +
+      "states what a shortcut cannot do, and asks for the overlay permission — which " +
+      "is the one surface where the ask belongs.",
+  },
+  {
+    key: "C",
+    name: "the way back is handed over",
+    surfaces: ["launcher", "handover"],
+    launcherLine: true,
+    asks: "after",
+    thesis:
+      "One tap turns it off and the bubble goes. Then one sheet reports what is " +
+      "gone and names the route, once. A confirm asks 'are you sure'; this asks " +
+      "'here is the way back' — and those are different sentences.",
+  },
+  {
+    key: "D",
+    name: "the shortcut toggles in silence",
+    surfaces: ["launcher"],
+    launcherLine: true,
+    asks: "none",
+    negativeControl: true,
+    thesis:
+      "The cheapest route, and the one the audit is required to fail: one line of " +
+      "label in somebody else's launcher, and nowhere for a limit to live.",
+  },
+];
+const V = {};
+VARIANTS.forEach((v) => (V[v.key] = v));
+
+/* The route-back model. `disabled` is the only state with a route; `why` is the
+   reason "ready to dictate" is false, and it is deliberately three-valued. */
+function initial(variantKey) {
+  return {
+    variant: variantKey,
+    screen: "host",
+    off: false,
+    dictating: false,
+    // A permission, not a preference. Distinct from `user`, and the audit
+    // asserts the Ready screen can say which one it is.
+    overlay: false,
+    service: true,
+    mic: true,
+    pinned: false,   // Android shows an unpinned static shortcut in the long-press
+                     // menu; pinning is what costs a home-screen slot.
+    handedOver: false, // C's one-time handover has happened
+    announce: "",
+    illegal: "",       // the last refused action, printed rather than swallowed
+  };
+}
+
+/* One source of truth for the lifecycle, so the readout cannot disagree with the
+   screen the way two hand-written branches eventually will. */
+function lifecycle(s) {
+  if (s.off) return "disabled";
+  return s.dictating ? "dictating" : "idle";
+}
+
+/* Whether the Bubble can exist at all right now. The window needs the overlay
+   grant; the dictation needs the service. Both are permissions, neither is a
+   preference, and neither is the user's off switch. */
+function canShow(s) {
+  return !s.off && s.overlay;
+}
+
+/* "Ready to dictate" — permissions-policy §5's summary, derived from rows. */
+function ready(s) {
+  if (s.off) return { ok: false, why: OFF_REASON.user, kind: "user" };
+  if (!s.overlay) return { ok: false, why: OFF_REASON.overlay, kind: "overlay" };
+  if (!s.service) return { ok: false, why: OFF_REASON.service, kind: "service" };
+  if (!s.mic) return { ok: false, why: "the microphone permission is not granted", kind: "permission" };
+  return { ok: true, why: "the bubble is on and the microphone is yours to grant", kind: "ok" };
+}
+
+/* The routes back. COMPUTED, never asserted — the ticket's question is what
+   exists, and an assertion cannot disagree with itself.
+   Each carries: where, what it costs the user, and whether that surface states
+   a limit of its own. The third field is the honesty requirement. */
+function routesBack(s) {
+  const v = V[s.variant];
+  if (lifecycle(s) !== "disabled" && s.overlay === false && s.off === false) {
+    // on, but not showable — a permission problem, and the route is the
+    // permission screen, not this ticket.
+    return [{ where: "the overlay permission screen", cost: "a system screen", limit: "not this ticket's route" }];
+  }
+  if (!s.off) return [{ where: "— nothing to restore", cost: "—", limit: "—" }];
+  const out = [];
+  if (v.surfaces.includes("receipt") || v.surfaces.includes("handover")) {
+    out.push({
+      where: "long-press OpenFlow on your Home screen",
+      cost: "one line in the launcher's own menu, always",
+      limit: "YES — on " + (v.surfaces.includes("receipt") ? "the receipt" : "the handover sheet"),
+    });
+  }
+  if (v.surfaces.includes("ready")) {
+    out.push({
+      where: "OpenFlow → Ready → Bubble",
+      cost: "you have to launch the app",
+      limit: "YES — on the row itself",
+    });
+  }
+  if (v.negativeControl) {
+    out.push({
+      where: "the pinned tile, or the launcher's long-press menu",
+      cost: "one line in the launcher's own menu, always",
+      limit: "NO — the launcher renders one truncated label and nothing else",
+    });
+  }
+  return out;
+}
+
+/* Every route back must state its own limit. This is the ticket's honesty
+   requirement as a predicate, so a surface can fail it rather than be described
+   as failing it. D fails on purpose. */
+function honestyGaps(s) {
+  return routesBack(s)
+    .filter((r) => r.limit.startsWith("NO"))
+    .map((r) => r.where);
+}
+
+/* The confirm decision, per variant, in one sentence — because the ticket asks
+   whether disabling warrants a confirm and the answer is not one word. */
+function confirmPolicy(v) {
+  if (v.asks === "before")
+    return "a blocking confirm before the bubble goes: 'are you sure'";
+  if (v.asks === "after")
+    return "no confirm, then one sheet naming the route: 'here is the way back'";
+  return "no confirm and no sheet — the route is discovered, not handed over";
+}
+
+/* The cost each variant accepts, in the product's own voice. Stated on the
+   surface, because a cost nobody can see is not a cost that was paid. */
+function acceptedCost(v) {
+  if (!v.launcherLine)
+    return "none new: no surface exists outside the app";
+  return "a permanent line in the launcher's own long-press menu, " +
+    "for a user who asked for the product to be absent";
+}
+
+/* ── transitions. Each returns {ok, s, why} and NEVER mutates its input, so
+   an illegal action is a refusal that can be printed rather than a silent
+   no-op. The refusals are the interesting part: they are what the three
+   predecessors never made visible. ─────────────────────────────────────── */
+function reduce(s, a) {
+  const v = V[s.variant];
+  const next = Object.assign({}, s);
+  next.illegal = "";
+  const lc = lifecycle(s);
+
+  switch (a.kind) {
+    /* Long-press the bubble: remove it. Legal from idle or dictating, and from
+       dictating it must ALSO stop the service and discard the partial — ADR-0011
+       says only dictating runs a service, so a disabled bubble with a live
+       foreground service is not a state the model has. */
+    case "bubble-remove": {
+      if (lc === "disabled") return refuse(next, "the bubble is already off");
+      next.off = true;
+      next.dictating = false;
+      next.discarded = lc === "dictating";
+      if (v.asks === "before") { next.screen = "confirm"; next.over = "host"; }
+      else if (v.asks === "after" && !next.handedOver) {
+        next.handedOver = true;
+        next.screen = "handover";
+        next.over = "host";
+      } else { next.screen = v.launcherLine ? "launcher" : "host"; }
+      next.announce = next.discarded
+        ? "bubble off — the recording was discarded, nothing was kept"
+        : "bubble off";
+      return ok(next);
+    }
+
+    /* The confirm's affirmative, for the variant that asks. */
+    case "confirm-yes": {
+      if (next.screen !== "confirm") return refuse(next, "nothing to confirm");
+      next.screen = next.over || "host";
+      next.announce = "confirmed";
+      return ok(next);
+    }
+    case "confirm-no":
+      if (next.screen !== "confirm") return refuse(next, "nothing to dismiss");
+      next.screen = "host";
+      next.announce = "kept on";
+      return ok(next);
+
+    /* C's handover: the one-time offer to pin. Declining is permanent, and the
+       model says so, because "we can only offer this once" is a limit and a
+       limit the user cannot rely on is decoration. */
+    case "pin": {
+      next.pinned = true;
+      next.screen = "host";
+      next.announce = "pinned — one tap, from your Home screen";
+      return ok(next);
+    }
+    case "decline":
+      next.pinned = false;
+      next.screen = "host";
+      next.announce = "declined, and not asked again";
+      return ok(next);
+
+    /* THE SHORTCUT. This is the whole finding, so the refusal is explicit.
+       A shortcut that toggles is a shortcut that can turn the Bubble OFF from
+       the launcher — where the user gets no statement, no limit, and (if the
+       overlay grant is absent) a toggle that silently fails. A shortcut that
+       OPENS something is not ambiguous in either direction. */
+    case "shortcut": {
+      if (v.negativeControl) {
+        // D: the toggle. Legal from disabled, and a no-op from any other state
+        // except the one that should never have been offered.
+        if (lc === "disabled") {
+          if (!next.overlay) {
+            return refuse(next,
+              "the tile did nothing — the overlay permission is not granted, and nothing said so");
+          }
+          next.off = false; next.dictating = false;
+          next.announce = "on, from the launcher, unannounced";
+          return ok(next);
+        }
+        if (lc === "dictating") {
+          return refuse(next, "the tile turned it off mid-dictation and discarded the recording");
+        }
+        next.off = true; next.dictating = false;
+        next.announce = "off, from the launcher, unannounced";
+        return ok(next);
+      }
+      // B and C: it opens a surface. Never a toggle.
+      next.screen = v.surfaces.includes("receipt") ? "receipt" : "handover";
+      next.announce = "opened, from the launcher";
+      return ok(next);
+    }
+
+    /* Restoring from inside the app. Always free and always available: the way
+       back must never itself cost a confirmation. */
+    case "restore": {
+      if (!next.off) return refuse(next, "the bubble is already on");
+      next.off = false;
+      next.dictating = false;
+      next.screen = v.surfaces.includes("receipt") ? "receipt" : "host";
+      next.announce = "on, from the app";
+      return ok(next);
+    }
+
+    /* permissions-policy §3: overlay access is asked when the user first
+       enables the bubble. So a restore can legitimately end in a permission
+       prompt, and denying it must leave the bubble OFF and the reason
+       PERMISSION — which is a different row state from "you turned it off". */
+    case "grant-overlay":
+      next.overlay = true;
+      next.screen = "receipt";
+      next.announce = "overlay granted";
+      return ok(next);
+    case "deny-overlay":
+      next.overlay = false;
+      next.off = true;
+      next.screen = "host";
+      next.announce = "overlay declined — the bubble stays off";
+      return ok(next);
+
+    case "bubble-press":
+      if (!canShow(next)) return refuse(next, "there is no bubble to press");
+      if (v.negativeControl && next.off) return refuse(next, "nothing to press");
+      next.dictating = !next.dictating;
+      next.screen = "host";
+      next.announce = next.dictating ? "listening" : "idle";
+      return ok(next);
+
+    case "surface":
+      next.screen = a.screen;
+      next.menu = false;
+      return ok(next);
+    case "menu":
+      next.menu = a.open;
+      return ok(next);
+    case "reset":
+      return ok(initial(s.variant));
+    default:
+      return refuse(next, "no such action");
+  }
+}
+function ok(s) { return { ok: true, s: s }; }
+function refuse(s, why) { s.illegal = why; return { ok: false, s: s }; }
+
+/* ---------------------------------------------------------------------------
+   THE MODEL ENDS HERE. Everything below is the page.
+   ------------------------------------------------------------------------ */
+
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)");
+
+let S = initial("B");
+
+const el = (id) => document.getElementById(id);
+
+/* ── markup ─────────────────────────────────────────────────────────────── */
+const ICON_BACK =
+  '<svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">' +
+  '<path d="M12 4 6 10l6 6" stroke="currentColor" stroke-width="2"/></svg>';
+
+const GLYPH = {
+  msg: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18v12H9l-4 4v-4H3z"/></svg>',
+  cam: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h5l2-2h4l2 2h5v14H3z"/><circle cx="12" cy="13" r="4" fill="var(--ground)"/></svg>',
+  set: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l2 3 3-1 1 3 3 1-1 3 2 3-3 1v3l-3-1-2 3-3-1-3 1v-3l-3-1 1-3-1-3 3-1 1-3 3 1z"/><circle cx="12" cy="12" r="3" fill="var(--ground)"/></svg>',
+  notes: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h16v18H4z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 8h10v2H7zM7 13h10v2H7z"/></svg>',
+  pod: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3"/></svg>',
+  wall: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v13H3z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 10h18v2H3z"/></svg>',
+  clock: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v6h4"/></svg>',
+};
+
+/* The product's own mark, from website/favicon.svg. The Bubble on screen and the
+   icon in the launcher must be recognisably the same object, or the launcher
+   route reads as a different app. */
+const MARK =
+  '<svg viewBox="0 0 32 32" width="100%" height="100%" aria-hidden="true">' +
+  '<rect width="32" height="32" fill="currentColor"/>' +
+  '<g fill="none" stroke="var(--ground)" stroke-width="2.5" stroke-linecap="square">' +
+  '<path d="M6 16h2"/><path d="M11 16v-5"/><path d="M16 16v-10"/>' +
+  '<path d="M21 16v-7"/><path d="M26 16h-2"/></g></svg>';
+
+function statusbar() {
+  return '<div class="statusbar"><span>9:41</span><span class="grow"></span><span>carrier</span></div>';
+}
+function navbar() {
+  return (
+    '<div class="navbar" style="position:absolute;left:0;right:0;bottom:0;z-index:4;height:var(--nav-inset);' +
+    'display:flex;align-items:center;justify-content:center;gap:var(--s4);background:var(--ground);' +
+    'border-top:1px solid var(--rule)">' +
+    '<button data-act="surface" data-screen="host" aria-label="Back" style="display:grid;place-items:center;' +
+    'width:3rem;height:3rem;border:1px solid transparent;background:none;border-radius:0;cursor:pointer">' +
+    '<span class="mono" style="display:block;width:.9rem;height:.9rem;border:2px solid currentColor"></span></button>' +
+    '<button data-act="surface" data-screen="launcher" aria-label="Home" style="display:grid;place-items:center;' +
+    'width:3rem;height:3rem;border:1px solid transparent;background:none;border-radius:0;cursor:pointer">' +
+    '<span class="mono" style="display:block;width:2.75rem;height:.25rem;background:var(--ink)"></span></button>' +
+    "</div>"
+  );
+}
+
+function hostApp() {
+  const MIC =
+    '<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">' +
+    '<rect x="7.4" y="1.8" width="5.2" height="9.2" rx="2.6"/>' +
+    '<path d="M4.4 8.8a5.6 5.6 0 0 0 11.2 0h1.7a7.3 7.3 0 0 1-6.25 7.2v2.2h3.3v1.7H5.65v-1.7h3.3v-2.2a7.3 7.3 0 0 1-6.25-7.2z"/></svg>';
+  return (
+    '<div class="host">' +
+    '<div class="appbar">' +
+    '<button class="iconbtn" data-act="surface" data-screen="launcher" aria-label="Back">' + ICON_BACK + "</button>" +
+    '<span class="av" aria-hidden="true">PR</span>' +
+    '<span class="who"><span class="name">Priya Raghunathan</span><br>' +
+    '<span class="sub">active now</span></span></div>' +
+    '<div class="thread">' +
+    '<div class="msg in">Did the 15.4 GB phone finally arrive?<span class="t">09:12</span></div>' +
+    '<div class="msg out">It did. Sideloading the build tonight.<span class="t">09:14</span></div>' +
+    '<div class="msg in">And the dictation bubble? Over the keyboard?<span class="t">09:14</span></div>' +
+    '<div class="msg out">Over it. Not replacing it — that was the whole point.<span class="t">09:15</span></div>' +
+    '<div class="msg in">Fine. But it had better come back when I turn it off.<span class="t">09:16</span></div>' +
+    "</div>" +
+    '<div class="strip"><span>fix in the</span><span>fix in the morning</span><span>fixed</span></div>' +
+    '<div class="field"><div class="line">Fix in the <span class="caret"></span></div>' +
+    '<button class="mic" data-act="nothing" aria-label="The keyboard\'s own microphone key, not OpenFlow\'s">' +
+    MIC + "</button></div></div>"
+  );
+}
+
+function bubble(kind) {
+  const cls = "bubble " + kind + (REDUCED.matches ? "" : " entrance");
+  const word = kind === "dictating" ? "listening" : "tap to talk";
+  return (
+    '<button class="' + cls + '" style="right:1rem;bottom:8rem" data-act="bubble-press" ' +
+    'aria-label="OpenFlow bubble, ' + (kind === "dictating" ? "listening" : "idle") + ', press and hold to remove">' +
+    '<span class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>' +
+    '<span class="word">' + word + "</span></button>"
+  );
+}
+
+function launcherScreen() {
+  const v = V[S.variant];
+  const tile =
+    v.launcherLine && S.pinned
+      ? '<button class="tile ' + (S.off ? "pinned trunc" : "") + '" data-act="shortcut" ' +
+        'aria-label="OpenFlow pinned shortcut"><span class="glyph mark">' + MARK + "</span>" +
+        '<span class="lbl">' + (S.off ? "Show bubble — does not start recording" : "Hide bubble") + "</span></button>"
+      : "";
+  const icon = (markup, lbl, act) =>
+    '<button class="appicon" ' + (act ? 'data-act="' + act + '" ' : "") + 'aria-label="' + lbl + '">' +
+    '<span class="glyph ' + (markup === MARK ? "mark" : "") + '">' + markup + "</span>" +
+    '<span class="lbl">' + lbl + "</span></button>";
+  return (
+    '<div class="launcher"><div class="grid">' +
+    /* In every launcher variant the icon's long press IS the route, so it opens
+       the platform's own shortcuts menu. In A it does not, and the same tap
+       simply opens the app — which is the difference, drawn rather than said. */
+    icon(MARK, "OpenFlow", v.launcherLine ? "menu" : "surface") +
+    icon(GLYPH.msg, "Messages", "") +
+    icon(GLYPH.cam, "Camera", "") +
+    icon(GLYPH.set, "Settings", "") +
+    icon(GLYPH.notes, "Notes", "") +
+    icon(GLYPH.pod, "Podcasts", "") +
+    icon(GLYPH.wall, "Wallet", "") +
+    icon(GLYPH.clock, "Clock", "") +
+    '</div><div class="tilerow">' + tile + "</div></div>"
+  );
+}
+
+/* shortcuts.xml, rendered. Below the icon row and never over it — the icon row
+   measures 85px, and a menu that covers the icon it belongs to is a menu nobody
+   can aim at. In rem, so it still clears when the label wraps at 200% font. */
+function launcherMenu() {
+  const v = V[S.variant];
+  if (!v.launcherLine) return "";
+  return (
+    '<div style="position:absolute;left:1rem;right:1rem;top:8.75rem;z-index:7;background:var(--ground);border:2px solid var(--ink)">' +
+    '<button class="row" data-act="shortcut" style="border-bottom:1px solid var(--rule)">' +
+    '<span class="name">' + (v.negativeControl ? "Toggle bubble" : "Show bubble") + "</span>" +
+    '<span class="state">shortcut</span></button>' +
+    '<button class="row" data-act="pin" style="border-bottom:1px solid var(--rule)">' +
+    '<span class="name">' + (S.pinned ? "Remove pinned shortcut" : "Pin to Home screen") + "</span>" +
+    '<span class="state">tile</span></button>' +
+    '<button class="row" data-act="surface" data-screen="ready">' +
+    '<span class="name">Open OpenFlow</span><span class="state">app</span></button>' +
+    "</div>"
+  );
+}
+
+function appbar2(title) {
+  return (
+    '<div class="appbar2"><span class="brand">OpenFlow</span><span class="sep">/</span>' +
+    '<span class="title">' + title + "</span><span class='grow'></span></div>"
+  );
+}
+
+/* The Ready screen — ADR-0011's permission-health rows. The Bubble row is the
+   one this ticket is about, and its off state has to carry a reason AND a
+   route, because "off" with no route is the dead end the ticket opened with. */
+function readyScreen() {
+  const r = ready(S);
+  const on = canShow(S);
+  const gaps = honestyGaps(S);
+  const bubbleRow =
+    '<li><button class="row ' + (on ? "" : "off fix") + '" data-act="' + (on ? "nothing" : "restore") + '">' +
+    '<span class="name">Bubble</span>' +
+    '<span class="state">' + (on ? "ON" : r.kind === "user" ? "OFF" : "BLOCKED") + "</span>" +
+    '<span class="does">' + (on ? "floats over every app you dictate in" : r.why) + "</span>" +
+    (on
+      ? '<span class="limit">cannot sit at an interior position — it snaps to an edge</span>'
+      : r.kind === "user"
+        ? '<span class="limit">bring it back here, or long-press OpenFlow on your Home screen</span>'
+        : '<span class="limit">this one is a permission, not a preference — fix it in system settings</span>') +
+    "</button></li>";
+  return (
+    '<div class="appbar2" style="position:absolute;left:0;right:0;top:0;z-index:3;background:var(--ground)">' +
+    "Ready<span class='grow'></span></div>" +
+    '<div style="flex:1;min-height:0;display:flex;flex-direction:column;padding-top:3.5rem">' +
+    '<div class="verdict"><div class="say">' + (r.ok ? "Ready to dictate" : "Not ready to dictate") + "</div>" +
+    '<div class="why">' + (r.ok ? r.why : r.why) + "</div></div>" +
+    '<div class="scroll"><ul class="rows">' +
+    '<li><button class="row" data-act="nothing"><span class="name">Voice model</span>' +
+    '<span class="state">READY</span><span class="does">streaming zipformer, 45 MB</span></button></li>' +
+    '<li><button class="row" data-act="nothing"><span class="name">Microphone</span>' +
+    '<span class="state">' + (S.mic ? "GRANTED" : "DENIED") + "</span>" +
+    '<span class="does">records only while you hold the bubble</span>' +
+    '<span class="limit">a recording is deleted after it is processed</span></button></li>' +
+    '<li><button class="row" data-act="nothing"><span class="name">Overlay</span>' +
+    '<span class="state">' + (S.overlay ? "GRANTED" : "NOT GRANTED") + "</span>" +
+    '<span class="does">lets the window float over other apps</span>' +
+    '<span class="limit">asked when you first enable the bubble, never at first launch</span></button></li>' +
+    '<li><button class="row" data-act="nothing"><span class="name">Dictation service</span>' +
+    '<span class="state">' + (S.service ? "ON" : "OFF") + "</span>" +
+    '<span class="does">writes into the field you are in</span>' +
+    '<span class="limit">does not watch your keyboard · does not poll</span></button></li>' +
+    bubbleRow +
+    "</ul>" +
+    (S.off && gaps.length
+      ? '<div style="padding:var(--s4) var(--s4) var(--s4);border-top:2px solid var(--ink)">' +
+        '<div class="display" style="font-size:var(--t-body);margin-bottom:var(--s2)">What the route back does not say</div>' +
+        '<ul class="limits" style="margin:0">' + gaps.map((g) =>
+          "<li><span class='yes'>Nothing states this route's limit.</span>" +
+          "<span class='no'>" + g + "</span></li>").join("") + "</ul></div>"
+      : "") +
+    '<ul class="rows tail">' +
+    '<li><button class="row" data-act="nothing"><span class="name">Position</span>' +
+    '<span class="state">right, bottom</span></button></li>' +
+    "</ul></div></div>"
+  );
+}
+
+/* Settings → Bubble. The switch, and the sentence that says what is kept. */
+function bubbleSettings() {
+  const on = S.overlay;
+  return (
+    appbar2("Bubble") +
+    '<div class="scroll"><ul class="rows">' +
+    '<li><button class="row" data-act="restore" aria-pressed="' + on + '">' +
+    '<span class="name">Show bubble</span>' +
+    '<span class="sw ' + (on ? "on" : "") + '"><i></i></span>' +
+    "<span class='does'>" + (on ? "floating over other apps" : "hidden from every app") + "</span>" +
+    "<span class='limit'>" + (on
+      ? "position, shape and opacity are kept while it is off"
+      : "your position, shape and opacity are kept — nothing is deleted") + "</span></button></li>" +
+    "</ul></div>"
+  );
+}
+
+/* B's PROTAGONIST: the receipt the shortcut opens. Everything the ticket demands
+   of a persistent surface is stated HERE, on a surface we lay out, because the
+   launcher will not lay it out for us. */
+function receipt() {
+  const granted = S.overlay;
+  return (
+    appbar2("Bubble") +
+    '<div class="scroll"><ul class="limits" style="margin-top:var(--s4)">' +
+    '<li><span class="yes">The bubble is on.</span>' +
+    '<span class="no">you opened a shortcut — it did not start anything by itself</span></li>' +
+    '<li><span class="yes">It is ready when you are.</span>' +
+    '<span class="no">a shortcut cannot press-and-hold the bubble, so it cannot dictate for you</span></li>' +
+    '<li><span class="yes">Nothing is being recorded.</span>' +
+    '<span class="no">no microphone is open until you hold the bubble, and no service is running</span></li>' +
+    '<li><span class="yes">It is here because you asked.</span>' +
+    '<span class="no">OpenFlow has no server, no account and no telemetry — this opened a local screen</span></li>' +
+    "</ul>" +
+    (granted
+      ? '<ul class="rows tail" style="margin-top:var(--s5)">' +
+        '<li><button class="row" data-act="surface" data-screen="host">' +
+        '<span class="name">Back to your app</span><span class="state">the bubble is waiting</span>' +
+        '<span class="does">press and hold it to dictate</span></button></li>' +
+        '<li><button class="row" data-act="surface" data-screen="ready">' +
+        '<span class="name">Ready</span><span class="state">health</span>' +
+        '<span class="does">every permission, and what each one costs</span></button></li>' +
+        "</ul>"
+      : /* permissions-policy §3: the overlay grant is asked when the user first
+           ENABLES the bubble — which is exactly what a shortcut does. So the ask
+           belongs on this screen, and saying so is part of the surface's limit. */
+        '<ul class="rows tail" style="margin-top:var(--s5)">' +
+        '<li><button class="row fix" data-act="deny-overlay">' +
+        '<span class="name">Not now</span><span class="state">keeps it off</span>' +
+        '<span class="does">the bubble cannot float over other apps without this</span>' +
+        '<span class="limit">asked here because you just enabled it — never at first launch</span></button></li>' +
+        '<li><button class="row fix" data-act="grant-overlay">' +
+        '<span class="name">Open system settings</span><span class="state">overlay</span>' +
+        '<span class="does">Android grants this, not OpenFlow</span>' +
+        '<span class="limit">come back and the bubble appears — this screen says so either way</span></button></li>' +
+        "</ul>") +
+    "</div>"
+  );
+}
+
+/* A's blocking confirm. It names the way back, because a sentence that says
+   what disappears without saying how to return it is a warning, not a consent. */
+function confirmSheet() {
+  return (
+    '<div class="scrim" data-audit="overlay"></div><div class="sheetbox">' +
+    '<h2 class="display">Turn the bubble off?</h2>' +
+    "<p>It disappears from every app. Your position, shape and opacity are kept.</p>" +
+    '<ul class="limits">' +
+    "<li><span class='yes'>It comes back the way it went.</span>" +
+    "<span class='no'>OpenFlow → Ready → Bubble</span></li>" +
+    "<li><span class='yes'>Nothing is deleted.</span>" +
+    "<span class='no'>no recording, no transcript, no history</span></li>" +
+    "</ul>" +
+    '<div class="acts">' +
+    '<button class="primary" data-act="confirm-yes">Turn it off<span class="note">the bubble leaves now</span></button>' +
+    '<button class="act" data-act="confirm-no">Keep it on<span class="note">dismiss</span></button>' +
+    "</div></div>"
+  );
+}
+
+/* C's handover: NOT a confirm. The bubble is already gone; this reports the
+   loss and names the route, once. The two sentences are different and
+   conflating them is what makes confirmations feel like nagging. */
+function handoverSheet() {
+  return (
+    '<div class="scrim" data-audit="overlay"></div><div class="sheetbox">' +
+    '<h2 class="display">The bubble is off.</h2>' +
+    "<p>No window, no service, no notification. Nothing on any screen says this app exists.</p>" +
+    '<ul class="limits">' +
+    "<li><span class='yes'>Here is the way back.</span>" +
+    "<span class='no'>long-press OpenFlow on your Home screen — it is there whether you pin it or not</span></li>" +
+    "<li><span class='yes'>Pin it for one tap instead.</span>" +
+    "<span class='no'>a launcher tile, not a notification — we can offer this once, and we will not ask again</span></li>" +
+    "<li><span class='yes'>Nothing is deleted.</span>" +
+    "<span class='no'>no recording, no transcript, no history</span></li>" +
+    "</ul>" +
+    '<div class="acts">' +
+    '<button class="primary" data-act="pin">Pin it<span class="note">one tap, from Home</span></button>' +
+    '<button class="act" data-act="decline">No thanks<span class="note">ask me never again</span></button>' +
+    "</div></div>"
+  );
+}
+
+/* ADR-0013's four steps, and where this ticket's surfaces land relative to
+   them. The point is what is ABSENT: the shortcut is declared in shortcuts.xml
+   and exists before the first launch, and the pin offer can only happen after a
+   disable, which is necessarily after first run. */
+function firstRun() {
+  const steps = ["Welcome", "Voice model", "Dictation service", "Ready"];
+  return (
+    appbar2("First run") +
+    '<div class="scroll"><ul class="rows">' +
+    steps.map((s, i) =>
+      "<li><button class='row' data-act='nothing'><span class='name'>" + (i + 1) + ". " + s + "</span>" +
+      '<span class="state">' + (i < 3 ? "done" : "here") + "</span></button></li>").join("") +
+    "</ul>" +
+    '<ul class="limits">' +
+    "<li><span class='yes'>The shortcut is not a step.</span>" +
+    "<span class='no'>shortcuts.xml is declared in the manifest — it is on your Home screen before you launch anything</span></li>" +
+    "<li><span class='yes'>The pin offer is not a step either.</span>" +
+    "<span class='no'>it can only come at the moment of disabling, which is after first run by definition</span></li>" +
+    "<li><span class='yes'>Notifications are still not asked here.</span>" +
+    "<span class='no'>POST_NOTIFICATIONS is asked at first dictation, per ADR-0011 — this route adds no notification at all</span></li>" +
+    "</ul></div>"
+  );
+}
+
+function screen() {
+  const v = V[S.variant];
+  if (S.screen === "ready") return statusbar() + readyScreen() + navbar();
+  if (S.screen === "settings") return statusbar() + bubbleSettings() + navbar();
+  if (S.screen === "receipt") return statusbar() + receipt() + navbar();
+  if (S.screen === "first") return statusbar() + firstRun() + navbar();
+  if (S.screen === "confirm") return statusbar() + hostApp() + bubble("idle") + navbar() + confirmSheet();
+  if (S.screen === "handover") return statusbar() + hostApp() + navbar() + handoverSheet();
+  if (S.screen === "launcher") return statusbar() + launcherScreen() + navbar() + (S.menu ? launcherMenu() : "");
+  let over = canShow(S) ? bubble(S.dictating ? "dictating" : "idle") : "";
+  return statusbar() + hostApp() + over + navbar();
+}
+
+/* ── the readout: the answer sheet ──────────────────────────────────────── */
+function beat() {
+  const v = V[S.variant];
+  const lc = lifecycle(S);
+  if (S.screen === "receipt")
+    return "The receipt. This is the only surface we lay out on a route that leaves the app — so it is the only place a limit can live.";
+  if (S.screen === "handover")
+    return "The handover. Shown once, at the moment of loss. It reports; it does not ask.";
+  if (S.screen === "confirm")
+    return "A's confirm: a blocking question before the bubble goes. It names the route, and it still costs a tap.";
+  if (S.screen === "ready")
+    return "Permission health. 'Not ready to dictate' has a reason, and the reason is not always a permission.";
+  if (S.screen === "first")
+    return "First run per ADR-0013. Two of this ticket's surfaces are deliberately not in it.";
+  if (S.screen === "launcher")
+    return S.menu
+      ? "shortcuts.xml, rendered. This is the whole of B, C and D — the route that never opens the app."
+      : "The Home screen. An unpinned static shortcut costs no tile here; it costs a line in this menu.";
+  if (lc === "disabled")
+    return v.launcherLine
+      ? "Disabled and gone. The launcher still carries one line, which is the cost this variant accepts."
+      : "Disabled and gone, and nothing outside the app knows it exists. That is the dead end, made honest.";
+  if (lc === "dictating") return "Dictating. Window plus the microphone foreground service and its notification.";
+  return "Idle. The window is present and no service runs. This is the state worth being able to leave.";
+}
+
+function readout() {
+  const v = V[S.variant];
+  const lc = lifecycle(S);
+  const r = ready(S);
+  const rs = routesBack(S);
+  const gaps = honestyGaps(S);
+  el("readout").innerHTML =
+    '<h4><span>state readout, not part of the design</span><span class="grow"></span>' +
+    "<span>" + v.key + " · " + v.name + "</span></h4>" +
+    "<div class='beat'>" + beat() + "</div>" +
+    "<dl>" +
+    "<dt>bubble</dt><dd>" + lc + "</dd>" +
+    "<dt>window</dt><dd>" + (canShow(S) ? "<span class='yes'>present</span>" : "<span class='no'>absent</span>") + "</dd>" +
+    "<dt>service</dt><dd>" + (S.dictating ? "<span class='yes'>microphone fgs</span>" : "<span class='no'>—</span>") + "</dd>" +
+    "<dt>notification</dt><dd class='no'>" + CHANNEL_RULE + "</dd>" +
+    "<dt>ready?</dt><dd>" + (r.ok ? "<span class='yes'>yes</span>" : "<span class='bad'>no</span> · " + r.why) + "</dd>" +
+    "<dt>shortcut</dt><dd>" + (v.launcherLine ? (S.pinned ? "<span class='yes'>pinned</span>" : "declared, not pinned") : "<span class='no'>none</span>") + "</dd>" +
+    "<dt>removal</dt><dd>" + confirmPolicy(v) + "</dd>" +
+    "<dt>cost</dt><dd class='no'>" + acceptedCost(v) + "</dd>" +
+    "<dt>way back</dt><dd>" + (rs.map((x) =>
+      '<span class="no">' + x.where + "</span> — " + x.cost).join("<br>")) + "</dd>" +
+    "<dt>limits</dt><dd>" + (gaps.length
+      ? "<span class='bad'>" + gaps.length + " route(s) state nothing</span>"
+      : "<span class='yes'>every route states its own limit</span>") + "</dd>" +
+    (S.illegal ? "<dt>refused</dt><dd><span class='bad'>" + S.illegal + "</span></dd>" : "") +
+    "</dl>";
+}
+
+function render() {
+  el("sheet").innerHTML = screen();
+  readout();
+  el("label").textContent = V[S.variant].key + " (" + V[S.variant].name + ")";
+  document.querySelectorAll(".tools [data-fs]").forEach((b) =>
+    b.setAttribute("aria-pressed", String(b.dataset.fs === document.documentElement.dataset.fs)));
+  document.querySelectorAll(".tools [data-theme-mode]").forEach((b) =>
+    b.setAttribute("aria-pressed", String(b.dataset.themeMode === (S.theme || ""))));
+  document.querySelectorAll(".tools [data-go]").forEach((b) => {
+    const g = b.dataset.go;
+    const on = g === "reset" ? false : g === "ready" ? S.screen === "ready" : S.screen === "first";
+    b.setAttribute("aria-pressed", String(on));
+  });
+}
+
+/* ── wiring ─────────────────────────────────────────────────────────────── */
+function act(a) {
+  const r = reduce(S, a);
+  S = r.s;
+  render();
+}
+el("sheet").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-act]");
+  if (!b || b.dataset.act === "nothing") return;
+  const a = { kind: b.dataset.act };
+  if (b.dataset.screen) a.screen = b.dataset.screen;
+  if (b.dataset.act === "menu") a.kind = "menu", a.open = !S.menu;
+  if (b.dataset.act === "pin") a.kind = "pin";
+  act(a);
+});
+
+/* A real long press, because the disable gesture is initiated at the bubble in
+   C and a prototype that only offers a tap is not testing that. The click that
+   ENDS a hold is swallowed: the hold replaced innerHTML, so the button under
+   the pointer is a new node, but the browser still delivers the click — and
+   without this the menu opens and is closed by the same gesture, which is a
+   one-shot that replays. The flag expires at the next gesture's START, so it
+   cannot eat the following tap. */
+let suppressClick = false;
+let holdTimer = null;
+el("sheet").addEventListener("pointerdown", (e) => {
+  suppressClick = false;
+  const b = e.target.closest('[data-act="bubble-press"]');
+  if (!b) return;
+  clearTimeout(holdTimer);
+  holdTimer = setTimeout(() => {
+    holdTimer = null;
+    suppressClick = true;
+    act({ kind: "bubble-remove" });
+  }, 420);
+}, true);
+["pointerup", "pointercancel", "pointerleave", "scroll"].forEach((ev) =>
+  el("sheet").addEventListener(ev, () => clearTimeout(holdTimer), true));
+el("sheet").addEventListener("click", (e) => {
+  if (!suppressClick) return;
+  suppressClick = false;
+  e.stopPropagation();
+  e.preventDefault();
+}, true);
+
+function setVariant(k) {
+  S = initial(k);
+  S.theme = document.documentElement.dataset.theme || "";
+  render();
+  const u = new URL(location.href);
+  u.searchParams.set("variant", k);
+  history.replaceState(null, "", u);
+}
+el("next").addEventListener("click", () => {
+  const i = VARIANTS.findIndex((v) => v.key === S.variant);
+  setVariant(VARIANTS[(i + 1) % VARIANTS.length].key);
+});
+el("prev").addEventListener("click", () => {
+  const i = VARIANTS.findIndex((v) => v.key === S.variant);
+  setVariant(VARIANTS[(i - 1 + VARIANTS.length) % VARIANTS.length].key);
+});
+addEventListener("keydown", (e) => {
+  const t = e.target;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+  if (e.key === "ArrowRight") el("next").click();
+  if (e.key === "ArrowLeft") el("prev").click();
+});
+
+/* Every control sets `color` explicitly rather than inheriting the UA's
+   buttontext, which is black — which is how a near-black row renders pure black
+   on near-black in dark mode while the same code measures 19:1 in light. */
+document.querySelector(".tools").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  if (b.dataset.fs) {
+    document.documentElement.dataset.fs = b.dataset.fs;
+  } else if (b.dataset.themeMode) {
+    S.theme = b.dataset.themeMode;
+    document.documentElement.dataset.theme = b.dataset.themeMode;
+  } else if (b.dataset.go === "reset") {
+    S = initial(S.variant);
+    S.theme = document.documentElement.dataset.theme || "";
+  } else if (b.dataset.go) {
+    S.screen = b.dataset.go;
+  }
+  render();
+});
+
+/* The reserve is MEASURED from this file's own control bar. A guessed rem value
+   was 256px against a bar that is 872px at 200% font, which laid the bar across
+   the phone and covered the primary action — so every large-font hit test was
+   measuring the harness instead of the design. The audit asserts the bar's
+   coverage separately, so a lying reserve fails rather than passing quietly. */
+const tools = document.querySelector(".tools");
+function measure() {
+  document.documentElement.style.setProperty("--tools-h", tools.offsetHeight + "px");
+}
+new ResizeObserver(measure).observe(tools);
+
+REDUCED.addEventListener("change", () => {
+  document.querySelectorAll(".sw").forEach((s) => s.classList.toggle("noanim", REDUCED.matches));
+});
+
+(function boot() {
+  const q = new URL(location.href).searchParams;
+  const k = q.get("variant");
+  S = initial(V[k] ? k : "B");
+  const fs = q.get("fs");
+  if (fs) document.documentElement.dataset.fs = fs;
+  const th = q.get("theme");
+  if (th === "light" || th === "dark") {
+    S.theme = th;
+    document.documentElement.dataset.theme = th;
+  }
+  if (q.get("screen") === "ready" || q.get("screen") === "first") S.screen = q.get("screen");
+  if (q.get("overlay") === "1") S.overlay = true;
+  render();
+  measure();
+})();
+
+/* ── the audit seam ─────────────────────────────────────────────────────────
+   The model is closed over, so the audit cannot reach it — and it must not be
+   able to, because an audit that drives the page through a private variable is
+   an audit of the variable. So it is exposed deliberately and narrowly: set up
+   a state, then MEASURE THE RENDERED DOM like a person looking at a phone. The
+   audit never reads an assertion out of the page for a claim about appearance —
+   it reads computed styles, boxes and pixels.
+
+   The audit itself lives in `disabled-bubble-route-back.audit.mjs`, in Node,
+   outside this file. A prototype that audits itself measured itself once and
+   passed while eleven dead animations were still attached. */
+window.__t49 = {
+  set: (patch) => { S = Object.assign({}, S, patch); render(); },
+  act: (kind) => { const r = reduce(S, { kind: kind }); S = r.s; render(); return r.ok; },
+  state: () => S,
+  routes: () => routesBack(S),
+  gaps: () => honestyGaps(S),
+  variants: () => VARIANTS.map((v) => ({ key: v.key, negativeControl: !!v.negativeControl })),
+  version: 3,
+};
+</script>
+</body>
+</html>

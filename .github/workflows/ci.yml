@@ -46,7 +46,7 @@ jobs:
 
       - name: Set up Gradle
         if: steps.probe.outputs.gradle == 'true'
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Lint
         if: steps.probe.outputs.gradle == 'true'

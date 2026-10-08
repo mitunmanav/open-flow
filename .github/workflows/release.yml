@@ -116,7 +116,7 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
 
       - name: Check the signing secrets are present
         # Before the build, not after: a candidate has to be signed to be testable, and

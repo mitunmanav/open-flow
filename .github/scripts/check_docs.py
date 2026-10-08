@@ -486,6 +486,12 @@ GATE_PROTOCOL = Path(DOCS_ROOT) / "quality" / "acceptance-gate.md"
 SCENARIOS_HEADING_RE = re.compile(r"^##\s+The scenarios\s*$", re.MULTILINE)
 GATE_STATUS_HEADING_RE = re.compile(r"^##\s+Gate status\s*$", re.MULTILINE)
 SECTION_BREAK_RE = re.compile(r"^##\s+\S")
+# The live record is the first json fence before any subsection — the rule
+# check_gate.py enforces. Without the same stop here, the populated example under
+# `### The shape of a populated block` would be read as the record, and a section
+# whose live block was removed would validate placeholder values instead of
+# reporting that no record exists.
+GATE_SUBSECTION_RE = re.compile(r"^###\s+\S")
 FENCE_OPEN_RE = re.compile(r"^\s*```+\s*([A-Za-z0-9_+-]*)\s*$")
 FENCE_CLOSE_RE = re.compile(r"^\s*```+\s*$")
 TABLE_ROW_RE = re.compile(r"^\s*\|(.*)\|\s*$")
@@ -542,6 +548,10 @@ def check_gate_scenarios(root: Path) -> list[Finding]:
     status_lines = _section_lines(text, GATE_STATUS_HEADING_RE)
     if status_lines is None:
         return [Finding("gate-status-missing", rel, "no '## Gate status' section")]
+    for index, line in enumerate(status_lines):
+        if GATE_SUBSECTION_RE.match(line):
+            status_lines = status_lines[:index]
+            break
     body = _first_json_fence(status_lines)
     if body is None:
         return [

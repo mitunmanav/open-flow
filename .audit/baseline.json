@@ -1,0 +1,1643 @@
+{
+  "target": ".scratch/openflow-v1/prototype/onboarding.html",
+  "rows": [
+    {
+      "id": "mic",
+      "name": "Microphone",
+      "does": "hears you while you hold it",
+      "nots": "silent otherwise",
+      "when": null,
+      "blocking": true
+    },
+    {
+      "id": "overlay",
+      "name": "Bubble",
+      "does": "one circle over your apps",
+      "nots": "cannot see inside them",
+      "when": null,
+      "blocking": true
+    },
+    {
+      "id": "a11y",
+      "name": "Dictation",
+      "does": "reads the box you type in",
+      "nots": "nothing else on screen",
+      "when": null,
+      "blocking": true
+    },
+    {
+      "id": "model",
+      "name": "Voice model",
+      "does": "45 MB once, then offline",
+      "nots": "never uploaded",
+      "when": null,
+      "blocking": true
+    }
+  ],
+  "gating": 4,
+  "assertions": 362,
+  "failures": {
+    "font-not-from-cdn": [
+      ".scratch/openflow-v1/prototype/onboarding.html references an external font host"
+    ],
+    "font-face-present": [
+      ".scratch/openflow-v1/prototype/onboarding.html declares 0 @font-face rule(s); two self-hosted faces are required"
+    ],
+    "no-model-row": [
+      ".scratch/openflow-v1/prototype/onboarding.html still defines a 'model' ask row"
+    ],
+    "no-stale-download-figure": [
+      ".scratch/openflow-v1/prototype/onboarding.html still states the fetch as ~45 MB: 45 MB once"
+    ],
+    "network-promise-is-true": [
+      ".scratch/openflow-v1/prototype/onboarding.html promises an unqualified \"no network\" while first launch fetches the model"
+    ],
+    "a11y-declines-capability": [
+      ".scratch/openflow-v1/prototype/onboarding.html never states that the service COULD read the focused field and declines to"
+    ],
+    "notifications-row-present": [
+      ".scratch/openflow-v1/prototype/onboarding.html has no POST_NOTIFICATIONS row"
+    ],
+    "privacy-discloses-the-fetch": [
+      "privacy-policy.md does not disclose the first-launch model fetch, so \"nothing leaves the device\" reads as \"nothing uses the network\""
+    ],
+    "row-name-is-not-a-glossary-term": [
+      "row \"a11y\" is named \"Dictation\", which GLOSSARY.md defines as the whole capture-to-insertion cycle, not the accessibility service"
+    ],
+    "row-count-has-no-stale-word": [
+      "a numeral in the page copy still says \"four\""
+    ],
+    "cta-count-matches-rows": [
+      "the primary action does not say \"Grant all 4\""
+    ],
+    "touch-target": [
+      "theme: Change theme reaches 33×33 (own box 34×34), needs 48×48 [light/initial]",
+      "t-light: light reaches 53×25 (own box 55×26), needs 48×48 [light/initial]",
+      "t-dark: dark reaches 47×25 (own box 48×26), needs 48×48 [light/initial]",
+      "t-auto: auto reaches 47×25 (own box 48×26), needs 48×48 [light/initial]",
+      "t-reset: reset reaches 55×25 (own box 55×26), needs 48×48 [light/initial]",
+      "theme: Change theme reaches 33×33 (own box 34×34), needs 48×48 [light/gating]",
+      "t-light: light reaches 53×25 (own box 55×26), needs 48×48 [light/gating]",
+      "t-dark: dark reaches 47×25 (own box 48×26), needs 48×48 [light/gating]",
+      "t-auto: auto reaches 47×25 (own box 48×26), needs 48×48 [light/gating]",
+      "t-reset: reset reaches 55×25 (own box 55×26), needs 48×48 [light/gating]",
+      "theme: Change theme reaches 33×33 (own box 34×34), needs 48×48 [light/all]",
+      "t-light: light reaches 53×25 (own box 55×26), needs 48×48 [light/all]",
+      "t-dark: dark reaches 47×25 (own box 48×26), needs 48×48 [light/all]",
+      "t-auto: auto reaches 47×25 (own box 48×26), needs 48×48 [light/all]",
+      "t-reset: reset reaches 55×25 (own box 55×26), needs 48×48 [light/all]",
+      "theme: Change theme reaches 33×33 (own box 34×34), needs 48×48 [dark/initial]",
+      "t-light: light reaches 53×25 (own box 55×26), needs 48×48 [dark/initial]",
+      "t-dark: dark reaches 47×25 (own box 48×26), needs 48×48 [dark/initial]",
+      "t-auto: auto reaches 47×25 (own box 48×26), needs 48×48 [dark/initial]",
+      "t-reset: reset reaches 55×25 (own box 55×26), needs 48×48 [dark/initial]",
+      "theme: Change theme reaches 33×33 (own box 34×34), needs 48×48 [dark/gating]",
+      "t-light: light reaches 53×25 (own box 55×26), needs 48×48 [dark/gating]",
+      "t-dark: dark reaches 47×25 (own box 48×26), needs 48×48 [dark/gating]",
+      "t-auto: auto reaches 47×25 (own box 48×26), needs 48×48 [dark/gating]",
+      "t-reset: reset reaches 55×25 (own box 55×26), needs 48×48 [dark/gating]",
+      "theme: Change theme reaches 33×33 (own box 34×34), needs 48×48 [dark/all]",
+      "t-light: light reaches 53×25 (own box 55×26), needs 48×48 [dark/all]",
+      "t-dark: dark reaches 47×25 (own box 48×26), needs 48×48 [dark/all]",
+      "t-auto: auto reaches 47×25 (own box 48×26), needs 48×48 [dark/all]",
+      "t-reset: reset reaches 55×25 (own box 55×26), needs 48×48 [dark/all]"
+    ]
+  },
+  "resolverUnitTest": {
+    "paint": "#a78bfa",
+    "naive": "#f4f4f2"
+  },
+  "contrastRoles": 168,
+  "controlsProbed": 60,
+  "midpoints": 36,
+  "damage": {
+    "cases": 0,
+    "passed": 0,
+    "misses": [
+      "skipped (--no-damage)"
+    ]
+  },
+  "fired": {},
+  "all": {
+    "font-not-from-cdn": [
+      {
+        "ok": false,
+        "detail": ".scratch/openflow-v1/prototype/onboarding.html references an external font host"
+      }
+    ],
+    "font-face-present": [
+      {
+        "ok": false,
+        "detail": ".scratch/openflow-v1/prototype/onboarding.html declares 0 @font-face rule(s); two self-hosted faces are required"
+      }
+    ],
+    "no-model-row": [
+      {
+        "ok": false,
+        "detail": ".scratch/openflow-v1/prototype/onboarding.html still defines a 'model' ask row"
+      }
+    ],
+    "no-stale-download-figure": [
+      {
+        "ok": false,
+        "detail": ".scratch/openflow-v1/prototype/onboarding.html still states the fetch as ~45 MB: 45 MB once"
+      }
+    ],
+    "network-promise-is-true": [
+      {
+        "ok": false,
+        "detail": ".scratch/openflow-v1/prototype/onboarding.html promises an unqualified \"no network\" while first launch fetches the model"
+      }
+    ],
+    "a11y-declines-capability": [
+      {
+        "ok": false,
+        "detail": ".scratch/openflow-v1/prototype/onboarding.html never states that the service COULD read the focused field and declines to"
+      }
+    ],
+    "notifications-row-present": [
+      {
+        "ok": false,
+        "detail": ".scratch/openflow-v1/prototype/onboarding.html has no POST_NOTIFICATIONS row"
+      }
+    ],
+    "radius-zero": [
+      {
+        "ok": true,
+        "detail": ".scratch/openflow-v1/prototype/onboarding.html sets a non-zero border-radius: "
+      }
+    ],
+    "no-shadow": [
+      {
+        "ok": true,
+        "detail": ".scratch/openflow-v1/prototype/onboarding.html sets a box-shadow other than none"
+      }
+    ],
+    "perimeter-state-mark": [
+      {
+        "ok": true,
+        "detail": ".scratch/openflow-v1/prototype/onboarding.html does not draw the granted state as the row's own perimeter (conic mask)"
+      }
+    ],
+    "perimeter-does-not-fill": [
+      {
+        "ok": true,
+        "detail": ".scratch/openflow-v1/prototype/onboarding.html gives the perimeter pseudo-element a background, which would paint over row text"
+      }
+    ],
+    "mono-for-limit-clause": [
+      {
+        "ok": true,
+        "detail": ".scratch/openflow-v1/prototype/onboarding.html does not set the limit clause in mono against the capability clause in the UI face"
+      }
+    ],
+    "reduced-motion-handled": [
+      {
+        "ok": true,
+        "detail": ".scratch/openflow-v1/prototype/onboarding.html has no prefers-reduced-motion block"
+      }
+    ],
+    "high-contrast-handled": [
+      {
+        "ok": true,
+        "detail": ".scratch/openflow-v1/prototype/onboarding.html has no prefers-contrast block"
+      }
+    ],
+    "single-accent-per-theme": [
+      {
+        "ok": true,
+        "detail": ".scratch/openflow-v1/prototype/onboarding.html declares 2 accent value(s): #5b21d6, #a78bfa"
+      }
+    ],
+    "row-is-declared-in-manifest": [
+      {
+        "ok": true,
+        "detail": "row \"mic\" claims RECORD_AUDIO, which the manifest does not declare"
+      },
+      {
+        "ok": true,
+        "detail": "row \"overlay\" claims SYSTEM_ALERT_WINDOW, which the manifest does not declare"
+      },
+      {
+        "ok": true,
+        "detail": "row \"notify\" claims POST_NOTIFICATIONS, which the manifest does not declare"
+      }
+    ],
+    "row-is-documented-in-policy": [
+      {
+        "ok": true,
+        "detail": "RECORD_AUDIO is a row in the prototype but does not appear in permissions-policy.md"
+      },
+      {
+        "ok": true,
+        "detail": "SYSTEM_ALERT_WINDOW is a row in the prototype but does not appear in permissions-policy.md"
+      },
+      {
+        "ok": true,
+        "detail": "POST_NOTIFICATIONS is a row in the prototype but does not appear in permissions-policy.md"
+      }
+    ],
+    "a11y-not-a-uses-permission": [
+      {
+        "ok": true,
+        "detail": "the accessibility service binds by android:permission: in the policy, not in uses-permission"
+      }
+    ],
+    "policy-has-no-download-row": [
+      {
+        "ok": true,
+        "detail": "permissions-policy.md lists a model download as a permission"
+      }
+    ],
+    "privacy-discloses-the-fetch": [
+      {
+        "ok": false,
+        "detail": "privacy-policy.md does not disclose the first-launch model fetch, so \"nothing leaves the device\" reads as \"nothing uses the network\""
+      }
+    ],
+    "row-name-is-not-a-glossary-term": [
+      {
+        "ok": true,
+        "detail": "row \"overlay\" is named \"Bubble\", which GLOSSARY.md defines as the whole capture-to-insertion cycle, not the accessibility service"
+      },
+      {
+        "ok": false,
+        "detail": "row \"a11y\" is named \"Dictation\", which GLOSSARY.md defines as the whole capture-to-insertion cycle, not the accessibility service"
+      }
+    ],
+    "glossary-bubble-is-the-row-name": [
+      {
+        "ok": true,
+        "detail": "the overlay row should be named Bubble (the GLOSSARY.md term, with overlay listed as an avoid-word)"
+      }
+    ],
+    "row-count-has-no-stale-word": [
+      {
+        "ok": false,
+        "detail": "a numeral in the page copy still says \"four\""
+      }
+    ],
+    "cta-count-matches-rows": [
+      {
+        "ok": false,
+        "detail": "the primary action does not say \"Grant all 4\""
+      }
+    ],
+    "odo-has-a-digit-per-count": [
+      {
+        "ok": true,
+        "detail": "the odometer strip does not carry 5 digits"
+      }
+    ],
+    "sibling-highlight-resolved": [
+      {
+        "ok": true,
+        "detail": "a sibling selection highlight must resolve as the ground; the paint stack gave #a78bfa"
+      }
+    ],
+    "sibling-highlight-not-ground-on-ground": [
+      {
+        "ok": true,
+        "detail": "the ancestor-only walk returned the same ground as the paint stack (#f4f4f2), so this test cannot tell the two resolvers apart"
+      }
+    ],
+    "contrast": [
+      {
+        "ok": true,
+        "detail": "brand: OpenFlow = 17.98:1 (#0a0a0a on #f4f4f2), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "sep: / = 4.64:1 (#6e6e6b on #f4f4f2), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "SPAN: permissions = 17.98:1 (#0a0a0a on #f4f4f2), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "I: 0 = 17.98:1 (#0a0a0a on #f4f4f2), needs 3:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "l2: nothing granted yet = 4.64:1 (#6e6e6b on #f4f4f2), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "name: Microphone = 17.98:1 (#0a0a0a on #f4f4f2), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "state: needed = 4.64:1 (#6e6e6b on #f4f4f2), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "does: hears you while you hold it = 8.07:1 (#4a4a48 on #f4f4f2), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "nots: silent otherwise = 4.64:1 (#6e6e6b on #f4f4f2), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "name: Bubble = 17.98:1 (#0a0a0a on #f4f4f2), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "state: needed = 4.64:1 (#6e6e6b on #f4f4f2), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "does: one circle over your apps = 8.07:1 (#4a4a48 on #f4f4f2), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "nots: cannot see inside them = 4.64:1 (#6e6e6b on #f4f4f2), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "name: Dictation = 17.98:1 (#0a0a0a on #f4f4f2), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "state: needed = 4.64:1 (#6e6e6b on #f4f4f2), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "does: reads the box you type in = 8.07:1 (#4a4a48 on #f4f4f2), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "nots: nothing else on screen = 4.64:1 (#6e6e6b on #f4f4f2), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "name: Voice model = 17.98:1 (#0a0a0a on #f4f4f2), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "state: needed = 4.64:1 (#6e6e6b on #f4f4f2), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "does: 45 MB once, then offline = 8.07:1 (#4a4a48 on #f4f4f2), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "nots: never uploaded = 4.64:1 (#6e6e6b on #f4f4f2), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "cta: Grant all four = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "promise: Four asks, and that is all. No = 4.64:1 (#6e6e6b on #f4f4f2), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "B: Four asks, and that is all. = 17.98:1 (#0a0a0a on #f4f4f2), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "BUTTON: light = 7.97:1 (#ffffff on #5b21d6), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "BUTTON: dark = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "BUTTON: auto = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "BUTTON: reset = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "brand: OpenFlow = 17.98:1 (#0a0a0a on #f4f4f2), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "sep: / = 4.64:1 (#6e6e6b on #f4f4f2), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "SPAN: permissions = 17.98:1 (#0a0a0a on #f4f4f2), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "I: 3 = 17.98:1 (#0a0a0a on #f4f4f2), needs 3:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "l2: three left to grant = 4.64:1 (#6e6e6b on #f4f4f2), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "name: Microphone = 17.98:1 (#0a0a0a on #f4f4f2), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "state: on = 7.24:1 (#5b21d6 on #f4f4f2), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "does: hears you while you hold it = 8.07:1 (#4a4a48 on #f4f4f2), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "nots: silent otherwise = 4.64:1 (#6e6e6b on #f4f4f2), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "name: Bubble = 17.98:1 (#0a0a0a on #f4f4f2), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "state: on = 7.24:1 (#5b21d6 on #f4f4f2), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "does: one circle over your apps = 8.07:1 (#4a4a48 on #f4f4f2), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "nots: cannot see inside them = 4.64:1 (#6e6e6b on #f4f4f2), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "name: Dictation = 17.98:1 (#0a0a0a on #f4f4f2), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "state: on = 7.24:1 (#5b21d6 on #f4f4f2), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "does: reads the box you type in = 8.07:1 (#4a4a48 on #f4f4f2), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "nots: nothing else on screen = 4.64:1 (#6e6e6b on #f4f4f2), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "name: Voice model = 17.98:1 (#0a0a0a on #f4f4f2), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "state: needed = 4.64:1 (#6e6e6b on #f4f4f2), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "does: 45 MB once, then offline = 8.07:1 (#4a4a48 on #f4f4f2), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "nots: never uploaded = 4.64:1 (#6e6e6b on #f4f4f2), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "cta: Grant the rest = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "promise: Four asks, and that is all. No = 4.64:1 (#6e6e6b on #f4f4f2), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "B: Four asks, and that is all. = 17.98:1 (#0a0a0a on #f4f4f2), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "BUTTON: light = 7.97:1 (#ffffff on #5b21d6), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "BUTTON: dark = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "BUTTON: auto = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "BUTTON: reset = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "brand: OpenFlow = 17.98:1 (#0a0a0a on #f4f4f2), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "sep: / = 4.64:1 (#6e6e6b on #f4f4f2), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "SPAN: permissions = 17.98:1 (#0a0a0a on #f4f4f2), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "I: 3 = 17.98:1 (#0a0a0a on #f4f4f2), needs 3:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "l2: three left to grant = 4.64:1 (#6e6e6b on #f4f4f2), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "name: Microphone = 17.98:1 (#0a0a0a on #f4f4f2), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "state: on = 7.24:1 (#5b21d6 on #f4f4f2), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "does: hears you while you hold it = 8.07:1 (#4a4a48 on #f4f4f2), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "nots: silent otherwise = 4.64:1 (#6e6e6b on #f4f4f2), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "name: Bubble = 17.98:1 (#0a0a0a on #f4f4f2), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "state: on = 7.24:1 (#5b21d6 on #f4f4f2), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "does: one circle over your apps = 8.07:1 (#4a4a48 on #f4f4f2), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "nots: cannot see inside them = 4.64:1 (#6e6e6b on #f4f4f2), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "name: Dictation = 17.98:1 (#0a0a0a on #f4f4f2), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "state: on = 7.24:1 (#5b21d6 on #f4f4f2), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "does: reads the box you type in = 8.07:1 (#4a4a48 on #f4f4f2), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "nots: nothing else on screen = 4.64:1 (#6e6e6b on #f4f4f2), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "name: Voice model = 17.98:1 (#0a0a0a on #f4f4f2), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "state: needed = 4.64:1 (#6e6e6b on #f4f4f2), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "does: 45 MB once, then offline = 8.07:1 (#4a4a48 on #f4f4f2), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "nots: never uploaded = 4.64:1 (#6e6e6b on #f4f4f2), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "cta: Grant the rest = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "promise: Four asks, and that is all. No = 4.64:1 (#6e6e6b on #f4f4f2), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "B: Four asks, and that is all. = 17.98:1 (#0a0a0a on #f4f4f2), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "BUTTON: light = 7.97:1 (#ffffff on #5b21d6), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "BUTTON: dark = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "BUTTON: auto = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "BUTTON: reset = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "brand: OpenFlow = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "sep: / = 6.02:1 (#8e8e8a on #0a0a0a), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "SPAN: permissions = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "I: 0 = 17.98:1 (#f4f4f2 on #0a0a0a), needs 3:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "l2: nothing granted yet = 6.02:1 (#8e8e8a on #0a0a0a), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "name: Microphone = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "state: needed = 6.02:1 (#8e8e8a on #0a0a0a), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "does: hears you while you hold it = 9.52:1 (#b4b4b0 on #0a0a0a), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "nots: silent otherwise = 6.02:1 (#8e8e8a on #0a0a0a), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "name: Bubble = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "state: needed = 6.02:1 (#8e8e8a on #0a0a0a), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "does: one circle over your apps = 9.52:1 (#b4b4b0 on #0a0a0a), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "nots: cannot see inside them = 6.02:1 (#8e8e8a on #0a0a0a), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "name: Dictation = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "state: needed = 6.02:1 (#8e8e8a on #0a0a0a), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "does: reads the box you type in = 9.52:1 (#b4b4b0 on #0a0a0a), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "nots: nothing else on screen = 6.02:1 (#8e8e8a on #0a0a0a), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "name: Voice model = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "state: needed = 6.02:1 (#8e8e8a on #0a0a0a), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "does: 45 MB once, then offline = 9.52:1 (#b4b4b0 on #0a0a0a), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "nots: never uploaded = 6.02:1 (#8e8e8a on #0a0a0a), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "cta: Grant all four = 17.98:1 (#0a0a0a on #f4f4f2), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "promise: Four asks, and that is all. No = 6.02:1 (#8e8e8a on #0a0a0a), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "B: Four asks, and that is all. = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "BUTTON: light = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "BUTTON: dark = 7.27:1 (#0a0a0a on #a78bfa), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "BUTTON: auto = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "BUTTON: reset = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "brand: OpenFlow = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "sep: / = 6.02:1 (#8e8e8a on #0a0a0a), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "SPAN: permissions = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "I: 3 = 17.98:1 (#f4f4f2 on #0a0a0a), needs 3:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "l2: three left to grant = 6.02:1 (#8e8e8a on #0a0a0a), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "name: Microphone = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "state: on = 7.27:1 (#a78bfa on #0a0a0a), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "does: hears you while you hold it = 9.52:1 (#b4b4b0 on #0a0a0a), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "nots: silent otherwise = 6.02:1 (#8e8e8a on #0a0a0a), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "name: Bubble = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "state: on = 7.27:1 (#a78bfa on #0a0a0a), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "does: one circle over your apps = 9.52:1 (#b4b4b0 on #0a0a0a), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "nots: cannot see inside them = 6.02:1 (#8e8e8a on #0a0a0a), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "name: Dictation = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "state: on = 7.27:1 (#a78bfa on #0a0a0a), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "does: reads the box you type in = 9.52:1 (#b4b4b0 on #0a0a0a), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "nots: nothing else on screen = 6.02:1 (#8e8e8a on #0a0a0a), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "name: Voice model = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "state: needed = 6.02:1 (#8e8e8a on #0a0a0a), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "does: 45 MB once, then offline = 9.52:1 (#b4b4b0 on #0a0a0a), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "nots: never uploaded = 6.02:1 (#8e8e8a on #0a0a0a), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "cta: Grant the rest = 17.98:1 (#0a0a0a on #f4f4f2), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "promise: Four asks, and that is all. No = 6.02:1 (#8e8e8a on #0a0a0a), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "B: Four asks, and that is all. = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "BUTTON: light = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "BUTTON: dark = 7.27:1 (#0a0a0a on #a78bfa), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "BUTTON: auto = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "BUTTON: reset = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "brand: OpenFlow = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "sep: / = 6.02:1 (#8e8e8a on #0a0a0a), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "SPAN: permissions = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "I: 3 = 17.98:1 (#f4f4f2 on #0a0a0a), needs 3:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "l2: three left to grant = 6.02:1 (#8e8e8a on #0a0a0a), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "name: Microphone = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "state: on = 7.27:1 (#a78bfa on #0a0a0a), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "does: hears you while you hold it = 9.52:1 (#b4b4b0 on #0a0a0a), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "nots: silent otherwise = 6.02:1 (#8e8e8a on #0a0a0a), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "name: Bubble = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "state: on = 7.27:1 (#a78bfa on #0a0a0a), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "does: one circle over your apps = 9.52:1 (#b4b4b0 on #0a0a0a), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "nots: cannot see inside them = 6.02:1 (#8e8e8a on #0a0a0a), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "name: Dictation = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "state: on = 7.27:1 (#a78bfa on #0a0a0a), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "does: reads the box you type in = 9.52:1 (#b4b4b0 on #0a0a0a), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "nots: nothing else on screen = 6.02:1 (#8e8e8a on #0a0a0a), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "name: Voice model = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "state: needed = 6.02:1 (#8e8e8a on #0a0a0a), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "does: 45 MB once, then offline = 9.52:1 (#b4b4b0 on #0a0a0a), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "nots: never uploaded = 6.02:1 (#8e8e8a on #0a0a0a), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "cta: Grant the rest = 17.98:1 (#0a0a0a on #f4f4f2), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "promise: Four asks, and that is all. No = 6.02:1 (#8e8e8a on #0a0a0a), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "B: Four asks, and that is all. = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "BUTTON: light = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "BUTTON: dark = 7.27:1 (#0a0a0a on #a78bfa), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "BUTTON: auto = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "BUTTON: reset = 17.98:1 (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/all]"
+      }
+    ],
+    "non-text-state-mark": [
+      {
+        "ok": true,
+        "detail": "accent #5b21d6 on #f4f4f2 = 7.24:1, needs 3:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "accent #5b21d6 on #f4f4f2 = 7.24:1, needs 3:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "accent #5b21d6 on #f4f4f2 = 7.24:1, needs 3:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "accent #a78bfa on #0a0a0a = 7.27:1, needs 3:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "accent #a78bfa on #0a0a0a = 7.27:1, needs 3:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "accent #a78bfa on #0a0a0a = 7.27:1, needs 3:1 [dark/all]"
+      }
+    ],
+    "non-text-meter-track": [
+      {
+        "ok": true,
+        "detail": "meter fill #5b21d6 on its own track #d3d3d2 = 5.33:1, needs 3:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "meter fill #5b21d6 on its own track #d3d3d2 = 5.33:1, needs 3:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "meter fill #5b21d6 on its own track #d3d3d2 = 5.33:1, needs 3:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "meter fill #a78bfa on its own track #2f2f2f = 4.89:1, needs 3:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "meter fill #a78bfa on its own track #2f2f2f = 4.89:1, needs 3:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "meter fill #a78bfa on its own track #2f2f2f = 4.89:1, needs 3:1 [dark/all]"
+      }
+    ],
+    "touch-target": [
+      {
+        "ok": false,
+        "detail": "theme: Change theme reaches 33×33 (own box 34×34), needs 48×48 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "row: Microphone\n      nee reaches 429×107 (own box 430×107), needs 48×48 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "row: Bubble\n      needed\n reaches 429×107 (own box 430×107), needs 48×48 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "row: Dictation\n      need reaches 429×107 (own box 430×107), needs 48×48 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "row: Voice model\n      ne reaches 429×121 (own box 430×121), needs 48×48 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "go: Grant all four reaches 401×55 (own box 402×55), needs 48×48 [light/initial]"
+      },
+      {
+        "ok": false,
+        "detail": "t-light: light reaches 53×25 (own box 55×26), needs 48×48 [light/initial]"
+      },
+      {
+        "ok": false,
+        "detail": "t-dark: dark reaches 47×25 (own box 48×26), needs 48×48 [light/initial]"
+      },
+      {
+        "ok": false,
+        "detail": "t-auto: auto reaches 47×25 (own box 48×26), needs 48×48 [light/initial]"
+      },
+      {
+        "ok": false,
+        "detail": "t-reset: reset reaches 55×25 (own box 55×26), needs 48×48 [light/initial]"
+      },
+      {
+        "ok": false,
+        "detail": "theme: Change theme reaches 33×33 (own box 34×34), needs 48×48 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "row: Microphone\n      on\n reaches 429×107 (own box 430×107), needs 48×48 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "row: Bubble\n      on\n     reaches 429×107 (own box 430×107), needs 48×48 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "row: Dictation\n      on\n  reaches 429×107 (own box 430×107), needs 48×48 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "row: Voice model\n      ne reaches 429×121 (own box 430×121), needs 48×48 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "go: Grant the rest reaches 401×55 (own box 402×55), needs 48×48 [light/gating]"
+      },
+      {
+        "ok": false,
+        "detail": "t-light: light reaches 53×25 (own box 55×26), needs 48×48 [light/gating]"
+      },
+      {
+        "ok": false,
+        "detail": "t-dark: dark reaches 47×25 (own box 48×26), needs 48×48 [light/gating]"
+      },
+      {
+        "ok": false,
+        "detail": "t-auto: auto reaches 47×25 (own box 48×26), needs 48×48 [light/gating]"
+      },
+      {
+        "ok": false,
+        "detail": "t-reset: reset reaches 55×25 (own box 55×26), needs 48×48 [light/gating]"
+      },
+      {
+        "ok": false,
+        "detail": "theme: Change theme reaches 33×33 (own box 34×34), needs 48×48 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "row: Microphone\n      on\n reaches 429×107 (own box 430×107), needs 48×48 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "row: Bubble\n      on\n     reaches 429×107 (own box 430×107), needs 48×48 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "row: Dictation\n      on\n  reaches 429×107 (own box 430×107), needs 48×48 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "row: Voice model\n      ne reaches 429×121 (own box 430×121), needs 48×48 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "go: Grant the rest reaches 401×55 (own box 402×55), needs 48×48 [light/all]"
+      },
+      {
+        "ok": false,
+        "detail": "t-light: light reaches 53×25 (own box 55×26), needs 48×48 [light/all]"
+      },
+      {
+        "ok": false,
+        "detail": "t-dark: dark reaches 47×25 (own box 48×26), needs 48×48 [light/all]"
+      },
+      {
+        "ok": false,
+        "detail": "t-auto: auto reaches 47×25 (own box 48×26), needs 48×48 [light/all]"
+      },
+      {
+        "ok": false,
+        "detail": "t-reset: reset reaches 55×25 (own box 55×26), needs 48×48 [light/all]"
+      },
+      {
+        "ok": false,
+        "detail": "theme: Change theme reaches 33×33 (own box 34×34), needs 48×48 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "row: Microphone\n      nee reaches 429×107 (own box 430×107), needs 48×48 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "row: Bubble\n      needed\n reaches 429×107 (own box 430×107), needs 48×48 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "row: Dictation\n      need reaches 429×107 (own box 430×107), needs 48×48 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "row: Voice model\n      ne reaches 429×121 (own box 430×121), needs 48×48 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": "go: Grant all four reaches 401×55 (own box 402×55), needs 48×48 [dark/initial]"
+      },
+      {
+        "ok": false,
+        "detail": "t-light: light reaches 53×25 (own box 55×26), needs 48×48 [dark/initial]"
+      },
+      {
+        "ok": false,
+        "detail": "t-dark: dark reaches 47×25 (own box 48×26), needs 48×48 [dark/initial]"
+      },
+      {
+        "ok": false,
+        "detail": "t-auto: auto reaches 47×25 (own box 48×26), needs 48×48 [dark/initial]"
+      },
+      {
+        "ok": false,
+        "detail": "t-reset: reset reaches 55×25 (own box 55×26), needs 48×48 [dark/initial]"
+      },
+      {
+        "ok": false,
+        "detail": "theme: Change theme reaches 33×33 (own box 34×34), needs 48×48 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "row: Microphone\n      on\n reaches 429×107 (own box 430×107), needs 48×48 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "row: Bubble\n      on\n     reaches 429×107 (own box 430×107), needs 48×48 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "row: Dictation\n      on\n  reaches 429×107 (own box 430×107), needs 48×48 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "row: Voice model\n      ne reaches 429×121 (own box 430×121), needs 48×48 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "go: Grant the rest reaches 401×55 (own box 402×55), needs 48×48 [dark/gating]"
+      },
+      {
+        "ok": false,
+        "detail": "t-light: light reaches 53×25 (own box 55×26), needs 48×48 [dark/gating]"
+      },
+      {
+        "ok": false,
+        "detail": "t-dark: dark reaches 47×25 (own box 48×26), needs 48×48 [dark/gating]"
+      },
+      {
+        "ok": false,
+        "detail": "t-auto: auto reaches 47×25 (own box 48×26), needs 48×48 [dark/gating]"
+      },
+      {
+        "ok": false,
+        "detail": "t-reset: reset reaches 55×25 (own box 55×26), needs 48×48 [dark/gating]"
+      },
+      {
+        "ok": false,
+        "detail": "theme: Change theme reaches 33×33 (own box 34×34), needs 48×48 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "row: Microphone\n      on\n reaches 429×107 (own box 430×107), needs 48×48 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "row: Bubble\n      on\n     reaches 429×107 (own box 430×107), needs 48×48 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "row: Dictation\n      on\n  reaches 429×107 (own box 430×107), needs 48×48 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "row: Voice model\n      ne reaches 429×121 (own box 430×121), needs 48×48 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "go: Grant the rest reaches 401×55 (own box 402×55), needs 48×48 [dark/all]"
+      },
+      {
+        "ok": false,
+        "detail": "t-light: light reaches 53×25 (own box 55×26), needs 48×48 [dark/all]"
+      },
+      {
+        "ok": false,
+        "detail": "t-dark: dark reaches 47×25 (own box 48×26), needs 48×48 [dark/all]"
+      },
+      {
+        "ok": false,
+        "detail": "t-auto: auto reaches 47×25 (own box 48×26), needs 48×48 [dark/all]"
+      },
+      {
+        "ok": false,
+        "detail": "t-reset: reset reaches 55×25 (own box 55×26), needs 48×48 [dark/all]"
+      }
+    ],
+    "transition-midpoint": [
+      {
+        "ok": true,
+        "detail": ".row under .row:hover — worst 17.98:1 at +0ms (#0a0a0a on #f4f4f2), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": ".row under .row:hover — worst 17.98:1 at +0ms (#0a0a0a on #f4f4f2), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": ".row under .row:hover — worst 17.98:1 at +0ms (#0a0a0a on #f4f4f2), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": ".row under .row:hover — worst 17.98:1 at +0ms (#0a0a0a on #f4f4f2), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": ".cta under .cta:hover — worst 17.98:1 at +0ms (#f4f4f2 on #0a0a0a), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": ".cta under .cta:active — worst 17.98:1 at +0ms (#f4f4f2 on #0a0a0a), needs 4.5:1 [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": ".row under .row:hover — worst 17.98:1 at +0ms (#0a0a0a on #f4f4f2), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": ".row under .row:hover — worst 17.98:1 at +0ms (#0a0a0a on #f4f4f2), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": ".row under .row:hover — worst 17.98:1 at +0ms (#0a0a0a on #f4f4f2), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": ".row under .row:hover — worst 17.98:1 at +0ms (#0a0a0a on #f4f4f2), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": ".cta under .cta:hover — worst 17.98:1 at +0ms (#f4f4f2 on #0a0a0a), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": ".cta under .cta:active — worst 17.98:1 at +0ms (#f4f4f2 on #0a0a0a), needs 4.5:1 [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": ".row under .row:hover — worst 17.98:1 at +0ms (#0a0a0a on #f4f4f2), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": ".row under .row:hover — worst 17.98:1 at +0ms (#0a0a0a on #f4f4f2), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": ".row under .row:hover — worst 17.98:1 at +0ms (#0a0a0a on #f4f4f2), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": ".row under .row:hover — worst 17.98:1 at +0ms (#0a0a0a on #f4f4f2), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": ".cta under .cta:hover — worst 17.98:1 at +0ms (#f4f4f2 on #0a0a0a), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": ".cta under .cta:active — worst 17.98:1 at +0ms (#f4f4f2 on #0a0a0a), needs 4.5:1 [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": ".row under .row:hover — worst 17.98:1 at +0ms (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": ".row under .row:hover — worst 17.98:1 at +0ms (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": ".row under .row:hover — worst 17.98:1 at +0ms (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": ".row under .row:hover — worst 17.98:1 at +0ms (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": ".cta under .cta:hover — worst 17.98:1 at +0ms (#0a0a0a on #f4f4f2), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": ".cta under .cta:active — worst 17.98:1 at +0ms (#0a0a0a on #f4f4f2), needs 4.5:1 [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": ".row under .row:hover — worst 17.98:1 at +0ms (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": ".row under .row:hover — worst 17.98:1 at +0ms (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": ".row under .row:hover — worst 17.98:1 at +0ms (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": ".row under .row:hover — worst 17.98:1 at +0ms (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": ".cta under .cta:hover — worst 17.98:1 at +0ms (#0a0a0a on #f4f4f2), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": ".cta under .cta:active — worst 17.98:1 at +0ms (#0a0a0a on #f4f4f2), needs 4.5:1 [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": ".row under .row:hover — worst 17.98:1 at +0ms (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": ".row under .row:hover — worst 17.98:1 at +0ms (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": ".row under .row:hover — worst 17.98:1 at +0ms (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": ".row under .row:hover — worst 17.98:1 at +0ms (#f4f4f2 on #0a0a0a), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": ".cta under .cta:hover — worst 17.98:1 at +0ms (#0a0a0a on #f4f4f2), needs 4.5:1 [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": ".cta under .cta:active — worst 17.98:1 at +0ms (#0a0a0a on #f4f4f2), needs 4.5:1 [dark/all]"
+      }
+    ],
+    "perimeter-mask-live": [
+      {
+        "ok": true,
+        "detail": ".row::before mask-image: conic-gradient(from -90deg, rgb(0, 0, 0) 0deg, rgb(0, 0, 0) 0deg, rgba(0, 0, 0, 0) 0deg, rgba(0, 0, 0, 0) 360deg) [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": ".row::before mask-image: conic-gradient(from -90deg, rgb(0, 0, 0) 0deg, rgb(0, 0, 0) 0deg, rgba(0, 0, 0, 0) 0deg, rgba(0, 0, 0, 0) 360deg) [reduced-motion/light]"
+      },
+      {
+        "ok": true,
+        "detail": ".row::before mask-image: conic-gradient(from -90deg, rgb(0, 0, 0) 0deg, rgb(0, 0, 0) 360deg, rgba(0, 0, 0, 0) 360deg, rgba(0, 0, 0, 0) 360deg) [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": ".row::before mask-image: conic-gradient(from -90deg, rgb(0, 0, 0) 0deg, rgb(0, 0, 0) 360deg, rgba(0, 0, 0, 0) 360deg, rgba(0, 0, 0, 0) 360deg) [reduced-motion/light]"
+      },
+      {
+        "ok": true,
+        "detail": ".row::before mask-image: conic-gradient(from -90deg, rgb(0, 0, 0) 0deg, rgb(0, 0, 0) 360deg, rgba(0, 0, 0, 0) 360deg, rgba(0, 0, 0, 0) 360deg) [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": ".row::before mask-image: conic-gradient(from -90deg, rgb(0, 0, 0) 0deg, rgb(0, 0, 0) 360deg, rgba(0, 0, 0, 0) 360deg, rgba(0, 0, 0, 0) 360deg) [reduced-motion/light]"
+      },
+      {
+        "ok": true,
+        "detail": ".row::before mask-image: conic-gradient(from -90deg, rgb(0, 0, 0) 0deg, rgb(0, 0, 0) 0deg, rgba(0, 0, 0, 0) 0deg, rgba(0, 0, 0, 0) 360deg) [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": ".row::before mask-image: conic-gradient(from -90deg, rgb(0, 0, 0) 0deg, rgb(0, 0, 0) 0deg, rgba(0, 0, 0, 0) 0deg, rgba(0, 0, 0, 0) 360deg) [reduced-motion/dark]"
+      },
+      {
+        "ok": true,
+        "detail": ".row::before mask-image: conic-gradient(from -90deg, rgb(0, 0, 0) 0deg, rgb(0, 0, 0) 360deg, rgba(0, 0, 0, 0) 360deg, rgba(0, 0, 0, 0) 360deg) [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": ".row::before mask-image: conic-gradient(from -90deg, rgb(0, 0, 0) 0deg, rgb(0, 0, 0) 360deg, rgba(0, 0, 0, 0) 360deg, rgba(0, 0, 0, 0) 360deg) [reduced-motion/dark]"
+      },
+      {
+        "ok": true,
+        "detail": ".row::before mask-image: conic-gradient(from -90deg, rgb(0, 0, 0) 0deg, rgb(0, 0, 0) 360deg, rgba(0, 0, 0, 0) 360deg, rgba(0, 0, 0, 0) 360deg) [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": ".row::before mask-image: conic-gradient(from -90deg, rgb(0, 0, 0) 0deg, rgb(0, 0, 0) 360deg, rgba(0, 0, 0, 0) 360deg, rgba(0, 0, 0, 0) 360deg) [reduced-motion/dark]"
+      }
+    ],
+    "perimeter-interior-clear": [
+      {
+        "ok": true,
+        "detail": ".row::before background-color: rgba(0, 0, 0, 0) (alpha 0 — an opaque fill would paint over the row text) [light/initial]"
+      },
+      {
+        "ok": true,
+        "detail": ".row::before background-color: rgba(0, 0, 0, 0) (alpha 0 — an opaque fill would paint over the row text) [reduced-motion/light]"
+      },
+      {
+        "ok": true,
+        "detail": ".row::before background-color: rgba(0, 0, 0, 0) (alpha 0 — an opaque fill would paint over the row text) [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": ".row::before background-color: rgba(0, 0, 0, 0) (alpha 0 — an opaque fill would paint over the row text) [reduced-motion/light]"
+      },
+      {
+        "ok": true,
+        "detail": ".row::before background-color: rgba(0, 0, 0, 0) (alpha 0 — an opaque fill would paint over the row text) [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": ".row::before background-color: rgba(0, 0, 0, 0) (alpha 0 — an opaque fill would paint over the row text) [reduced-motion/light]"
+      },
+      {
+        "ok": true,
+        "detail": ".row::before background-color: rgba(0, 0, 0, 0) (alpha 0 — an opaque fill would paint over the row text) [dark/initial]"
+      },
+      {
+        "ok": true,
+        "detail": ".row::before background-color: rgba(0, 0, 0, 0) (alpha 0 — an opaque fill would paint over the row text) [reduced-motion/dark]"
+      },
+      {
+        "ok": true,
+        "detail": ".row::before background-color: rgba(0, 0, 0, 0) (alpha 0 — an opaque fill would paint over the row text) [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": ".row::before background-color: rgba(0, 0, 0, 0) (alpha 0 — an opaque fill would paint over the row text) [reduced-motion/dark]"
+      },
+      {
+        "ok": true,
+        "detail": ".row::before background-color: rgba(0, 0, 0, 0) (alpha 0 — an opaque fill would paint over the row text) [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": ".row::before background-color: rgba(0, 0, 0, 0) (alpha 0 — an opaque fill would paint over the row text) [reduced-motion/dark]"
+      }
+    ],
+    "no-attached-animation": [
+      {
+        "ok": true,
+        "detail": "0 animation(s) still attached after settling:  [reduced-motion/light]"
+      },
+      {
+        "ok": true,
+        "detail": "0 animation(s) still attached after settling:  [reduced-motion/light]"
+      },
+      {
+        "ok": true,
+        "detail": "0 animation(s) still attached after settling:  [reduced-motion/light]"
+      },
+      {
+        "ok": true,
+        "detail": "0 animation(s) still attached after settling:  [reduced-motion/dark]"
+      },
+      {
+        "ok": true,
+        "detail": "0 animation(s) still attached after settling:  [reduced-motion/dark]"
+      },
+      {
+        "ok": true,
+        "detail": "0 animation(s) still attached after settling:  [reduced-motion/dark]"
+      }
+    ],
+    "perimeter-completes": [
+      {
+        "ok": true,
+        "detail": "granted row mic settled at --sweep: 360.0deg [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "granted row overlay settled at --sweep: 360.0deg [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "granted row a11y settled at --sweep: 360.0deg [light/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "granted row mic settled at --sweep: 360.0deg [reduced-motion/light]"
+      },
+      {
+        "ok": true,
+        "detail": "granted row overlay settled at --sweep: 360.0deg [reduced-motion/light]"
+      },
+      {
+        "ok": true,
+        "detail": "granted row a11y settled at --sweep: 360.0deg [reduced-motion/light]"
+      },
+      {
+        "ok": true,
+        "detail": "granted row mic settled at --sweep: 360.0deg [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "granted row overlay settled at --sweep: 360.0deg [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "granted row a11y settled at --sweep: 360.0deg [light/all]"
+      },
+      {
+        "ok": true,
+        "detail": "granted row mic settled at --sweep: 360.0deg [reduced-motion/light]"
+      },
+      {
+        "ok": true,
+        "detail": "granted row overlay settled at --sweep: 360.0deg [reduced-motion/light]"
+      },
+      {
+        "ok": true,
+        "detail": "granted row a11y settled at --sweep: 360.0deg [reduced-motion/light]"
+      },
+      {
+        "ok": true,
+        "detail": "granted row mic settled at --sweep: 360.0deg [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "granted row overlay settled at --sweep: 360.0deg [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "granted row a11y settled at --sweep: 360.0deg [dark/gating]"
+      },
+      {
+        "ok": true,
+        "detail": "granted row mic settled at --sweep: 360.0deg [reduced-motion/dark]"
+      },
+      {
+        "ok": true,
+        "detail": "granted row overlay settled at --sweep: 360.0deg [reduced-motion/dark]"
+      },
+      {
+        "ok": true,
+        "detail": "granted row a11y settled at --sweep: 360.0deg [reduced-motion/dark]"
+      },
+      {
+        "ok": true,
+        "detail": "granted row mic settled at --sweep: 360.0deg [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "granted row overlay settled at --sweep: 360.0deg [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "granted row a11y settled at --sweep: 360.0deg [dark/all]"
+      },
+      {
+        "ok": true,
+        "detail": "granted row mic settled at --sweep: 360.0deg [reduced-motion/dark]"
+      },
+      {
+        "ok": true,
+        "detail": "granted row overlay settled at --sweep: 360.0deg [reduced-motion/dark]"
+      },
+      {
+        "ok": true,
+        "detail": "granted row a11y settled at --sweep: 360.0deg [reduced-motion/dark]"
+      }
+    ]
+  }
+}

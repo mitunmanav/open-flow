@@ -1,0 +1,23 @@
+import { chromium } from '/home/mitun/career-ops/node_modules/playwright/index.mjs';
+const f='/home/mitun/open-flow/.worktrees/ticket-55-permissions-list/.scratch/openflow-v1/prototype/onboarding.html';
+const b=await chromium.launch(); const p=await b.newPage({viewport:{width:430,height:932}});
+await p.goto('file://'+f); await p.evaluate(()=>window.setTheme('dark')); await p.waitForTimeout(300);
+console.log(await p.evaluate(()=>{
+  const el=document.querySelector('.cta');
+  const out={};
+  out.base=getComputedStyle(el).backgroundColor;
+  let s=document.createElement('style'); s.textContent='[data-t]{background:#ff0000}'; document.head.appendChild(s);
+  el.setAttribute('data-t','');
+  out.attrRule=getComputedStyle(el).backgroundColor;
+  el.removeAttribute('data-t'); s.remove();
+  s=document.createElement('style'); s.textContent='[data-t]{background:#ff0000 !important}'; document.head.appendChild(s);
+  el.setAttribute('data-t','');
+  out.attrImportant=getComputedStyle(el).backgroundColor;
+  el.removeAttribute('data-t'); s.remove();
+  s=document.createElement('style'); s.textContent='.cta{background:var(--accent)}'; document.head.appendChild(s);
+  out.sameSpecificity=getComputedStyle(el).backgroundColor; s.remove();
+  out.accent=getComputedStyle(document.documentElement).getPropertyValue('--accent');
+  out.sheets=[...document.styleSheets].map(s=>{try{return s.cssRules.length}catch(e){return 'x'}});
+  return out;
+}));
+await b.close();

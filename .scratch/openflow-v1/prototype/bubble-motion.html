@@ -1,0 +1,951 @@
+<!doctype html>
+<!--
+  PROTOTYPE — throwaway. BUBBLE MOTION SPEC. Do not ship, do not port.
+
+  Question (ticket 20): pin the bubble's motion across five states — idle
+  breathe, listening pulse, processing indicator, done/problem feedback
+  timing, drag inertia — and how each shape (dot / pill / chip / ring)
+  expresses state without colour-only signalling.
+
+  ── WHY FOUR BUBBLES AT ONCE ───────────────────────────────────────────────
+  The ticket asks two questions and they are not the same question. "What does
+  each state move like" is one. "How does each SHAPE express state without
+  colour" is another, and it is the one a single bubble cannot answer — you
+  cannot see that the ring's gap is better than the chip's notch while only
+  one shape is on screen. So every shape is rigged to the same state at the
+  same time and you read them against each other. Plus one draggable copy in
+  a host app, because inertia cannot be judged in a grid.
+
+  ── THE FIVE STATES, AND ADR-0002'S TEN ────────────────────────────────────
+  ADR-0002 has ten states. The user sees five families. The mapping is in
+  STATES below and it is the load-bearing part of this spec: the bubble's
+  motion vocabulary is allowed to be five wide only because ten states fold
+  into five without lying about any of them. The one that does NOT fold is
+  Cancelled — it is a sixth visible outcome, and collapsing it into Done
+  would claim the dictation landed. It rides the done/problem timing budget
+  with its own word. Agent's judgement, recorded in the ticket.
+
+  ── THE MOTION PRINCIPLE, STATED ONCE ─────────────────────────────────────
+  BREATHING IS SMOOTH, MACHINE WORK STEPS.
+  The bubble is a physical object that is awake (idle) and it is a machine
+  doing a job (processing). So the organic states use continuous curves and
+  every step the machine takes is a hard `steps(1,end)` snap. A progress
+  indicator that eases between steps is telling you it is thinking. It is not;
+  it is waiting on an HTTP response, and an HTTP response does not glide.
+
+  And the step sequence RESETS. It never wraps from 3/4 back to 0 as if
+  arriving at a start — it runs 12.5% → 37.5% → 62.5% → 87.5% → 12.5%, which
+  is a loop with no destination. A determinate-looking bar that resets is a
+  lie about progress; a stepped loop that resets is honest about being
+  unbounded. The elapsed counter in mono is the other half of that honesty:
+  it tells you HOW LONG, which is the only fact actually available.
+
+  ── NOTHING OVERSTATES ─────────────────────────────────────────────────────
+  · Done auto-returns (ADR-0002). Problem does NOT — it is the one state
+    held open, because something is being asked of the user. So the two
+    terminals share a 260ms feedback flash and then diverge in what happens
+    next, and that divergence — not colour — is how you tell them apart.
+  · The idle ring is a CLOSED circle: nothing in progress, nothing claimed.
+  · The problem ring is a circle with a STATIC GAP and a doubled rule. Broken
+    means broken; it does not pulse, because a pulsing problem reads as
+    "recovering" and nothing is recovering.
+  · The listening core CONTRACTS. Audio is being taken IN. The conventional
+    mic pulse expands, which is a gesture for emitting — the bubble is
+    emitting nothing, it is a mouth with a hole in the other end.
+
+  ── RULES THIS FILE HOLDS ──────────────────────────────────────────────────
+  · Nothing hidden by default. Entrance uses fill-mode backwards, so an
+    animation that never runs leaves its element VISIBLE.
+  · Every resting state is plain CSS. Nothing rests on `forwards`.
+  · The bubble DOM is built ONCE and render() only flips data-state and text
+    — so a one-shot can never replay because something unrelated re-rendered.
+  · A press INVERTS ground for ink, so it swaps instantly. Measured on this
+    language before: 4.02:1 at +25ms, 1.33:1 at +50ms, below AA mid-gesture.
+  · Motion is suppressed by a CLASS, set from the media query synchronously
+    in <head>, not by the `@media` override trick. The override trick leaves
+    an Animation object attached with a .01ms duration — it still passes a
+    "no animation under reduced motion" check only if you check computed
+    duration. Checking getAnimations() is the honest test and the class is
+    the only way to pass it.
+  · The control bar's height is MEASURED and capped, never a guessed rem.
+  · Every state is legible with the accent removed entirely. There is a
+    greyscale toggle for exactly this, and it is a harness button, not a
+    theme.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE — bubble motion spec (ticket 20)</title>
+<script>
+/* Synchronous, in <head>, before first paint. `js` gates every entrance and
+   `reduced` is the single source of truth for motion suppression — the
+   media query is read ONCE here and then only listened to, never re-queried
+   in CSS. Two classes, one decision, one place to look. */
+(function () {
+  var r = document.documentElement;
+  r.classList.add("js");
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) r.classList.add("reduced");
+})();
+</script>
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   Tokens. Ticket 19's palette, verbatim. One accent. A failure is ink and
+   the specific words, never a red.
+   ══════════════════════════════════════════════════════════════════════════ */
+@font-face{font-family:'Archivo';src:url('../../../website/fonts/archivo-latin-var.woff2') format('woff2');font-weight:100 900;font-stretch:62% 125%;font-display:swap}
+@font-face{font-family:'JetBrains Mono';src:url('../../../website/fonts/jetbrains-mono-latin-var.woff2') format('woff2');font-weight:400 800;font-display:swap}
+
+:root{
+  --ground:#F4F4F2; --ink:#0A0A0A; --mid:#4A4A48; --low:#6E6E6B;
+  --rule:rgba(10,10,10,.16); --rule-hi:rgba(10,10,10,.34); --bar:rgba(10,10,10,.14);
+  --accent:#5B21D6; --on-accent:#FFFFFF; --field:rgba(10,10,10,.05);
+  --ui:'Archivo',system-ui,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --s1:.25rem; --s2:.5rem; --s3:.75rem; --s4:1rem; --s5:1.5rem; --s6:2rem;
+  --t-micro:.6875rem; --t-small:.75rem; --t-body:.875rem; --t-base:1rem;
+  --t-sub:1.25rem; --t-display:1.75rem;
+  --tools-h:9rem; /* MEASURED from the bar below — never trusted as authored */
+}
+/* JetBrains Mono is a variable font and this is its latin subset. The stack
+   falls through to ui-monospace if the file ever goes missing, and every
+   measurement still holds — the spec never depends on the mono face being the
+   right one, only on it being monospace and legible. */
+
+:root[data-theme="dark"]{
+  --ground:#0A0A0A; --ink:#F4F4F2; --mid:#B4B4B0; --low:#8E8E8A;
+  --rule:rgba(244,244,242,.18); --rule-hi:rgba(244,244,242,.4); --bar:rgba(244,244,242,.16);
+  --accent:#A78BFA; --on-accent:#0A0A0A; --field:rgba(244,244,242,.06);
+}
+/* The honesty check, as a button. No accent at all — so if a state still
+   reads, the state was never colour-only. */
+:root[data-ink="off"]{--accent:#4A4A48;--on-accent:#FFFFFF}
+:root[data-ink="off"][data-theme="dark"]{--accent:#B4B4B0;--on-accent:#0A0A0A}
+
+html[data-fs="150"]{font-size:24px}
+html[data-fs="200"]{font-size:32px}
+
+*{box-sizing:border-box;border-radius:0}
+html,body{margin:0}
+body{
+  background:var(--ground);color:var(--ink);
+  font-family:var(--ui);font-size:var(--t-base);line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:var(--mono);font-size:var(--t-micro);letter-spacing:.005em;line-height:1.7}
+.dim{color:var(--low)}
+.display{font-weight:800;font-stretch:125%;letter-spacing:-.015em;line-height:1.1}
+button{font:inherit;color:inherit;background:none;border:0;margin:0;padding:0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+
+/* ── the device ──────────────────────────────────────────────────────────── */
+.stage{min-height:100vh;display:grid;place-items:start center;
+  padding:1.5rem 1rem calc(var(--tools-h) + 1.5rem)}
+.sheet{
+  width:416px;max-width:100%;min-width:0;
+  border:2px solid var(--ink);background:var(--ground);
+  position:relative;
+  /* `anywhere`, not `break-word`: only `anywhere` lowers an element's
+     min-content width, and a grid item's min-content width is what stops it
+     shrinking. At 200% font the h1's longest word ("motion," at 125% stretch)
+     measured 417px inside a 390px viewport, which pushed the whole sheet to
+     481 and overflowed the page — a display heading is not a reason for a
+     horizontal scrollbar. */
+  overflow-wrap:anywhere;
+}
+@media (max-width:480px){
+  .stage{padding:1rem 0 calc(var(--tools-h) + 1rem)}
+  .sheet{width:100%;border-left:0;border-right:0}
+}
+.sheethead{flex:none;padding:.9rem var(--s4) .75rem;border-bottom:2px solid var(--ink)}
+.sheethead h1{margin:0;font-size:var(--t-sub)}
+.sheethead p{margin:.35rem 0 0;font-size:var(--t-small);color:var(--mid);max-width:52ch}
+
+/* ── the state word. It is the primary signal and it is TEXT. ────────────── */
+.stateline{display:flex;align-items:baseline;gap:var(--s3);flex-wrap:wrap;
+  padding:var(--s3) var(--s4);border-bottom:1px solid var(--rule)}
+.stateline .st{font-family:var(--mono);font-size:var(--t-body);letter-spacing:.02em}
+.stateline .adr{margin-left:auto;color:var(--low)}
+
+/* ── the four rigs. Same state, four shapes, read against each other. ────── */
+/* minmax(0,1fr), not 1fr. A grid track sized `1fr` is minmax(auto,1fr), and
+   `auto` floors the track at the item's min-content width — which at 200%
+   font was the pill's nowrap label, so the four-rig comparison grid stopped
+   being four equal cells and pushed the sheet 91px past the viewport. */
+.rigs{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);border-top:1px solid var(--rule)}
+.rig{min-width:0;min-height:11rem;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:var(--s3);padding:var(--s4) var(--s3);
+  border-bottom:1px solid var(--rule);position:relative}
+.rig:nth-child(odd){border-right:1px solid var(--rule)}
+.rig .caption{font-family:var(--mono);font-size:var(--t-micro);color:var(--low);
+  text-align:center;max-width:30ch}
+.rig .caption b{display:block;color:var(--mid);font-weight:400;margin-bottom:.15rem}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE BUBBLE. One class of element, four shapes, five states.
+   Built once by JS; render() only sets data-state and text.
+   ══════════════════════════════════════════════════════════════════════════ */
+.bubble{position:relative;display:grid;place-items:center;
+  background:var(--ground);color:var(--ink);border:2px solid var(--ink);
+  cursor:pointer;user-select:none;touch-action:none}
+/* A press INVERTS. Ground for ink, ink for ground, swapped on the frame.
+   There is deliberately no transition here. */
+.bubble:active,.bubble.pressed{background:var(--ink);color:var(--ground)}
+
+/* The 48dp floor. A dot is 40px and a ring is 44px; adding padding would grow
+   the mark, so the target is a pseudo-element and the mark is left honest
+   about its own size. Probed, not added up. */
+.bubble::after{content:"";position:absolute;left:50%;top:50%;
+  width:max(100%,3rem);height:max(100%,3rem);transform:translate(-50%,-50%)}
+
+/* ── SHAPE 1 · DOT ─────────────────────────────────────────────────────────
+   The smallest shape and the one that has to change FOOTPRINT. A 40px dot
+   cannot honestly hold an indeterminate-work indicator inside it, so for
+   processing it widens into a stepped meter. A shape that cannot carry the
+   state must change size rather than lie about what it knows. */
+.dotmark{width:.625rem;height:.625rem;background:currentColor;flex:none}
+.s-ring .dotmark{display:none}
+/* The word on the dot and the ring sits BELOW the mark, on the page ground,
+   not inside it. So it must carry its own colour rather than inherit the
+   mark's — an inherited `color:var(--on-accent)` from an accent-filled
+   `done` bubble measured 1.00:1 in dark and 1.10:1 in light, which is the
+   state word becoming invisible exactly when the state was most worth
+   reading. A label that moves outside its container has left the container's
+   colour with it. */
+.s-dot>.word,.s-ring>.word{color:var(--ink)}
+.s-dot{width:2.5rem;height:2.5rem;overflow:visible}
+.s-dot .word{position:absolute;left:50%;top:calc(100% + .35rem);transform:translateX(-50%);
+  white-space:nowrap;max-width:9rem;text-align:center}
+/* Widen for the states that need room. A width transition is not an
+   inversion, so this one is allowed to ease. */
+.s-dot{transition:width .16s cubic-bezier(.2,0,0,1)}
+.s-dot[data-state="listening"],.s-dot[data-state="processing"],
+.s-dot[data-state="done"],.s-dot[data-state="problem"],
+.s-dot[data-state="cancelled"]{width:7.5rem;height:2.5rem}
+.s-dot[data-state="processing"] .dotmark{display:none}
+.s-dot[data-state="processing"] .core{grid-template-columns:auto}
+.s-dot[data-state="listening"] .dotmark,
+.s-dot[data-state="done"] .dotmark,
+.s-dot[data-state="cancelled"] .dotmark,
+.s-dot[data-state="problem"] .dotmark{width:.5rem;height:1.25rem}
+/* The problem dot is a BAR, not a dot. Silhouette, not hue. */
+.s-dot[data-state="problem"] .dotmark{background:none;
+  border-left:.1875rem solid currentColor;border-right:.1875rem solid currentColor;
+  width:1.125rem;height:1.125rem}
+
+/* ── SHAPE 2 · PILL ────────────────────────────────────────────────────────
+   Carries state by GROWING TO HOLD THE TRUTH. The pill's width is the state
+   readout: it is 4rem in idle and 11rem listening because it has more to say,
+   and you can tell the two apart by silhouette from across a room. */
+/* min-width is the width signal — 4rem idle, and as wide as the truth needs
+   in listening. The label is allowed to WRAP rather than be nowrap-and-
+   clipped: at 200% font "Processing" is 170px inside a 195px column, and a
+   pill that grows taller is a graceful degradation where a truncated word is
+   a lie about the state. */
+.s-pill{min-width:4rem;min-height:2.75rem;padding:var(--s3);
+  grid-auto-flow:column;align-items:center;gap:.4rem;max-width:100%}
+.s-pill .dotmark{width:.5rem;height:.5rem;background:currentColor;flex:none}
+.s-pill .clock{white-space:nowrap;opacity:.8}
+
+/* ── SHAPE 3 · CHIP ────────────────────────────────────────────────────────
+   Carries state by NOTCH COUNT. A corner is cut off per stage of the
+   lifecycle, so a chip with three cuts is visibly further along than a chip
+   with one — and a cut corner is countable from across the room, where a
+   hue is not. Terminal states replace the notches with a doubled rule. */
+.s-chip{min-height:2.75rem;padding:var(--s3) var(--s4);grid-auto-flow:column;gap:.4rem;
+  max-width:100%;border:0;background:none}
+/* The notch is drawn on a FACE, not on the control. clip-path on the control
+   would clip its own ::after, which is where the 48dp floor lives — so the
+   chip's corners were being cut off its hit target and the probe measured
+   47px. Notches belong to the drawing. The control keeps the whole rectangle. */
+.s-chip .face{position:absolute;inset:0;border:2px solid var(--ink);
+  background:var(--ground);pointer-events:none}
+.s-chip[data-state="idle"] .face{clip-path:polygon(0 0,calc(100% - 6px) 0,100% 6px,100% 100%,6px 100%,0 calc(100% - 6px))}
+.s-chip[data-state="listening"] .face{clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px))}
+.s-chip[data-state="processing"] .face{clip-path:polygon(0 0,calc(100% - 18px) 0,100% 18px,100% 100%,18px 100%,0 calc(100% - 18px))}
+.s-chip[data-state="done"] .face,.s-chip[data-state="problem"] .face,
+.s-chip[data-state="cancelled"] .face{border:0;
+  box-shadow:inset 0 0 0 2px var(--ground),inset 0 0 0 4px var(--ink)}
+.s-chip[data-state="done"] .face{background:var(--accent)}
+/* the word wraps; the notches, not the label, carry the stage count */
+.s-chip .word{overflow-wrap:anywhere}
+
+/* ── SHAPE 4 · RING ────────────────────────────────────────────────────────
+   Carries state by GEOMETRY OF THE CIRCLE, and this is the strongest of the
+   four. Closed = at rest. Thickening = capturing. A stepped partial arc =
+   unbounded work, and it resets so it never implies progress. Closed-and-
+   ticked = landed. A static gap plus a doubled rule = needs you. */
+.s-ring{width:3.5rem;height:3.5rem;border:0;background:none;overflow:visible}
+.s-ring .halo{position:absolute;inset:0;border:2px solid var(--ink);pointer-events:none}
+.s-ring svg.ring{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.s-ring svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.bubble>svg.ring,.bubble>.halo,.s-chip>.face{display:none}
+.s-ring>svg.ring,.s-ring>.halo,.s-chip>.face{display:block}
+.s-ring .track{fill:none;stroke:var(--rule-hi);stroke-width:1}
+.s-ring .arc{fill:none;stroke:var(--ink);stroke-width:2;stroke-linecap:butt;
+  /* resting dash = the WHOLE circle, plain CSS, not a keyframe. A closed ring
+     says nothing is in progress, which is the whole claim idle makes. A 12.5%
+     arc at rest would read as a stalled progress indicator. The partial arcs
+     belong to the two states that actually have work in them. */
+  stroke-dasharray:none;stroke-dashoffset:0;transform:rotate(-90deg);
+  transform-origin:50% 50%}
+.s-ring[data-state="processing"] .arc{stroke-dasharray:12 71}
+.s-ring[data-state="listening"] .arc{stroke-dasharray:none}
+.s-ring .cap{fill:var(--ground);stroke:var(--ink);stroke-width:2}
+.s-ring .word{position:absolute;left:50%;top:calc(100% + .35rem);transform:translateX(-50%);
+  white-space:nowrap}
+.s-ring[data-state="idle"] .halo,
+.s-ring[data-state="listening"] .halo{border-color:var(--ink)}
+.s-ring[data-state="done"] .halo{background:var(--accent);border-color:var(--accent)}
+.s-ring[data-state="cancelled"] .halo{background:var(--ground);border-color:var(--ink)}
+.s-ring[data-state="problem"] .halo{border-color:var(--ink);
+  box-shadow:inset 0 0 0 2px var(--ground),inset 0 0 0 4px var(--ink)}
+/* The problem ring's GAP. Static. A gap that moved would be a spinner, and a
+   spinner on an error says "working on it" when nothing is working on it. */
+.s-ring[data-state="problem"] .arc{stroke-dasharray:8 24;stroke-dashoffset:-16}
+
+/* ── the terminal marks. Drawn, not typed. ──────────────────────────────── */
+.mark{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:1.5rem;height:1.5rem;overflow:visible}
+.mark path,.mark line{fill:none;stroke:var(--ink);stroke-width:2.5;
+  stroke-linecap:butt;stroke-linejoin:miter}
+.s-pill .mark,.s-chip .mark{position:static;transform:none;width:1.125rem;height:1.125rem;flex:none}
+.s-ring[data-state="done"] .mark path{stroke:var(--on-accent)}
+.s-ring[data-state="done"] .cap{stroke:var(--accent)}
+.s-dot[data-state="done"] .mark path{stroke:none}
+.s-dot[data-state="done"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.s-dot[data-state="problem"] .mark path,.s-dot[data-state="problem"] .mark line{stroke:var(--ink)}
+.s-dot[data-state="cancelled"]{color:var(--ink)}
+.s-pill[data-state="done"]{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+.s-chip[data-state="done"]{color:var(--on-accent)}
+.s-pill[data-state="done"] .mark path,.s-chip[data-state="done"] .mark path{stroke:var(--on-accent)}
+.s-pill[data-state="problem"],.s-pill[data-state="cancelled"]{box-shadow:inset 0 0 0 2px var(--ground),inset 0 0 0 4px var(--ink)}
+
+/* ── THE STEPPED METER. The processing indicator, in every shape. ───────────
+   Absent unless the state needs it — an indicator that is always on screen is
+   a decoration, not a signal. Resting CSS is a short-tall-short profile, a
+   static honest "working" mark. The animation marches it. Under reduced
+   motion the profile is all you get, and it still says working without
+   moving. */
+.march{display:none;align-items:flex-end;gap:.2rem;height:1rem;flex:none}
+[data-state="processing"] .march{display:flex}
+.march i{display:block;width:.28rem;background:currentColor}
+.march i:nth-child(1){height:.3rem}
+.march i:nth-child(2){height:1rem}
+.march i:nth-child(3){height:.3rem}
+.s-pill .march,.s-chip .march{height:.875rem}
+.s-dot .march{height:.875rem}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   MOTION. Every animation below is gated on html.js AND NOT html.reduced, so
+   under prefers-reduced-motion:reduce there is no Animation object anywhere,
+   not a 0.01ms one. Nothing here rests on forwards: the resting value of
+   every animated property is the plain CSS above it.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* 1 · IDLE BREATHE — 4000ms loop, cubic-bezier(.4,0,.6,1).
+   Amplitude 1.0 → 1.06 on a 40–56px mark. Anything larger reads as an
+   invitation to tap rather than the presence of a thing waiting. */
+@keyframes breathe{from{transform:scale(1)}to{transform:scale(1.06)}}
+html:not(.reduced) .s-dot[data-state="idle"] .dotmark,
+html:not(.reduced) .s-ring[data-state="idle"] .arc{animation:breathe 4000ms cubic-bezier(.4,0,.6,1) infinite}
+html:not(.reduced) .s-pill[data-state="idle"] .dotmark,
+html:not(.reduced) .s-chip[data-state="idle"] .dotmark{animation:breathe 4000ms cubic-bezier(.4,0,.6,1) infinite}
+
+/* 2 · LISTENING PULSE — 1400ms loop, cubic-bezier(.4,0,.6,1).
+   The core CONTRACTS to 0.82: audio is being taken in. A ring's stroke
+   thickens 2 → 4px on the same curve and phase. */
+@keyframes pull-in{from{transform:scale(1)}to{transform:scale(.82)}}
+@keyframes thicken{from{stroke-width:2}to{stroke-width:4}}
+html:not(.reduced) .s-dot[data-state="listening"] .dotmark,
+html:not(.reduced) .s-pill[data-state="listening"] .dotmark,
+html:not(.reduced) .s-chip[data-state="listening"] .dotmark,
+html:not(.reduced) .s-ring[data-state="listening"] .arc{animation:pull-in 1400ms cubic-bezier(.4,0,.6,1) infinite}
+html:not(.reduced) .s-ring[data-state="listening"] .arc{animation:thicken 1400ms cubic-bezier(.4,0,.6,1) infinite}
+
+/* 3 · PROCESSING — 1100ms loop, steps(1,end), delays 0 / 367 / 733ms.
+   Staggered by a THIRD, so the march is continuous rather than three bars
+   twitching. It runs 1-2-3-1-2-3 and never counts up. */
+@keyframes march{from{height:.3rem}to{height:1rem}}
+@keyframes march-mid{from{height:1rem}to{height:.3rem}}
+html:not(.reduced) [data-state="processing"] .march i:nth-child(1){animation:march 1100ms steps(1,end) infinite}
+html:not(.reduced) [data-state="processing"] .march i:nth-child(2){animation:march-mid 1100ms steps(1,end) infinite}
+html:not(.reduced) [data-state="processing"] .march i:nth-child(3){animation:march 1100ms steps(1,end) infinite;animation-delay:733ms}
+/* The ring's arc grows in FOUR steps and resets: 12.5 → 37.5 → 62.5 → 87.5.
+   Four steps, not a spinner, because a spinner's smooth revolution is a
+   claim that the work is continuous. */
+@keyframes arc-step{0%{stroke-dasharray:12 71}25%{stroke-dasharray:29 54}
+  50%{stroke-dasharray:46 37}75%{stroke-dasharray:63 20}100%{stroke-dasharray:12 71}}
+html:not(.reduced) .s-ring[data-state="processing"] .arc{animation:arc-step 1600ms steps(1,end) infinite}
+
+/* 4 · DONE / PROBLEM FEEDBACK — one 260ms shot, cubic-bezier(.16,1,.3,1).
+   A single square outline thrown outward from the mark and gone. Then the
+   state simply IS: still, inked, counted. The one-shot is created and
+   destroyed by JS; it never rests in the DOM, so there is nothing to leave
+   attached. */
+@keyframes flash-out{from{transform:translate(-50%,-50%) scale(1)}
+  to{transform:translate(-50%,-50%) scale(1.35)}}
+/* The check draws in over 220ms from its own `from`. fill-mode BACKWARDS,
+   keyed to dashoffset 56 = undrawn, and its resting CSS is dashoffset 0 =
+   drawn, so an animation that never runs shows a finished tick. */
+@keyframes tick-draw{from{stroke-dashoffset:56}to{stroke-dashoffset:0}}
+html:not(.reduced) .flash{animation:flash-out 260ms cubic-bezier(.16,1,.3,1) backwards}
+html:not(.reduced) [data-state="done"] .mark path,
+html:not(.reduced) [data-state="cancelled"] .mark path{animation:tick-draw 220ms cubic-bezier(.2,0,0,1) backwards}
+
+/* 5 · ENTRANCE — 220ms, cubic-bezier(.2,0,0,1), backwards. */
+@keyframes sheet-in{from{transform:translateY(.75rem)}to{transform:translateY(0)}}
+html.js:not(.reduced) .sheet{animation:sheet-in 220ms cubic-bezier(.2,0,0,1) backwards}
+@keyframes mark-in{from{transform:scale(.6)}to{transform:scale(1)}}
+html.js:not(.reduced) .s-ring .mark{animation:mark-in 220ms cubic-bezier(.2,0,0,1) backwards}
+
+/* ── DRAG ──────────────────────────────────────────────────────────────────
+   The bubble lifts by thickening its own hairline 2px → 3px and taking the
+   field tint. Not a shadow — a shadow is a lie about a flat ground.
+   Inertia is JS coast (see below) then a CSS rail snap. */
+.bubble.dragging{border-color:var(--ink);background:var(--field);
+  transition:none;cursor:grabbing}
+.bubble.dragging::after{width:3.25rem;height:3.25rem}
+.snap{transition:transform .2s cubic-bezier(.2,0,0,1)}
+
+/* ── the drag stage: a host app with a bubble floating over it ───────────── */
+.dragzone{margin-top:2px;border-top:2px solid var(--ink);position:relative;
+  height:15rem;overflow:hidden;background:var(--field)}
+/* --mid, not --low. --low measures 4.5:1 on bare ground and 4.18:1 on the
+   field tint this bar sits on, and a label you cannot read is a label that
+   does not get to be small and quiet. */
+.dragzone .dzlabel{position:absolute;left:var(--s3);top:var(--s2);font-family:var(--mono);
+  font-size:var(--t-micro);color:var(--mid);pointer-events:none}
+.dragzone .fakeapp{position:absolute;inset:2rem var(--s3) var(--s3);
+  border:1px solid var(--rule-hi);padding:var(--s3);display:flex;
+  flex-direction:column;gap:.4rem}
+.dragzone .fakeapp i{display:block;height:.5rem;background:var(--bar)}
+.dragzone .fakeapp i:nth-child(2){width:70%}
+.dragzone .fakeapp i:nth-child(3){width:85%}
+.dragzone .fakeapp i:nth-child(4){width:45%}
+.dragzone .bubble{position:absolute}
+#dragpill{left:.5rem;top:.5rem}
+.dragzone .readout{position:absolute;right:var(--s3);bottom:var(--s3);
+  font-family:var(--mono);font-size:var(--t-micro);color:var(--mid);pointer-events:none}
+
+/* ── THE SPEC TABLE. The point of the prototype, so it is on the page. ───── */
+.spec{padding:var(--s4);border-top:2px solid var(--ink)}
+.spec h2{margin:0 0 var(--s2);font-size:var(--t-body);text-transform:uppercase;
+  letter-spacing:.08em;font-weight:800;font-stretch:125%}
+.spec h3{margin:var(--s4) 0 var(--s2);font-size:var(--t-small);color:var(--mid);
+  text-transform:uppercase;letter-spacing:.06em}
+table.spec-t{width:100%;border-collapse:collapse;table-layout:fixed}
+.spec-t th,.spec-t td{border:1px solid var(--rule);padding:.4rem .5rem;
+  font-size:var(--t-small);vertical-align:top;text-align:left;overflow-wrap:anywhere}
+.spec-t th{font-family:var(--mono);font-size:var(--t-micro);font-weight:400;
+  color:var(--low);text-transform:uppercase;letter-spacing:.04em;background:var(--field)}
+.spec-t td.m{font-family:var(--mono);font-size:var(--t-micro)}
+.spec-t th:nth-child(1){width:6.5rem} .spec-t th:nth-child(2){width:4rem}
+.spec-t th:nth-child(4){width:7rem} .spec-t th:nth-child(5){width:8rem}
+@media (max-width:520px){
+  .spec-t th:nth-child(n){width:auto}
+  .spec-t,.spec-t tbody,.spec-t tr,.spec-t td,.spec-t th{display:block}
+  .spec-t tr{border-bottom:2px solid var(--ink);padding:var(--s1) 0}
+  .spec-t th{display:none}
+  .spec-t td{border:0;padding:.1rem .5rem}
+  .spec-t td::before{content:attr(data-k) " ";font-family:var(--mono);
+    font-size:var(--t-micro);color:var(--low)}
+}
+
+/* ── the flash. Exists only inside a 260ms one-shot, then JS removes it. ── */
+.flash{position:absolute;left:50%;top:50%;width:100%;height:100%;
+  border:2px solid var(--ink);pointer-events:none;opacity:0}
+html:not(.reduced) .flash{opacity:1}
+
+/* ── prototype switcher. One bar at the bottom, obviously not the design. ── */
+.tools{position:fixed;bottom:0;left:0;right:0;z-index:20;background:var(--ink);color:var(--ground);
+  display:flex;flex-wrap:wrap;justify-content:center;align-items:stretch;gap:1px;
+  max-height:34vh;overflow:auto}
+:root[data-theme="dark"] .tools{background:var(--ground);color:var(--ink);border-top:2px solid var(--ink)}
+.tools button{min-height:3rem;min-width:3rem;padding:0 var(--s3);cursor:pointer;
+  font-family:var(--mono);font-size:var(--t-micro);background:transparent;border:0;color:inherit;
+  white-space:nowrap;transition:background-color .1s linear}
+.tools button:hover{background:rgba(140,140,140,.3)}
+/* Selected must out-specify hover, not merely follow it. Both are (0,2,1)
+   against (0,2,0), so :hover won and a selected button that the pointer
+   happened to be over rendered its own label at 1.52:1 — in dark, ink on
+   ink. Hovering a selected control is the default state of a click, so this
+   was not an edge case. */
+.tools button[aria-pressed="true"],
+.tools button[aria-pressed="true"]:hover,
+.tools button[aria-pressed="true"]:focus-visible{background:var(--accent);color:var(--on-accent);transition:none}
+.tools .rule{width:1px;background:currentColor;opacity:.28}
+.tools .name{min-height:3rem;display:flex;align-items:center;padding:0 var(--s3);
+  font-family:var(--mono);font-size:var(--t-micro);opacity:.85;white-space:nowrap}
+
+@media (prefers-contrast:more){
+  :root{--rule:currentColor;--rule-hi:currentColor;--bar:currentColor}
+  .sheet,.bubble{border-width:3px}
+}
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="sheet" id="sheet">
+
+    <div class="sheethead">
+      <h1 class="display">Bubble motion, pinned</h1>
+      <p>Breathe smooth, machine work steps. Four shapes on one state, so you can
+      read them against each other. Every shape also carries state as geometry,
+      not hue — the accent toggle takes the colour out entirely.</p>
+    </div>
+
+    <div class="stateline">
+      <span class="st" id="word" role="status" aria-live="polite">Idle</span>
+      <span class="clock mono" id="clock"></span>
+      <span class="adr mono" id="adr"></span>
+    </div>
+
+    <div class="rigs" id="rigs"></div>
+
+    <div class="dragzone" id="dz">
+      <span class="dzlabel">drag me — let go while moving</span>
+      <div class="fakeapp"><i></i><i></i><i></i><i></i></div>
+      <div class="bubble s-pill" id="dragpill" data-state="idle" role="button" tabindex="0"
+           aria-label="Draggable bubble — drag to move, release to throw">
+        <span class="dotmark"></span><span class="word mono">Idle</span>
+      </div>
+      <span class="readout" id="dzread"></span>
+    </div>
+
+    <div class="spec" id="spec"></div>
+
+  </div>
+</div>
+
+<div class="tools" role="group" aria-label="Prototype controls">
+  <button data-state="idle" aria-pressed="true">Idle</button>
+  <button data-state="listening" aria-pressed="false">Listen</button>
+  <button data-state="processing" aria-pressed="false">Process</button>
+  <button data-state="done" aria-pressed="false">Done</button>
+  <button data-state="problem" aria-pressed="false">Problem</button>
+  <button data-state="cancelled" aria-pressed="false">Cancelled</button>
+  <span class="rule"></span>
+  <button data-fs="100" aria-pressed="true">100%</button>
+  <button data-fs="200" aria-pressed="false">200%</button>
+  <span class="rule"></span>
+  <button data-theme-mode="light" aria-pressed="true">light</button>
+  <button data-theme-mode="dark" aria-pressed="false">dark</button>
+  <span class="rule"></span>
+  <button data-ink="off" aria-pressed="false">no accent</button>
+  <button data-motion="off" aria-pressed="false">force reduced</button>
+</div>
+
+<script>
+"use strict";
+
+/* ══════════════════════════════════════════════════════════════════════════
+   THE PINNED SPEC. The page renders this table from the array, so the numbers
+   on screen and the numbers in the ticket cannot drift apart.
+   ══════════════════════════════════════════════════════════════════════════ */
+const MOTION = [
+  ["Idle", "breathe", "dot · ring", "4000ms loop", "cubic-bezier(.4,0,.6,1)",
+   "DictationState = Idle; page visible", "scale 1 — plain CSS",
+   "no animation; static mark + the word"],
+  ["Listening", "pull-in pulse", "dot · pill · chip · ring", "1400ms loop",
+   "cubic-bezier(.4,0,.6,1)", "Recording entered", "scale .82 held by the loop",
+   "no animation; mark + word + running clock"],
+  ["Listening", "stroke thicken", "ring only", "1400ms loop",
+   "cubic-bezier(.4,0,.6,1)", "Recording entered", "2px hairline — plain CSS",
+   "static 2px ring"],
+  ["Processing", "stepped march", "dot · pill · chip", "1100ms loop, ×3 at 0/367/733ms",
+   "steps(1,end)", "Refining / Inserting", "short-tall-short — plain CSS",
+   "static short-tall-short meter"],
+  ["Processing", "4-step arc", "ring only", "1600ms loop, resets at 87.5%",
+   "steps(1,end)", "Refining / Inserting", "12.5% arc — plain CSS",
+   "static 12.5% arc"],
+  ["Done", "feedback flash", "all", "260ms one-shot", "cubic-bezier(.16,1,.3,1)",
+   "Done payload arrives", "element removed from DOM",
+   "none — the state is already still"],
+  ["Done", "tick draw", "all", "220ms one-shot", "cubic-bezier(.2,0,0,1)",
+   "Done payload arrives", "dashoffset 0, tick drawn — plain CSS",
+   "tick drawn statically"],
+  ["Done", "dwell → auto-return", "all", "1000ms dwell + 160ms return",
+   "cubic-bezier(.2,0,0,1)", "ADR-0002 auto-returns after the outcome is recorded",
+   "Idle", "same 1000ms dwell, no animation"],
+  ["Problem", "feedback flash", "all", "260ms one-shot", "cubic-bezier(.16,1,.3,1)",
+   "Error payload arrives", "element removed from DOM", "none"],
+  ["Problem", "held open", "all", "indefinite", "—",
+   "waits for retry / copy", "static gap in the ring + doubled rule — plain CSS",
+   "identical, and identical indefinitely"],
+  ["Cancelled", "feedback flash", "all", "260ms one-shot", "cubic-bezier(.16,1,.3,1)",
+   "Cancelled payload", "element removed from DOM", "none"],
+  ["Cancelled", "dwell → auto-return", "all", "800ms dwell + 160ms return",
+   "cubic-bezier(.2,0,0,1)", "ADR-0002 Cancelled auto-returns to Idle",
+   "Idle", "same dwell, no animation"],
+  ["Drag", "coast", "draggable", "180–520ms, velocity-scaled",
+   "cubic-bezier(.16,1,.3,1) in JS", "pointerup with speed > 0.02 px/ms",
+   "at the projected landing point", "no coast; placed at release x, snapped to rail"],
+  ["Drag", "rail snap", "draggable", "200ms", "cubic-bezier(.2,0,0,1)",
+   "coast ends", "left or right rail — never an arbitrary offset",
+   "instant snap, no transition"],
+  ["Entrance", "sheet", "page", "220ms", "cubic-bezier(.2,0,0,1)", "load",
+   "translateY(0) — plain CSS", "none"],
+];
+
+/* ══════════════════════════════════════════════════════════════════════════
+   STATES. Five visible families, plus Cancelled as the sixth visible outcome
+   ADR-0002 will not let us hide.
+   ══════════════════════════════════════════════════════════════════════════ */
+const STATES = [
+  { key: "idle", word: "Idle", mono: "IDLE",
+    adr: "ADR-0002 Idle · Preparing",
+    why: "Nothing is happening and nothing is claimed. Closed ring, one dot." },
+  { key: "listening", word: "Listening", mono: "LISTEN",
+    adr: "ADR-0002 Recording · Transcribing",
+    why: "The core contracts and the ring thickens. Audio is being taken IN, so the motion pulls inward. Clock in mono is the machine voice." },
+  { key: "processing", word: "Processing", mono: "BUSY",
+    adr: "ADR-0002 Refining · Inserting",
+    why: "Hard steps, and the step sequence resets. Nothing here knows a fraction, so nothing here draws a progress bar. Elapsed time is the only true number." },
+  { key: "done", word: "Done", mono: "DONE",
+    adr: "ADR-0002 Done — terminal, auto-returns",
+    why: "One 260ms outward flash, a tick that draws, then stillness. Held 1000ms then auto-returns, because ADR-0002 returns it." },
+  { key: "problem", word: "Problem", mono: "FAIL",
+    adr: "ADR-0002 ErrorRecoverable · ErrorFatal",
+    why: "Same flash, then it does NOT return. The ring's gap is static and the rule doubles. This is the only state held open, because a person owes it a decision." },
+  { key: "cancelled", word: "Cancelled", mono: "DISCARD",
+    adr: "ADR-0002 Cancelled — terminal, auto-returns",
+    why: "Not Done. Nothing landed and nothing failed, so it gets its own word rather than borrowing either one." },
+];
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SHAPES. How each one carries a state with the colour taken away.
+   ══════════════════════════════════════════════════════════════════════════ */
+const SHAPES = [
+  { cls: "s-dot", name: "dot", note: "40px. Silhouette: dot → bar → 3-step meter. Has to widen to be honest." },
+  { cls: "s-pill", name: "pill", note: "Grows to hold the truth: 4rem idle, 11rem listening. Width IS the readout." },
+  { cls: "s-chip", name: "chip", note: "Corner notch count: 1 idle, 2 listening, 3 processing, doubled rule on terminals." },
+  { cls: "s-ring", name: "ring", note: "Circle geometry: closed → thickened → stepped arc → ticked → static gap. The strongest of the four." },
+];
+
+const DWELL = { done: 1000, cancelled: 800 };
+const RAIL = { left: 0.5, right: null }; /* filled from the measured zone */
+const reduced = document.documentElement.classList.contains("reduced");
+
+/* ── build the rigs ONCE. render() only flips data-state and text, so a
+      one-shot cannot replay because something unrelated re-rendered. ─────── */
+const rigsEl = document.getElementById("rigs");
+SHAPES.forEach(function (sh, i) {
+  const fig = document.createElement("div");
+  fig.className = "rig";
+  fig.innerHTML =
+    '<div class="bubble ' + sh.cls + '" id="rig' + i + '" data-state="idle"' +
+    ' role="button" tabindex="0" aria-label="Bubble, ' + sh.name + ' shape">' +
+      '<span class="face"></span>' +
+      '<span class="halo"></span>' +
+      '<svg class="ring" viewBox="0 0 48 48" aria-hidden="true">' +
+        '<circle class="track" cx="24" cy="24" r="21"/>' +
+        '<circle class="arc" cx="24" cy="24" r="21"/>' +
+      '</svg>' +
+      '<span class="dotmark"></span>' +
+      '<span class="march"><i></i><i></i><i></i></span>' +
+      '<span class="word mono"></span>' +
+      '<svg class="mark" viewBox="0 0 24 24" aria-hidden="true"></svg>' +
+    '</div>' +
+    '<span class="caption"><b>' + sh.name + '</b>' + sh.note + '</span>';
+  rigsEl.appendChild(fig);
+});
+const bubbles = Array.prototype.map.call(
+  document.querySelectorAll(".rig .bubble"),
+  function (b) { return { el: b, word: b.querySelector(".word"),
+    mark: b.querySelector(".mark"), march: b.querySelector(".march") }; });
+
+const MARK = {
+  done: '<path d="M4 13 L9.5 18.5 L20 6" stroke-dasharray="56" stroke-dashoffset="0"/>',
+  problem: '<line x1="12" y1="4" x2="12" y2="14"/><line x1="12" y1="18.5" x2="12" y2="18.5" stroke-width="3.5"/>',
+  cancelled: '<line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/>',
+};
+
+/* ── the flash. Created for a one-shot, destroyed on animationend AND on a
+      timeout backstop, because an animation that never runs never ends and a
+      leaked element is a resting state by another name. ─────────────────── */
+function flash(el) {
+  if (reduced) return;
+  const f = document.createElement("span");
+  f.className = "flash";
+  el.appendChild(f);
+  const kill = function () { if (f.parentNode) f.parentNode.removeChild(f); };
+  f.addEventListener("animationend", kill, { once: true });
+  setTimeout(kill, 700);
+}
+
+/* ── state ─────────────────────────────────────────────────────────────── */
+let state = "idle";
+let t0 = Date.now();
+let timer = null;
+
+function fmt(ms) {
+  const s = Math.floor(ms / 1000);
+  return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+}
+
+function render(next, opts) {
+  opts = opts || {};
+  state = next;
+  const st = STATES.filter(function (s) { return s.key === next; })[0];
+
+  document.getElementById("word").textContent = st.word;
+  document.getElementById("adr").textContent = st.adr;
+  document.getElementById("word").className = "st mono";
+
+  t0 = Date.now();
+  bubbles.concat([{ el: document.getElementById("dragpill"),
+                    word: document.querySelector("#dragpill .word") }])
+    .forEach(function (b) {
+      b.el.dataset.state = next;
+      if (b.word) b.word.textContent = st.word;
+      if (b.mark) b.mark.innerHTML = MARK[next] || "";
+    });
+
+  /* elapsed clock only where it means something: a running clock during
+     listening, a counting-up clock during processing. It is the only number
+     this design knows, so it is on the two states where time is the fact. */
+  const wantsClock = next === "listening" || next === "processing";
+  document.getElementById("clock").textContent = wantsClock ? fmt(0) : "";
+  if (timer) clearInterval(timer);
+  if (wantsClock) {
+    timer = setInterval(function () {
+      document.getElementById("clock").textContent = fmt(Date.now() - t0);
+    }, 1000);
+  }
+
+  if (!opts.silent && (next === "done" || next === "problem" || next === "cancelled")) {
+    bubbles.forEach(function (b) { flash(b.el); });
+    flash(document.getElementById("dragpill"));
+  }
+
+  document.querySelectorAll('.tools [data-state]').forEach(function (b) {
+    b.setAttribute("aria-pressed", String(b.dataset.state === next));
+  });
+  paintSpec();
+}
+
+/* ── the spec table, rendered from MOTION so the numbers cannot drift ───── */
+function paintSpec() {
+  const rows = MOTION.map(function (r) {
+    return "<tr>" + r.map(function (c, i) {
+      const k = ["state", "move", "shapes", "duration", "easing", "trigger", "rests at", "reduced motion"][i];
+      return '<td class="' + (i >= 3 && i <= 4 ? "m" : "") + '" data-k="' + k + '">' + c + "</td>";
+    }).join("") + "</tr>";
+  }).join("");
+  const why = STATES.map(function (s) {
+    return '<tr><td data-k="state" class="m">' + s.mono + '</td>' +
+      '<td data-k="reads as">' + s.word + '</td>' +
+      '<td data-k="because">' + s.why + '</td></tr>';
+  }).join("");
+  document.getElementById("spec").innerHTML =
+    '<h2>Timings, as pinned</h2>' +
+    '<table class="spec-t"><thead><tr>' +
+    ["state", "move", "shapes", "duration", "easing", "trigger", "rests at", "reduced motion"]
+      .map(function (h) { return "<th>" + h + "</th>"; }).join("") +
+    '</tr></thead><tbody>' + rows + '</tbody></table>' +
+    '<h3>Why each state reads the way it does</h3>' +
+    '<table class="spec-t"><thead><tr><th>state</th><th>reads as</th><th>because</th></tr></thead>' +
+    '<tbody>' + why + '</tbody></table>';
+}
+
+/* ── auto-return. Done and Cancelled return per ADR-0002; Problem does not,
+      and that difference is the whole reason the two terminals are not one.
+      Each return is tagged with the state that scheduled it and only fires if
+      that state is still current — a stale timer must never drag the bubble
+      back to Idle out from under a state the user has since entered. That is
+      not a cosmetic concern: a 1000ms Done timer firing over a Problem would
+      dismiss the one state that holds open precisely because it awaits a
+      decision. ─────────────────────────────────────────────────────────── */
+let returnTag = 0;
+function autoReturn() {
+  const d = DWELL[state];
+  if (!d) return;
+  const mine = ++returnTag;
+  const scheduled = state;
+  setTimeout(function () {
+    if (mine !== returnTag) return;      /* a newer state took over */
+    if (state !== scheduled) return;     /* ...and it was not this one */
+    render("idle");
+  }, d);
+}
+function cancelReturn() { returnTag++; }
+
+/* ── DRAG INERTIA ─────────────────────────────────────────────────────────
+   Two phases, because they answer different questions.
+   1. COAST, 180–520ms, cubic-bezier(.16,1,.3,1). The finger threw the thing;
+      the thing keeps going. Duration scales with speed so a gentle nudge does
+      not sail across the screen. Landing point is projected from the last few
+      samples, not from the last one — a single sample at pointerup is noise.
+   2. RAIL SNAP, 200ms, cubic-bezier(.2,0,0,1). The bubble ends on the
+      left or right rail, never wherever the throw happened to stop. A resting
+      offset nobody chose is a resting offset nobody can predict, and that is
+      the actual bug in a free-floating bubble — not the inertia.
+   Under reduced motion the coast does not happen and the snap is instant:
+   the bubble lands where you let go and stays there. ─────────────────── */
+const dz = document.getElementById("dz");
+const dragEl = document.getElementById("dragpill");
+const readout = document.getElementById("dzread");
+const COAST_EASE = function (t) { return 1 - Math.pow(1 - t, 4); }; /* ~(.16,1,.3,1) */
+
+let drag = null, coastRAF = 0;
+
+function railX(y) {
+  const pad = 8;
+  const left = pad;
+  const right = dz.clientWidth - dragEl.offsetWidth - pad;
+  return Math.abs(left - dragEl.offsetLeft) <= Math.abs(right - dragEl.offsetLeft) ? left : right;
+}
+
+dragEl.addEventListener("pointerdown", function (e) {
+  if (coastRAF) { cancelAnimationFrame(coastRAF); coastRAF = 0; }
+  dragEl.classList.remove("snap");
+  drag = {
+    id: e.pointerId, ox: e.clientX - dragEl.offsetLeft, oy: e.clientY - dragEl.offsetTop,
+    t: e.timeStamp, x: dragEl.offsetLeft, y: dragEl.offsetTop,
+    vx: 0, vy: 0, samples: []
+  };
+  dragEl.setPointerCapture(e.pointerId);
+  dragEl.classList.add("dragging");
+  e.preventDefault();
+});
+
+dragEl.addEventListener("pointermove", function (e) {
+  if (!drag || e.pointerId !== drag.id) return;
+  const maxY = dz.clientHeight - dragEl.offsetHeight;
+  const nx = Math.max(0, Math.min(dz.clientWidth - dragEl.offsetWidth, e.clientX - drag.ox));
+  const ny = Math.max(0, Math.min(maxY, e.clientY - drag.oy));
+  const dt = Math.max(1, e.timeStamp - drag.t);
+  drag.vx = (nx - drag.x) / dt; drag.vy = (ny - drag.y) / dt;
+  drag.x = nx; drag.y = ny; drag.t = e.timeStamp;
+  drag.samples.push({ x: nx, y: ny, t: e.timeStamp });
+  if (drag.samples.length > 6) drag.samples.shift();
+  dragEl.style.transform = "translate(" + nx + "px," + ny + "px)";
+  readout.textContent = Math.round(nx) + "," + Math.round(ny) + " · " + drag.vx.toFixed(2) + " px/ms";
+});
+
+function endDrag(e) {
+  if (!drag || (e && e.pointerId !== drag.id)) return;
+  dragEl.classList.remove("dragging");
+  const v = projected(drag.samples);
+  drag = null;
+  if (reduced) { place(railX(0), dragEl.offsetTop, false); return; }
+  coast(v);
+}
+dragEl.addEventListener("pointerup", endDrag);
+dragEl.addEventListener("pointercancel", endDrag);
+
+/* Project from the sample window rather than the final inter-sample delta:
+   pointerup is often the frame where the finger stopped, which would zero the
+   velocity of a real throw. */
+function projected(s) {
+  if (!s || s.length < 2) return { x: 0, y: 0, m: 0 };
+  const a = s[0], b = s[s.length - 1];
+  const dt = Math.max(1, b.t - a.t);
+  const vx = (b.x - a.x) / dt, vy = (b.y - a.y) / dt;
+  const m = Math.hypot(vx, vy);
+  if (m < 0.02) return { x: vx, y: vy, m };
+  const COAST_S = 0.28; /* seconds of travel per px/ms of speed */
+  return { x: vx * COAST_S * 1000, y: vy * COAST_S * 1000, m };
+}
+
+function coast(v) {
+  const x0 = dragEl.offsetLeft, y0 = dragEl.offsetTop;
+  let tx = x0 + v.x, ty = y0 + v.y;
+  const maxY = dz.clientHeight - dragEl.offsetHeight;
+  tx = Math.max(0, Math.min(dz.clientWidth - dragEl.offsetWidth, tx));
+  ty = Math.max(0, Math.min(maxY, ty));
+  const dist = Math.hypot(tx - x0, ty - y0);
+  const dur = Math.max(180, Math.min(520, dist * 2.2));
+  const t0p = performance.now();
+  const tick = function (now) {
+    const p = Math.min(1, (now - t0p) / dur);
+    const k = COAST_EASE(p);
+    const x = x0 + (tx - x0) * k, y = y0 + (ty - y0) * k;
+    dragEl.style.transform = "translate(" + x + "px," + y + "px)";
+    if (p < 1) { coastRAF = requestAnimationFrame(tick); return; }
+    coastRAF = 0;
+    place(railX(0), dragEl.offsetTop, true);
+  };
+  coastRAF = requestAnimationFrame(tick);
+}
+
+/* A transform is left on the element, so the rail snap must clear it or the
+   two compose and the snap lands in the wrong place. */
+function place(x, y, animated) {
+  dragEl.style.transform = "";
+  dragEl.style.left = x + "px";
+  dragEl.style.top = y + "px";
+  if (animated && !reduced) {
+    dragEl.classList.add("snap");
+    requestAnimationFrame(function () { dragEl.classList.remove("snap"); });
+  }
+  readout.textContent = Math.round(x) + "," + Math.round(y) + " · railed";
+}
+
+/* ── wiring ────────────────────────────────────────────────────────────── */
+function setTheme(t) {
+  document.documentElement.dataset.theme = t;
+  document.querySelectorAll('[data-theme-mode]').forEach(function (b) {
+    b.setAttribute("aria-pressed", String(b.dataset.themeMode === t));
+  });
+}
+
+document.querySelector(".tools").addEventListener("click", function (e) {
+  const b = e.target.closest("button");
+  if (!b) return;
+  if (b.dataset.state) { cancelReturn(); render(b.dataset.state); autoReturn(); }
+  else if (b.dataset.fs) {
+    document.documentElement.dataset.fs = b.dataset.fs;
+    document.querySelectorAll("[data-fs]").forEach(function (x) {
+      x.setAttribute("aria-pressed", String(x === b));
+    });
+  } else if (b.dataset.themeMode) setTheme(b.dataset.themeMode);
+  else if ("ink" in b.dataset) {
+    document.documentElement.dataset.ink = b.dataset.ink;
+    b.setAttribute("aria-pressed", String(document.documentElement.dataset.ink === "off"));
+  } else if (b.dataset.motion) {
+    const on = document.documentElement.classList.toggle("reduced");
+    b.setAttribute("aria-pressed", String(on));
+    b.textContent = on ? "motion off" : "force reduced";
+  }
+});
+
+matchMedia("(prefers-reduced-motion: reduce)").addEventListener("change", function (e) {
+  document.documentElement.classList.toggle("reduced", e.matches);
+});
+
+/* The reserve is MEASURED from this file's own bar. A guessed rem value was
+   256px against a bar that is 872px at 200% font, which laid the bar across
+   the phone and covered the primary action — so every large-font hit-test was
+   measuring the harness instead of the design. A harness that lies about the
+   thing it measures is worse than no harness, because it passes. The bar is
+   also capped at 34vh and scrolls itself, so it cannot eat the page. */
+const tools = document.querySelector(".tools");
+function measure() {
+  document.documentElement.style.setProperty("--tools-h", tools.offsetHeight + "px");
+}
+new ResizeObserver(measure).observe(tools);
+matchMedia("(max-width:480px)").addEventListener("change", measure);
+
+(function boot() {
+  const q = new URL(location.href).searchParams;
+  render(q.get("state") || "idle", { silent: true });
+  if (q.get("theme")) setTheme(q.get("theme"));
+  if (q.get("fs")) {
+    document.documentElement.dataset.fs = q.get("fs");
+    document.querySelectorAll("[data-fs]").forEach(function (x) {
+      x.setAttribute("aria-pressed", String(x.dataset.fs === q.get("fs")));
+    });
+  }
+  if (q.get("ink") === "off") {
+    document.documentElement.dataset.ink = "off";
+    document.querySelector('[data-ink]').setAttribute("aria-pressed", "true");
+  }
+  place(parseFloat(dragEl.style.left) || 8, 8, false);
+  measure();
+})();
+</script>
+</body>
+</html>

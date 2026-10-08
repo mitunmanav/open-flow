@@ -703,6 +703,8 @@ jobs:
           fail_on_unmatched_files: true
 
       - name: Say plainly that the release was gated
+        env:
+          WAIVER: ${{ inputs.gate_waiver_reason }}
         run: |
           {
             echo "## Published \`${{ needs.select.outputs.tag }}\`"
@@ -714,7 +716,7 @@ jobs:
             echo "| candidate run | \`${{ inputs.candidate_run_id }}\` |"
             echo "| candidate artifact | \`${{ inputs.candidate_artifact_id }}\` |"
             echo "| publisher revision | \`${{ needs.select.outputs.publisher_revision }}\` |"
-            if [ -n "$(printf '%s' "${{ inputs.gate_waiver_reason }}" | tr -d '[:space:]')" ]; then
+            if [ -n "$(printf '%s' "$WAIVER" | tr -d '[:space:]')" ]; then
               echo "| gate | **waived** — see the release notes |"
             else
               echo "| gate | met |"

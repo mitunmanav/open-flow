@@ -88,7 +88,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # The tag ref itself, not the branch it was pushed from. A candidate has to be
           # built from what the tag names, or its identity is a claim rather than a fact.
@@ -330,7 +330,7 @@ jobs:
       expires_at: ${{ steps.artifact.outputs.expires_at }}
       publisher_revision: ${{ steps.resolve.outputs.publisher_revision }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -448,7 +448,7 @@ jobs:
       contents: read
       actions: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -558,7 +558,7 @@ jobs:
       contents: write
       actions: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Download the candidate
         env:

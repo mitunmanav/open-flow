@@ -36,7 +36,7 @@ jobs:
     name: Build site
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Required even though nothing is compiled. It enables Pages for the
       # repository, authenticates the deployment, and exports base_path for

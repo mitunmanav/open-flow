@@ -147,39 +147,51 @@ button.ghost{border-color:var(--rule)}
 .row-actions{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.7rem}
 .row-actions button{font-size:.82rem;padding:.45rem .65rem}
 .empty{padding:1.5rem 0;color:var(--low);font-size:.9rem}
+/* The storage decision stated where it bites. A list that is shorter than the
+   number of dictations that happened must SAY it, or it reads as data loss. */
+.storage-note{border-left:2px solid var(--ink);padding:.55rem .7rem;margin:0 0 1rem;
+  font-size:.85rem;line-height:1.5;background:var(--panel)}
+.storage-note strong{display:block}
 .inset{border-top:1px solid var(--rule);padding:.85rem 0 0;margin-top:.85rem}
 
-/* ── A · ledger ──────────────────────────────────────────────────────────── */
+/* ── A · ledger ──────────────────────────────────────────────────────────────
+   Only the band is A. The entry itself is ONE renderer shared with B, which is
+   what removes A's recorded cost: there is no second representation to disagree
+   with the first, because there is only one representation. */
 .a-band{padding:.5rem 0 .7rem;border-bottom:2px solid var(--ink);display:flex;
   justify-content:space-between;align-items:baseline;gap:.5rem}
 .a-band.open{border-bottom-color:var(--accent)}
 .a-band .tag{color:var(--accent)}
 .a-card{border:2px solid var(--ink);padding:.85rem;margin-top:.85rem;background:var(--ground)}
-.a-card.settled{border-width:1px;border-color:var(--rule)}
 .a-card h4{margin:.3rem 0 .2rem}
-.a-row{border-top:1px solid var(--rule);padding:.8rem 0;display:flex;gap:.7rem;
-  align-items:flex-start;justify-content:space-between}
-.a-row:first-of-type{border-top:0;padding-top:.2rem}
-.a-row .body{min-width:0;flex:1}
-.a-row .title{font-weight:600}
-.sheet{border:2px solid var(--ink);margin-top:.85rem;padding:.9rem;background:var(--panel)}
 
-/* ── B · flat ────────────────────────────────────────────────────────────── */
-.b-list{display:flex;flex-direction:column}
-.b-item{border-top:1px solid var(--rule)}
-.b-item:first-child{border-top:0}
-.b-head{width:100%;text-align:left;border:0;padding:.85rem 0;display:flex;gap:.7rem;
+/* ── The shared entry ────────────────────────────────────────────────────────
+   A's hoisted card and B's expanding row are the same markup. `data-card` marks
+   the hoisted one, `data-item` the row; the audit reads those rather than the
+   variant, so a rule cannot pass in one variant and go unchecked in the other. */
+.entry{border-top:1px solid var(--rule)}
+.entry:first-child{border-top:0}
+.entry-head{width:100%;text-align:left;border:0;padding:.85rem 0;display:flex;gap:.7rem;
   align-items:flex-start;min-height:48px;background:transparent}
-.b-head:hover:not(:disabled){background:transparent}
-.b-head:focus-visible{outline-offset:-3px}
-.b-head .body{min-width:0;flex:1}
-.b-status{font-family:'JetBrains Mono',monospace;font-size:.68rem;letter-spacing:.05em;
+.entry-head:hover:not(:disabled){background:transparent}
+.entry-head:focus-visible{outline-offset:-3px}
+.entry-head .body{min-width:0;flex:1}
+/* The head meta line carries the where-line AND every extra mark, so it is the
+   one place `.when` must be allowed to wrap. The shared `.when` carries
+   `white-space:nowrap`, and inheriting it overflowed the document by 303px at
+   390px / 200% text. */
+.entry-head .when{white-space:normal;overflow-wrap:anywhere}
+.entry-status{font-family:'JetBrains Mono',monospace;font-size:.68rem;letter-spacing:.05em;
   text-transform:uppercase;white-space:nowrap;padding-top:.15rem}
-.b-status.set{color:var(--accent)}
-.b-status.ok{color:var(--low)}
-.b-open{border-left:2px solid var(--accent);padding-left:.7rem;margin:0 0 .9rem 0;
+.entry-status.set{color:var(--accent)}
+.entry-status.ok{color:var(--low)}
+.entry-open{border-left:2px solid var(--accent);padding-left:.7rem;margin:0 0 .9rem 0;
   background:var(--panel);padding:.8rem}
-.b-open .snippet{margin-bottom:.5rem}
+.entry-open .snippet{margin-bottom:.5rem}
+/* A hoisted row is not a disclosure. It is already open, because hoisting it and
+   then hiding the reason behind a triangle would reproduce variant C's mistake
+   inside variant A. */
+.a-card .where{margin:.35rem 0 0}
 
 /* ── C · inspector ───────────────────────────────────────────────────────── */
 /* C stacks on a narrow phone OR at large text. A two-pane layout that only
@@ -194,8 +206,12 @@ button.ghost{border-color:var(--rule)}
   .c-nav button{min-width:9rem;flex:none}
 }
 /* Container-relative: at 200% text the rem-based width query would keep a
-   two-pane layout on a 420px screen. Measure the pane's own inline size. */
-@container (max-width: 34rem){
+   two-pane layout on a 420px screen. Measure the pane's own inline size — and
+   in PIXELS, because a rem threshold is resolved at the root, so at 200% text
+   34rem means 1088px and the query stops matching at exactly the sizes it was
+   written for. The two-pane branch is reachable only while the phone is wide
+   enough in absolute terms; below that it stacks. */
+@container (max-width: 544px){
   .c-pane{grid-template-columns:minmax(0,1fr)}
   .c-nav{border-right:0;border-bottom:1px solid var(--rule);padding:0 0 .75rem;
     display:flex;gap:.75rem;overflow-x:auto}
@@ -266,6 +282,7 @@ ol.log li{margin-bottom:.35rem}
   <button id="theme">Dark theme</button>
   <button id="scale">Text 100%</button>
   <button id="nolines">Textless failures: hidden</button>
+  <button id="nostore">No-words policy: nothing persisted</button>
   <button id="fs">Audit</button>
 </div>
 
@@ -460,7 +477,8 @@ function actionNote(e, id){
 let rows = FIXTURES.map(e => Object.assign({}, e));
 let selected = 'e2';
 let openB = null;           // B's expanded row
-let showTextless = false;
+let showTextless = false;   // show the no-words CASE (what History holds, per policy)
+let persistTextless = false; // the rejected alternative: final_text NULLABLE
 let clipboard = null;
 let undo = null;
 let log = [];
@@ -469,7 +487,16 @@ let scenario = 0, step = 0;
 const el = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function note(m){ log.push(m); if (log.length > 40) log.shift(); }
-function visible(){ return rows.filter(e => showTextless || !e.textless); }
+/* The storage answer, applied rather than toggled. A failure that captured no
+   words writes NO ROW: `final_text` is NOT NULL in ticket 14, and a row with
+   nothing in it is not a recovery affordance, it is a tombstone. So by default
+   the textless entry is absent from History and the surface says so out loud.
+   The toggle flips to the REJECTED alternative (make `final_text` nullable and
+   keep the row) so the cost of that choice is visible rather than argued. */
+function visible(){ return rows.filter(e => (showTextless || persistTextless) || !e.textless); }
+function textlessExcluded(){
+  return !persistTextless && rows.some(e => e.textless) && !showTextless;
+}
 function byId(id){ return rows.find(e => e.id === id); }
 function sel(){ return byId(selected) || visible()[0]; }
 
@@ -543,6 +570,14 @@ function detailHTML(e){
   const v = view(e);
   const parts = [];
   parts.push('<div class="row-actions">' + marksHTML(e) + '<span class="when">' + esc(e.at) + '</span></div>');
+  /* Where the text is goes ABOVE the transcript, in words, on every open entry.
+     It was missing here, which meant variant B named no field and carried no
+     attempt count anywhere — the one settled rule the variants were explicitly
+     not allowed to disagree on. And it was missing from A's hoisted card too,
+     so the entries A exists to foreground were the only ones in History whose
+     reason and origin were both unreachable. */
+  const where = whereLine(e);
+  if (where) parts.push('<p class="mono muted where">' + esc(where) + '</p>');
   parts.push('<p class="snippet full" data-fulltext="' + e.id + '">' + (hasText(e) ? esc(text(e)) : '<span class="muted">No text was captured, so there is nothing to show.</span>') + '</p>');
   parts.push(limitsHTML(e));
   if (v.failure) parts.push('<p class="mono" style="margin-top:.6rem">Why: ' + esc(v.failure) + '</p>');
@@ -552,54 +587,78 @@ function detailHTML(e){
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   VARIANT A — ledger. Recovery is a SECTION; the archive has no actions.
-   ═════════════════════════════════════════════════════════════════════════ */
+   THE SHARED ENTRY. A's hoisted card and B's expanding row are this one
+   function with a different `hoisted` flag. That is the point: A's recorded cost
+   was that "Needs you" and "Everything" are two representations of one list which
+   can disagree, and the cheapest way to make disagreement impossible is not to
+   maintain two representations.
+   ═══════════════════════════════════════════════════════════════════════════ */
+function isNeeds(e){ return view(e).insertion === 'not-inserted' && !e.textless; }
+
+function entryHead(e){
+  const w = statusWords(view(e));
+  /* The head carries the status word, the transcript, the time, where the text
+     is and every extra mark — which is why `.when` must be allowed to wrap here
+     (see the CSS). */
+  return '<span class="entry-status ' + (w.some(m => m.tone === 'accent') ? 'set' : 'ok') + '">' + esc(w[0].label) + '</span>' +
+    '<span class="body"><span class="snippet" data-snippet="' + e.id + '">' + (hasText(e) ? esc(text(e).replace(/\n/g, ' ')) : esc(view(e).failure || 'No transcript')) + '</span>' +
+    '<span class="when" style="display:block;margin-top:.25rem">' + esc(e.at) + ' · ' + esc(whereLine(e) || 'No transcript') +
+    (w.length > 1 ? ' · ' + esc(w.slice(1).map(m => m.label).join(', ')) : '') + '</span></span>';
+}
+
+function entryHTML(e, hoisted){
+  /* A hoisted row is NOT a disclosure. It is already open, because hoisting an
+     entry and then hiding the reason behind a triangle would put variant C's
+     mistake inside variant A — and it would hide it in exactly the rows the band
+     exists to foreground. */
+  if (hoisted) return '<article class="a-card" data-card="' + e.id + '">' +
+    '<div class="entry-head-static">' + entryHead(e) + '</div>' +
+    '<div class="entry-open">' + detailHTML(e) + '</div></article>';
+  const open = openB === e.id;
+  return '<div class="entry" data-item="' + e.id + '">' +
+    '<button class="entry-head" data-open="' + e.id + '" aria-expanded="' + open + '">' + entryHead(e) + '</button>' +
+    (open ? '<div class="entry-open">' + detailHTML(e) + '</div>' : '') + '</div>';
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   VARIANT A — ledger. Recovery is a SECTION: recoverable entries are hoisted
+   above the archive and are not disclosures. Everything else is a collapsed row
+   you open. The whole difference from B is one boolean per row and one heading.
+   ═══════════════════════════════════════════════════════════════════════════ */
+/* The storage decision made visible. When a no-words failure writes no row, the
+   list is shorter than the number of dictations that happened, and saying so is
+   the honest thing — a silently short list reads as data loss. */
+function storageNoteHTML(){
+  if (!textlessExcluded()) return '';
+  const n = rows.filter(e => e.textless).length;
+  return '<p class="storage-note" data-note="storage"><strong>' + n + ' dictation' + (n > 1 ? 's' : '') +
+    ' captured no words and wrote no row.</strong> History keeps text, so a dictation that produced none is not an entry. ' +
+    'It was reported at the time; there is nothing here to recover, copy or delete.</p>';
+}
+
 function VariantA(){
   const list = visible();
-  const needs = list.filter(e => view(e).insertion === 'not-inserted' && !e.textless);
+  const needs = list.filter(isNeeds);
   const rest  = list.filter(e => needs.indexOf(e) < 0);
-  let h = '';
-  h += '<div class="a-band' + (needs.length ? ' open' : '') + '"><span class="tag">Needs you</span><span class="when">' + needs.length + '</span></div>';
+  let h = storageNoteHTML();
+  h += '<div class="a-band' + (needs.length ? ' open' + '" data-band="needs' : '') + '"><span class="tag">Needs you</span><span class="when">' + needs.length + '</span></div>';
   if (!needs.length) h += '<p class="empty">Nothing needs you. Every saved dictation either reached a field or you told us to stop asking.</p>';
-  needs.forEach(e => {
-    const v = view(e);
-    h += '<article class="a-card" data-card="' + e.id + '">' + marksHTML(e) +
-      '<h4>' + esc(e.at) + ' · ' + esc(v.failure ? 'not placed' : 'needs a field') + '</h4>' +
-      '<p class="snippet" data-snippet="' + e.id + '">' + esc(text(e)) + '</p>' +
-      '<p class="mono muted" style="margin:.5rem 0 0">' + esc(whereLine(e)) + '</p>' + limitsHTML(e) +
-      actionsHTML(e, 'ledger') + '</article>';
-  });
-  h += '<div class="a-band"><span class="tag">Everything</span><span class="when">' + rest.length + '</span></div>';
-  rest.forEach(e => {
-    const open = selected === e.id;
-    h += '<div class="a-row"><div class="body">' + marksHTML(e) +
-      '<div class="title">' + esc(e.at) + (hasText(e) ? ' · ' + esc(text(e).split('\n')[0].slice(0, 42)) : ' · ' + esc((view(e).failure || 'no words'))) + '</div>' +
-      '<div class="mono muted" style="margin-top:.2rem">' + esc(whereLine(e) || (hasText(e) ? '' : 'No transcript')) + '</div>' +
-      '<button style="margin-top:.45rem;font-size:.8rem;padding:.4rem .6rem" data-open="' + e.id + '">' + (open ? 'Hide' : 'Open') + '</button>' +
-      (open ? '<div class="sheet" data-entry="' + e.id + '">' + detailHTML(e) + '</div>' : '') + '</div></div>';
-  });
+  needs.forEach(e => { h += entryHTML(e, true); });
+  h += '<div class="a-band" data-band="rest"><span class="tag">Everything</span><span class="when">' + rest.length + '</span></div>';
+  rest.forEach(e => { h += entryHTML(e, false); });
   return h;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   VARIANT B — flat. Recovery is ORDINARY: one column, every row expands.
-   ═════════════════════════════════════════════════════════════════════════ */
+   VARIANT B — flat. Recovery is ORDINARY: one chronological column, no hoisting,
+   every row expands in place. This is the control. Its weakness is visible on
+   purpose — a `Not inserted` row and an `Inserted` row differ only by a small
+   mono word at the head, and a recoverable row sits wherever the clock put it.
+   ═══════════════════════════════════════════════════════════════════════════ */
 function VariantB(){
-  let h = '<div class="b-list">';
-  visible().forEach(e => {
-    const v = view(e);
-    const open = openB === e.id;
-    const w = statusWords(v);
-    h += '<div class="b-item" data-item="' + e.id + '">' +
-      '<button class="b-head" data-open="' + e.id + '" aria-expanded="' + open + '">' +
-        '<span class="b-status ' + (w.some(m => m.tone === 'accent') ? 'set' : 'ok') + '">' + esc(w[0].label) + '</span>' +
-        '<span class="body"><span class="snippet" data-snippet="' + e.id + '">' + (hasText(e) ? esc(text(e).replace(/\n/g, ' ')) : esc(v.failure || 'No transcript')) + '</span>' +
-        '<span class="when" style="display:block;margin-top:.25rem">' + esc(e.at) + ' · ' + esc((v.where ? v.where.app : 'no field')) + (w.length > 1 ? ' · ' + esc(w.slice(1).map(m => m.label).join(', ')) : '') + '</span></span>' +
-      '</button>';
-    if (open) h += '<div class="b-open">' + detailHTML(e) + '</div>';
-    h += '</div>';
-  });
-  if (!visible().length) h += '</div><p class="empty">History is empty.</p>';
+  let h = storageNoteHTML();
+  visible().forEach(e => { h += entryHTML(e, false); });
+  if (!visible().length) h += '<p class="empty">History is empty.</p>';
   return h;
 }
 
@@ -609,7 +668,7 @@ function VariantB(){
 function VariantC(){
   const list = visible();
   const e = sel();
-  let h = '<div class="c-pane"><nav class="c-nav" aria-label="History entries">';
+  let h = storageNoteHTML() + '<div class="c-pane"><nav class="c-nav" aria-label="History entries">';
   list.forEach(x => {
     const w = statusWords(x);
     h += '<button data-open="' + x.id + '" aria-current="' + (x.id === (e && e.id)) + '">' +
@@ -670,18 +729,16 @@ function audit(){
      LIMITS.place, so the check agreed with itself by construction and could
      not fail. A check that cannot fail is worse than no check.
 
-     Scope is the entry wherever this variant puts it: A's ledger card, A's or
-     B's expanded row, C's detail pane. An earlier version fell back to
-     #surface, which audited the whole list whenever the selected entry was in
-     the collapsed archive — reporting on seven entries while claiming to be
-     about one. If the entry is genuinely not on screen, say THAT rather than
-     implying History is empty. */
-  /* B: the expanded pane plus its own collapsed head, since B carries the
-     status word in the head row rather than in a chip. */
-  const bItem = document.querySelector('.b-item[data-item="' + e.id + '"]');
+     Scope is the entry wherever this variant puts it: A's hoisted card, the
+     expanded row in A or B (head included, since B carries the status word in
+     the head row rather than in a chip), or C's detail pane. An earlier version
+     fell back to #surface, which audited the whole list whenever the selected
+     entry was in the collapsed archive — reporting on seven entries while
+     claiming to be about one. If the entry is genuinely not on screen, say THAT
+     rather than implying History is empty. */
+  const item = document.querySelector('.entry[data-item="' + e.id + '"]');
   const scope = document.querySelector('[data-card="' + e.id + '"]')
-    || (bItem && bItem.querySelector('.b-open') ? bItem : null)
-    || document.querySelector('.sheet[data-entry="' + e.id + '"]')
+    || (item && item.querySelector('.entry-open') ? item : null)
     || (variant === 'C' ? document.querySelector('.c-detail') : null);
   if (!scope){
     el('verdict').className = 'verdict';
@@ -694,17 +751,36 @@ function audit(){
   const insertedHere = v.insertion === 'inserted';
 
   const lies = [];
+
+  /* 0. The two facts are orthogonal, so an entry bad at BOTH must be able to
+     say so in one row. Read the marks off the DOM rather than the model: a
+     single enum asked to answer two questions is a lie about what it
+     controls, and the render is where that lie would show. */
+  if (statusWords(v).some(m => m.k === 'unprocessed' || m.k === 'notRun')
+      && !scope.querySelector('[data-mark="unprocessed"],[data-mark="notRun"]'))
+    lies.push('the entry is unprocessed in the stored record but no mark says so on screen');
+
   // 1. Does the row show a Place text button where nothing was ever inserted?
   if (!insertedHere && hasPlace && !/Nothing is transcribed or cleaned up again/.test(shown))
     lies.push('Place text is offered without saying it does not re-transcribe or re-refine');
   // 2. Does a row for text that is NOT in a field read as though it were?
   if (!insertedHere && /\bIn [A-Z]/.test(shown) && !/Not in any field|Nowhere|kept, not placed/.test(shown))
     lies.push('row names a field for text that is not in one');
-  // 3. Is an unprocessed entry presented as an insertion failure, or vice versa?
+  /* 3. Is an unprocessed entry presented as an insertion failure?
+     The first version of this rule tested the rendered row for "not inserted"
+     and then guarded it with the same test case-insensitively — `P && !P`,
+     which is unsatisfiable, so it could never fire and the honest row and the
+     damaged one looked identical. The asymmetry it was reaching for is that
+     the chip is set in `text-transform: uppercase`, so the row's own rendered
+     text says NOT INSERTED in capitals. Read the mark's data-k (which the CSS
+     cannot change) and require an unprocessed entry to keep its insertion
+     status distinct from its refinement status: a row that says the cleanup
+     ran or failed must also say, in its own mark, whether the text landed. */
   const marked = statusWords(v).some(m => m.k === 'unprocessed');
   const saysFailed = /not inserted/i.test(shown);
-  if (marked && saysFailed && !/Not inserted/i.test(shown))
-    lies.push('unprocessed entry is shown as an insertion failure');
+  const insertionMark = scope.querySelector('[data-mark="inserted"],[data-mark="notInserted"],[data-mark="textless"]');
+  if (marked && saysFailed && !insertionMark)
+    lies.push('unprocessed entry is shown as an insertion failure without saying so in a mark');
   // 4. Dismiss offered with no destructive alternative beside it.
   if (offered.includes('Dismiss') && !offered.includes('Delete'))
     lies.push('Dismiss offered with no Delete beside it');
@@ -714,6 +790,22 @@ function audit(){
   // 6. Anything offering playback. There is never audio to play.
   const play = [...scope.querySelectorAll('button,a')].filter(x => /play|listen|replay|recording/i.test(x.textContent));
   if (play.length) lies.push('offers audio playback');
+  // 7. A row that is actionable must not also be in the settled archive, and the
+  //    band's own count must match the rows it actually contains. A's recorded
+  //    cost was that the two bands are a second representation which can
+  //    disagree with the first. Read both numbers off the DOM: the count is
+  //    compared to the rendered cards, not to `needs.length`.
+  if (variant === 'A'){
+    const bandCards = [...document.querySelectorAll('[data-card]')].map(c => c.dataset.card);
+    const shownN = document.querySelector('.a-band .when');
+    const headerN = shownN ? parseInt(shownN.textContent, 10) : NaN;
+    if (!isNaN(headerN) && headerN !== bandCards.length)
+      lies.push('the "Needs you" count says ' + headerN + ' but the band renders ' + bandCards.length);
+    if (!isNeeds(e) && bandCards.indexOf(e.id) >= 0)
+      lies.push('an entry that needs nothing is hoisted into the "Needs you" band');
+    if (isNeeds(e) && offered.length === 0 && !bandCards.includes(e.id))
+      lies.push('an entry that needs the user is not surfaced anywhere');
+  }
 
   el('verdict').className = 'verdict' + (lies.length ? ' bad' : '');
   el('verdict').textContent = lies.length
@@ -890,6 +982,16 @@ el('nolines').onclick = () => {
   showTextless = !showTextless;
   el('nolines').textContent = 'Textless failures: ' + (showTextless ? 'shown' : 'hidden');
   if (!showTextless && sel() && sel().textless) selected = 'e2';
+  render();
+};
+el('nostore').onclick = () => {
+  persistTextless = !persistTextless;
+  el('nostore').textContent = persistTextless
+    ? 'No-words policy: row kept (final_text nullable)'
+    : 'No-words policy: nothing persisted';
+  if (!persistTextless && sel() && sel().textless) selected = 'e2';
+  if (persistTextless) showTextless = false;
+  el('nolines').textContent = 'Textless failures: ' + (showTextless ? 'shown' : 'hidden');
   render();
 };
 el('fs').onclick = async () => {

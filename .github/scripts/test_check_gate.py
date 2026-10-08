@@ -262,6 +262,29 @@ class GateTest(unittest.TestCase):
         }
         self.assertBlocked(self.run_gate(record(classes=classes)), "G99")
 
+    def test_a_class_that_never_reached_the_scenarios_qualified_nothing(self):
+        # A hard-failed class and an unknown-answer class both return before the
+        # per-scenario stage, so their per-scenario lists are empty. The row must
+        # read 0/15 — a row that printed 15/15 beside "invalid" or "unresolved" is
+        # the green-looking number this gate exists to refuse.
+        def row(classes):
+            return next(
+                r
+                for r in check_gate._coverage_rows(self.run_gate(record(classes=classes)))
+                if "pixel-like" in r
+            )
+
+        invalid = full_coverage()
+        invalid["pixel-like"]["scenarios"]["G99"] = {
+            "abi": "arm64-v8a",
+            "runs": ["pass", "pass", "pass"],
+        }
+        self.assertIn("| invalid | 0/15 |", row(invalid))
+
+        unresolved = full_coverage()
+        unresolved["pixel-like"]["hostility"]["background_microphone"] = "unknown"
+        self.assertIn("| unresolved | 0/15 |", row(unresolved))
+
     # --- identity ----------------------------------------------------------
 
     def test_null_identity_cannot_qualify(self):

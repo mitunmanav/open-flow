@@ -117,6 +117,18 @@ class GateScenarioRuleTest(unittest.TestCase):
         self.assertIn('"<device class>"', self.text)
         self.assertEqual(self.findings(), [])
 
+    def test_the_example_fence_is_not_read_when_the_live_block_is_removed(self):
+        # Delete the live block and the rule must report the section as recordless,
+        # not validate the populated example under its `###` subsection as if it were
+        # the record. A section whose record was removed must not pass because a
+        # worked example is still sitting below it.
+        head, _, rest = self.text.partition("```json")
+        _, _, tail = rest.partition("```")
+        without_live = head + tail
+        self.assertIn("### The shape", without_live)
+        self.assertNotIn('"as_of": null', without_live)
+        self.assertIn("gate-status-missing", self.rules(without_live))
+
     def test_a_missing_gate_status_section_fails_loudly(self):
         drifted = self.text.split("## Gate status")[0]
         self.assertIn("gate-status-missing", self.rules(drifted))

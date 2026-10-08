@@ -74,7 +74,7 @@ jobs:
 
       - name: Upload debug APK
         if: steps.probe.outputs.gradle == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: openflow-debug-apk
           path: app/build/outputs/apk/debug/*.apk

@@ -301,6 +301,7 @@ class ClassCoverage:
         self.not_passing: list[str] = []
         self.excluded: list[str] = []
         self.unresolved = False
+        self.invalid = False
         self.notes: list[str] = []
 
     def status(self) -> str:
@@ -308,6 +309,8 @@ class ClassCoverage:
             return "complete"
         if self.unresolved:
             return "unresolved"
+        if self.invalid:
+            return "invalid"
         return "incomplete"
 
     def reason(self) -> str:
@@ -320,6 +323,8 @@ class ClassCoverage:
             parts.append("excluded from coverage: " + ", ".join(self.excluded))
         if self.unresolved:
             parts.append("Hostility Profile is incomplete, so the device carries no class")
+        if self.invalid:
+            parts.append("this class's record is invalid, so none of its scenarios qualified")
         return "; ".join(parts) or "incomplete"
 
 
@@ -420,6 +425,11 @@ def _resolve_class(
     report: Report,
 ) -> ClassCoverage:
     coverage = ClassCoverage(key)
+    # Invalid until the per-scenario stage is reached. Every hard-failure path below
+    # returns from above that stage with the per-scenario lists still empty, and a
+    # class that never reached it has qualified nothing — so its coverage row reads
+    # 0/15 rather than the full total.
+    coverage.invalid = True
     if not isinstance(entry, dict):
         report.fail(f"class '{key}' is not a JSON object")
         return coverage
@@ -479,6 +489,9 @@ def _resolve_class(
         )
         return coverage
 
+    # Past every hard-failure gate, so the per-scenario lists below are now the
+    # truth about what qualified.
+    coverage.invalid = False
     for scenario_id in required_ids:
         cell = scenarios.get(scenario_id)
         if not isinstance(cell, dict):
@@ -499,10 +512,10 @@ def _resolve_class(
             continue
         if passes >= RUNS_TO_PASS:
             continue
-        if passes == 0 and len(cell.get("runs") or []) < RUNS_PER_CELL:
-            coverage.missing.append(scenario_id)
-        else:
-            coverage.not_passing.append(f"{scenario_id} ({passes}/3)")
+        # A cell with fewer than three recorded runs never reaches here — _check_runs
+        # returns None for it and it is excluded above. What is left to report is a
+        # cell that ran three times and did not pass two of them.
+        coverage.not_passing.append(f"{scenario_id} ({passes}/3)")
 
     coverage.complete = not coverage.missing and not coverage.not_passing and not coverage.excluded
     return coverage
@@ -593,7 +606,7 @@ def evaluate(
     report = Report(tag)
     report.record = record
     report.waiver_reason = waiver_reason
-    report.required_classes = len(CLASS_KEYS) if identity["major"] >= SHIPPED_FROM_MAJOR else 1
+    report.required_classes = required_class_bar(tag)
     report.bar = (
         f"Shipped: every required scenario on all {report.required_classes} device classes"
         if report.required_classes == len(CLASS_KEYS)
@@ -711,8 +724,12 @@ def _coverage_rows(report: Report) -> list[str]:
         else:
             note = coverage.reason()
         # An excluded cell is not counted as covered, so the numerator only ever names
-        # required scenarios that actually qualified.
-        green = total - len(coverage.missing) - len(coverage.not_passing) - len(coverage.excluded)
+        # required scenarios that actually qualified. A class that never reached the
+        # per-scenario stage qualified nothing, whatever the registry's total.
+        if coverage.invalid:
+            green = 0
+        else:
+            green = total - len(coverage.missing) - len(coverage.not_passing) - len(coverage.excluded)
         rows.append(f"| `{coverage.key}` | {coverage.status()} | {green}/{total} | {note} |")
     return rows
 

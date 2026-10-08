@@ -188,10 +188,11 @@ object BenchmarkManifestReader {
      * `OnlineModelConfig` / `OfflineModelConfig` rather than the family config,
      * and a recognizer built without it is built wrong rather than built loosely.
      *
-     * Moonshine takes either a split `decoder` (uncached + cached, v1 releases)
-     * or a `mergedDecoder` (v2 releases) depending on what the release ships —
-     * which of the two is a property of the download, not of the family, so the
-     * choice is the manifest's and the harness reports which shape it used.
+     * Moonshine's decoder is deliberately absent here: its constructor takes **five**
+     * paths, of which the releases use either the split `uncachedDecoder` +
+     * `cachedDecoder` pair or a single `mergedDecoder`. Which of the two is a property
+     * of the download, not of the family, so it is validated separately below rather than
+     * being reduced to one role name that would fit neither release.
      */
     val REQUIRED_ROLES: Map<RecognizerFamily, Set<String>> = mapOf(
         RecognizerFamily.ONLINE_TRANSDUCER to setOf("encoder", "decoder", "joiner", "tokens"),
@@ -202,8 +203,21 @@ object BenchmarkManifestReader {
         RecognizerFamily.NEMO_CTC to setOf("model", "tokens"),
     )
 
-    /** Roles that satisfy Moonshine's decoder, one of which a release will have. */
-    val MOONSHINE_DECODER_ROLES = setOf("decoder", "merged_decoder")
+    /**
+     * The two shapes Moonshine's decoder can take, one of which a release will have.
+     *
+     * `merged_decoder` for the v2 releases that ship one file, or **both** of
+     * `uncached_decoder` and `cached_decoder` for the v1 releases that ship the pair.
+     * A manifest that names a single `decoder` file for Moonshine is refused rather than
+     * quietly treated as one of them.
+     */
+    val MOONSHINE_MERGED_DECODER_ROLE = "merged_decoder"
+    val MOONSHINE_SPLIT_DECODER_ROLES = setOf("uncached_decoder", "cached_decoder")
+
+    /** Every optional role, for the template and the reader. */
+    val OPTIONAL_ROLES: Map<RecognizerFamily, Set<String>> = mapOf(
+        RecognizerFamily.MOONSHINE to setOf(MOONSHINE_MERGED_DECODER_ROLE) + MOONSHINE_SPLIT_DECODER_ROLES,
+    )
 
     /** The plan's floor on measured iterations. */
     const val MIN_MEASURED_ITERATIONS = 20
@@ -401,20 +415,29 @@ object BenchmarkManifestReader {
             val candidate = ModelMatrix.require(modelKey("id") ?: throw BenchmarkConfigurationException("model.$n has no id."))
 
             val required = REQUIRED_ROLES.getValue(candidate.family)
-            val optionalRoles = if (candidate.family == RecognizerFamily.MOONSHINE) MOONSHINE_DECODER_ROLES else emptySet()
+            val optionalRoles = OPTIONAL_ROLES[candidate.family].orEmpty()
             val files = buildMap {
                 for (role in required) put(role, requiredRole(role))
                 for (role in optionalRoles) modelKey(role)?.takeIf { it.isNotEmpty() }?.let { put(role, it) }
             }
 
-            // A Moonshine entry with neither decoder shape is the one case where
-            // the required-role check above passes and the recognizer would still
-            // be built wrong, because its constructor takes the split pair.
-            if (candidate.family == RecognizerFamily.MOONSHINE && !files.keys.any { it in MOONSHINE_DECODER_ROLES }) {
-                throw BenchmarkConfigurationException(
-                    "model.$n (${candidate.id}) needs a 'decoder' (v1 releases ship uncached + cached) or a " +
-                        "'merged_decoder' (v2 releases ship one file). Which of the two is a property of the release."
-                )
+            // A Moonshine entry with neither decoder shape is the one case where the
+            // required-role check above passes and the recognizer would still be built
+            // wrong: `OfflineMoonshineModelConfig` takes five paths, and a recognizer
+            // handed three of them will not transcribe.
+            if (candidate.family == RecognizerFamily.MOONSHINE) {
+                val hasMerged = MOONSHINE_MERGED_DECODER_ROLE in files
+                val hasSplit = MOONSHINE_SPLIT_DECODER_ROLES.all { it in files }
+                if (!hasMerged && !hasSplit) {
+                    val named = MOONSHINE_SPLIT_DECODER_ROLES.filter { it in files }
+                    throw BenchmarkConfigurationException(
+                        "model.$n (${candidate.id}) needs either a '$MOONSHINE_MERGED_DECODER_ROLE' (releases " +
+                            "that ship one merged decoder file) or BOTH " +
+                            MOONSHINE_SPLIT_DECODER_ROLES.sorted().joinToString(" and ") { "'$it'" } +
+                            " (releases that ship the split pair). Which of the two is a property of the release" +
+                            (if (named.isEmpty()) "." else ", and a single '${named.single()}' is neither of them.")
+                    )
+                }
             }
 
             ModelEntry(
@@ -517,9 +540,12 @@ object BenchmarkManifestReader {
                 appendLine("model.$n.$role = ")
             }
             if (candidate.family == RecognizerFamily.MOONSHINE) {
-                appendLine("# Exactly one of these two, matching what the release ships:")
-                appendLine("model.$n.decoder = ")
+                appendLine("# Exactly one decoder shape, matching what the release actually ships:")
+                appendLine("#   merged_decoder                      — v2 releases, one file")
+                appendLine("#   uncached_decoder and cached_decoder — v1 releases, the split pair (both)")
                 appendLine("model.$n.merged_decoder = ")
+                appendLine("model.$n.uncached_decoder = ")
+                appendLine("model.$n.cached_decoder = ")
             }
             if (candidate.family == RecognizerFamily.WHISPER) {
                 appendLine("model.$n.language = en")

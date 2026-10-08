@@ -1,5 +1,7 @@
 package dev.openflow.dictation.providers.sherpa.benchmark
 
+import java.util.Locale
+
 /**
  * One model, at one thread count, on one device tier: everything measured about
  * it.
@@ -25,7 +27,22 @@ data class CellResult(
     val partialIntervalMs: Double?,
     /** Endpoint or VAD-segment close → Final available. The origin the plan's ~1 s bar names. */
     val endpointToFinalMs: Double?,
-    /** End of the user's speech → Final available. The glossary's Final Latency, and the number a user feels. */
+    /**
+     * End of the utterance's own audio → Final available, in wall clock.
+     *
+     * `null` on an online cell, by design: `OnlineStreamingPass` reports `null` for it because
+     * an online recognizer's endpoint result *is* its Final, so the window is satisfied by
+     * construction and a number there would be a pass nobody measured.
+     *
+     * **This is not literally the glossary's Final Latency, and it is the closest stand-in a
+     * fixed eval set allows.** `GLOSSARY.md` defines Final Latency as *end of the user's
+     * speech* → Final, and a fixed WAV file does not record where the user stopped speaking —
+     * only where the recording stopped. What is measurable is the span from the last sample of
+     * the file to the Final, which is an **upper bound** on the glossary's quantity, and which
+     * includes the wait any trailing silence in the file already accounts for. Reported rather
+     * than estimated the other way: padding a file to look like it ends mid-speech would be
+     * inventing evidence.
+     */
     val speechEndToFinalMs: Double?,
     val errorRate: ErrorRate?,
     val peakRssBytes: Long?,
@@ -138,8 +155,18 @@ data class RunReport(
             append('"')
         }
 
-        /** Fixed-decimal formatting, so a report does not vary with the platform locale. */
-        fun round(value: Double, decimals: Int): String = "%1$.${decimals}f".format(value)
+        /**
+         * Fixed-decimal formatting, so a report does not vary with the platform locale.
+         *
+         * `Locale.ROOT` is passed explicitly, and it is not decoration. `String.format` without
+         * a locale uses the default one, and Android's default follows the device's language
+         * settings — so on a phone set to a locale whose decimal separator is a comma, every
+         * number in this report would be written `0,250`, which is not JSON and would cost the
+         * whole run. The sentence above used to claim locale independence this implementation did
+         * not have.
+         */
+        fun round(value: Double, decimals: Int): String =
+            "%1$.${decimals}f".format(Locale.ROOT, value)
 
         fun numberJson(name: String, value: Double?, decimals: Int): String =
             if (value == null) "      \"$name\": null" else "      \"$name\": ${round(value, decimals)}"

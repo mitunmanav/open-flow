@@ -217,57 +217,65 @@ object WordErrorRate {
      * identical in result.
      */
     internal fun editDistance(reference: List<String>, hypothesis: List<String>): Triple<Int, Int, Int> {
-        var prev = IntArray(hypothesis.size + 1) { it }
-        var curr = IntArray(hypothesis.size + 1)
+        val n = reference.size
+        val m = hypothesis.size
 
-        for (i in 1..reference.size) {
-            curr[0] = i
-            for (j in 1..hypothesis.size) {
-                curr[j] = if (reference[i - 1] == hypothesis[j - 1]) {
-                    prev[j - 1]
-                } else {
-                    // substitution, deletion, insertion
-                    minOf(prev[j - 1], curr[j - 1], prev[j]) + 1
+        // `previousCost[j]` is the best cost of aligning reference[0..i) with hypothesis[0..j);
+        // `previousOp[j]` is the operation taken to reach it — DIAGONAL, DELETION or INSERTION.
+        // Cost and operation travel together in the same pass: attributing the distance afterwards
+        // is a second, separate algorithm that can disagree with the first, and a disagreement
+        // shows up as an error rate computed over a different alignment than the distance
+        // describes. The earlier version of this function ran the recurrence twice, the second
+        // pass comparing operation codes as if they were costs, and scored `kitten` → `sitting`
+        // at 8 errors instead of 3. `WordErrorRateTest.theEditDistanceIsLevenshtein` exists
+        // because of that.
+        var previousCost = IntArray(m + 1) { it }
+        var previousOp = IntArray(m + 1) { INSERTION } // every hypothesis char unmatched
+        var currentCost = IntArray(m + 1)
+        var currentOp = IntArray(m + 1)
+
+        for (i in 1..n) {
+            currentCost[0] = i
+            currentOp[0] = DELETION // every reference char unmatched
+            for (j in 1..m) {
+                val match = reference[i - 1] == hypothesis[j - 1]
+                val diagonal = previousCost[j - 1] + if (match) 0 else 1
+                val deletion = previousCost[j] + 1     // reference char consumed, no hypothesis char
+                val insertion = currentCost[j - 1] + 1 // hypothesis char consumed, no reference char
+                val best = minOf(diagonal, deletion, insertion)
+                currentCost[j] = best
+                // Ties break toward the diagonal and then toward the deletion, so the attribution
+                // is deterministic: the same two token lists always give the same three counts,
+                // which is what makes a published number reproducible.
+                currentOp[j] = when {
+                    best == diagonal -> DIAGONAL
+                    best == deletion -> DELETION
+                    else -> INSERTION
                 }
             }
-            val swap = prev
-            prev = curr
-            curr = swap
+            val costSwap = previousCost; previousCost = currentCost; currentCost = costSwap
+            val opSwap = previousOp; previousOp = currentOp; currentOp = opSwap
         }
 
-        // Recover the operation mix by walking one more pass over the same
-        // recurrence, this time keeping the choice. The distance alone is already
-        // known from the loop above; this pass exists only to attribute it, and it
-        // is O(n·m) time and O(m) memory like the first.
-        val back = Array(reference.size + 1) { IntArray(hypothesis.size + 1) }
-        for (i in 0..reference.size) {
-            for (j in 0..hypothesis.size) {
-                back[i][j] = when {
-                    i == 0 && j == 0 -> 0
-                    i == 0 -> 2 // insertion
-                    j == 0 -> 1 // deletion
-                    reference[i - 1] == hypothesis[j - 1] -> back[i - 1][j - 1]
-                    else -> when (minOf(back[i - 1][j - 1], back[i - 1][j], back[i][j - 1])) {
-                        back[i - 1][j - 1] -> 0 // substitution
-                        back[i - 1][j] -> 1 // deletion
-                        else -> 2 // insertion
-                    }
-                }
-            }
-        }
-
-        var subs = 0
-        var dels = 0
-        var ins = 0
-        var i = reference.size
-        var j = hypothesis.size
+        var substitutions = 0
+        var deletions = 0
+        var insertions = 0
+        var i = n
+        var j = m
         while (i > 0 || j > 0) {
-            when (back[i][j]) {
-                0 -> { if (i > 0 && j > 0 && reference[i - 1] != hypothesis[j - 1]) subs++; i--; j-- }
-                1 -> { dels++; i-- }
-                else -> { ins++; j-- }
+            when (previousOp[j]) {
+                DIAGONAL -> {
+                    if (reference[i - 1] != hypothesis[j - 1]) substitutions++
+                    i--; j--
+                }
+                DELETION -> { deletions++; i-- }
+                else -> { insertions++; j-- }
             }
         }
-        return Triple(subs, dels, ins)
+        return Triple(substitutions, deletions, insertions)
     }
+
+    private const val DIAGONAL = 0
+    private const val DELETION = 1
+    private const val INSERTION = 2
 }

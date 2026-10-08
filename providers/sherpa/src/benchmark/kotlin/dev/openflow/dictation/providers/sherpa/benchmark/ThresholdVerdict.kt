@@ -138,7 +138,12 @@ object ThresholdVerdictEvaluator {
                     perCell(cells, "endpoint→Final", "≤ ${Thresholds.FINAL_AFTER_ENDPOINT_MAX_MS.toInt()} ms", Thresholds.FINAL_AFTER_ENDPOINT_MAX_MS, { it.endpointToFinalMs }) { "${it.toLong()} ms" }
                 )
                 addAll(
-                    perCell(cells, "peak RSS", "≤ 1 GB", Thresholds.PEAK_RSS_MAX_BYTES.toDouble(), { it.peakRssBytes?.toDouble() }) { "%.0f MB".format(it / 1_048_576.0) }
+                    // `Locale.ROOT` because this string is compared against a threshold rendered
+                    // in a machine-readable report, and a device set to a comma-decimal locale
+                    // would otherwise write `410 MB` as `410,0 MB` and break the parse.
+                    perCell(cells, "peak RSS", "≤ 1 GB", Thresholds.PEAK_RSS_MAX_BYTES.toDouble(), { it.peakRssBytes?.toDouble() }) {
+                        "%.0f MB".format(java.util.Locale.ROOT, it / 1_048_576.0)
+                    }
                 )
                 add(werRegressionCheck(cells))
                 // Two thresholds the plan states that have no column above. Said so
@@ -265,6 +270,17 @@ object ThresholdVerdictEvaluator {
                 "${cell.candidate.family.scoringStrategy} with one result per segment, so it has no first " +
                 "partial to measure. That is a property of the family, not a gap in the run — which is why it " +
                 "is recorded as not-applicable instead of leaving the row out."
+        "endpoint→Final" ->
+            if (cell.candidate.family.isStreaming) {
+                "An online recognizer's endpoint result IS its Final: isEndpoint() is true and getResult() " +
+                    "already holds the finished text, so this window is a fraction of a millisecond by " +
+                    "construction. Reported as not-applicable rather than as a pass — a bound every cell in a " +
+                    "family clears automatically is not evidence about the model, and recording it as met would " +
+                    "put a green tick in the results document for something nobody measured. The online " +
+                    "figure a reader actually wants is the next column, speech-end→Final, which is measured."
+            } else {
+                "${cell.label} produced no value for this metric, so the run says so rather than omitting the row."
+            }
         else ->
             "${cell.label} produced no value for this metric, so the run says so rather than omitting the row."
     }
@@ -281,42 +297,58 @@ object ThresholdVerdictEvaluator {
      */
     private fun werRegressionCheck(cells: List<CellResult>): ThresholdCheck {
         val threshold = "regression vs the larger model in family ≤ +${Thresholds.WER_REGRESSION_MAX_ABSOLUTE_POINTS} points, absolute"
-        val verdicts = mutableListOf<String>()
+
+        /** One comparison. A null [delta] means the pair could not be compared, which is not the same as passing. */
+        class Comparison(val text: String, val delta: Double?)
+
+        val comparisons = mutableListOf<Comparison>()
 
         for (candidate in ModelMatrix.PLANNED) {
             val referenceId = candidate.qualityReferenceId ?: continue
-            val smaller = cells.filter { it.candidate.id == candidate.id }.firstOrNull()?.errorRate
-            val larger = cells.filter { it.candidate.id == referenceId }.firstOrNull()?.errorRate
+            val smaller = cells.firstOrNull { it.candidate.id == candidate.id }?.errorRate
+            val larger = cells.firstOrNull { it.candidate.id == referenceId }?.errorRate
             if (smaller == null || larger == null) {
-                verdicts += "${candidate.displayName}: unverifiable (needs $referenceId in the same run)"
+                comparisons += Comparison(
+                    "${candidate.displayName}: unverifiable (needs $referenceId scored in the same run)",
+                    null,
+                )
                 continue
             }
             val delta = smaller.errorPercent - larger.errorPercent
-            verdicts += "${candidate.displayName}: ${signed(round2(delta))} pts vs $referenceId"
+            comparisons += Comparison(
+                "${candidate.displayName}: ${signed(round2(delta))} pts vs $referenceId",
+                delta,
+            )
         }
 
-        val failures = verdicts.filter { it.startsWith("unverifiable") }.size
-        val over = verdicts.count { verdict ->
-            val delta = Regex("([+-][0-9.]+) pts").find(verdict)?.groupValues?.get(1)?.toDoubleOrNull()
-            delta != null && delta > Thresholds.WER_REGRESSION_MAX_ABSOLUTE_POINTS
-        }
+        // Counted from the data, not from the rendered strings. An earlier version matched
+        // `verdicts.filter { it.startsWith("unverifiable") }` against strings that begin with the
+        // candidate's display name, so the count was always zero and a run with **no comparison
+        // available at all** reported MET — precisely the substitution this check exists to
+        // refuse. `ThresholdVerdictTest.aWerRuleWithNoRunnableQualityReferenceIsUnverifiableNotPassed`
+        // exists because of that.
+        val unverifiable = comparisons.count { it.delta == null }
+        val over = comparisons.count { (it.delta ?: 0.0) > Thresholds.WER_REGRESSION_MAX_ABSOLUTE_POINTS }
 
         val outcome = when {
-            verdicts.isEmpty() -> ThresholdOutcome.UNVERIFIABLE
+            comparisons.isEmpty() -> ThresholdOutcome.UNVERIFIABLE
             over > 0 -> ThresholdOutcome.NOT_MET
-            failures > 0 -> ThresholdOutcome.UNVERIFIABLE
+            unverifiable > 0 -> ThresholdOutcome.UNVERIFIABLE
             else -> ThresholdOutcome.MET
         }
 
         return ThresholdCheck(
             name = "WER regression",
             threshold = threshold,
-            measured = if (verdicts.isEmpty()) "no comparable pair" else "${verdicts.size - failures} compared, $over over",
+            measured = when {
+                comparisons.isEmpty() -> "no comparable pair"
+                else -> "${comparisons.size - unverifiable} compared, $over over, $unverifiable unverifiable"
+            },
             outcome = outcome,
-            note = if (verdicts.isEmpty()) {
+            note = if (comparisons.isEmpty()) {
                 "No candidate in this run has a larger sibling in the matrix, so the rule has nothing to compare."
             } else {
-                verdicts.joinToString("; ")
+                comparisons.joinToString("; ") { it.text }
             },
         )
     }
@@ -335,7 +367,9 @@ object ThresholdVerdictEvaluator {
         }
     }
 
-    private fun round2(v: Double): String = "%.2f".format(v)
-    private fun round3(v: Double): String = "%.3f".format(v)
+    // `Locale.ROOT` on both: a verdict's `measured` strings are copied into the report and
+    // compared against it, and a comma decimal separator would make the two disagree.
+    private fun round2(v: Double): String = "%.2f".format(java.util.Locale.ROOT, v)
+    private fun round3(v: Double): String = "%.3f".format(java.util.Locale.ROOT, v)
     private fun signed(v: String): String = if (v.startsWith("-")) v else "+$v"
 }
